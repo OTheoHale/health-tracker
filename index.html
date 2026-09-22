@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Health Tracker — Body Import Preview</title>
+<title>Health Tracker</title>
 <style>
 :root, :root[data-theme="dark"]{
   --bg:#0f2a21; --panel:rgba(8,32,25,.78); --panel-2:rgba(14,44,35,.9); --sunk:rgba(255,255,255,.06); --line:rgba(243,239,227,.13); --line-strong:rgba(243,239,227,.28);
@@ -832,7 +832,7 @@ addEventListener('load', () => {
     const env = typeof window.__healthTrackerDocumentToken === 'string' ? 'Mac app' : 'Browser';
     const storeKind = preview ? 'synthetic preview · nothing saved' : personalReview ? 'personal review store' : syntheticTest ? 'persistent invented-data store' : 'your saved local store';
     $('#storeNote').textContent += ' Body records are saved separately on this Mac; use Profile → Export model + four images for their backup.';
-    $('#buildIdentity').innerHTML = '<b>Build</b>' + esc(typeof BUILD === 'string' ? BUILD : 'unknown') + ' · ' + esc((window.HealthDelivery && window.HealthDelivery.mode) || 'local') + '<br>' + esc(env + ' · ' + storeKind) +
+    $('#buildIdentity').innerHTML = '<b>Build</b>' + esc((window.HealthDelivery && window.HealthDelivery.build) || (typeof BUILD === 'string' ? BUILD : 'unknown')) + ' · ' + esc((window.HealthDelivery && window.HealthDelivery.mode) || 'local') + '<br>' + esc(env + ' · ' + storeKind) +
       '<p class="hint" style="margin:5px 0 0;font-size:11px">'+(preview?'Invented records for review. Nothing is saved.':'Private records on this device.')+'</p>';
     $('#levelOrb').innerHTML = levelOrbHTML();
     $('#sideToggle').textContent = document.querySelector('.app').classList.contains('sidehidden') ? 'Show menu' : 'Hide menu';
