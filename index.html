@@ -388,6 +388,21 @@ details summary{cursor:pointer;font-weight:600;min-height:38px}details p{font-si
 <link rel="stylesheet" href="body-view.css">
 <script type="module" src="model-viewer.min.js"></script>
 <script defer src="body-view.js"></script>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script defer src="delivery.js"></script>
+<script>
+/* Only the hosted surface installs a worker. The Mac wrapper serves its own bundled files from a
+   fixed loopback origin and must not have a cache layer sitting between it and them; a stale shell
+   there would be invisible and unfixable without clearing app storage. delivery.js is deferred, so
+   it has already run by the time load fires. */
+addEventListener('load', () => {
+  if (!('serviceWorker' in navigator)) return;
+  if (!window.HealthDelivery || !window.HealthDelivery.hosted) return;
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+});
+</script>
 </head>
 <body>
 <div class="body-session-banner"><b>Body import preview</b> · Your body records are saved locally in this separate preview. Existing app and records are unchanged.</div>
