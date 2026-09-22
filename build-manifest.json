@@ -1,10 +1,10 @@
 {
-  "build": "2026-09-22",
+  "build": "2026-09-22-1417",
   "files": {
     "body-view.css": "7b99dcabb70d093705dcdbd8cceb65aaba475c4c680b1394367bd464f4329ba0",
     "body-view.js": "904c9254e623f72c7abd79a922dade2b4e1ccea662a3fe2eb43dd5a7aa1b3dc7",
     "convert-starter.js": "b4ca332aa0c6cd97e1877296286934d7110e1b223ee843607bcf2bb1f9a898d3",
-    "delivery.js": "afd8e0cfc00fb2b1300d36c06fd30c213beae2d150578b1da84c23111fde4799",
+    "delivery.js": "74308e30e2c1c8b7b9ed99d057efda7572632ab24bfb476e5aeca8e1c46079e5",
     "hae-adapter.js": "7e92adae2e323d2db4a8211dd783fabcb59ffd0212c3c13e4629650a1445e1c0",
     "health-domain.js": "0e0b7cb3924fdf49dab6b2658696ad6599474cac7ca21d69bc4b47f8df016f2d",
     "health-store.js": "aea9f203cf05d21427dc97bdea171e4d8ffaf1e2be22b4bfe46cf24789762a21",
@@ -16,7 +16,7 @@
     "model-viewer.min.js": "774edda21e1be2a0934e460ca5943af1fe3f88da130a9f98bd6a9d611576cacf",
     "offline.html": "7f472596880496629a8dcbde453d2257e9815c088d609d013253a3469efe521d",
     "quarter-points.js": "fa70a0213cd1e498ae2fa750b613f502ef7399245b79db4432ee3a6bd02873bc",
-    "sw.js": "dda8d22e1bf4f54b7ad7216fc4bee2b3578e6273e169d4426b05a2d5adbcdbe0",
+    "sw.js": "6e03500d0a7843fff39c4e01512a54c9389076bc66064873d987ac191d1468b9",
     "workspace-proposal.js": "b73a23000ef7fc223736c3f9dea9b5852c31ea4927e90b93964f1ec6630bb6ec"
   }
 }
