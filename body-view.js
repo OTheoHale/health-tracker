@@ -15,6 +15,26 @@ const BODY_TRANSPORT = window.HealthBodyTransport || null;
 const BODY_LOOPBACK = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
 const BODY_BASE = BODY_TRANSPORT ? BODY_TRANSPORT.base : 'api/body/';
 const BODY_AVAILABLE = !!BODY_TRANSPORT || BODY_LOOPBACK;
+/* From the hosted HTTPS page WebKit never hands a custom-scheme request to the wrapper: it failed as
+   "TypeError: Load failed" with no load started (Mintay's V1.1 log, 2026-09-23). The hosted wrapper
+   therefore sets bridge:true, and every body request travels through the same native message bridge
+   automatic intake uses. Binary files come back as bytes and are shown through blob: URLs. */
+const BODY_BRIDGE = !!(BODY_TRANSPORT && BODY_TRANSPORT.bridge);
+const bodyBlobs = new Map();
+function toBase64(buffer) { const bytes = new Uint8Array(buffer); let text = ''; for (let i = 0; i < bytes.length; i += 0x8000) text += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(text); }
+function fromBase64(value) { const text = atob(value || ''); const bytes = new Uint8Array(text.length); for (let i = 0; i < text.length; i++) bytes[i] = text.charCodeAt(i); return bytes; }
+async function bodyFetch(path, init) {
+  if (!BODY_BRIDGE || !window.HealthNativeRequest) return fetch(BODY_BASE + path, init);
+  const body = init && init.body, base64 = body == null ? null : toBase64(body instanceof Blob ? await body.arrayBuffer() : new TextEncoder().encode(String(body)));
+  const reply = await window.HealthNativeRequest('bodyFetch', {path, method: (init && init.method) || 'GET', headers: (init && init.headers) || {}, base64});
+  if (!reply.ok) throw new TypeError(reply.error || 'The body service did not answer.');
+  const empty = [204, 205, 304].includes(reply.status);
+  return new Response(empty ? null : fromBase64(reply.base64), {status: reply.status, headers: {'Content-Type': reply.contentType || 'application/octet-stream'}});
+}
+async function bodyBlobURL(url) {
+  if (!bodyBlobs.has(url)) bodyBlobs.set(url, bodyFetch(url.slice(BODY_BASE.length)).then(async response => { if (!response.ok) throw new Error('HTTP ' + response.status); return URL.createObjectURL(await response.blob()); }));
+  return bodyBlobs.get(url);
+}
 const FITDAYS_GROUPS = {
   'left-arm': {label: 'Left arm', color: '#70c5c1', parts: ['left-upper-arm', 'left-forearm']},
   'right-arm': {label: 'Right arm', color: '#8ba7e4', parts: ['right-upper-arm', 'right-forearm']},
@@ -36,6 +56,7 @@ class HealthBodyView extends HTMLElement {
     this.fitdays = null;
     if (!BODY_AVAILABLE) { this.unavailable(); return; }
     this.innerHTML = '<p class="hint">Opening your body records…</p>';
+    if (BODY_BRIDGE) this.bridgeAssets();
     this.addEventListener('click', event => this.clickAction(event));
     this.addEventListener('change', event => this.changeAction(event));
     this.load();
@@ -75,6 +96,25 @@ class HealthBodyView extends HTMLElement {
     this.innerHTML = html + note + '</section>';
   }
 
+  /* Swap every body-file address in this element for a blob: URL fetched over the bridge. Images and
+     the model load at once; a download link is fetched only when it is clicked. */
+  bridgeAssets() {
+    const swap = () => {
+      for (const el of this.querySelectorAll('[src^="' + BODY_BASE + '"]')) {
+        const url = el.getAttribute('src');
+        el.setAttribute('src', '');
+        bodyBlobURL(url).then(blob => el.setAttribute('src', blob)).catch(error => window.HealthBodyLog && window.HealthBodyLog(url.slice(BODY_BASE.length, 120) + ' failed: ' + error.message));
+      }
+    };
+    new MutationObserver(swap).observe(this, {subtree: true, childList: true, attributes: true, attributeFilter: ['src']});
+    this.addEventListener('click', event => {
+      const link = event.target.closest && event.target.closest('a[download][href^="' + BODY_BASE + '"]');
+      if (!link) return;
+      event.preventDefault();
+      bodyBlobURL(link.getAttribute('href')).then(blob => { link.setAttribute('href', blob); link.click(); }).catch(error => this.status(error.message, true));
+    }, true);
+  }
+
   disconnectedCallback() {
     if (this.stage) this.request('cancel', {stageId: this.stage.stageId}).catch(() => {});
   }
@@ -85,7 +125,7 @@ class HealthBodyView extends HTMLElement {
   }
 
   async fetchJSON(action, data) {
-    const response = await fetch(BODY_BASE + action, data ? {
+    const response = await bodyFetch(action, data ? {
       method: 'POST', headers: {'X-Body-Request': '1', 'X-Source-Name': data instanceof File ? data.name : '', 'Content-Type': data instanceof File ? 'application/octet-stream' : 'application/json'},
       body: data instanceof File ? data : JSON.stringify(data)
     } : {});
