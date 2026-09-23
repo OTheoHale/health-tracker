@@ -128,6 +128,9 @@ h4{font:600 12.5px/1.3 var(--sans); color:var(--faint); margin:12px 0 6px}
 .intent{display:flex; gap:8px; margin-top:12px} .intent input{flex:1}
 .glance-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.glance-tile{border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--sunk)}.glance-tile .cap{margin:0}.glance-big{font-size:28px;margin:4px 0;font-variant-numeric:tabular-nums}.glance-big small{font-size:14px;color:var(--muted)}.glance-bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.glance-bar i{display:block;height:100%}.glance-tile .hint{margin:6px 0}.glance-spark{position:relative;display:flex;gap:4px;align-items:flex-end;height:36px}.glance-spark span{flex:1;border-radius:3px 3px 0 0}.glance-spark em{position:absolute;left:0;right:0;border-top:1px dashed var(--muted)}.glance-dots{display:inline-flex;gap:3px;vertical-align:middle}.glance-dots i{width:8px;height:8px;border-radius:50%}.glance-cols{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-top:14px}@media(max-width:760px){.glance-cols{grid-template-columns:1fr}}.glance-cols h3{margin:0 0 6px;font-size:15px}.glance-list{list-style:none;margin:0;padding:0}.glance-list li{display:grid;grid-template-columns:40px 1fr 60px 1fr auto;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)}.glance-tag{font-size:12px;padding:2px 8px;border-radius:10px;border:1px solid var(--t);color:var(--t)}.fitness-detail summary{cursor:pointer}
 .logo-version{font-size:.62em;letter-spacing:.04em;color:var(--brass);vertical-align:middle}
+#updateBar{position:fixed;right:18px;bottom:18px;z-index:50;display:flex;gap:12px;align-items:center;padding:10px 14px;border-radius:14px;background:var(--panel);border:1px solid var(--brass);box-shadow:0 6px 24px rgba(0,0,0,.35)}
+.ws-node .cb.src{background:#2f8f5b;border-color:#2f8f5b;color:#fff}
+.ws-node .claim-one{font-size:12px;padding:3px 10px}
 .sleep-grid{display:flex;gap:16px;align-items:center;flex-wrap:wrap}.sleep-stages{display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px;margin-top:8px}.sleep-stages i{display:block}.sleep-week{position:relative;display:flex;gap:8px;align-items:flex-end;height:78px;margin-top:12px}.sleep-week div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}.sleep-week span{display:block;width:100%;max-width:26px;border-radius:4px 4px 0 0;background:var(--line-strong)}.sleep-week small{color:var(--muted);font-size:11px}.sleep-week em{position:absolute;left:0;right:0;border-top:1px dashed var(--muted);margin-bottom:18px}
 .proposal{margin-top:10px; border:1px solid var(--brass); border-radius:14px; padding:12px 14px; background:var(--brass-soft)}
 
@@ -401,9 +404,33 @@ details summary{cursor:pointer;font-weight:600;min-height:38px}details p{font-si
    there would be invisible and unfixable without clearing app storage. delivery.js is deferred, so
    it has already run by the time load fires. */
 addEventListener('load', () => {
-  if (!('serviceWorker' in navigator)) return;
-  if (!window.HealthDelivery || !window.HealthDelivery.hosted) return;
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  const delivery = window.HealthDelivery;
+  if (!delivery) return;
+  /* A shell already waiting when the page loads applies on that load; one that arrives while the app
+     is open waits behind the visible Update control, so the app never changes mid-entry. The worker
+     used to wait for a restart message nothing ever sent, so a release only arrived once every
+     window had been closed. */
+  if ('serviceWorker' in navigator && delivery.hosted) {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      if (reg.waiting && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.addEventListener('controllerchange', () => location.reload(), {once: true});
+        reg.waiting.postMessage('restart');
+      }
+      reg.update().catch(() => {});
+    }).catch(() => {});
+  }
+  /* Website, phone and Mac app alike: notice a newer published build and offer it. */
+  if (delivery.mode === 'local') return;
+  const check = async () => {
+    try {
+      const text = await (await fetch('delivery.js', {cache: 'no-store'})).text();
+      const found = /const BUILD = '([^']+)'/.exec(text);
+      if (found && found[1] !== delivery.build) dispatchEvent(new CustomEvent('health-update', {detail: found[1]}));
+    } catch (_) {}
+  };
+  check();
+  setInterval(check, 10 * 60 * 1000);
+  addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
 });
 </script>
 </head>
@@ -433,7 +460,7 @@ addEventListener('load', () => {
     <button class="ghostbtn" id="previewToggle" aria-pressed="false">Preview workspace</button>
   </aside>
   <div class="content">
-    <header class="topbar"><button class="sidetoggle" id="sideToggle" data-act="toggleSidebar" aria-expanded="true" aria-controls="appSide">Hide menu</button><div class="t"><h1 id="areaTitle" tabindex="-1">Today</h1><p id="areaSub"></p></div><span id="previewBadge" hidden>LOCAL PREVIEW · SYNTHETIC</span><div id="levelOrb"></div><div id="conn"></div></header>
+    <header class="topbar"><button class="sidetoggle" id="sideToggle" data-act="toggleSidebar" aria-expanded="true" aria-controls="appSide">Hide</button><div class="t"><h1 id="areaTitle" tabindex="-1">Today</h1><p id="areaSub"></p></div><span id="previewBadge" hidden>LOCAL PREVIEW · SYNTHETIC</span><div id="levelOrb"></div><div id="conn"></div></header>
     <div id="notices"></div>
     <main id="main"></main>
     <footer><p id="storeNote"></p><p>Health Tracker &middot; build <span id="build"></span></p></footer>
@@ -607,6 +634,12 @@ addEventListener('load', () => {
   function intakeLog(message){ nativePost({type:'intakeLog',message:String(message).slice(0,400)}); }
   window.HealthBodyLog = message => { if (NATIVE) intakeLog('body: ' + message); };
   window.HealthNativeRequest = (type, payload) => nativeRequest(type, payload);
+  addEventListener('health-update', event => {
+    const next = String(event.detail || ''), label = (/-(V\d+(?:\.\d+)*)$/.exec(next) || [])[1] || next;
+    let bar = document.getElementById('updateBar');
+    if (!bar) { bar = document.createElement('div'); bar.id = 'updateBar'; bar.setAttribute('role', 'status'); document.body.appendChild(bar); }
+    bar.innerHTML = '<span>Health Tracker ' + esc(label) + ' is ready.</span><button class="save" data-act="applyUpdate">Update now</button>';
+  });
   // Rows imported under a folder connection that has since been replaced. reconcile() refuses to
   // write anything at all while the store holds one, which is a dead end until they are retired.
   function foreignFeedRows(state){
@@ -747,7 +780,7 @@ addEventListener('load', () => {
       intake.skipped=oversize.map(e=>e.id);
       const fileProblem=problems.length?intakeRefusals(problems):reply.paused&&!real.autoFeed.paused?'The native reader is paused. Use Pause, then Resume to reconnect.':null;
       intake.error=fileProblem;
-      let fileError=null;
+      let fileError=null;const outcome={at:nowIso(),delivered:(reply.files||[]).length,imported:0,same:0,refused:0};
       for(const file of reply.files||[]){
         if(intakeEditing()){intake.deferred=true;intakeLog('deferred at '+file.id+': an edit is open');break;}
         if(typeof file.text!=='string'||await digestText(file.text)!==file.sha256){fileError=file.id+' changed before its delivery could be verified. It will be retried.';continue;}
@@ -815,12 +848,13 @@ addEventListener('load', () => {
         // same way — every ten seconds, indefinitely, with the healthy file behind it never applied.
         // A file that cannot be applied is now reported and skipped. Capacity still stops the batch,
         // because it is a limit on the workspace rather than a problem with one file.
-        if(!result.ok){fileError=result.capacity?result.error:file.id+' — '+result.error;intakeLog(file.id+' refused: '+result.error+(result.detail?' ['+result.detail+']':''));if(result.capacity){await nativeRequest('intakePause',{paused:true});break;}continue;}
+        if(!result.ok){outcome.refused++;fileError=result.capacity?result.error:file.id+' — '+result.error;intakeLog(file.id+' refused: '+result.error+(result.detail?' ['+result.detail+']':''));if(result.capacity){await nativeRequest('intakePause',{paused:true});break;}continue;}
         const ack=await nativeRequest('intakeAck',{files:[{id:file.id,sha256:file.sha256,fingerprint:file.fingerprint}]});
         if(!ack.ok){fileError='The delivery was saved; its local acknowledgment will be retried.';intakeLog(file.id+' applied but not acknowledged: '+(ack.error||'no reason given'));break;}
         intakeLog(file.id+(result.unreadable?' retired (nothing this feed reads)':result.duplicate?' already imported; nothing to add':' applied'));
+        if(!result.unreadable)outcome[result.duplicate?'same':'imported']++;
       }
-      intake.error=fileError||fileProblem;
+      intake.error=fileError||fileProblem;intake.lastCheck=outcome;
     }catch(e){intake.error='Automatic intake stopped before completing a delivery. Previously committed data remains available.';}
     finally{intake.busy=false;if(real.revision!==priorRevision||intake.error!==priorError||intake.deferred!==priorDeferred||intake.skipped.join('|')!==priorSkipped)intakeRender();}
   }
@@ -845,8 +879,9 @@ addEventListener('load', () => {
     const stranded=feed?foreignFeedRows(state):[];
     const strandedNotice=stranded.length?'<p class="notice bad">'+pl(stranded.length,'imported record')+' came from a folder connection that has since been replaced. No new import can be saved while they are present, and they never appear in your figures. A private recovery copy is written before anything is removed, and your files are then read again from the beginning.</p><div class="acts"><button class="save" data-act="intakeRetireForeign">Retire records from the previous connection</button></div>':'';
     const capacity=feed&&(feed.capacityReason||state.sourceRecords.length>=AUTO_SOURCE_LIMIT*.8)?'<p class="notice">'+esc(feed.capacityReason||'History is approaching the current automatic intake limit of '+AUTO_SOURCE_LIMIT.toLocaleString()+' source rows. Intake will pause before adding a file that crosses it; no history is trimmed.')+'</p>':'';
-    const times=feed?'<dl class="feed-times"><dt>Last local delivery</dt><dd>'+esc(dataWhen(feed.lastDeliveryAt))+'</dd><dt>Last successful import</dt><dd>'+esc(dataWhen(feed.lastImportAt))+'</dd><dt>Latest reported bucket</dt><dd>'+esc(dataWhen(feed.lastReportedAt))+'</dd><dt>Completeness</dt><dd>Unknown · missing buckets are not zeros</dd></dl>':'';
-    return '<section class="panelcard '+(compact?'feed-strip':'feed-card')+'" data-feedback-id="automatic-intake" data-feedback-label="Automatic iCloud intake"><div class="ph"><h2>Health Auto Export</h2><span class="chip'+tone+'">'+esc(status)+'</span></div>'+(intake.error?'<p class="notice bad">'+esc(intake.error)+'</p>':'')+strandedNotice+capacity+(compact?'<p class="hint">'+(feed.lastImportAt?'Last imported '+esc(dataWhen(feed.lastImportAt)):'Waiting for the first stable local file')+'. Updates resume when this app is open.</p><button class="link" data-act="go" data-area="data">Review feed</button>':times+(feed?'<p class="hint feed-note">Nothing is imported while this app is closed. Daily JSON figures reflect only the minute data received so far; once your agreed activities are set up, matching workouts, steps, brushing and sleep check themselves off; points still wait for your claim.</p><div class="acts"><button data-act="intakeScan">Check now</button><button data-act="intakePause">'+(feed.paused?'Resume':'Pause')+'</button><button data-act="intakeConnect">Reselect folder</button><button data-act="intakeMove">Change folder…</button><button data-act="intakeDisconnect">Disconnect</button><button data-act="intakeBackup">Save private recovery copy</button><button data-act="intakeCutover">Change JSON start date</button></div>'+(intake.skipped.length?'<p class="hint">Skipped as larger than the 128 MB this reader accepts: '+esc(intake.skipped.join(', '))+'. If it holds anything a smaller export does not, export a shorter date range from Health Auto Export.</p>':'')+'<p class="hint">JSON is eligible from '+esc(feed.contract.activeFrom)+'. Earlier CSV history remains; CSV also fills dates or metrics where qualified JSON is unavailable. Both are never added together.</p><p class="hint">'+esc(feed.folderName)+' · '+pl(state.sourceRecords.length,'retained source row')+' · '+pl(state.importReceipts.length,'receipt')+'. '+(report?pl(report.projected,'daily display row')+'; '+projection.heldIds.length+' held; '+pl(projection.shadowIds.length,'shadow row')+' before the start date.'+holdReasons(report):'')+'</p>':'<p>Connect the existing Health Auto Export folder once. Choose the folder that contains the daily JSON files.</p><p class="hint">Confirmed format: Health Metrics JSON v2, minute grouping, America/Los_Angeles. The file does not declare its grouping; keep the existing phone export settings. Connecting first writes and verifies a private recovery file, then activates storage with room for ongoing imports.</p><div class="acts"><button class="save" data-act="intakeConnect" '+(!NATIVE||preview?'disabled':'')+'>'+(durableStore.stagedState?'Resume verified migration':'Connect iCloud folder')+'</button></div>')+'<details><summary>What is included and how updates work</summary><p class="hint">This Mac reads only JSON files directly inside the folder you choose. Stable downloads are checked while the app is running and when you return. It catches up after reopening; no intake runs while the app is closed. iPhone export and iCloud delivery times may vary.</p><p class="hint">Steps, active energy, heart-rate summaries, resting heart rate, weight, distance, exercise time, stand time and flights are supported. Workout sessions arrive through the Workouts subfolder of the same connected folder. When writers disagree, Apple Health wins: a minute your Apple Watch or iPhone contributed to is Apple Health’s own merged figure, and other apps on that day yield to it. Unknown writers, and combinations with no Apple device in them, stay held. During a workout recorded by a connected app such as iFIT, active energy uses that workout’s own figure for its window, which is what your Move ring counts. Sleep stays excluded by the confirmed contract; existing CSV and manual history remains available. Imports never confirm activities or award points.</p><p class="hint">Daily sums cover only received minute buckets. Heart-rate minimum, latest minute average and maximum remain separate; no daily average is invented. Original rows and changed-value revisions remain in private storage. Removing a source file does not delete imported history.</p></details>')+'</section>';
+    const lc=intake.lastCheck,checked=lc?'<p class="hint intake-outcome" role="status">Checked '+esc(dataWhen(lc.at))+' · '+(lc.imported?pl(lc.imported,'file')+' imported':lc.refused?'nothing imported':'nothing new')+(lc.same?' · '+lc.same+' already in':'')+(lc.refused?' · '+lc.refused+' refused (see below)':'')+(feed&&feed.paused?' · intake is paused':'')+'</p>':'';
+    const times=feed?checked+'<dl class="feed-times"><dt>Last local delivery</dt><dd>'+esc(dataWhen(feed.lastDeliveryAt))+'</dd><dt>Last successful import</dt><dd>'+esc(dataWhen(feed.lastImportAt))+'</dd><dt>Latest reported bucket</dt><dd>'+esc(dataWhen(feed.lastReportedAt))+'</dd><dt>Completeness</dt><dd>Unknown · missing buckets are not zeros</dd></dl>':'';
+    return '<section class="panelcard '+(compact?'feed-strip':'feed-card')+'" data-feedback-id="automatic-intake" data-feedback-label="Automatic iCloud intake"><div class="ph"><h2>Apple Health <span class="hint">via Health Auto Export</span></h2><span class="chip'+tone+'">'+esc(status)+'</span></div>'+(intake.error?'<p class="notice bad">'+esc(intake.error)+'</p>':'')+strandedNotice+capacity+(compact?'<p class="hint">'+(feed.lastImportAt?'Last imported '+esc(dataWhen(feed.lastImportAt)):'Waiting for the first stable local file')+'. Updates resume when this app is open.</p><button class="link" data-act="go" data-area="data">Review feed</button>':times+(feed?'<p class="hint feed-note">Nothing is imported while this app is closed. Daily JSON figures reflect only the minute data received so far; once your agreed activities are set up, matching workouts, steps, brushing and sleep check themselves off; points still wait for your claim.</p><div class="acts"><button data-act="intakeScan">Check now</button><button data-act="intakePause" aria-pressed="'+(feed.paused?'true':'false')+'">'+(feed.paused?'▶ Resume intake':'⏸ Pause intake')+'</button><button data-act="intakeConnect">Reselect folder</button><button data-act="intakeMove">Change folder…</button><button data-act="intakeDisconnect">Disconnect</button><button data-act="intakeBackup">Save private recovery copy</button><button data-act="intakeCutover">Change JSON start date</button></div>'+(intake.skipped.length?'<p class="hint">Skipped as larger than the 128 MB this reader accepts: '+esc(intake.skipped.join(', '))+'. If it holds anything a smaller export does not, export a shorter date range from Health Auto Export.</p>':'')+'<p class="hint">JSON is eligible from '+esc(feed.contract.activeFrom)+'. Earlier CSV history remains; CSV also fills dates or metrics where qualified JSON is unavailable. Both are never added together.</p><p class="hint">'+esc(feed.folderName)+' · '+pl(state.sourceRecords.length,'retained source row')+' · '+pl(state.importReceipts.length,'receipt')+'. '+(report?pl(report.projected,'daily display row')+'; '+projection.heldIds.length+' held; '+pl(projection.shadowIds.length,'shadow row')+' before the start date.'+holdReasons(report):'')+'</p>':'<p>Connect the existing Health Auto Export folder once. Choose the folder that contains the daily JSON files.</p><p class="hint">Confirmed format: Health Metrics JSON v2, minute grouping, America/Los_Angeles. The file does not declare its grouping; keep the existing phone export settings. Connecting first writes and verifies a private recovery file, then activates storage with room for ongoing imports.</p><div class="acts"><button class="save" data-act="intakeConnect" '+(!NATIVE||preview?'disabled':'')+'>'+(durableStore.stagedState?'Resume verified migration':'Connect iCloud folder')+'</button></div>')+'<details><summary>What is included and how updates work</summary><p class="hint">This Mac reads only JSON files directly inside the folder you choose. Stable downloads are checked while the app is running and when you return. It catches up after reopening; no intake runs while the app is closed. iPhone export and iCloud delivery times may vary.</p><p class="hint">Steps, active energy, heart-rate summaries, resting heart rate, weight, distance, exercise time, stand time and flights are supported. Workout sessions arrive through the Workouts subfolder of the same connected folder. When writers disagree, Apple Health wins: a minute your Apple Watch or iPhone contributed to is Apple Health’s own merged figure, and other apps on that day yield to it. Unknown writers, and combinations with no Apple device in them, stay held. During a workout recorded by a connected app such as iFIT, active energy uses that workout’s own figure for its window, which is what your Move ring counts. Sleep stays excluded by the confirmed contract; existing CSV and manual history remains available. Imports never confirm activities or award points.</p><p class="hint">Daily sums cover only received minute buckets. Heart-rate minimum, latest minute average and maximum remain separate; no daily average is invented. Original rows and changed-value revisions remain in private storage. Removing a source file does not delete imported history.</p></details>')+'</section>';
   }
   const draftNavigationActions=new Set(['go','goData','goGrades','goPlanGroup','goCompare','todayTab','quickLog','editRecurring','openRow','preview','step','jumpToday','stepWeek','jumpWeek','stepProg','jumpProg','pickDay','actScope','dataTab','logTab','planGroup','closePanel','detail','edit','editWorkout','addSeries','addWorkout','editFood','catalogAdd','viewBack','viewForward','planIdea','fitnessRange','fitnessWeek','fitnessCustom','collectionWeek','collectionToday','notesFilter','profileDetail','openFeedback','reviewFeedback','reviewAction','questReview','cancelConfirmation']);
   function resolveDraftNavigation(){
@@ -953,7 +988,7 @@ addEventListener('load', () => {
     if (live && !saveError && !preview) out.push('<div class="notice"><strong>' + esc(pl(live, 'example activity')) + '.</strong> Invented placeholders, marked <span class="chip quiet">example</span> on each row and left out of Progress. Manage them in Settings.</div>');
     $('#notices').innerHTML = out.join('');
   }
-  const TITLES = { home:['Today','A little structure. Room for the day you actually have.'], profile:['Profile','Your body view, the areas you value, and the evidence behind progress.'], log:['Log','Food, movement and your daily check-in — all self-reported.'], fitness:['Fitness','Trends, coverage and the evidence behind each insight.'], data:['Data','Sources, imports, matching and receipts.'], plan:['Plan & Quests','Routines, one-offs, and what you have chosen to take on.'], faith:['Faith','Your faith actions and goals, drawn from the same records as every other view.'], progress:['Progress','Day, week and longer — with the evidence behind every chart.'], collection:['Collection','Your claimed points, level and dated history.'], lessons:['Lessons & Updates','What you notice can shape the next update.'], settings:['Settings','Categories, goals, sources, preferences and your data.'] };
+  const TITLES = { home:['Today','A little structure. Room for the day you actually have.'], profile:['Profile','Your body view, the areas you value, and the evidence behind progress.'], log:['Log','Food, movement and your daily check-in. What you enter here is self-reported; imported records are labelled by source.'], fitness:['Fitness','Trends, coverage and the evidence behind each insight.'], data:['Data','Sources, imports, matching and receipts.'], plan:['Plan & Quests','Routines, one-offs, and what you have chosen to take on.'], faith:['Faith','Your faith actions and goals, drawn from the same records as every other view.'], progress:['Progress','Day, week and longer — with the evidence behind every chart.'], collection:['Collection','Your claimed points, level and dated history.'], lessons:['Lessons & Updates','What you notice can shape the next update.'], settings:['Settings','Categories, goals, sources, preferences and your data.'] };
   const sourceStateLabel = x => x.state;
   function sourceDisplay(s){
     const id = String(s.id || '').toLowerCase(), name = String(s.name || '');
@@ -986,7 +1021,7 @@ addEventListener('load', () => {
     $('#buildIdentity').innerHTML = '<b>Build</b>' + esc(((window.HealthDelivery && window.HealthDelivery.build) || (typeof BUILD === 'string' ? BUILD : 'unknown')).replace(/-(V\d+(?:\.\d+)*)$/,' · $1')) + ' · ' + esc((window.HealthDelivery && window.HealthDelivery.mode) || 'local') + '<br>' + esc(env + ' · ' + storeKind) +
       '<p class="hint" style="margin:5px 0 0;font-size:11px">'+(preview?'Invented records for review. Nothing is saved.':'Private records on this device.')+'</p>';
     $('#levelOrb').innerHTML = levelOrbHTML();
-    $('#sideToggle').textContent = document.querySelector('.app').classList.contains('sidehidden') ? 'Show menu' : 'Hide menu';
+    $('#sideToggle').textContent = document.querySelector('.app').classList.contains('sidehidden') ? 'Show menu' : 'Hide';
     $('#sideToggle').setAttribute('aria-expanded', String(!document.querySelector('.app').classList.contains('sidehidden')));
     document.querySelectorAll('.nav button[data-area]').forEach(b => { if (b.dataset.area === area) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
     $('#ckDate').textContent = st.prefs.checkpoint ? parseYmd(st.prefs.checkpoint).toLocaleDateString(undefined, { day:'numeric', month:'long', year:'numeric' }) : '—';
@@ -2017,7 +2052,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const steps=dailyMax(st,'steps',from,today),energy=dailyMax(st,'activeEnergy',from,today);
     const cls=r=>Workspace.workoutClass?Workspace.workoutClass(st,r.reference):null;
     const wk=workoutHistory(st,from,today).filter(w=>w.origin==='relayed');
-    const weekStart=weekStartOf(today,1),thisWeek=wk.filter(w=>w.date>=weekStart);
+    const weekStart=weekStartOf(today,st.prefs.weekStart),thisWeek=wk.filter(w=>w.date>=weekStart);
     const minutesBy=(c,list)=>list.filter(w=>cls(w)===c).reduce((a,w)=>a+(w.minutes||0),0);
     const perDay=c=>{const m=new Map();for(const w of thisWeek)if(cls(w)===c)m.set(w.date,(m.get(w.date)||0)+(w.minutes||0));return m;};
     const cardioDays=[...perDay('cardio').values()].filter(v=>v>=20).length,strengthDays=[...perDay('strength').values()].filter(v=>v>=15).length;
@@ -2228,6 +2263,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const doneCount = n.family && Number.isFinite(n.family.done) ? n.family.done : kids.filter(k => k.status === 'done').length;
     const totalCount = n.family && Number.isFinite(n.family.total) ? n.family.total : kids.length;
     const auto = !container && confirmed && n.occurrence && n.occurrence.confirmation && n.occurrence.confirmation.auto === true;
+    const sourced = !container && confirmed && n.occurrence && n.occurrence.confirmation && n.occurrence.confirmation.kind === 'source';
+    const claimable = !container && confirmed ? (wsClaimable || []).find(c => c.id === key || (c.seriesId === n.seriesId && c.date === (n.date || day))) : null;
     const summary = container ? doneCount + ' of ' + totalCount + ' confirmed'
       : auto ? 'From Apple Health' + (Number.isFinite(n.occurrence.actualMinutes) && n.occurrence.actualMinutes > 0 ? ' · ' + Math.round(n.occurrence.actualMinutes) + ' min' : '')
       : (n.confirmation || (confirmed ? 'Confirmed' : st === 'partial' ? 'Partial' : st === 'skipped' ? 'Not done' : st === 'tentative' ? 'Checked off, not confirmed' : 'No entry'));
@@ -2241,7 +2278,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       (share !== null ? '<span class="share" title="This leaf’s exact share of its routine budget">' + esc(String(share)) + ' pts</span>' : '') +
       '<span class="meta">' + esc(summary) + '</span>' +
       (container ? '<span class="chip quiet">summary</span>'
-        : '<button class="cb" role="checkbox" aria-checked="' + (confirmed ? 'true' : st === 'tentative' ? 'mixed' : 'false') + '" data-act="toggleDone" aria-label="' + (confirmed ? 'Review ' : 'Check off ') + esc(label) + '"' + (future ? ' disabled' : '') + '>' + (confirmed ? '✓' : st === 'tentative' ? '·' : '') + '</button>') +
+        : (claimable ? '<button class="save claim-one" data-act="claimOne" data-claim="' + esc(claimable.id) + '">Claim ' + pointAmount(claimable, claimable.amount) + '</button>' : '') + '<button class="cb' + (sourced ? ' src' : '') + '" role="checkbox" aria-checked="' + (confirmed ? 'true' : st === 'tentative' ? 'mixed' : 'false') + '" data-act="toggleDone" aria-label="' + (confirmed ? 'Review ' : 'Check off ') + esc(label) + (sourced ? ' (confirmed by your data)' : '') + '"' + (future ? ' disabled' : '') + ' title="' + (sourced ? 'Confirmed by your data' : confirmed ? 'Confirmed by you' : '') + '">' + (confirmed ? '✓' : st === 'tentative' ? '·' : '') + '</button>') +
       '</div>' + '<div class="ws-source-actions">' + (!container&&n.matching?'<button class="link" data-act="wsEvidence">Review source evidence</button>':'') + (auto?'<button class="link" data-act="wsDeclineAuto">Not this — unlink</button>':'') + (!container&&n.recurrence?.kind==='target'&&!n.occurrence?.committed&&!future?'<button class="link" data-act="wsCommit">Plan for this day</button>':'') + '</div>';
     if (container && !collapsed){
       out += kids.map(k => wsNode(k, Math.min(depth + 1, 2))).join('');
@@ -2262,7 +2299,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
         (nodes.length ? nodes.map(n => wsNode(n, 0)).join('') : '<p class="hint">Nothing planned in this category today.</p>') + '</div>' +
         (here ? composerHTML() : '<button class="ws-addbtn" data-act="wsAdd" data-kind="item" data-group="' + esc(g.id) + '">+ Add item</button>') + '</div>') + '</section>';
   }
+  let wsClaimable=[];   // this render's claimable actions, so each activity row can offer its own Claim
   function wsActivities(options){
+    try{wsClaimable=rewardReport(S(),todayYmd()).pending;}catch(_){wsClaimable=[];}
     const st = S();
     if (!wsHas('tree')) return depCard('Workspace','tree','Direct entry and nested routines') + activitiesCard();
     const rows = wsTry('tree', st, day, options || {});
@@ -2532,7 +2571,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     // "Records already imported are kept" was true and badly misleading: a new folder means a new
     // feed identity, and reconcile() will not save anything while rows from the old one remain.
     if(act==='intakeMove'){if(!confirm('Choose a different folder for automatic intake?\n\nPick the folder that contains the Health Auto Export subfolders (Health Metrics, Workouts) to read both.\n\nRecords already imported are kept, but they belong to this folder connection. Until you retire them from the Data panel afterwards, no new import can be saved. Your files are re-read from the beginning at that point, so nothing is lost.'))return;await connectIntake(true);return;}
-    if(act==='intakeScan'){await scanIntake();return;}
+    if(act==='intakeScan'){const before=intake.lastCheck;await scanIntake();render();const lc=intake.lastCheck;toast(lc&&lc!==before?(lc.imported?pl(lc.imported,'file')+' imported.':lc.refused?'Nothing imported; '+pl(lc.refused,'file')+' refused — see the card.':'Checked. Nothing new.'):intake.busy?'A check is already running.':(real.autoFeed&&real.autoFeed.paused)?'Intake is paused. Resume it to check.':intake.deferred?'Finish your open edit, then check again.':'Checked. Nothing new.');return;}
     if(act==='intakePause'){await toggleIntake();return;}
     if(act==='intakeCutover'){if(preview||readOnly||!real.autoFeed)return;const date=prompt('First date to use qualified JSON in daily displays. Earlier CSV history stays visible. Changing this date can change which source evidence qualifies; it never adds points or deletes records.',real.autoFeed.contract.activeFrom);if(date===null)return;if(!validCalendarDate(date)){toast('Use a valid date in YYYY-MM-DD form.');return;}const result=await manualActionTransaction(real,d=>{d.autoFeed.contract.activeFrom=date;const problem=HealthAutoExport.validateContract(d.autoFeed.contract);return problem?{ok:false,error:problem}:{ok:true};});if(result.ok){dropUndo();render();toast('Display boundary updated. Original source rows remain.');}else toast(result.error);return;}
     if(act==='intakeBackup'){const current=await store.readFresh();if(!current.ok){toast(current.error);return;}const result=await verifiedRecovery(current.state||real);toast(result.ok?'Private recovery copy saved and verified.':result.error);return;}
@@ -2546,6 +2585,13 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
 
     /* ---- Daily Workspace candidate actions ---- */
     if(act==='wsEvidence'){openWorkspaceEvidence(seriesId,date);return;}
+    if(act==='applyUpdate'){
+      btn.disabled=true;btn.textContent='Updating…';
+      const reg=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration().catch(()=>null);
+      if(reg&&reg.waiting){navigator.serviceWorker.addEventListener('controllerchange',()=>location.reload(),{once:true});reg.waiting.postMessage('restart');setTimeout(()=>location.reload(),4000);}
+      else location.reload();
+      return;
+    }
     if(act==='wsClassify'){const holder=btn.closest('[data-wkey]');const r=Workspace.classifyWorkout(st,holder&&holder.dataset.wkey,btn.dataset.cls);if(!r.ok){toast(r.error);return;}commit('auto',btn.dataset.cls==='other'?'Noted — that type stays out of cardio and strength.':'Saved. That workout type now counts as '+btn.dataset.cls+'.');return;}
     if(act==='intakeIncludeSleep'){
       if(!real.autoFeed||readOnly||preview)return;
@@ -2986,9 +3032,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (e.key === 'Escape' && panel){ panel = null; render(); return; }
     const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || '') || (e.target && e.target.isContentEditable);
     if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
-    const areas = ['home','profile','fitness','data','plan','log','progress','collection','lessons','settings'];
+    const areas = ['home','profile','fitness','data','plan','faith','log','progress','collection','settings'];   // sidebar order; Lessons has no number
     if (/^[0-9]$/.test(e.key)){ go(areas[e.key==='0'?9:+e.key - 1]); return; }
-    if (e.key === '/'){ e.preventDefault(); if (area !== 'home') go('home'); focusFirst('#intent'); return; }
+    if (e.key === '/'){ e.preventDefault(); todayTab = 'overview'; if (area !== 'home') go('home'); else render(); focusFirst('#intent'); return; }
     if (e.key === 'd' || e.key === 'D'){ const rows = agendaFor(S(), day); const n = nextAction(rows); if (!n){ toast('Nothing left to mark today.'); return; } stage(S(), 'log'); markTentative(S(), n.seriesId, day); commit('log', n.name + ' checked off tentatively. Review to confirm.'); }
   });
   if (NATIVE){ nativePost({type:'hello'}); if(personalReview){setTimeout(async()=>{await refreshIntakeStatus();intakeRender();scanIntake();},300);}else{setTimeout(()=>{syncReminders();nativePost({type:'relayInfo'});nativePost({type:'inbox'});},300);setInterval(()=>nativePost({type:'inbox'}),60000);} }

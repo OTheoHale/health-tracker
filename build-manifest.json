@@ -1,22 +1,22 @@
 {
-  "build": "2026-09-23-V1.4",
+  "build": "2026-09-23-V1.5",
   "files": {
     "body-view.css": "ffe147ecc1aa5b8596183cc75544df374ea066aa8db99ea6cc023082af7fdd85",
     "body-view.js": "d3ce2a6bc465f4c8922bcbb5fe47132a7baed46a9575cdb5278fcd4b14ccbdfc",
     "convert-starter.js": "40c333c133bdb5045fd7fe8660861c723ee1a940628a16d6f9bf05ff9cfa0fc4",
-    "delivery.js": "dacc046e7cd6e50af942baf7fdebfb393af53896f05b3d2853009b3798ab2eeb",
+    "delivery.js": "21c365bffacf0748c6152f95b52eb32e6fd3d29ec8bbf99602ace2d0898e8110",
     "hae-adapter.js": "babaef3308b67dd963a3622e565e941cd57fc82827906ed40e11eaad75095935",
     "health-domain.js": "47f4efda3f7c0d451d5b6efe8b369fa1e29025bb1140ec08f5ecdf80bfd648da",
     "health-store.js": "98f442dce68c0e77a931e8f061009ba054333381b6027719fadd81f1066a38d9",
     "icon-192.png": "9293622062f8e7f952d83908a5241cbe71f6c056be5affd70a91af1a0d95df8a",
     "icon-512.png": "b33e8d919951159f8d93c74be7d5aa33c2e23f5d88864f2ade5fc579afae6691",
-    "index.html": "c50e89cb07bbc5deb940aeeed80b97323b8d732e3c2b7b981526583712b806b9",
+    "index.html": "31ec59fcccb6c280de56455b421acd67c6cea9d9e6dd54da412ee6354a8653cd",
     "manifest.webmanifest": "f3813ec95e36ce358ca02bada755da135b50547a89690eef3b0b7e729199d1bd",
     "meal-water.js": "2ec35f37435af8cc8e5af71b16b7f3cc13436ef6150aa77c9373422b64e79a4a",
     "model-viewer.min.js": "774edda21e1be2a0934e460ca5943af1fe3f88da130a9f98bd6a9d611576cacf",
     "offline.html": "7f472596880496629a8dcbde453d2257e9815c088d609d013253a3469efe521d",
     "quarter-points.js": "7d8a7554b70172264ce5ee8f6897d02ed0a9c7e271a206f53957785cc258e58d",
-    "sw.js": "859f52dd5bc424d1227b67ae602fb127c9a8d55b5d530b81a1c0586add2dd380",
+    "sw.js": "79ea1eb6fd61b9a23222410eaa6ca8d8f68fb59b8612a1e22e05bf68e848cdae",
     "workspace-proposal.js": "4e8f5f8d5ee14e9ae40a74086335d372658ca1a7017de7b9311773b12a5d8090"
   }
 }

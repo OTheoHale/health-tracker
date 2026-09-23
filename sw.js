@@ -8,7 +8,7 @@
  * Health Tracker publishes to its own host for the same family of reasons, so today it is alone
  * there — but a worker that only cleans up after itself stays correct if that ever changes.
  */
-const BUILD = '2026-09-23-V1.4';                      // ship.sh stamps this in step with delivery.js
+const BUILD = '2026-09-23-V1.5';                      // ship.sh stamps this in step with delivery.js
 const SHELL_PREFIX = 'health-tracker-shell-';
 const SHELL = SHELL_PREFIX + BUILD;
 
@@ -47,6 +47,9 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   /* Anything off this origin, and the body scheme, is none of this worker's business. */
   if (url.origin !== self.location.origin) return;
+  /* The page's version check asks for the network copy; answering it from this cache would always
+     report the running build and no update would ever be noticed. */
+  if (request.cache === 'no-store') return;
   event.respondWith((async () => {
     const hit = await caches.match(request);
     if (hit) return hit;
