@@ -80,6 +80,11 @@ class HealthBodyView extends HTMLElement {
   }
 
   async request(action, data) {
+    try { return await this.fetchJSON(action, data); }
+    catch (error) { if (window.HealthBodyLog) window.HealthBodyLog(String(action).slice(0, 80) + ' via ' + BODY_BASE.split('/')[0] + ' failed: ' + error.name + ': ' + error.message); throw error; }
+  }
+
+  async fetchJSON(action, data) {
     const response = await fetch(BODY_BASE + action, data ? {
       method: 'POST', headers: {'X-Body-Request': '1', 'X-Source-Name': data instanceof File ? data.name : '', 'Content-Type': data instanceof File ? 'application/octet-stream' : 'application/json'},
       body: data instanceof File ? data : JSON.stringify(data)

@@ -605,6 +605,7 @@ addEventListener('load', () => {
   // The native side logs what it delivered; without this it never learned what became of it, so a
   // file that was delivered and refused looked exactly like a file that was delivered and applied.
   function intakeLog(message){ nativePost({type:'intakeLog',message:String(message).slice(0,400)}); }
+  window.HealthBodyLog = message => { if (NATIVE) intakeLog('body: ' + message); };
   // Rows imported under a folder connection that has since been replaced. reconcile() refuses to
   // write anything at all while the store holds one, which is a dead end until they are retired.
   function foreignFeedRows(state){
@@ -809,7 +810,7 @@ addEventListener('load', () => {
         // same way — every ten seconds, indefinitely, with the healthy file behind it never applied.
         // A file that cannot be applied is now reported and skipped. Capacity still stops the batch,
         // because it is a limit on the workspace rather than a problem with one file.
-        if(!result.ok){fileError=result.capacity?result.error:file.id+' — '+result.error;intakeLog(file.id+' refused: '+result.error);if(result.capacity){await nativeRequest('intakePause',{paused:true});break;}continue;}
+        if(!result.ok){fileError=result.capacity?result.error:file.id+' — '+result.error;intakeLog(file.id+' refused: '+result.error+(result.detail?' ['+result.detail+']':''));if(result.capacity){await nativeRequest('intakePause',{paused:true});break;}continue;}
         const ack=await nativeRequest('intakeAck',{files:[{id:file.id,sha256:file.sha256,fingerprint:file.fingerprint}]});
         if(!ack.ok){fileError='The delivery was saved; its local acknowledgment will be retried.';intakeLog(file.id+' applied but not acknowledged: '+(ack.error||'no reason given'));break;}
         intakeLog(file.id+(result.unreadable?' retired (nothing this feed reads)':result.duplicate?' already imported; nothing to add':' applied'));

@@ -52,10 +52,10 @@
         try{
           tx=db.transaction(names,mode);
           tx.oncomplete=()=>resolve(result);
-          tx.onabort=()=>resolve(aborted||failed('STORAGE',message.STORAGE));
+          tx.onabort=()=>resolve(aborted||failed('STORAGE',message.STORAGE,{detail:tx.error?String(tx.error.name)+': '+String(tx.error.message).slice(0,200):'transaction aborted'}));
           tx.onerror=()=>{};
           run(tx,value=>{result=value;},value=>{aborted=value;try{tx.abort();}catch(e){resolve(value);}});
-        }catch(e){if(tx)try{tx.abort();}catch(ignored){}resolve(failed('STORAGE',message.STORAGE));}
+        }catch(e){if(tx)try{tx.abort();}catch(ignored){}resolve(failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)}));}
       });
     }
     function gather(tx,requests,done,abort){
@@ -126,7 +126,7 @@
         if(!mark)return failed('STAGED',message.STAGED,{blockedMigration:true,needsMigration:true});
         if(mark.authorityId!==value.control.authorityId)return failed('CORRUPT',message.CORRUPT);
         return Object.assign({ok:true,state:value.state,authority:'indexeddb',revision:value.state.revision,generation:value.state.rewardGeneration},includeAudit?{control:value.control,revisions:value.revisions,deliveries:value.deliveries}:{});
-      }catch(e){return failed('STORAGE',message.STORAGE);}
+      }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
     }
     async function migrate(state,options){
       try{
@@ -162,7 +162,7 @@
         }catch(e){return failed('STAGED',message.STAGED,{blockedMigration:true,needsMigration:true});}
         const complete=await read();
         return complete.ok?Object.assign(complete,{migrated:true,snapshotSafe:true}):complete;
-      }catch(e){return failed('STORAGE',message.STORAGE);}
+      }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
     }
     async function write(state,options){
       const config=options||{};
@@ -227,7 +227,7 @@
         });
         if(saved.ok&&!saved.duplicateDelivery){state.revision=next.revision;state.rewardGeneration=next.rewardGeneration;}
         return saved;
-      }catch(e){return failed('STORAGE',message.STORAGE);}
+      }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
     }
     async function list(name,id){
       try{
@@ -237,7 +237,7 @@
         if(id===undefined)return {ok:true,items:rows.filter(row=>name!=='deliveries'||row.generation===ready.state.rewardGeneration).map(row=>name==='deliveries'?row.value:row)};
         const found=rows.find(row=>row.id===JSON.stringify([ready.state.rewardGeneration,id]));
         return {ok:true,delivery:found?found.value:null};
-      }catch(e){return failed('STORAGE',message.STORAGE);}
+      }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
     }
     return {open:read,read,migrate,write,writeClaims:write,readDelivery:digest=>list('deliveries',digest),deliveries:()=>list('deliveries'),revisions:()=>list('revisions'),close(){if(database)database.close();database=null;opening=null;},markerKey,dbName};
   }
