@@ -126,6 +126,8 @@ h4{font:600 12.5px/1.3 var(--sans); color:var(--faint); margin:12px 0 6px}
 .goals{display:flex; gap:14px; align-items:center; margin-top:14px; border-top:1px solid var(--line); padding-top:12px} .goals > div{flex:1} .goals p{margin:0}
 .quest{margin-top:10px; font-size:14px; color:var(--muted)} .quest .cap{display:inline; margin-right:6px; color:var(--brass)}
 .intent{display:flex; gap:8px; margin-top:12px} .intent input{flex:1}
+.glance-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.glance-tile{border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--sunk)}.glance-tile .cap{margin:0}.glance-big{font-size:28px;margin:4px 0;font-variant-numeric:tabular-nums}.glance-big small{font-size:14px;color:var(--muted)}.glance-bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.glance-bar i{display:block;height:100%}.glance-tile .hint{margin:6px 0}.glance-spark{position:relative;display:flex;gap:4px;align-items:flex-end;height:36px}.glance-spark span{flex:1;border-radius:3px 3px 0 0}.glance-spark em{position:absolute;left:0;right:0;border-top:1px dashed var(--muted)}.glance-dots{display:inline-flex;gap:3px;vertical-align:middle}.glance-dots i{width:8px;height:8px;border-radius:50%}.glance-cols{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-top:14px}@media(max-width:760px){.glance-cols{grid-template-columns:1fr}}.glance-cols h3{margin:0 0 6px;font-size:15px}.glance-list{list-style:none;margin:0;padding:0}.glance-list li{display:grid;grid-template-columns:40px 1fr 60px 1fr auto;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)}.glance-tag{font-size:12px;padding:2px 8px;border-radius:10px;border:1px solid var(--t);color:var(--t)}.fitness-detail summary{cursor:pointer}
+.sleep-grid{display:flex;gap:16px;align-items:center;flex-wrap:wrap}.sleep-stages{display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px;margin-top:8px}.sleep-stages i{display:block}.sleep-week{position:relative;display:flex;gap:8px;align-items:flex-end;height:78px;margin-top:12px}.sleep-week div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}.sleep-week span{display:block;width:100%;max-width:26px;border-radius:4px 4px 0 0;background:var(--line-strong)}.sleep-week small{color:var(--muted);font-size:11px}.sleep-week em{position:absolute;left:0;right:0;border-top:1px dashed var(--muted);margin-bottom:18px}
 .proposal{margin-top:10px; border:1px solid var(--brass); border-radius:14px; padding:12px 14px; background:var(--brass-soft)}
 
 /* agenda + fitness */
@@ -518,12 +520,18 @@ addEventListener('load', () => {
   const manualClaimRewards=(...args)=>trackManualSave(()=>claimRewards(...args));
   document.addEventListener('input',e=>{if(e.target?.matches('input,textarea,select,[contenteditable=true]')){inputGeneration++;if(manualSaving||preserveManualDraft)preservedInputs.add(e.target);}},true);
 
+  function autoSummary(changes){const names=[...new Set(changes.map(c=>c.name))];return 'From Apple Health: '+names.join(', ')+' checked off. Claim the points when you’re ready.';}
+  async function runAutoEvidence(){
+    if(preview||readOnly||typeof Workspace==='undefined'||!Workspace.autoEvidence)return;
+    const r=Workspace.autoEvidence(real);
+    if(r.ok&&r.changes.length)await commit('auto',autoSummary(r.changes));
+  }
   async function save(options){
     if (preview) return true;
     if (readOnly) return false;
     const r = await trackManualSave(()=>typeof navigator.locks==='undefined' ? {ok:false,error:'Safe saving needs Web Locks in this browser.'} : navigator.locks.request(STORE_KEY+'.workspace',()=>store.write(real, options)));
     if (!r.ok){ saveError = r.error; readOnly = true; }
-    if(r.ok&&options&&(options.replaceRewards||options.allowSourceRemoval)){intakeResetPending=true;setTimeout(()=>scanIntake(),0);}
+    if(r.ok&&options&&(options.replaceRewards||options.allowSourceRemoval||options.replayDeliveries)){intakeResetPending=true;setTimeout(()=>scanIntake(),0);}
     return r.ok;
   }
   async function commit(label, msg, options){ const generation=inputGeneration,focused = document.activeElement, action = focused && focused.dataset && focused.dataset.act, series = focused && focused.closest('[data-series]'); const sid = series && series.dataset.series; const ok = await save(options),newerInput=inputGeneration!==generation; if (ok){if(!newerInput)unsavedForm=false;syncReminders();} render(); if (ok && action&&!newerInput){ const buttons = [...document.querySelectorAll('[data-act]')]; const next = buttons.find(b=>b.dataset.act===action && (!sid || b.closest('[data-series]')?.dataset.series===sid)); if(next) next.focus(); } if (!ok) toast('Not saved. Your changes remain in this tab; export a recovery copy from Settings.'); else if(newerInput)toast('Earlier changes saved. Your newer edits are still here; save them when ready.');else if (msg) toast(msg); return ok; }
@@ -538,6 +546,36 @@ addEventListener('load', () => {
   Object.defineProperty(window, 'HealthBodySnapshot', {
     get(){ try { return real.bodySnapshot || null; } catch(_) { return null; } }
   });
+  /* Whole-body figures follow whichever source is most recent and carry that source's own date.
+     The Fitdays report stays the only source of per-region fat and muscle, so the regional cards
+     keep the Fitdays date even when the scale reading above them is newer. A May scale reading and
+     a September watch reading are never blended into one undated number. */
+  const WHOLE_BODY_METRICS={weight:['weight_body_mass','weight_&_body_mass'],bodyFat:['body_fat_percentage'],bmi:['body_mass_index'],leanMass:['lean_body_mass']};
+  function wholeBodyFigures(){
+    const state=S(),rows=relayedRecords(state,'weight'),out={};
+    for(const [figure,metrics] of Object.entries(WHOLE_BODY_METRICS)){
+      let best=null;
+      for(const r of rows){
+        const meta=r.unmapped&&r.unmapped.healthAutoExport;
+        if(!meta||!metrics.includes(meta.metric)||!Number.isFinite(r.value))continue;
+        const date=sourceLocalDay(r.start);
+        // A projected row carries the adapter's canonical unit, which is kg. Showing a mass in the
+        // unit this workspace is set to is the whole point of the preference; a percentage and an
+        // index have no alternative unit and are left exactly as measured.
+        let value=r.value,unit=r.unit||null;
+        if((figure==='weight'||figure==='leanMass')&&['kg','lb','lbs'].includes(unit)){
+          const dest=state.prefs.units==='kg'?'kg':'lb';
+          if(unit!==dest)value=unit==='kg'?value*2.2046226218487757:value/2.2046226218487757;
+          unit=dest;
+        }
+        if(figure==='bmi')unit=null; // an index, not a count
+        if(!best||date>best.date)best={value,unit,date,source:r.sourceApp||'Imported'};
+      }
+      out[figure]=best;
+    }
+    return out;
+  }
+  Object.defineProperty(window,'HealthWholeBody',{get(){try{return wholeBodyFigures();}catch(_){return null;}}});
   document.addEventListener('bodysnapshot', e => {
     const next = e.detail;
     if (!next || preview || readOnly) return;
@@ -563,8 +601,18 @@ addEventListener('load', () => {
     else if (msg.type === 'inbox'){ nativeInfo.relay.inbox = Array.isArray(msg.items) ? msg.items : []; if (area === 'data' || area === 'settings') render(); }
     else if (msg.type === 'delivery'){ nativePost({ type:'inbox' }); toast('A delivery arrived from your GPT. Review it in Data before it is imported.'); }
   };
+  // The native side logs what it delivered; without this it never learned what became of it, so a
+  // file that was delivered and refused looked exactly like a file that was delivered and applied.
+  function intakeLog(message){ nativePost({type:'intakeLog',message:String(message).slice(0,400)}); }
+  // Rows imported under a folder connection that has since been replaced. reconcile() refuses to
+  // write anything at all while the store holds one, which is a dead end until they are retired.
+  function foreignFeedRows(state){
+    const feed=state.autoFeed;
+    if(!feed||typeof HealthAutoExport==='undefined')return [];
+    return (state.sourceRecords||[]).filter(r=>HealthAutoExport.foreignToFeed(r,feed.contract.feedId));
+  }
   let intakeResetPending=true;
-  const intake = {pending:new Map(),sequence:0,busy:false,applying:false,status:null,error:null,deferred:false};
+  const intake = {pending:new Map(),sequence:0,busy:false,applying:false,status:null,error:null,deferred:false,skipped:[]};
   const cloneLocal = value=>JSON.parse(JSON.stringify(value));
   async function digestText(text){const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return Array.from(new Uint8Array(bytes),n=>n.toString(16).padStart(2,'0')).join('');}
   function nativeRequest(type,payload={}){
@@ -577,6 +625,47 @@ addEventListener('load', () => {
   }
   function intakeEditing(){return preview||manualSaving>0||(readOnly&&!durableStore.stagedState)||unsavedForm||feedbackUnsaved||!!feedbackText||!!pendingImport||!!starterInput||!!actionReview||!!document.querySelector('dialog[open]')||!!document.activeElement?.matches('input,textarea,select,[contenteditable=true]');}
   function intakeRender(){if(!intakeEditing())render();}
+  // A refusal used to reach the panel as its bare native code — "file-empty-or-over-10mb" — with no
+  // file named, so three permanently unreadable exports read as one transient glitch.
+  const INTAKE_REFUSALS={
+    'file-over-size-limit':'is larger than the 128 MB this reader accepts',
+    'file-empty':'is empty',
+    'file-empty-or-over-10mb':'is empty, or larger than the limit this reader accepts',
+    'icloud-download-pending':'has not finished downloading from iCloud',
+    'file-changing':'was still being written while it was read, and will be retried',
+    'file-not-utf8':'is not UTF-8 text',
+    'not-regular-file':'is not an ordinary file',
+    'symlink-or-scope-refused':'sits outside the folder you connected',
+    'coordinated-scope-changed':'moved while it was being read',
+    'file-metadata-unavailable':'did not report a usable modification time',
+    'coordinated-read-failed':'could not be read under file coordination',
+    'file-access-failed':'could not be read'
+  };
+  // "11,805 held" says nothing about why, so whether a hold was a deliberate one — a compound
+  // writer — or an accident of reconnecting to a different folder could only be guessed at.
+  const HOLD_REASONS={
+    different_feed_namespace:'imported under a folder connection that has since been replaced',
+    unknown_feed_namespace:'without a recognised feed identity',
+    unknown_or_compound_writer:'written by more than one non-Apple app at once, so they are not counted twice',
+    yielded_to_apple_health:'from other apps on days Apple Health already covers, so Apple Health’s figure is used instead',
+    multiple_writers:'claimed by competing apps on the same day',
+    unresolved_revision:'holding a changed value that has not been reviewed',
+    unsupported_bucket_contract:'outside the confirmed export contract',
+    quantity_overflow:'whose daily total could not be added up'
+  };
+  function holdReasons(report){
+    const reasons=Object.entries((report&&report.reasons)||{}).filter(([,count])=>count>0).sort((a,b)=>b[1]-a[1]);
+    if(!reasons.length)return '';
+    return ' Held: '+reasons.map(([reason,count])=>count.toLocaleString()+' '+(Object.prototype.hasOwnProperty.call(HOLD_REASONS,reason)?HOLD_REASONS[reason]:reason)).join('; ')+'.';
+  }
+  function intakeRefusals(errors){
+    const byCode=new Map();
+    for(const e of errors){const list=byCode.get(e.code)||[];list.push(e.id);byCode.set(e.code,list);}
+    return [...byCode].map(([code,ids])=>{
+      const named=ids.slice(0,3).join(', ')+(ids.length>3?' and '+(ids.length-3)+' more':'');
+      return named+' '+(Object.prototype.hasOwnProperty.call(INTAKE_REFUSALS,code)?INTAKE_REFUSALS[code]:'was refused ('+code+')')+'.';
+    }).join(' ')+' Saved history remains available.';
+  }
   async function refreshIntakeStatus(){
     if(!NATIVE||preview)return;
     const status=await nativeRequest('intakeStatus');
@@ -592,13 +681,24 @@ addEventListener('load', () => {
     if(reply.sha256!==sha256||reply.bytes!==new TextEncoder().encode(text).length||reply.recordCount!==state.sourceRecords.length||reply.receiptCount!==state.importReceipts.length||reply.claimCount!==Object.keys(state.rewards.claims).length)return {ok:false,error:'The private recovery file could not be reconciled. Migration is paused.'};
     return {ok:true,backup:{verified:true,id:reply.filename,sha256,stateSHA256}};
   }
-  async function connectIntake(){
-    if(preview||(readOnly&&!durableStore.stagedState)||intake.busy)return;
+  // Reselect re-grants access to the SAME folder and passes expectedFeedId, which connect()
+  // enforces. Moving the feed to a different folder is a separate, deliberate act — Health Auto
+  // Export writes one subfolder per data type, so pointing at the parent is how both feeds are
+  // covered at once. Without this there was no way to change folders at all.
+  async function connectIntake(move){
+    // These used to return in silence, so a workspace that had gone read-only after a failed save
+    // made "Connect iCloud folder" do nothing at all, with nothing on screen to explain it.
+    if(preview){toast('This is a preview workspace; connect a folder in the installed app.');return;}
+    if(intake.busy){toast('Still finishing the last intake request. Try again in a moment.');return;}
+    if(readOnly&&!durableStore.stagedState){
+      toast('The workspace is read-only after a failed save, so it cannot connect a folder. '+(saveError||'Export a recovery copy from Settings, then reload.'));
+      return;
+    }
     if(!NATIVE||typeof HealthAutoExport==='undefined'||!durableStore.engine){toast('Open the complete automatic intake review app to connect your folder.');return;}
     if(intakeEditing()){toast('Save or close your current edits before connecting a folder.');return;}
     intake.busy=true;
     try{
-      const chosen=await nativeRequest('intakeChoose',real.autoFeed?{expectedFeedId:real.autoFeed.contract.feedId}:{});
+      const chosen=await nativeRequest('intakeChoose',(real.autoFeed&&!move)?{expectedFeedId:real.autoFeed.contract.feedId}:{});
       if(!chosen.ok){if(!chosen.cancelled&&chosen.error!=='cancelled')intake.error=chosen.error==='different-folder'?'Choose the original folder. Your current connection was preserved.':chosen.error||'No folder was connected.';return;}
       const existing=real.autoFeed;
       if(existing?.capacityReason){await nativeRequest('intakePause',{paused:true});intake.error=existing.capacityReason;return;}
@@ -610,7 +710,11 @@ addEventListener('load', () => {
         if((state.revision||0)!==(real.revision||0))return {ok:false,error:'The workspace changed in another view. Reload before connecting.'};
         if(!durableStore.active){const proof=await verifiedRecovery(state);if(!proof.ok)return proof;const migrated=await store.activate(state,proof.backup);if(!migrated.ok)return migrated;}
         const baseline=state.sourceRecords.filter(r=>r.unmapped?.healthAutoExport&&r.unmapped.healthAutoExport.format!=='JSON').map(r=>sourceLocalDay(r.start)).sort();
-        const contract=existing?.contract||{version:1,feedId:chosen.feedId,format:'health-auto-export-json-v2',route:'health-metrics',grouping:'minute',timeZone:'America/Los_Angeles',activeFrom:baseline.length?addDays(baseline.at(-1),1):todayYmd(),sleepMode:'exclude'};
+        // A deliberate move adopts the new folder's feed identity and keeps every confirmed
+        // setting. Without this the contract held the previous feedId forever, so scanIntake
+        // compared it against the new one and refused every scan with "does not match this
+        // workspace's feed" — the connection succeeded and then nothing could ever read from it.
+        const contract=(existing?.contract&&move)?{...existing.contract,feedId:chosen.feedId}:existing?.contract||{version:1,feedId:chosen.feedId,format:'health-auto-export-json-v2',route:'health-metrics',grouping:'minute',timeZone:'America/Los_Angeles',activeFrom:baseline.length?addDays(baseline.at(-1),1):todayYmd(),sleepMode:'exclude'};
         const problem=HealthAutoExport.validateContract(contract);if(problem)return {ok:false,error:problem};
         state.autoFeed={...(existing||{}),version:1,contract,folderName:chosen.folderName,paused:false,files:existing?.files||[],configuredAt:existing?.configuredAt||nowIso()};
         const saved=await store.write(state);if(saved.ok){replaceState(real,state);readOnly=false;saveError=null;}return saved;
@@ -626,18 +730,24 @@ addEventListener('load', () => {
   async function scanIntake(resetAcknowledged=false){
     if(!NATIVE||!durableStore.active||!real.autoFeed||real.autoFeed.paused||intake.busy||preview||readOnly)return;
     if(intakeEditing()){intake.deferred=true;document.querySelectorAll('[data-feedback-id="automatic-intake"] .ph .chip').forEach(el=>el.textContent='Waiting for your edits');return;}
-    const priorRevision=real.revision,priorError=intake.error,priorDeferred=intake.deferred;
+    const priorRevision=real.revision,priorError=intake.error,priorDeferred=intake.deferred,priorSkipped=intake.skipped.join('|');
     intake.busy=true;intake.deferred=false;
     try{
       const reply=await nativeRequest('intakeScan',resetAcknowledged||intakeResetPending?{resetAcknowledged:true}:{});
-      if(!reply.ok){intake.error=reply.error||'The selected folder could not be read.';return;}
-      if(reply.feedId!==real.autoFeed.contract.feedId){intake.error='The selected folder does not match this workspace’s feed. Reselect the original folder.';return;}
+      if(!reply.ok){intake.error=reply.error||'The selected folder could not be read.';intakeLog('scan refused: '+intake.error);return;}
+      if(reply.feedId!==real.autoFeed.contract.feedId){intake.error='The selected folder does not match this workspace’s feed. Reselect the original folder.';intakeLog('scan refused: feed '+reply.feedId+' is not this workspace’s feed '+real.autoFeed.contract.feedId);return;}
       intakeResetPending=false;intake.status={...(intake.status||{}),...reply};
-      const fileProblem=(reply.errors||[]).length?'Some local files are waiting for attention: '+[...new Set(reply.errors.map(e=>e.code))].join(', ')+'. Saved history remains available.':reply.paused&&!real.autoFeed.paused?'The native reader is paused. Use Pause, then Resume to reconnect.':null;
+      // A file too large for this reader is a standing fact, not something to fix on every scan. It
+      // kept the feed reading "Needs attention" indefinitely over an export whose workouts were all
+      // already imported from a smaller one. It is named quietly instead; real problems still alarm.
+      const refusals=reply.errors||[],oversize=refusals.filter(e=>e.code==='file-over-size-limit'),problems=refusals.filter(e=>e.code!=='file-over-size-limit');
+      intake.skipped=oversize.map(e=>e.id);
+      const fileProblem=problems.length?intakeRefusals(problems):reply.paused&&!real.autoFeed.paused?'The native reader is paused. Use Pause, then Resume to reconnect.':null;
       intake.error=fileProblem;
+      let fileError=null;
       for(const file of reply.files||[]){
-        if(intakeEditing()){intake.deferred=true;break;}
-        if(typeof file.text!=='string'||await digestText(file.text)!==file.sha256){intake.error='A local file changed before its delivery could be verified. It will be retried.';break;}
+        if(intakeEditing()){intake.deferred=true;intakeLog('deferred at '+file.id+': an edit is open');break;}
+        if(typeof file.text!=='string'||await digestText(file.text)!==file.sha256){fileError=file.id+' changed before its delivery could be verified. It will be retried.';continue;}
         const token=await digestText(JSON.stringify([reply.feedId,file.id,file.sha256,file.fingerprint]));
         const result=await navigator.locks.request(STORE_KEY+'.workspace',async()=>{
           if(intakeEditing())return {ok:false,deferred:true};
@@ -650,9 +760,25 @@ addEventListener('load', () => {
             const draft=current.state,feed=draft.autoFeed,contract=feed.contract;
             const delivery={id:token,feedId:contract.feedId,fileId:file.id,digest:file.sha256,modifiedAt:file.modifiedAt,modifiedAtMs:file.modifiedAtMs,receivedAt:nowIso()};
             const previous=feed.files.find(x=>x.fileId===file.id);
-            const parsed=HealthAutoExport.parse(file.text,{contract,delivery});
+            // The connected folder now covers a subfolder per data type, so a file declares which
+            // route it is by its own envelope rather than inheriting the folder's. data.workouts is
+            // a session feed; data.metrics is the metrics feed. Anything else in that tree — Health
+            // Auto Export's own automation configs, for instance — is retired quietly instead of
+            // being forced through the wrong parser and failing on every scan forever.
+            let fileContract=contract;
+            try{
+              const envelope=JSON.parse(file.text);
+              const data=envelope&&envelope.data;
+              if(data&&Array.isArray(data.workouts))fileContract={...contract,route:'workouts'};
+              else if(!(data&&Array.isArray(data.metrics)))return {ok:true,duplicate:true,unreadable:true};
+            }catch(_){return {ok:false,error:'That file is not readable JSON.'};}
+            const parsed=HealthAutoExport.parse(file.text,{contract:fileContract,delivery});
             if(!parsed.ok)return {ok:false,error:parsed.error||'The JSON file does not match the confirmed export contract.'};
-            const merged=HealthAutoExport.reconcile(draft.sourceRecords,parsed,{contract,delivery,previousDelivery:previous});
+            // parse() was given fileContract, so reconcile() must be too. It was given the feed's
+            // own contract, whose route is always health-metrics, so every workouts file was checked
+            // against the metrics identity rules and refused with "Parsed bucket identity or
+            // canonical unit is invalid" — on every scan, forever.
+            const merged=HealthAutoExport.reconcile(draft.sourceRecords,parsed,{contract:fileContract,delivery,previousDelivery:previous});
             if(!merged.ok)return merged;
             if(draft.sourceRecords.length+merged.report.added>AUTO_SOURCE_LIMIT){feed.paused=true;feed.capacityReason='Automatic intake paused before exceeding '+AUTO_SOURCE_LIMIT.toLocaleString()+' retained source rows. Existing records and the source file remain intact. Save a private recovery copy; a capacity review is needed before resuming.';const saved=await store.write(draft);if(!saved.ok)return saved;replaceState(real,draft);return {ok:false,capacity:true,error:feed.capacityReason};}
             const accepted=!['stale','conflict'].includes(merged.report.status);
@@ -668,18 +794,28 @@ addEventListener('load', () => {
             feed.lastReportedAt=projection.report.latestData||null;
             feed.lastReport={...merged.report,excluded:parsed.report.counts.excluded,held:projection.heldIds.length,shadow:projection.shadowIds.length,active:projection.activeIds.length};
             draft.importReceipts.push({id:'auto:'+token,at:delivery.receivedAt,transport:'iCloud local JSON',counts:{added:merged.report.added,same:merged.report.same,clash:merged.report.status==='conflict'?parsed.records.length:0,invalid:0,unsupported:parsed.report.counts.excluded},feedId:contract.feedId,contentDigest:file.sha256,modifiedAt:file.modifiedAt,modifiedAtMs:file.modifiedAtMs,status:merged.report.status,revised:merged.report.revised,held:projection.heldIds.length,receivedKinds:[...new Set(parsed.records.map(r=>r.kind))],warnings:[accepted?'Only qualified received buckets enter daily displays; completeness is unknown.':'This delivery was held by the source ordering checks; earlier accepted values remain.']});
+            // New records check off the activities they establish in the same saved write, so the
+            // rings and Ready to claim move with the data (Mintay, 2026-09-23).
+            const linked=accepted?Workspace.autoEvidence(draft):null;
+            if(linked&&!linked.ok)intakeLog('automatic check-off skipped: '+linked.error);
             const saved=await store.write(draft,{delivery:{digest:token,contentDigest:file.sha256,feedId:contract.feedId,fileId:file.id,modifiedAt:file.modifiedAt,modifiedAtMs:file.modifiedAtMs,status:merged.report.status}});
-            if(saved.ok){replaceState(real,draft);dropUndo();}return saved;
+            if(saved.ok){replaceState(real,draft);dropUndo();if(linked?.changes?.length){intakeLog(autoSummary(linked.changes));toast(autoSummary(linked.changes));}}return saved;
           }finally{intake.applying=false;}
         });
-        if(result.deferred){intake.deferred=true;break;}
-        if(!result.ok){intake.error=result.error;if(result.capacity)await nativeRequest('intakePause',{paused:true});break;}
+        if(result.deferred){intake.deferred=true;intakeLog('deferred at '+file.id+': an edit opened mid-apply');break;}
+        // One unusable file used to break the whole batch. Nothing in that batch was acknowledged,
+        // so the native reader redelivered the same files on the next tick and the batch failed the
+        // same way — every ten seconds, indefinitely, with the healthy file behind it never applied.
+        // A file that cannot be applied is now reported and skipped. Capacity still stops the batch,
+        // because it is a limit on the workspace rather than a problem with one file.
+        if(!result.ok){fileError=result.capacity?result.error:file.id+' — '+result.error;intakeLog(file.id+' refused: '+result.error);if(result.capacity){await nativeRequest('intakePause',{paused:true});break;}continue;}
         const ack=await nativeRequest('intakeAck',{files:[{id:file.id,sha256:file.sha256,fingerprint:file.fingerprint}]});
-        if(!ack.ok){intake.error='The delivery was saved; its local acknowledgment will be retried.';break;}
-        intake.error=fileProblem;
+        if(!ack.ok){fileError='The delivery was saved; its local acknowledgment will be retried.';intakeLog(file.id+' applied but not acknowledged: '+(ack.error||'no reason given'));break;}
+        intakeLog(file.id+(result.unreadable?' retired (nothing this feed reads)':result.duplicate?' already imported; nothing to add':' applied'));
       }
+      intake.error=fileError||fileProblem;
     }catch(e){intake.error='Automatic intake stopped before completing a delivery. Previously committed data remains available.';}
-    finally{intake.busy=false;if(real.revision!==priorRevision||intake.error!==priorError||intake.deferred!==priorDeferred)intakeRender();}
+    finally{intake.busy=false;if(real.revision!==priorRevision||intake.error!==priorError||intake.deferred!==priorDeferred||intake.skipped.join('|')!==priorSkipped)intakeRender();}
   }
   async function toggleIntake(){
     if(!real.autoFeed||intake.busy||readOnly||preview)return;
@@ -698,9 +834,12 @@ addEventListener('load', () => {
     const status=feed?(feed.capacityReason?'Paused at capacity':feed.paused?'Paused':intake.error?'Needs attention':intake.deferred?'Waiting for your edits':intake.busy?'Checking local files':'Ready while this app is open'):'Folder not connected';
     const tone=feed?(feed.capacityReason?' partial':feed.paused?' quiet':intake.error?' partial':''):' quiet';   // chip colour only; mirrors the status order above
     const projection=sourceProjection(state),report=projection?.report;
+    // A blocked feed is worth more than an error message: it needs the one control that clears it.
+    const stranded=feed?foreignFeedRows(state):[];
+    const strandedNotice=stranded.length?'<p class="notice bad">'+pl(stranded.length,'imported record')+' came from a folder connection that has since been replaced. No new import can be saved while they are present, and they never appear in your figures. A private recovery copy is written before anything is removed, and your files are then read again from the beginning.</p><div class="acts"><button class="save" data-act="intakeRetireForeign">Retire records from the previous connection</button></div>':'';
     const capacity=feed&&(feed.capacityReason||state.sourceRecords.length>=AUTO_SOURCE_LIMIT*.8)?'<p class="notice">'+esc(feed.capacityReason||'History is approaching the current automatic intake limit of '+AUTO_SOURCE_LIMIT.toLocaleString()+' source rows. Intake will pause before adding a file that crosses it; no history is trimmed.')+'</p>':'';
     const times=feed?'<dl class="feed-times"><dt>Last local delivery</dt><dd>'+esc(dataWhen(feed.lastDeliveryAt))+'</dd><dt>Last successful import</dt><dd>'+esc(dataWhen(feed.lastImportAt))+'</dd><dt>Latest reported bucket</dt><dd>'+esc(dataWhen(feed.lastReportedAt))+'</dd><dt>Completeness</dt><dd>Unknown · missing buckets are not zeros</dd></dl>':'';
-    return '<section class="panelcard '+(compact?'feed-strip':'feed-card')+'" data-feedback-id="automatic-intake" data-feedback-label="Automatic iCloud intake"><div class="ph"><h2>Health Auto Export</h2><span class="chip'+tone+'">'+esc(status)+'</span></div>'+(intake.error?'<p class="notice bad">'+esc(intake.error)+'</p>':'')+capacity+(compact?'<p class="hint">'+(feed.lastImportAt?'Last imported '+esc(dataWhen(feed.lastImportAt)):'Waiting for the first stable local file')+'. Updates resume when this app is open.</p><button class="link" data-act="go" data-area="data">Review feed</button>':times+(feed?'<p class="hint feed-note">Nothing is imported while this app is closed. Daily JSON figures reflect only the minute data received so far; imports never confirm activities or award points.</p><div class="acts"><button data-act="intakeScan">Check now</button><button data-act="intakePause">'+(feed.paused?'Resume':'Pause')+'</button><button data-act="intakeConnect">Reselect folder</button><button data-act="intakeBackup">Save private recovery copy</button><button data-act="intakeCutover">Change JSON start date</button></div><p class="hint">JSON is eligible from '+esc(feed.contract.activeFrom)+'. Earlier CSV history remains; CSV also fills dates or metrics where qualified JSON is unavailable. Both are never added together.</p><p class="hint">'+esc(feed.folderName)+' · '+pl(state.sourceRecords.length,'retained source row')+' · '+pl(state.importReceipts.length,'receipt')+'. '+(report?pl(report.projected,'daily display row')+'; '+projection.heldIds.length+' held; '+pl(projection.shadowIds.length,'shadow row')+'.':'')+'</p>':'<p>Connect the existing Health Auto Export folder once. Choose the folder that contains the daily JSON files.</p><p class="hint">Confirmed format: Health Metrics JSON v2, minute grouping, America/Los_Angeles. The file does not declare its grouping; keep the existing phone export settings. Connecting first writes and verifies a private recovery file, then activates storage with room for ongoing imports.</p><div class="acts"><button class="save" data-act="intakeConnect" '+(!NATIVE||preview?'disabled':'')+'>'+(durableStore.stagedState?'Resume verified migration':'Connect iCloud folder')+'</button></div>')+'<details><summary>What is included and how updates work</summary><p class="hint">This Mac reads only JSON files directly inside the folder you choose. Stable downloads are checked while the app is running and when you return. It catches up after reopening; no intake runs while the app is closed. iPhone export and iCloud delivery times may vary.</p><p class="hint">Steps, active energy, heart-rate summaries, resting heart rate, weight, distance, exercise time, stand time and flights are supported. Unknown, combined or competing writers stay held. Sleep and workouts in this JSON route are excluded; existing CSV and manual history remains available. Imports never confirm activities or award points.</p><p class="hint">Daily sums cover only received minute buckets. Heart-rate minimum, latest minute average and maximum remain separate; no daily average is invented. Original rows and changed-value revisions remain in private storage. Removing a source file does not delete imported history.</p></details>')+'</section>';
+    return '<section class="panelcard '+(compact?'feed-strip':'feed-card')+'" data-feedback-id="automatic-intake" data-feedback-label="Automatic iCloud intake"><div class="ph"><h2>Health Auto Export</h2><span class="chip'+tone+'">'+esc(status)+'</span></div>'+(intake.error?'<p class="notice bad">'+esc(intake.error)+'</p>':'')+strandedNotice+capacity+(compact?'<p class="hint">'+(feed.lastImportAt?'Last imported '+esc(dataWhen(feed.lastImportAt)):'Waiting for the first stable local file')+'. Updates resume when this app is open.</p><button class="link" data-act="go" data-area="data">Review feed</button>':times+(feed?'<p class="hint feed-note">Nothing is imported while this app is closed. Daily JSON figures reflect only the minute data received so far; once your agreed activities are set up, matching workouts, steps, brushing and sleep check themselves off; points still wait for your claim.</p><div class="acts"><button data-act="intakeScan">Check now</button><button data-act="intakePause">'+(feed.paused?'Resume':'Pause')+'</button><button data-act="intakeConnect">Reselect folder</button><button data-act="intakeMove">Change folder…</button><button data-act="intakeDisconnect">Disconnect</button><button data-act="intakeBackup">Save private recovery copy</button><button data-act="intakeCutover">Change JSON start date</button></div>'+(intake.skipped.length?'<p class="hint">Skipped as larger than the 128 MB this reader accepts: '+esc(intake.skipped.join(', '))+'. If it holds anything a smaller export does not, export a shorter date range from Health Auto Export.</p>':'')+'<p class="hint">JSON is eligible from '+esc(feed.contract.activeFrom)+'. Earlier CSV history remains; CSV also fills dates or metrics where qualified JSON is unavailable. Both are never added together.</p><p class="hint">'+esc(feed.folderName)+' · '+pl(state.sourceRecords.length,'retained source row')+' · '+pl(state.importReceipts.length,'receipt')+'. '+(report?pl(report.projected,'daily display row')+'; '+projection.heldIds.length+' held; '+pl(projection.shadowIds.length,'shadow row')+' before the start date.'+holdReasons(report):'')+'</p>':'<p>Connect the existing Health Auto Export folder once. Choose the folder that contains the daily JSON files.</p><p class="hint">Confirmed format: Health Metrics JSON v2, minute grouping, America/Los_Angeles. The file does not declare its grouping; keep the existing phone export settings. Connecting first writes and verifies a private recovery file, then activates storage with room for ongoing imports.</p><div class="acts"><button class="save" data-act="intakeConnect" '+(!NATIVE||preview?'disabled':'')+'>'+(durableStore.stagedState?'Resume verified migration':'Connect iCloud folder')+'</button></div>')+'<details><summary>What is included and how updates work</summary><p class="hint">This Mac reads only JSON files directly inside the folder you choose. Stable downloads are checked while the app is running and when you return. It catches up after reopening; no intake runs while the app is closed. iPhone export and iCloud delivery times may vary.</p><p class="hint">Steps, active energy, heart-rate summaries, resting heart rate, weight, distance, exercise time, stand time and flights are supported. Workout sessions arrive through the Workouts subfolder of the same connected folder. When writers disagree, Apple Health wins: a minute your Apple Watch or iPhone contributed to is Apple Health’s own merged figure, and other apps on that day yield to it. Unknown writers, and combinations with no Apple device in them, stay held. During a workout recorded by a connected app such as iFIT, active energy uses that workout’s own figure for its window, which is what your Move ring counts. Sleep stays excluded by the confirmed contract; existing CSV and manual history remains available. Imports never confirm activities or award points.</p><p class="hint">Daily sums cover only received minute buckets. Heart-rate minimum, latest minute average and maximum remain separate; no daily average is invented. Original rows and changed-value revisions remain in private storage. Removing a source file does not delete imported history.</p></details>')+'</section>';
   }
   const draftNavigationActions=new Set(['go','goData','goGrades','goPlanGroup','goCompare','todayTab','quickLog','editRecurring','openRow','preview','step','jumpToday','stepWeek','jumpWeek','stepProg','jumpProg','pickDay','actScope','dataTab','logTab','planGroup','closePanel','detail','edit','editWorkout','addSeries','addWorkout','editFood','catalogAdd','viewBack','viewForward','planIdea','fitnessRange','fitnessWeek','fitnessCustom','collectionWeek','collectionToday','notesFilter','profileDetail','openFeedback','reviewFeedback','reviewAction','questReview','cancelConfirmation']);
   function resolveDraftNavigation(){
@@ -718,7 +857,12 @@ addEventListener('load', () => {
     else if('defaultValue' in control)control.value=control.defaultValue;
     preservedInputs.delete(control);
   }
-  document.addEventListener('click',e=>{const button=e.target.closest('button,[data-act],label.filebtn');if((intake.applying||manualSaving)&&button){e.preventDefault();e.stopImmediatePropagation();toast('A save is in progress. Your typing is kept; try that action again when it finishes.');return;}if(button&&(leavesManualDraft(button)||button.id==='previewToggle'||button.dataset.area||draftNavigationActions.has(button.dataset.act))&&!resolveDraftNavigation()){e.preventDefault();e.stopImmediatePropagation();}},true);
+  // The controls that stop or unblock automatic intake must not be gated behind intake being busy.
+  // A feed that refuses every delivery holds intake.applying for most of each ten-second cycle, so
+  // the one button that ends the loop was unclickable exactly while the loop was running. A genuine
+  // manual save still blocks them, because that is someone's typing waiting to be written.
+  const INTAKE_ESCAPES=new Set(['intakeRetireForeign','intakePause','intakeDisconnect','intakeConnect']);
+  document.addEventListener('click',e=>{const button=e.target.closest('button,[data-act],label.filebtn');if(button&&!manualSaving&&INTAKE_ESCAPES.has(button.dataset&&button.dataset.act))return;if((intake.applying||manualSaving)&&button){e.preventDefault();e.stopImmediatePropagation();toast('A save is in progress. Your typing is kept; try that action again when it finishes.');return;}if(button&&(leavesManualDraft(button)||button.id==='previewToggle'||button.dataset.area||draftNavigationActions.has(button.dataset.act))&&!resolveDraftNavigation()){e.preventDefault();e.stopImmediatePropagation();}},true);
   document.addEventListener('keydown',e=>{const typing=e.target?.matches('input,textarea,select,[contenteditable=true]');if(((intake.applying||manualSaving)&&(!typing||e.key==='Escape'))||((e.key==='Escape'||(!typing&&/^[0-9/dD]$/.test(e.key)))&&!resolveDraftNavigation())){e.preventDefault();e.stopImmediatePropagation();}},true);
   document.addEventListener('change',e=>{const control=e.target,busy=intake.applying||(manualSaving&&control.dataset.act);if(busy||(control.dataset.act&&leavesManualDraft(control)&&!resolveDraftNavigation())){e.preventDefault();e.stopImmediatePropagation();if(control.dataset.act)restoreRenderedControl(control);if(busy)toast('A save is in progress. Reapply that choice when it finishes.');}},true);
 
@@ -952,10 +1096,10 @@ addEventListener('load', () => {
     const nav = '<div class="daynav"><button class="nav-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b>' + esc(longDate(day)) + '</b><button class="nav-btn" data-act="step" data-n="1" aria-label="Next day">›</button>' + (day !== todayYmd() ? '<button class="link" data-act="jumpToday">Back to today</button>' : '') + (day >= todayYmd() ? '<button class="link" data-act="dayVersion" data-v="minimum">Lighter day</button>' : '') + '</div><div class="subtabs" role="tablist" aria-label="Today views">' + [['overview','Overview'],['activities','Activities'],['agenda','Agenda']].map(t => '<button role="tab" aria-selected="' + (todayTab === t[0]) + '" data-act="todayTab" data-tab="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>';
     const next = '<section class="panelcard next-action" data-feedback-id="next-action" data-feedback-label="Next useful action"><p class="cap">'+(n&&n.status==='tentative'?'Review your check-off':'Next useful action')+'</p>' + (n ? '<h2>' + esc(n.name) + '</h2><p>' + esc(n.target.label) + '</p><div class="acts" data-series="' + n.seriesId + '" data-date="' + n.date + '" data-key="' + n.key + '">' + actionButtons(n) + '<button class="ghost" data-act="openRow">Adjust this day</button></div>' : '<h2>Room to pause.</h2><p class="hint">' + (rows.length ? 'Every planned task has an entry.' : 'No activities planned today. Add one in Plan when you are ready.') + '</p>') + '</section>';
     const undoRemoved = removed.length ? '<details class="panelcard" data-feedback-id="removed-activities" data-feedback-label="Removed activities"><summary>Taken off this day (' + removed.length + ')</summary>' + removed.map(r => '<div class="acts" data-series="' + r.seriesId + '" data-date="' + day + '"><span>' + esc(r.name) + '</span><button data-act="restore">Put back</button></div>').join('') + '</details>' : '';
-    const overview = '<div class="acts"><button class="save" data-act="todayTab" data-tab="activities">Add or review today’s activities</button></div>' + goalRailSection(day) + '<div class="today-layout"><div>' + next + quickLog() + '</div><div>' + ringsSection(day) +
+    const overview = '<div class="acts"><button class="save" data-act="todayTab" data-tab="activities">Add or review today’s activities</button></div>' + goalRailSection(day) + '<div class="today-layout"><div>' + next + quickLog() + '</div><div>' + ringsSection(day) + sleepCard(day) +
       '<section class="panelcard" data-feedback-id="day-narration" data-feedback-label="Your day in words"><p class="hint" style="margin:0">' + esc(narrateDay(st,day,todayYmd()).text) + '</p></section>' +
       '<section class="panelcard" data-feedback-id="coming-up" data-feedback-label="Coming up"><h2>Coming up</h2>' + rows.filter(r=>r.status===null).slice(0,3).map(dailyRow).join('') + '</section></div></div>' + intentBox();
-    return nav + intakeCard(true) + dayEditor() + (todayTab === 'activities' ? wsActivities({includeClaims:true}) : claimsCard() + (todayTab === 'agenda' ? agendaCard() : overview)) + undoRemoved;
+    return nav + intakeCard(true) + dayEditor() + (todayTab !== 'activities' && !activitiesAdopted(st) ? '<section class="panelcard setup-nudge"><h2>Your agreed activities aren’t set up yet</h2><p>Until they are, your imported workouts, steps, brushing and sleep can’t check anything off or fill the rings.</p><div class="acts"><button class="save" data-act="todayTab" data-tab="activities">Set them up</button></div></section>' : '') + (todayTab === 'activities' ? (activitiesPending(st) ? scoringProposalCard() : '') + unsortedWorkoutsCard() + wsActivities({includeClaims:true}) : claimsCard() + (todayTab === 'agenda' ? agendaCard() : overview)) + undoRemoved;
   }
 
   function starterFilePanel(){
@@ -1047,7 +1191,7 @@ out += '<div class="notice"><strong>Review before import.</strong> ' + c.measure
       (NATIVE && !personalReview ? '<h4>Received deliveries</h4>' + (nativeInfo.relay.inbox.length ? nativeInfo.relay.inbox.map(it => '<div class="row compact" data-inbox="' + esc(it.id) + '"><div class="rowhead"><h3>Delivery · ' + esc(String(it.receivedAt || it.id).slice(0,19)) + '</h3><span class="hint">' + Math.round((it.size || 0)/1024) + ' KB · awaiting review</span><button class="ghost small" data-act="relayDiscard">Discard</button><button data-act="relayCheckInbox">Preview delivery</button></div></div>').join('') : '<p class="hint">No deliveries waiting. The native Action must be configured separately; no account connection is inferred.</p>') : '<p class="hint">Manual file import and relay paste are available here. The received-delivery inbox requires a separately configured native receiver; it is disabled in isolated review builds.</p>') + reviewHTML +
 '<h4>Import receipts</h4>' + (receipts.length ? receipts.map(r => '<details class="row compact"' + (r === receipts[0] ? ' open' : '') + '><summary>' + esc(dataWhen(r.at)) + ' · ' + esc(r.transport) + '</summary>' + relayCountsHTML(r.counts) + '<p class="hint">Source apps: ' + esc((r.sourceApps || []).join(', ') || 'unknown') + '<br>Requested dates: ' + esc(r.requestedWindow ? r.requestedWindow.from + ' to ' + r.requestedWindow.to : 'not recorded') + '<br>Reported coverage: ' + esc(r.reportedWindow ? r.reportedWindow.from + ' to ' + r.reportedWindow.to : 'unknown') + '<br>Received types: ' + esc((r.receivedKinds || []).join(', ') || 'none') + '<br>Retrieval time: ' + esc(dataWhen(r.relayedAt)) + '</p>' + (r.conversion ? '<p class="hint">Local conversion v' + esc(r.conversion.version) + ' · ' + esc(r.conversion.checksum) + ' · supported ' + (r.conversion.counts.converted||0) + ' · unsupported ' + (r.conversion.counts.unsupported||0) + ' · outside ' + (r.conversion.counts.outsideWindow||0) + ' · partial interval ' + (r.conversion.counts.partialWindow||0) + ' · invalid ' + (r.conversion.counts.invalid||0) + '<br>By kind: ' + esc(Object.entries(r.conversion.byKind||{}).map(([k,n])=>k+': '+n).join(', ')||'none') + '<br>Excluded reasons: ' + esc(Object.entries(r.conversion.exclusions||{}).map(([k,n])=>k+': '+n).join(', ')||'none') + '<br>Warnings: ' + esc(Object.entries(r.conversion.warnings||{}).map(([k,n])=>k+': '+n).join(', ')||'none') + '</p>' : '') + ((r.heldAmbiguous||[]).length ? '<details><summary>Ambiguous source copies held · ' + r.heldAmbiguous.length + '</summary>' + r.heldAmbiguous.map(item=>'<p class="hint">' + esc(item.record.kind+' · '+item.record.sourceApp+' · '+item.record.start) + '<br>Stored/file prior: ' + esc(item.current && item.current.value!==null ? item.current.value+' '+(item.current.unit||'') : 'unknown') + ' · Incoming: ' + esc(item.record.value!==null ? item.record.value+' '+(item.record.unit||'') : 'unknown') + '</p>').join('') + '</details>' : '') + (r.warnings || []).map(w => '<p class="hint">' + esc(w) + '</p>').join('') + '</details>').join('') : '<p class="hint">No receipts yet. Existing imports predate receipts and remain preserved.</p>') + '</section>';
 const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-derived" data-feedback-label="Raw, reported and derived"><h2>Raw, reported and derived</h2><p class="hint">Manual entries are self-reported. Imported source records retain the original writing app and reported source values; validation checks shape and duplicate identity, not medical accuracy. Derived displays include unit conversion, elapsed interval spans, source-specific workout comparisons, routine consistency and game rewards. Each uses its own rule; a completion or orb never becomes a fitness measurement.</p><details' + (rawOpen ? ' open' : '') + '><summary>All imported source records · ' + rel.length + '</summary>' + rel.slice(0,rawLimit).map(r => '<div class="row compact"><b>' + esc(r.kind + (r.type ? ' · ' + r.type : '')) + '</b><p class="hint">' + esc(r.sourceApp) + ' · ' + esc(dataWhen(r.start)) + (r.value === null || r.value === undefined ? '' : ' · ' + dataNumber(r.value) + ' ' + esc(r.unit || '(unit unknown)')) + '</p>' + relayTrace(r) + '</div>').join('') + (rel.length > rawLimit ? '<div class="acts"><button data-act="rawMore">Show next 40 records</button></div><p class="hint">Showing ' + Math.min(rawLimit,rel.length) + ' of ' + rel.length + ' records.</p>' : '') + '</details></section>';
-    return area==='fitness' ? '<div class="acts">'+[['week','Week · Sun–Sat'],['7','7 days'],['30','30 days'],['90','90 days'],['custom','Custom']].map(x=>'<button data-act="fitnessRange" data-value="'+x[0]+'" aria-pressed="'+(fitnessRange===x[0])+'">'+x[1]+'</button>').join('')+'</div>'+fitnessControls()+'<p class="hint">'+esc(medDate(from))+' – '+esc(medDate(end))+' · Missing records stay unknown.</p>'+metricTrends(st,from,end)+exportedSummaryHistory(st,from,end)+attrs+'<div class="cols2">'+weight+sleep+'</div>'+workouts+'<button data-act="go" data-area="data">Inspect sources and receipts</button>' : intakeCard()+localExportStatus(st)+starterFilePanel()+sources+relay+raw;
+    return area==='fitness' ? '<div class="acts">'+[['week','Week · Sun–Sat'],['7','7 days'],['30','30 days'],['90','90 days'],['custom','Custom']].map(x=>'<button data-act="fitnessRange" data-value="'+x[0]+'" aria-pressed="'+(fitnessRange===x[0])+'">'+x[1]+'</button>').join('')+'</div>'+fitnessControls()+fitnessGlance(st,end)+sleepCard(end>todayYmd()?todayYmd():end)+'<details class="panelcard fitness-detail"><summary><b>Full detail by source</b> · '+esc(medDate(from))+' – '+esc(medDate(end))+' · missing records stay unknown</summary>'+metricTrends(st,from,end)+exportedSummaryHistory(st,from,end)+attrs+'<div class="cols2">'+weight+sleep+'</div>'+workouts+'</details><button data-act="go" data-area="data">Inspect sources and receipts</button>' : intakeCard()+localExportStatus(st)+starterFilePanel()+sources+relay+raw;
   }
 
   /* ---------- Plan & Quests ---------- */
@@ -1546,7 +1690,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
 
   function futureIdeasCard(){return '<section class="panelcard"><h2>Future ideas</h2><p class="hint">Keep a possibility here until you choose its schedule. Ideas earn no action points.</p><label for="future-idea">An activity to consider</label><input id="future-idea" maxlength="300"><button data-act="saveIdea">Save idea</button>'+S().planIdeas.filter(i=>i.status==='idea').map(i=>'<div class="crow"><span>'+esc(i.text)+'</span><button data-act="planIdea" data-idea="'+esc(i.id)+'">Shape a routine</button></div>').join('')+'</section>';}
   function learningCard(start){const report=weeklyLearning(S(),start),saved=S().learning.find(x=>x.start===start);return '<section class="panelcard"><h2>Weekly reflection and next step</h2><p>'+esc(report.text)+'</p><p class="hint">'+esc(medDate(start))+' – '+esc(medDate(addDays(start,6)))+'. Descriptive record coverage; no health prediction.</p><details><summary>Contributing confirmed actions</summary><p class="hint">'+esc(report.ids.join(', ')||'None yet')+'</p></details><label for="learning-text">One optional adjustment or reflection</label><textarea id="learning-text" maxlength="500">'+esc(saved&&saved.text||'')+'</textarea><label for="learning-date">Review again in the app (optional)</label><input id="learning-date" type="date" value="'+esc(saved&&saved.followUp||'')+'"><div class="acts">'+[['accepted','Save next step'],['modified','Save modification'],['declined','Decline'],['undone','Undo decision'],['followed-up','Record follow-up']].map(x=>'<button data-act="learningDecision" data-decision="'+x[0]+'" data-start="'+start+'">'+x[1]+'</button>').join('')+'</div>'+(saved?'<p class="hint">'+esc(saved.decision)+' · '+esc(new Date(saved.at).toLocaleString())+(saved.followUp?' · Review '+esc(saved.followUp):'')+'. Saved in this app; no reminder was scheduled.</p>':'')+'</section>';}
-  function coverageCard(){const from=addDays(todayYmd(),-29),to=todayYmd();return '<section class="panelcard"><h2>Source coverage</h2><p class="hint">Past 30 days. A recent import is not proof of a complete day. Source labels are supplied metadata; no account is verified as connected.</p><table class="tbl"><thead><tr><th>Kind</th><th>Observed days / records</th><th>Newest sample / reported day</th><th>State</th></tr></thead><tbody>'+['steps','activeEnergy','restingHeartRate','workout','sleep','weight'].map(kind=>{const c=sourceCoverage(S(),kind,from,to);return '<tr><td>'+kind+'</td><td>'+c.days+' / '+c.count+'</td><td>'+esc(c.latest||'Unknown')+'</td><td>'+esc(c.conflicts?'Conflict · review required':!c.count?'No accessible records':c.latest&&sourceLocalDay(c.latest)<to?'Snapshot through '+sourceLocalDay(c.latest):'Records today · completeness unknown')+'</td></tr>';}).join('')+'</tbody></table><p class="hint">Local starter JSON supports steps, active energy, resting heart rate and workouts. Relay JSON additionally supports weight and sleep. Health Auto Export daily-summary and workout CSV files are supported through local-file review. Daily sleep quantities appear under additional exported measurements; they are not sleep intervals. Direct account access remains unavailable.</p></section>';}
+  function coverageCard(){const from=addDays(todayYmd(),-29),to=todayYmd();return '<section class="panelcard"><h2>Source coverage</h2><p class="hint">Past 30 days. A recent import is not proof of a complete day. Source labels are supplied metadata; no account is verified as connected.</p><p class="hint">Days and rows count what these views can display, not what arrived: one day of minute buckets becomes one derived daily row, so a day of accepted buckets reads as 1 / 1. Held rows are counted separately and are excluded from every statistic until their hold is resolved.</p><table class="tbl"><thead><tr><th>Kind</th><th>Display days / rows</th><th>Newest sample / reported day</th><th>State</th></tr></thead><tbody>'+['steps','activeEnergy','restingHeartRate','workout','sleep','weight'].map(kind=>{const c=sourceCoverage(S(),kind,from,to);return '<tr><td>'+kind+'</td><td>'+c.days+' / '+c.count+'</td><td>'+esc(c.latest||'Unknown')+'</td><td>'+esc(c.conflicts?'Conflict · review required':!c.count?(c.held?pl(c.held,'imported row')+' held; see the feed panel':'No accessible records'):c.latest&&sourceLocalDay(c.latest)<to?'Snapshot through '+sourceLocalDay(c.latest)+(c.held?' · '+c.held+' held':''):'Records today · completeness unknown'+(c.held?' · '+c.held+' held':''))+'</td></tr>';}).join('')+'</tbody></table><p class="hint">Local starter JSON supports steps, active energy, resting heart rate and workouts. Relay JSON additionally supports weight and sleep. Health Auto Export daily-summary and workout CSV files are supported through local-file review. Daily sleep quantities appear under additional exported measurements; they are not sleep intervals. Direct account access remains unavailable.</p></section>';}
   function mealLocationFields(f,id){return '<div><label for="fplace-'+id+'">Where</label><select id="fplace-'+id+'">'+['unknown','home','away'].map(v=>'<option value="'+v+'" '+(f&&f.location===v?'selected':'')+'>'+v+'</option>').join('')+'</select></div><label><input id="fapprox-'+id+'" type="checkbox" '+(f&&f.timePrecision==='approximate'?'checked':'')+'> Approximate time</label>';}
   function logLinksCard(){const st=S(),rows=flatPlanFor(st,day).filter(r=>!r.demo);return '<section class="panelcard"><h2>Link details to an action</h2><p class="hint">One meal or workout can describe one action. Linking detail never confirms it or adds points.</p>'+[['food',foodsOn(st,day)],['movement',workoutsOn(st,day)]].map(([kind,list])=>list.map(record=>'<div class="row compact"><label for="link-'+record.id+'">'+esc(record.label||record.type)+'</label><select id="link-'+record.id+'"><option value="">No linked action</option>'+rows.filter(r=>r.group===(kind==='food'?'food':'fitness')).map(r=>'<option value="'+r.key+'" '+(record.actionId===r.key?'selected':'')+'>'+esc(r.name)+'</option>').join('')+'</select><button data-act="linkLog" data-kind="'+kind+'" data-record="'+record.id+'">Save link</button>'+(kind==='food'?'<p class="hint">'+esc(record.location||'unknown')+' · '+esc(record.timePrecision||'exact')+' time; no nutritional inference.</p>':'<label for="strength-'+record.id+'">Sets, reps, load or other detail (optional)</label><textarea id="strength-'+record.id+'" maxlength="600">'+esc(record.strengthDetail||'')+'</textarea><button data-act="strengthDetail" data-record="'+record.id+'">Save movement detail</button>')+'</div>').join('')).join('')+'</section>';}
   function duplicateActionCard(){
@@ -1815,6 +1959,76 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (r.unit === 'leaves' && Number.isFinite(r.target)) return (Number(r.value) || 0) + ' of ' + r.target + ' leaves';
     return '—';
   }
+  /* ---------- Sleep (Mintay, 2026-09-23): one night per wake day, ring toward 8 hours asleep ---------- */
+  const SLEEP_GOAL_MIN=480;
+  function sleepNights(st){
+    const out=new Map();
+    for(const r of relayedRecords(st,'sleep')){const m=r.unmapped&&r.unmapped.healthAutoExport;if(!m||m.representation!=='derived daily view'||!Number.isFinite(r.durationSec))continue;if(!out.has(m.day))out.set(m.day,{day:m.day,minutes:r.durationSec/60,start:r.start,end:r.end,stats:m.stats||{},source:r.sourceApp});}
+    return out;
+  }
+  function clockOf(iso){if(!iso)return '—';const m=/T(\d{2}):(\d{2})/.exec(iso);if(!m)return '—';let h=+m[1];const ap=h>=12?'pm':'am';h=h%12||12;return h+':'+m[2]+' '+ap;}
+  function hm(min){const h=Math.floor(min/60),m=Math.round(min%60);return h+' h'+(m?' '+m+' min':'');}
+  function sleepCard(date){
+    const st=S(),feed=st.autoFeed,off=feed&&feed.contract&&feed.contract.sleepMode!=='include';
+    const head='<section class="panelcard sleep-card" data-feedback-id="sleep" data-feedback-label="Sleep"><div class="ph"><h2>Sleep</h2><span class="hint">Night ending '+esc(medDate(date))+'</span></div>';
+    if(!feed)return head+'<p class="hint">Sleep appears here once Health Auto Export is connected.</p></section>';
+    if(off)return head+'<p>Sleep has been left out of your feed so far. Bring it in to see your nights, stages and an 8-hour ring. Files already in your folder are read again; nothing else changes.</p><div class="acts"><button class="save" data-act="intakeIncludeSleep">Bring in sleep</button></div></section>';
+    const nights=sleepNights(st),n=nights.get(date),week=[];
+    for(let i=6;i>=0;i--){const d=addDays(date,-i);week.push({d,night:nights.get(d)});}
+    const pct=n?Math.min(1,n.minutes/SLEEP_GOAL_MIN):0,C=2*Math.PI*42;
+    const ring='<svg viewBox="0 0 100 100" width="112" height="112" role="img" aria-label="'+(n?esc(hm(n.minutes))+' asleep of 8 hours':'No night recorded')+'"><circle cx="50" cy="50" r="42" fill="none" stroke="var(--line)" stroke-width="10"/><circle cx="50" cy="50" r="42" fill="none" stroke="#8e7cc3" stroke-width="10" stroke-linecap="round" stroke-dasharray="'+(C*pct).toFixed(1)+' '+C.toFixed(1)+'" transform="rotate(-90 50 50)"/><text x="50" y="50" text-anchor="middle" font-size="16" fill="var(--ink)">'+(n?(n.minutes/60).toFixed(1):'—')+'</text><text x="50" y="65" text-anchor="middle" font-size="9" fill="var(--muted)">of 8 h</text></svg>';
+    const stages=n?['deep','core','rem','awake'].filter(k=>Number.isFinite(n.stats[k])&&n.stats[k]>0).map(k=>({k,h:n.stats[k]})):[];
+    const tint={deep:'#5b4a9e',core:'#8e7cc3',rem:'#b9a9e6',awake:'#d9a066'},label=k=>k==='rem'?'REM':k[0].toUpperCase()+k.slice(1);
+    const bar=stages.length?'<div class="sleep-stages" role="img" aria-label="Stages: '+esc(stages.map(x=>label(x.k)+' '+hm(x.h*60)).join(', '))+'">'+stages.map(x=>'<i style="flex:'+x.h+';background:'+tint[x.k]+'"></i>').join('')+'</div><p class="hint">'+stages.map(x=>'<span style="color:'+tint[x.k]+'">■</span> '+esc(label(x.k))+' '+esc(hm(x.h*60))).join(' · ')+'</p>':'';
+    const max=Math.max(SLEEP_GOAL_MIN,...week.map(w=>w.night?w.night.minutes:0));
+    const bars='<div class="sleep-week" aria-label="Last seven nights">'+week.map(w=>'<div><span style="height:'+(w.night?Math.round(60*w.night.minutes/max):0)+'px'+(w.night&&w.night.minutes>=SLEEP_GOAL_MIN?';background:#8e7cc3':'')+'" title="'+esc(medDate(w.d)+': '+(w.night?hm(w.night.minutes):'no record'))+'"></span><small>'+esc(new Date(w.d+'T12:00:00').toLocaleDateString(undefined,{weekday:'narrow'}))+'</small></div>').join('')+'<em style="bottom:'+Math.round(60*SLEEP_GOAL_MIN/max)+'px"></em></div>';
+    const recorded=week.filter(w=>w.night),avg=recorded.length?recorded.reduce((a,w)=>a+w.night.minutes,0)/recorded.length:null;
+    return head+'<div class="sleep-grid"><div>'+ring+'</div><div>'+(n?'<p><b>'+esc(hm(n.minutes))+'</b> asleep · '+esc(clockOf(n.start))+' → '+esc(clockOf(n.end))+'</p><p class="hint">'+esc(n.source||'Health Auto Export')+'. A night counts on the day you woke up.</p>':'<p class="hint">No night recorded for this day yet. A missing night is unknown, not zero.</p>')+bar+'</div></div>'+bars+'<p class="hint">'+(avg!==null?'Average '+esc(hm(avg))+' over '+recorded.length+' recorded night'+(recorded.length===1?'':'s')+' this week.':'No nights recorded this week yet.')+'</p></section>';
+  }
+  function unsortedWorkoutsCard(){
+    if(typeof Workspace==='undefined'||!Workspace.unsortedWorkouts)return '';
+    const list=Workspace.unsortedWorkouts(S());if(!list.length)return '';
+    return '<section class="panelcard" data-feedback-id="unsorted-workouts" data-feedback-label="Which kind of workout"><h2>Which kind of workout?</h2><p class="hint">Recorded, but the app can’t tell whether these are cardio or strength. Choose once; every later workout of the same type follows your choice.</p>'+list.map(u=>'<div class="acts" data-wkey="'+esc(u.key)+'"><span><b>'+esc(u.type)+'</b> · '+u.count+'× · '+Math.round(u.minutes)+' min this week</span><button data-act="wsClassify" data-cls="cardio">Cardio</button><button data-act="wsClassify" data-cls="strength">Strength</button><button data-act="wsClassify" data-cls="other">Neither</button></div>').join('')+'</section>';
+  }
+  /* ---------- Fitness at a glance (Mintay, 2026-09-23): the week's story first, detail on demand ----------
+     One value per day per metric: when two writers report the same day the larger figure stands,
+     because Apple Health already merged them; nothing is added across writers. */
+  function dailyMax(st,kind,from,end){
+    const out=new Map();
+    for(const r of relayedRecords(st,kind)){const m=r.unmapped&&r.unmapped.healthAutoExport,day=m&&m.day?m.day:sourceLocalDay(r.start);if(day<from||day>end||!Number.isFinite(r.value))continue;if(m&&m.reduction&&!/sum/.test(m.reduction))continue;out.set(day,Math.max(out.get(day)||0,r.value));}
+    return out;
+  }
+  function spark(days,values,goal,color){
+    const max=Math.max(goal||0,...days.map(d=>values.get(d)||0),1);
+    return '<div class="glance-spark">'+days.map(d=>{const v=values.get(d);return '<span title="'+esc(medDate(d)+': '+(v===undefined?'no record':Math.round(v).toLocaleString()))+'" style="height:'+(v===undefined?2:Math.max(3,Math.round(34*v/max)))+'px;background:'+(v===undefined?'var(--line)':goal&&v>=goal?color:'color-mix(in srgb,'+color+' 45%,transparent)')+'"></span>';}).join('')+(goal?'<em style="bottom:'+Math.round(34*goal/max)+'px"></em>':'')+'</div>';
+  }
+  function tile(title,big,sub,pct,color,sparkHTML){
+    return '<div class="glance-tile"><p class="cap">'+esc(title)+'</p><p class="glance-big">'+big+'</p><div class="glance-bar"><i style="width:'+Math.round(Math.min(1,pct||0)*100)+'%;background:'+color+'"></i></div><p class="hint">'+sub+'</p>'+sparkHTML+'</div>';
+  }
+  function fitnessGlance(st,end){
+    const today=end>todayYmd()?todayYmd():end,from=addDays(today,-6),days=[];for(let i=6;i>=0;i--)days.push(addDays(today,-i));
+    const steps=dailyMax(st,'steps',from,today),energy=dailyMax(st,'activeEnergy',from,today);
+    const cls=r=>Workspace.workoutClass?Workspace.workoutClass(st,r.reference):null;
+    const wk=workoutHistory(st,from,today).filter(w=>w.origin==='relayed');
+    const weekStart=weekStartOf(today,1),thisWeek=wk.filter(w=>w.date>=weekStart);
+    const minutesBy=(c,list)=>list.filter(w=>cls(w)===c).reduce((a,w)=>a+(w.minutes||0),0);
+    const perDay=c=>{const m=new Map();for(const w of thisWeek)if(cls(w)===c)m.set(w.date,(m.get(w.date)||0)+(w.minutes||0));return m;};
+    const cardioDays=[...perDay('cardio').values()].filter(v=>v>=20).length,strengthDays=[...perDay('strength').values()].filter(v=>v>=15).length;
+    const nights=sleepNights(st),lastNight=nights.get(today)||nights.get(addDays(today,-1)),sleepVals=new Map(days.filter(d=>nights.get(d)).map(d=>[d,nights.get(d).minutes/60]));
+    const s=steps.get(today),e=energy.get(today);
+    const dots=(n,of,color)=>'<span class="glance-dots">'+Array.from({length:of},(_,i)=>'<i style="background:'+(i<n?color:'var(--line)')+'"></i>').join('')+'</span>';
+    const tiles='<div class="glance-grid">'+
+      tile('Steps today',s===undefined?'—':Math.round(s).toLocaleString(),s===undefined?'No steps recorded yet today':Math.round(100*s/12000)+'% of 12,000',s/12000,'#7fc8a9',spark(days,steps,12000,'#7fc8a9'))+
+      tile('Active energy',e===undefined?'—':Math.round(e).toLocaleString()+' <small>kcal</small>',e===undefined?'No energy recorded yet today':Math.round(100*e/1000)+'% of 1,000 kcal',e/1000,'#e8a15c',spark(days,energy,1000,'#e8a15c'))+
+      tile('Workouts this week',Math.round(minutesBy('cardio',thisWeek)+minutesBy('strength',thisWeek))+' <small>min</small>','Cardio '+dots(cardioDays,4,'#6fb6e0')+' '+cardioDays+'/4 days · Strength '+dots(strengthDays,4,'#c98fd8')+' '+strengthDays+'/4',Math.min(cardioDays,4)/8+Math.min(strengthDays,4)/8,'#6fb6e0','')+
+      tile('Last night',lastNight?(lastNight.minutes/60).toFixed(1)+' <small>h asleep</small>':'—',lastNight?Math.round(100*lastNight.minutes/480)+'% of 8 h':(st.autoFeed&&st.autoFeed.contract.sleepMode!=='include'?'Sleep not brought in yet':'No night recorded'),lastNight?lastNight.minutes/480:0,'#8e7cc3',spark(days,sleepVals,8,'#8e7cc3'))+
+      '</div>';
+    const tag=w=>{const c=cls(w);return '<span class="glance-tag" style="--t:'+(c==='cardio'?'#6fb6e0':c==='strength'?'#c98fd8':'var(--muted)')+'">'+(c==='cardio'?'Cardio':c==='strength'?'Strength':c==='other'?'Other':'Choose in Activities')+'</span>';};
+    const list=wk.length?'<ul class="glance-list">'+wk.slice(0,10).map(w=>'<li><span>'+esc(new Date(w.date+'T12:00:00').toLocaleDateString(undefined,{weekday:'short'}))+'</span><b>'+esc(w.type)+'</b><span>'+(w.minutes===null?'—':Math.round(w.minutes)+' min')+'</span><span class="hint">'+esc(w.source||'')+'</span>'+tag(w)+'</li>').join('')+'</ul>':'<p class="hint">No workouts recorded in the last seven days.</p>';
+    const weights=weightHistory(st,addDays(today,-29),today,st.prefs.units).filter(w=>w.weight!==null&&w.weight!==undefined);
+    const wLine=weights.length?(()=>{const first=weights[0],last=weights[weights.length-1],d=last.weight-first.weight,u=st.prefs.units==='kg'?'kg':'lb';return '<p><b>'+last.weight.toFixed(1)+' '+u+'</b> latest · '+esc(medDate(last.date))+(weights.length>1?' · <span style="color:'+(d<=0?'#7fc8a9':'#e8a15c')+'">'+(d>0?'+':'')+d.toFixed(1)+' '+u+'</span> over 30 days':'')+'</p>';})():'<p class="hint">No body weight in the last 30 days.</p>';
+    return '<section class="panelcard glance" data-feedback-id="fitness-glance" data-feedback-label="Fitness at a glance"><div class="ph"><h2>This week at a glance</h2><span class="hint">'+esc(medDate(from))+' – '+esc(medDate(today))+'</span></div>'+tiles+'<div class="glance-cols"><div><h3>Workouts</h3>'+list+'</div><div><h3>Weight</h3>'+wLine+'</div></div></section>';
+  }
   function ringsSection(date, options){
     if (!wsHas('rings')) return '<section class="panelcard" data-feedback-id="your-day-so-far" data-feedback-label="Your day so far"><h2>Your day so far</h2>' + depNote('Workspace','rings','The three-ring daily projection') + ringsHTML(date) + '<p class="hint">Above is this baseline’s earlier overview ring, kept so the day is not blank. It is not the agreed three-ring contract and its middle ring is not verified workout minutes.</p></section>';
     const p = wsTry('rings', S(), date, options || {});
@@ -2006,7 +2220,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const label = n.name || n.title || 'Untitled';
     const doneCount = n.family && Number.isFinite(n.family.done) ? n.family.done : kids.filter(k => k.status === 'done').length;
     const totalCount = n.family && Number.isFinite(n.family.total) ? n.family.total : kids.length;
+    const auto = !container && confirmed && n.occurrence && n.occurrence.confirmation && n.occurrence.confirmation.auto === true;
     const summary = container ? doneCount + ' of ' + totalCount + ' confirmed'
+      : auto ? 'From Apple Health' + (Number.isFinite(n.occurrence.actualMinutes) && n.occurrence.actualMinutes > 0 ? ' · ' + Math.round(n.occurrence.actualMinutes) + ' min' : '')
       : (n.confirmation || (confirmed ? 'Confirmed' : st === 'partial' ? 'Partial' : st === 'skipped' ? 'Not done' : st === 'tentative' ? 'Checked off, not confirmed' : 'No entry'));
     const share = Number.isFinite(n.shareDisplay) ? n.shareDisplay : (n.allocation && Number.isFinite(n.allocation.displayAmount)) ? n.allocation.displayAmount : null;
     const future = (n.date || day) > todayYmd();
@@ -2019,7 +2235,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       '<span class="meta">' + esc(summary) + '</span>' +
       (container ? '<span class="chip quiet">summary</span>'
         : '<button class="cb" role="checkbox" aria-checked="' + (confirmed ? 'true' : st === 'tentative' ? 'mixed' : 'false') + '" data-act="toggleDone" aria-label="' + (confirmed ? 'Review ' : 'Check off ') + esc(label) + '"' + (future ? ' disabled' : '') + '>' + (confirmed ? '✓' : st === 'tentative' ? '·' : '') + '</button>') +
-      '</div>' + '<div class="ws-source-actions">' + (!container&&n.matching?'<button class="link" data-act="wsEvidence">Review source evidence</button>':'') + (!container&&n.recurrence?.kind==='target'&&!n.occurrence?.committed&&!future?'<button class="link" data-act="wsCommit">Plan for this day</button>':'') + '</div>';
+      '</div>' + '<div class="ws-source-actions">' + (!container&&n.matching?'<button class="link" data-act="wsEvidence">Review source evidence</button>':'') + (auto?'<button class="link" data-act="wsDeclineAuto">Not this — unlink</button>':'') + (!container&&n.recurrence?.kind==='target'&&!n.occurrence?.committed&&!future?'<button class="link" data-act="wsCommit">Plan for this day</button>':'') + '</div>';
     if (container && !collapsed){
       out += kids.map(k => wsNode(k, Math.min(depth + 1, 2))).join('');
       if (depth < 2) out += '<div style="margin-left:' + ((depth + 1) * 16) + 'px">' + wsAddControls(n, depth + 1) + '</div>';
@@ -2188,6 +2404,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function policyReviewHTML(){
     return '<details class="ws-policy"><summary>Continuity policy and recorded alternatives</summary><p><b>Candidate policy:</b> confirmed care leaves keep their exact shares; a partial instance restarts the full-instance chain. Pending evidence holds the continuity bonus until that instance is resolved.</p><p><b>Alternatives for your review:</b> partial work could hold the chain; a later confirmation could resume the pending bonus. Neither alternative is applied by this candidate. In the same invented mixed 90-day reference, totals are 4,740 under the candidate, 4,761 with partial holds, 4,758.25 with pending resumes, and 4,852.25 with both. These are sensitivity checks, not predictions.</p></details>';
   }
+  function activitiesAdopted(st){return !!(st.workspace&&(st.workspace.migrations||[]).some(m=>m.status==='active'));}
+  function activitiesPending(st){if(!activitiesAdopted(st))return true;try{const p=Workspace.proposal(st,day);return !!(p.ok&&(p.additions.length||p.moves.length||p.taxonomy.length));}catch(_){return false;}}
   function scoringProposalCard(){
     const st=S(),rw=rewardReport(st,todayYmd()),active=(st.workspace?.migrations||[]).filter(m=>m.status==='active').slice(-1)[0];
     let review='';if(wsPreview){const p=wsPreview.data,options=p.options||p;
@@ -2200,7 +2418,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       }
       review+='<div class="acts">'+(p.ok&&wsPreview.kind==='migration'?'<button class="save" data-act="wsAdopt">Adopt this reviewed proposal</button>':p.ok&&wsPreview.kind==='rollback'?'<button class="save" data-act="wsRollback">Restore previous rule and structure</button>':'')+'<button data-act="wsCancelPreview">Cancel, change nothing</button></div></div>';
     }
-    return '<section class="panelcard" data-feedback-id="points-rule-review" data-feedback-label="Points rule review"><div class="ph"><h2>Daily workspace proposal</h2><span class="ws-badge">Candidate</span></div><p>'+ (rw.activeEpoch?'This candidate record uses quarter-point scoring from '+esc(rw.activeEpoch.effectiveFrom)+'.':'This record still uses its original scoring rule.')+' Level '+rw.level+' · '+rw.orbs+' points in its active scoring period.</p><p class="hint">Adoption changes only the open record. Existing claim rules and history remain intact; no past action is re-awarded.</p><label for="wsProposalDate">Proposal effective date</label><input id="wsProposalDate" type="date" value="'+esc(day)+'"><div class="acts"><button data-act="wsProposal">Show proposed activities</button><button data-act="wsMigrationPreview">Review adoption</button>'+(active?'<button data-act="wsRollbackPreview" data-migration="'+esc(active.id)+'">Review rollback</button>':'')+'</div>'+review+policyReviewHTML()+'<p class="hint">Calorie-deficit scoring remains pending. Body composition and category grades remain Unassessed.</p></section>';
+    return '<section class="panelcard" data-feedback-id="points-rule-review" data-feedback-label="Points rule review"><div class="ph"><h2>'+(activitiesAdopted(S())?'Updates to your activities':'Set up your agreed activities')+'</h2><span class="ws-badge">Review first</span></div><p>Installs the activities you agreed on — morning and night care, prayer, church, cardio, strength, 12,000 steps, meals, journaling and the weekly home tasks — matched to what is already here, with quarter-point scoring. Once set up, Apple Health workouts, steps and brushing check off their activities automatically and their points wait for you to claim. </p><p>'+ (rw.activeEpoch?'This candidate record uses quarter-point scoring from '+esc(rw.activeEpoch.effectiveFrom)+'.':'This record still uses its original scoring rule.')+' Level '+rw.level+' · '+rw.orbs+' points in its active scoring period.</p><p class="hint">Adoption changes only the open record. Existing claim rules and history remain intact; no past action is re-awarded.</p><label for="wsProposalDate">Proposal effective date</label><input id="wsProposalDate" type="date" value="'+esc(day)+'"><div class="acts"><button data-act="wsProposal">Show proposed activities</button><button data-act="wsMigrationPreview">Review what will change</button>'+(active?'<button data-act="wsRollbackPreview" data-migration="'+esc(active.id)+'">Review rollback</button>':'')+'</div>'+review+policyReviewHTML()+'<p class="hint">Calorie-deficit scoring remains pending. Body composition and category grades remain Unassessed.</p></section>';
   }
 
   function renderFaith(){
@@ -2256,6 +2474,57 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const st = S();
     const act = btn.dataset.act;
     if(act==='intakeConnect'){await connectIntake();return;}
+    if(act==='intakeDisconnect'){
+      // The app could connect a feed but never let go of one. Once the page's feed identity and the
+      // Mac app's stopped agreeing, every scan refused with "does not match this workspace's feed"
+      // and there was no way out of it from inside the app. Forgetting the connection is a normal
+      // thing to want; the imported records are a separate matter and are kept.
+      if(!confirm('Disconnect automatic intake?\n\nRecords already imported are kept and the folder itself is never changed. Connecting a folder again starts a new connection, so those records will need retiring from the Data panel before imports resume; your files are re-read from the beginning then.'))return;
+      // validateState accepts autoFeed absent or well formed, and refuses null — assigning null
+      // made every save fail with 'The automatic feed configuration is malformed', which also
+      // put the workspace into read-only and stopped Connect from doing anything at all.
+      delete real.autoFeed;
+      intake.error=null;intake.status=null;intake.deferred=false;intakeResetPending=true;
+      const savedOk=await save();
+      if(!savedOk){intake.error='Disconnected in this view, but the record could not be saved: '+(saveError||'unknown reason')+'. Reload before connecting again.';render();return;}
+      render();
+      toast('Automatic intake disconnected. Connect a folder when you are ready.');
+      return;
+    }
+    if(act==='intakeRetireForeign'){
+      // Changing folders adopted the new connection's feed identity and kept every existing row,
+      // so reconcile() refused every import from that moment on and Disconnect kept the records
+      // too — there was no way back out from inside the app. This is that way out.
+      const state=S(),feed=state.autoFeed;
+      // Not gated on intake.busy: a feed that refuses every delivery is busy almost continuously,
+      // and this is the control that ends that. Setting intake.busy below stops a new scan from
+      // starting, the workspace lock serialises against one already running, and save()'s
+      // compare-and-swap reports it rather than guessing if that scan commits in between.
+      if(!feed){toast('No folder is connected.');return;}
+      if(preview){toast('This is a preview workspace.');return;}
+      if(readOnly){toast('The workspace is read-only after a failed save. '+(saveError||'Export a recovery copy from Settings, then reload.'));return;}
+      const foreign=foreignFeedRows(state);
+      if(!foreign.length){toast('There are no records from a previous connection.');return;}
+      const reserved=foreign.filter(r=>Object.prototype.hasOwnProperty.call(state.rewards.evidence||{},r.id));
+      if(reserved.length){intake.error=pl(reserved.length,'record')+' from the previous connection is still holding reward evidence. Review those confirmations first; nothing was retired.';render();return;}
+      if(!confirm('Retire '+foreign.length.toLocaleString()+' imported records from the previous folder connection?\n\nThey were imported before this folder was chosen, and no import can be saved while they are present. A private recovery copy is written first, then your files are read again from the beginning. Manual entries, check-ins, logged workouts, claims and reward evidence are untouched.'))return;
+      intake.busy=true;intake.applying=true;
+      try{
+        const proof=await verifiedRecovery(state);
+        if(!proof.ok){intake.error=proof.error||'The private recovery copy could not be written, so nothing was retired.';return;}
+        real.sourceRecords=real.sourceRecords.filter(r=>!HealthAutoExport.foreignToFeed(r,feed.contract.feedId));
+        real.autoFeed.files=[];real.autoFeed.lastImportAt=null;real.autoFeed.lastReport=null;
+        const saved=await save({allowSourceRemoval:true,replayDeliveries:true});
+        if(!saved){intake.error='The retirement could not be saved: '+(saveError||'unknown reason')+'. The private recovery copy is on disk and nothing was removed.';return;}
+        intake.error=null;dropUndo();
+        toast(pl(foreign.length,'record')+' retired. Your folder is being read again from the beginning.');
+      }catch(e){intake.error='The retirement stopped before completing. The saved record is unchanged.';}
+      finally{intake.busy=false;intake.applying=false;render();}
+      return;
+    }
+    // "Records already imported are kept" was true and badly misleading: a new folder means a new
+    // feed identity, and reconcile() will not save anything while rows from the old one remain.
+    if(act==='intakeMove'){if(!confirm('Choose a different folder for automatic intake?\n\nPick the folder that contains the Health Auto Export subfolders (Health Metrics, Workouts) to read both.\n\nRecords already imported are kept, but they belong to this folder connection. Until you retire them from the Data panel afterwards, no new import can be saved. Your files are re-read from the beginning at that point, so nothing is lost.'))return;await connectIntake(true);return;}
     if(act==='intakeScan'){await scanIntake();return;}
     if(act==='intakePause'){await toggleIntake();return;}
     if(act==='intakeCutover'){if(preview||readOnly||!real.autoFeed)return;const date=prompt('First date to use qualified JSON in daily displays. Earlier CSV history stays visible. Changing this date can change which source evidence qualifies; it never adds points or deletes records.',real.autoFeed.contract.activeFrom);if(date===null)return;if(!validCalendarDate(date)){toast('Use a valid date in YYYY-MM-DD form.');return;}const result=await manualActionTransaction(real,d=>{d.autoFeed.contract.activeFrom=date;const problem=HealthAutoExport.validateContract(d.autoFeed.contract);return problem?{ok:false,error:problem}:{ok:true};});if(result.ok){dropUndo();render();toast('Display boundary updated. Original source rows remain.');}else toast(result.error);return;}
@@ -2270,6 +2539,15 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
 
     /* ---- Daily Workspace candidate actions ---- */
     if(act==='wsEvidence'){openWorkspaceEvidence(seriesId,date);return;}
+    if(act==='wsClassify'){const holder=btn.closest('[data-wkey]');const r=Workspace.classifyWorkout(st,holder&&holder.dataset.wkey,btn.dataset.cls);if(!r.ok){toast(r.error);return;}commit('auto',btn.dataset.cls==='other'?'Noted — that type stays out of cardio and strength.':'Saved. That workout type now counts as '+btn.dataset.cls+'.');return;}
+    if(act==='intakeIncludeSleep'){
+      if(!real.autoFeed||readOnly||preview)return;
+      if(!confirm('Bring sleep into your feed?\n\nThe files already in your folder are read again so earlier nights arrive too. Existing records are kept; repeated rows add nothing.'))return;
+      real.autoFeed.contract={...real.autoFeed.contract,sleepMode:'include'};real.autoFeed.files=[];
+      const saved=await save({replayDeliveries:true});if(!saved){toast('Not saved: '+(saveError||'unknown reason'));return;}
+      render();toast('Sleep is on. Your folder is being read again; nights appear as they land.');return;
+    }
+    if(act==='wsDeclineAuto'){const r=Workspace.declineAuto(st,seriesId,date);if(!r.ok){toast(r.error);return;}commit('auto','Unlinked. It stays open until you check it off yourself; new data will not re-link it.');return;}
     if(act==='wsCommit'){const r=await manualActionTransaction(st,d=>Workspace.commit(d,seriesId,date,true),{persist:!preview});render();toast(r.ok?'Added to this day’s committed plan.':r.error);return;}
     if(act==='wsReviewCancel'){document.getElementById('workspaceReview').close();return;}
     if(act==='wsEvidencePreview'){
@@ -2390,7 +2668,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
         const out = Workspace[fn](d, payload);
         return out && typeof out === 'object' ? out : { ok:false, error:'The workspace returned no result.' };
       }, { persist: !preview });
-      wsPreview = null; render();
+      wsPreview = null; render(); if (adopting && r && r.ok) runAutoEvidence();
       toast(r.ok ? (adopting ? 'Adopted from its effective date. Earlier claims and their rule versions are untouched.' : 'Rolled back. Claims made under the newer rule keep their own version.') : 'Not applied. ' + (r.error || ''));
       return;
     }
@@ -2707,7 +2985,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (e.key === 'd' || e.key === 'D'){ const rows = agendaFor(S(), day); const n = nextAction(rows); if (!n){ toast('Nothing left to mark today.'); return; } stage(S(), 'log'); markTentative(S(), n.seriesId, day); commit('log', n.name + ' checked off tentatively. Review to confirm.'); }
   });
   if (NATIVE){ nativePost({type:'hello'}); if(personalReview){setTimeout(async()=>{await refreshIntakeStatus();intakeRender();scanIntake();},300);}else{setTimeout(()=>{syncReminders();nativePost({type:'relayInfo'});nativePost({type:'inbox'});},300);setInterval(()=>nativePost({type:'inbox'}),60000);} }
-  document.addEventListener('visibilitychange',()=>{if(!document.hidden)scanIntake();});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden){scanIntake();runAutoEvidence();}});
 
   window.addEventListener('storage', e => { if (preview || e.key !== STORE_KEY) return; readOnly = true; saveError = 'The saved workspace changed in another view. Refresh to load it before saving here; export first if this tab has unsaved changes.'; renderNotices(); });
 
@@ -2722,7 +3000,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   document.addEventListener('input', e => { if (composer && e.target && e.target.id === 'wsComposerTitle') composer.title = e.target.value; });
   $('#storeNote').textContent = 'Saved only in this browser, on this device, at this address. Not encrypted, not backed up; erased if you clear site data. Export a copy from Settings.';
   if (preview) demo = buildDemo();
-  save().then(render);
+  save().then(()=>{render();runAutoEvidence();});
   render();
 })();
 </script>

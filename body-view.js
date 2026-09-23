@@ -48,12 +48,16 @@ class HealthBodyView extends HTMLElement {
   unavailable() {
     const snap = window.HealthBodySnapshot || null;
     const note = '<p class="hint">The 3D model and reference photos stay on the Mac, where the files live. These numbers came across with your last backup' + (snap && snap.capturedAt ? ', captured ' + esc(snap.capturedAt) : '') + '.</p>';
-    if (!snap || (!snap.fitdays && !(snap.measurements && snap.measurements.readings.length))) {
+    // Imported whole-body figures live in the record itself, not in the body snapshot, so this
+    // surface can be useful even before a backup carrying body files has been imported.
+    this.fitdays = (snap && snap.fitdays) || null;
+    const heading = this.compositionHeadingHTML();
+    if (!heading && (!snap || (!snap.fitdays && !(snap.measurements && snap.measurements.readings.length)))) {
       this.innerHTML = '<section class="body-composition"><h3>Body</h3><p class="hint">No body numbers have come across yet. Open Health Tracker on your Mac and export a backup with body numbers included, then import it here.</p></section>';
       return;
     }
-    let html = '<section class="body-composition" aria-label="Body numbers">';
-    if (snap.fitdays && snap.fitdays.segments.length) {
+    let html = '<section class="body-composition" aria-label="Body numbers">' + heading;
+    if (snap && snap.fitdays && snap.fitdays.segments.length) {
       html += '<h3>Fat &amp; muscle by region</h3><div class="body-composition-cards">' +
         snap.fitdays.segments.filter(row => FITDAYS_GROUPS[row.id]).map(row =>
           '<div class="body-composition-card" style="--region-color:' + FITDAYS_GROUPS[row.id].color + '">' +
@@ -62,7 +66,7 @@ class HealthBodyView extends HTMLElement {
           '<span><b>' + row.muscleBalanceMassLb.toFixed(1) + ' lb</b> muscle</span></div>').join('') +
         '</div>';
     }
-    const readings = (snap.measurements && snap.measurements.readings) || [];
+    const readings = (snap && snap.measurements && snap.measurements.readings) || [];
     if (readings.length) {
       html += '<details class="body-composition-details"><summary>Measurements</summary><table><tbody>' +
         readings.map(r => '<tr><td>' + esc(r.label || r.id || '') + '</td><td>' + esc(String(r.value ?? '')) + (r.unit ? ' ' + esc(r.unit) : '') + '</td></tr>').join('') +
@@ -116,6 +120,9 @@ class HealthBodyView extends HTMLElement {
       measurements: {readings: (this.measurements && this.measurements.readings) || []},
       fitdays: this.fitdays ? {
         measurementDate: this.fitdays.measurementDate || null,
+        // Whole-body figures travel too, so the website and the phone can date each one the same
+        // way the Mac does instead of showing regions with no reading beside them.
+        wholeBody: this.fitdays.wholeBody || null,
         segments: (this.fitdays.segments || []).map(row => ({
           id: row.id, label: row.label, fatMassLb: row.fatMassLb,
           muscleBalanceMassLb: row.muscleBalanceMassLb,
@@ -132,15 +139,42 @@ class HealthBodyView extends HTMLElement {
     return '<div class="body-segments"><label>Highlight a region<select data-body="region" aria-label="Highlight a body region"><option value="all">Whole body</option>' + groups + '<optgroup label="Detailed viewing regions">' + Object.entries(this.regions).map(([key,name]) => '<option value="'+key+'">'+this.escape(name)+'</option>').join('') + '</optgroup></select></label><p class="hint">Click the model or choose a region. Boundaries are approximate viewing guides. Left and right refer to your body.</p></div>';
   }
 
+  /* A whole-body figure follows whichever source measured it most recently and shows that
+     source's own date. The Fitdays report was the only source here, so a May scale reading stayed
+     on screen while Apple Health already held a September one. Figures are never averaged across
+     sources and never share one date; where only Fitdays has a measurement, it keeps the Fitdays
+     date rather than borrowing a newer one. */
+  wholeBodyFigures() {
+    const app = (typeof window !== 'undefined' && window.HealthWholeBody) || {};
+    const whole = (this.fitdays && this.fitdays.wholeBody) || {};
+    const date = this.fitdays && this.fitdays.measurementDate;
+    const fromFitdays = (field, unit) => {
+      const value = whole[field] && whole[field].value;
+      return Number.isFinite(value) && date ? {value, unit: (whole[field] && whole[field].unit) || unit, date, source: 'Fitdays'} : null;
+    };
+    const newer = (a, b) => !b ? a : !a ? b : a.date >= b.date ? a : b;
+    return [
+      {label: 'weight', figure: newer(app.weight, fromFitdays('weight', 'lb'))},
+      {label: 'body fat', figure: newer(app.bodyFat, fromFitdays('bodyFatPercentage', '%'))},
+      {label: 'lean mass', figure: app.leanMass || null},
+      {label: 'muscle', figure: fromFitdays('muscleMass', 'lb')},
+      {label: 'BMI', figure: newer(app.bmi, fromFitdays('bmi', null))}
+    ].filter(row => row.figure);
+  }
+
   compositionHeadingHTML() {
-    if (!this.fitdays) return '';
-    const report = this.fitdays, whole = report.wholeBody;
-    return '<div class="body-composition-heading"><p class="cap">Fitdays · historical reading</p><h3>'+this.escape(this.date(report.measurementDate))+'</h3><p class="hint">'+this.escape(report.measurementTime || '')+' · Report timezone not specified'+(report.measurementDate !== this.selected.captureDate ? '<br>Shown on your '+this.escape(this.date(this.selected.captureDate))+' model. These dates differ.' : '')+'</p><div class="body-whole-stats"><span><b>'+whole.weight.value.toFixed(1)+'</b> lb weight</span><span><b>'+whole.bodyFatPercentage.value.toFixed(1)+'%</b> body fat</span><span><b>'+whole.muscleMass.value.toFixed(1)+'</b> lb muscle</span></div><p class="hint">Fitdays-reported estimates · segment fat is inferred. Colors identify regions; they do not show fat inside your body.</p></div>';
+    const esc = value => this.escape(value);
+    const rows = this.wholeBodyFigures();
+    if (!rows.length) return '';
+    const stats = rows.map(row => '<span><b>' + esc(row.figure.value.toFixed(1)) + (row.figure.unit === '%' ? '%' : row.figure.unit ? ' ' + esc(row.figure.unit) : '') + '</b> ' + esc(row.label) + '<small>' + esc(row.figure.source) + ' · ' + esc(this.date(row.figure.date)) + '</small></span>').join('');
+    const dates = new Set(rows.map(row => row.figure.date));
+    return '<div class="body-composition-heading"><p class="cap">Whole body</p><div class="body-whole-stats">' + stats + '</div><p class="hint">' + (dates.size > 1 ? 'Each figure is its own most recent measurement and keeps that source’s date. They are from different days and are not combined.' : 'Each figure shows the source that measured it and the date it was measured.') + '</p></div>';
   }
 
   compositionHTML() {
     if (!this.fitdays) return '<div class="body-fitdays-empty"><label class="filebtn body-import">Add reviewed Fitdays report<input data-body="fitdays" type="file" accept=".zip" aria-label="Add reviewed Fitdays report ZIP"></label></div>';
-    return '<section class="body-composition" aria-label="Fitdays regional composition"><h3>Fat & muscle by region</h3><div class="body-composition-cards">'+this.fitdays.segments.map(row => '<button data-body="composition-region" data-region="'+row.id+'" aria-pressed="false" style="--region-color:'+FITDAYS_GROUPS[row.id].color+'"><strong><i aria-hidden="true"></i>'+row.label+'</strong><span><b>'+row.fatMassLb.toFixed(1)+' lb</b> fat</span><span><b>'+row.muscleBalanceMassLb.toFixed(1)+' lb</b> muscle</span></button>').join('')+'</div><p class="hint">Whole-arm, whole-leg and trunk totals. Smaller regions do not have separate measurements in this report.</p><details class="body-composition-details"><summary>Report details & comparison percentages</summary><p class="hint">These percentages compare with the Fitdays standard range. They are not regional body-fat percentages or shares of your total. Transcribed from the saved report image.</p><table><thead><tr><th>Region</th><th>Fat comparison</th><th>Muscle comparison</th></tr></thead><tbody>'+this.fitdays.segments.map(row=>'<tr><td>'+row.label+'</td><td>'+row.fatComparisonPercent.toFixed(1)+'%</td><td>'+row.muscleComparisonPercent.toFixed(1)+'%</td></tr>').join('')+'</tbody></table><p><a class="body-export" href="'+this.asset('fitdays-source.jpg')+'" target="_blank" rel="noopener">View original Fitdays report ↗</a></p><p><a class="body-export" href="'+this.asset('fitdays-export.zip')+'" download>Export Fitdays report + values</a></p><label class="filebtn body-import">Add another reviewed Fitdays report<input data-body="fitdays" type="file" accept=".zip" aria-label="Add reviewed Fitdays report ZIP"></label><p class="hint">Fitdays reports are saved separately from your model, photos and HealthAutoExport source.</p></details></section>';
+    const report = this.fitdays;
+    return '<section class="body-composition" aria-label="Fitdays regional composition"><h3>Fat &amp; muscle by region</h3><p class="hint">Fitdays · '+this.escape(this.date(report.measurementDate))+' '+this.escape(report.measurementTime || '')+' · report timezone not specified. No other source measures individual regions, so these stay on the Fitdays date'+(report.measurementDate !== this.selected.captureDate ? ', shown on your '+this.escape(this.date(this.selected.captureDate))+' model' : '')+'. Fitdays-reported estimates; segment fat is inferred, and colors identify regions rather than showing fat inside your body.</p><div class="body-composition-cards">'+this.fitdays.segments.map(row => '<button data-body="composition-region" data-region="'+row.id+'" aria-pressed="false" style="--region-color:'+FITDAYS_GROUPS[row.id].color+'"><strong><i aria-hidden="true"></i>'+row.label+'</strong><span><b>'+row.fatMassLb.toFixed(1)+' lb</b> fat</span><span><b>'+row.muscleBalanceMassLb.toFixed(1)+' lb</b> muscle</span></button>').join('')+'</div><p class="hint">Whole-arm, whole-leg and trunk totals. Smaller regions do not have separate measurements in this report.</p><details class="body-composition-details"><summary>Report details & comparison percentages</summary><p class="hint">These percentages compare with the Fitdays standard range. They are not regional body-fat percentages or shares of your total. Transcribed from the saved report image.</p><table><thead><tr><th>Region</th><th>Fat comparison</th><th>Muscle comparison</th></tr></thead><tbody>'+this.fitdays.segments.map(row=>'<tr><td>'+row.label+'</td><td>'+row.fatComparisonPercent.toFixed(1)+'%</td><td>'+row.muscleComparisonPercent.toFixed(1)+'%</td></tr>').join('')+'</tbody></table><p><a class="body-export" href="'+this.asset('fitdays-source.jpg')+'" target="_blank" rel="noopener">View original Fitdays report ↗</a></p><p><a class="body-export" href="'+this.asset('fitdays-export.zip')+'" download>Export Fitdays report + values</a></p><label class="filebtn body-import">Add another reviewed Fitdays report<input data-body="fitdays" type="file" accept=".zip" aria-label="Add reviewed Fitdays report ZIP"></label><p class="hint">Fitdays reports are saved separately from your model, photos and HealthAutoExport source.</p></details></section>';
   }
 
   measurementHTML() {
@@ -252,7 +286,9 @@ class HealthBodyView extends HTMLElement {
         (!this.stage ? this.measurementHTML() : '') +
         '<p class="hint body-limitation">' + (this.stage || record.variant === 'reconstructed-reference' ? 'Reconstructed reference: shape and hidden skin details may be estimated. ' : 'Original-photo references with an approximate generated model. ') + 'This view does not measure body fat, muscle or circumferences.</p>' +
         (!this.stage ? '<div class="acts"><a class="body-export" href="' + this.asset('export.zip') + '" download>Export model + four images</a><span class="hint">Saved locally · available after reopening</span></div>' : '') :
-        '<div class="body-empty"><h3>Keep a dated view of your body</h3><p>Import a ZIP containing your 3D model, its details and four reference images.</p><p class="hint">You can review everything before saving. Your existing activity records are kept separate.</p></div>') + '</section>';
+        // Imported whole-body figures do not depend on a 3D model, so they are shown here too
+        // rather than waiting behind an import the numbers never needed.
+        this.compositionHeadingHTML() + '<div class="body-empty"><h3>Keep a dated view of your body</h3><p>Import a ZIP containing your 3D model, its details and four reference images.</p><p class="hint">You can review everything before saving. Your existing activity records are kept separate.</p></div>') + '</section>';
     const viewer = this.querySelector('model-viewer');
     if (viewer) {
       viewer.addEventListener('load', () => { const label = this.querySelector('.body-load'); if (label) label.hidden = true; this.highlight(this.region); });

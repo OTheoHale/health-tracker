@@ -194,6 +194,14 @@ function prepareLocalFiles(files){
   const parsed=files.map(f=>{
     if(!/\.csv$/i.test(f.name))throw new Error('Select only the main health-summary and workout CSV files together.');
     const csv=readExportCSV(f.text);
+    // Health Auto Export names the workout column 'Type'; this converter was written against
+    // 'Workout Type'. Same data, different label, and the mismatch made every workout CSV
+    // unrecognisable. Normalise once here so detection, validation and mapping below stay as
+    // they were, and a file using either spelling works.
+    if(!csv.headers.includes('Workout Type')&&csv.headers.includes('Type')&&['Start','End','Duration'].every(k=>csv.headers.includes(k))){
+      csv.headers=csv.headers.map(h=>h==='Type'?'Workout Type':h);
+      for(const row of csv.rows){ if(row.Type!==undefined&&row['Workout Type']===undefined){ row['Workout Type']=row.Type; delete row.Type; } }
+    }
     const kind=csv.headers.includes('Workout Type')&&['Start','End','Duration'].every(k=>csv.headers.includes(k))?'workouts':csv.headers[0]==='Date/Time'&&csv.headers.some(h=>['Step Count (steps)','Active Energy (kcal)','Resting Heart Rate (bpm)'].includes(h))?'metrics':null;
     if(!kind)throw new Error('Unsupported CSV: use the main daily health summary or workout summary. Routes, ECG and workout time-series files are not imported.');
     return {...csv,kind};

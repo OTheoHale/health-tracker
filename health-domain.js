@@ -25,7 +25,11 @@ function migrateTo(state){
   return state;
 }
 const BUILD = '2026-09-21-daily-workspace-candidate';
-const AUTO_SOURCE_LIMIT = 20000;
+// Raised from 20,000 on 2026-09-22. Minute-bucketed Health Auto Export lands about 2,300 rows a
+// day, so the old cap was eight days of history. Source rows live in IndexedDB, not the 5 MB
+// localStorage record, and measured cost at this size is 20.7 MB / 50 ms serialize / 67 ms
+// parse — comfortable. Roughly three months of continuous minute-level intake.
+const AUTO_SOURCE_LIMIT = 200000;
 const STORE_KEY = 'health-tracker-v1';
 const EXPORT_FORMAT = 'health-tracker-export';
 
@@ -958,7 +962,13 @@ function decideLearning(state,start,decision,text,followUp){
 }
 function sourceCoverage(state,kind,from,to){
   const records=relayedRecords(state,kind).filter(r=>r.kind===kind&&sourceLocalDay(r.start)>=from&&sourceLocalDay(r.start)<=to),days=new Set(records.map(r=>sourceLocalDay(r.start)));
-  return {kind,count:records.length,days:days.size,latest:records.map(r=>r.unmapped&&r.unmapped.healthAutoExport&&r.unmapped.healthAutoExport.representation==='daily aggregate'?r.start:r.end||r.start).sort((a,b)=>Date.parse(a)-Date.parse(b)).at(-1)||null,conflicts:records.filter(r=>(r.clashes||[]).length).length,receipts:state.importReceipts.filter(r=>r.window&&r.window.from<=to&&r.window.to>=from)};
+  // These counts are display rows, not raw buckets: a day of minute buckets projects to one derived
+  // row, so 2,500 accepted buckets read as 1/1. Held rows never reach relayedRecords at all, so
+  // "no accessible records" could mean nothing arrived or everything arrived and was held — two
+  // very different situations that looked identical. Counted separately now.
+  const projection=sourceProjection(state),heldIds=projection?new Set(projection.heldIds):null;
+  const held=heldIds?(state.sourceRecords||[]).filter(r=>r.kind===kind&&heldIds.has(r.id)&&sourceLocalDay(r.start)>=from&&sourceLocalDay(r.start)<=to).length:0;
+  return {kind,count:records.length,days:days.size,held,latest:records.map(r=>r.unmapped&&r.unmapped.healthAutoExport&&r.unmapped.healthAutoExport.representation==='daily aggregate'?r.start:r.end||r.start).sort((a,b)=>Date.parse(a)-Date.parse(b)).at(-1)||null,conflicts:records.filter(r=>(r.clashes||[]).length).length,receipts:state.importReceipts.filter(r=>r.window&&r.window.from<=to&&r.window.to>=from)};
 }
 
 function confirmedProgression(state){ return !!(state.rewards && state.rewards.progression.rule === 'confirmed-s11'); }
@@ -1560,10 +1570,17 @@ function sourceEvidenceSummary(state, id){
   const local=transports.has('local file'), mixed=local && transports.size>1;
   return {id,state:count?(mixed?'mixed imports':local?'local import':'relayed'):'unverified',count,kinds:[...kinds],writers:[...writers],lastSample:latest,retrievedAt:retrieved,transports:[...transports],route:count?(mixed?'Local file and relay records; no verified direct connection':local?'Locally selected file; no verified direct connection':'Sender-reported records via relay; no verified direct connection'):'No matching local records; actual field availability unverified',note:'Based on writing-app labels in local records, not independent device/account verification.'};
 }
+const BODY_MASS_METRICS = ['weight_body_mass', 'weight_&_body_mass'];
 function weightHistory(state, from, to, unit){
   const dest = ['kg','lb'].includes(unit) ? unit : state.prefs.units;
   const rows = observationsBetween(state, from, to).filter(o => Number.isFinite(o.weight)).map(o => ({ id:'manual:' + o.date, date:o.date, instant:o.date, originalValue:o.weight, originalUnit:o.weightUnit || null, source:'Manual check-in', origin:'self-reported', reference:o }));
+  // Body fat percentage, BMI and lean body mass are all kind 'weight' too. A percentage or an
+  // index is not a body weight, and including them put "32.6 %" under a heading that says Weight
+  // and let a body-fat row become the "latest recorded weight". Rows that do not name a metric —
+  // relayed and manual ones — are body weights and stay.
   for (const r of relayedRecords(state, 'weight')){
+    const metric = r.unmapped && r.unmapped.healthAutoExport && r.unmapped.healthAutoExport.metric;
+    if (metric && !BODY_MASS_METRICS.includes(metric)) continue;
     const date = ymd(new Date(r.start)); if (date < from || date > to) continue;
     rows.push({ id:r.id, date, instant:r.start, originalValue:r.value, originalUnit:r.unit, source:r.sourceApp, origin:'relayed', reference:r });
   }
@@ -1845,6 +1862,18 @@ function migrate(state){
   else for (const g of DEFAULT_GROUPS){ if (!state.groups.some(x => x.id === g.id)) state.groups.push(Object.assign({ hidden:false, custom:false }, g)); }
   const hobbies=state.groups.find(g=>g.id==='interests');if(hobbies&&hobbies.name==='Optional interests')hobbies.name='Hobbies';
   if (!Array.isArray(state.goals)) state.goals = [];
+  // freshState() gained these two, migrate() did not. A record saved before they existed passed
+  // validateState (both are optional there) and then threw on first render: Today, Profile,
+  // Plan & Quests and Progress all call S().learning.find or S().planIdeas.filter directly, so
+  // every one of those areas came up blank while Fitness, which touches neither, looked fine.
+  if (!Array.isArray(state.learning)) state.learning = [];
+  if (!Array.isArray(state.planIdeas)) state.planIdeas = [];
+  // applyTheme() reads state.prefs on every render, so a record without it cannot paint at all.
+  // Fill in only the missing keys: a record that already chose a theme or text size keeps it.
+  if (!state.prefs || typeof state.prefs !== 'object' || Array.isArray(state.prefs)) state.prefs = {};
+  for (const [key, value] of Object.entries(freshState().prefs)) {
+    if (state.prefs[key] === undefined) state.prefs[key] = value;
+  }
   if (!state.sources || typeof state.sources !== 'object' || Array.isArray(state.sources)) state.sources = {};
   for (const src of SOURCES){ if (!state.sources[src.id]) state.sources[src.id] = { state:'unverified', lastSample:null, retrievedAt:null, note:'' }; }
   if (state.prefs && !Array.isArray(state.prefs.fastingDays)) state.prefs.fastingDays = [];
@@ -2696,24 +2725,71 @@ function wsSyncMembership(state,parentIds,from){
   for(const date of dates)for(const id of parentIds){const parent=state.series.find(s=>s.id===id),v=parent&&versionFor(parent,date);if(!v)continue;const ids=state.series.filter(s=>versionFor(s,date)&&parentFor(s,date)===id).map(s=>s.id);if(JSON.stringify((v.childIds||[]).slice().sort())!==JSON.stringify(ids.slice().sort()))wsRevise(state,id,{childIds:ids},date);}
 }
 
-function wsEvidenceFingerprint(record){return JSON.stringify([evidenceFingerprint(record),record.sourceApp||null,record.device||null,record.sourceRecordId||null,record.unmapped?.starter?.duration_sec??record.unmapped?.reportedDurationExactSec??record.unmapped?.workoutDurationExactSec??null,record.unmapped?.starter?.source_name??null,record.unmapped?.healthAutoExport?.originalWriter??null]);}
+/* A daily step total and a brushing minute are Health Auto Export's own figures, not rows the
+   workspace stores: the total is re-derived from the day's buckets on every projection. Evidence
+   lookups therefore see the current projection as well as stored rows. (Mintay, 2026-09-23) */
+const WS_NIGHT_HOUR=15;
+function sourceLocalHour(instant){const zone=/([+-])(\d{2}):(\d{2})$/.exec(instant),offset=zone?(zone[1]==='-'?-1:1)*(Number(zone[2])*60+Number(zone[3])):0;return new Date(Date.parse(instant)+offset*60000).getUTCHours();}
+function wsProjectedRecord(state,id){const projected=sourceProjection(state);return projected?projected.records.find(r=>r.id===id)||null:null;}
+function wsSourceRecord(state,id){return (state.sourceRecords||[]).find(r=>r.id===id)||wsProjectedRecord(state,id);}
+function wsEvidenceCandidates(state,v,date){
+  const stored=state.sourceRecords||[],kind=v?.matching?.kind;if(kind!=='steps'&&kind!=='sleep')return stored;
+  const projected=sourceProjection(state);if(!projected)return stored;
+  return stored.concat(projected.records.filter(r=>r.kind===kind&&r.unmapped?.healthAutoExport?.representation==='derived daily view'&&r.unmapped.healthAutoExport.day===date));
+}
+/* Any app that records a workout counts (Mintay, 2026-09-23): the Watch, iFIT, a strength app.
+   The type decides cardio or strength; a type the rules do not know — softball, say — waits for
+   Mintay to choose once, and that choice applies to every later workout of the same type. */
+function wsWorkoutTypeKey(record){return String(record?.type||'').trim().toLowerCase().replace(/\s+/g,' ');}
+function wsWorkoutClass(state,record){
+  const chosen=state.prefs?.workoutTypes?.[wsWorkoutTypeKey(record)];if(['cardio','strength','other'].includes(chosen))return chosen;
+  const type=wsWorkoutTypeKey(record);
+  if(/strength|resistance|weight|functional|core training|crossfit|pilates|barre/.test(type))return 'strength';
+  if(/cardio|walk|run|cycl|bik|elliptical|row|swim|hik|stair|step training|aerobic|dance|hiit|high.intensity|kickbox|boxing|jump rope|treadmill|spin/.test(type))return 'cardio';
+  return null;
+}
+function wsEvidenceFingerprint(record){if(record?.origin==='derived'&&record.unmapped?.healthAutoExport?.representation==='derived daily view')return JSON.stringify(['derived',record.id]);return JSON.stringify([evidenceFingerprint(record),record.sourceApp||null,record.device||null,record.sourceRecordId||null,record.unmapped?.starter?.duration_sec??record.unmapped?.reportedDurationExactSec??record.unmapped?.workoutDurationExactSec??null,record.unmapped?.starter?.source_name??null,record.unmapped?.healthAutoExport?.originalWriter??null]);}
 function wsExactMinutes(record){const original=record.unmapped?.starter?.duration_sec??record.unmapped?.reportedDurationExactSec??record.unmapped?.workoutDurationExactSec;const sec=typeof original==='number'?original:record.durationSec;return Number.isFinite(sec)&&sec>=0?sec/60:null;}
 function wsWatch(record){return /apple\s*watch|watch\d|watchos/i.test([record.device,record.sourceApp,record.unmapped?.healthAutoExport?.originalWriter,record.unmapped?.starter?.source_name].filter(Boolean).join(' '));}
 function wsEvidenceProblem(state,record,series,date){
   const v=versionFor(series,date),kind=wsKind(series,date),policy=v?.matching;
   if(!v||v.childIds)return 'Choose an independently recorded leaf.';
+  const hae=record.unmapped?.healthAutoExport;
+  if(policy?.kind==='steps'&&record.kind==='steps'&&hae?.representation==='derived daily view'){
+    if(!wsProjectedRecord(state,record.id))return 'This daily total is no longer current; review the source.';
+    if(syntheticPreviewData(record)&&state.syntheticWorkspace!==true)return 'This source is held, shadowed or unsupported.';
+    if(sourceLocalDay(record.start)!==date)return 'The source-local date differs from this action.';
+    if(!(policy.minimum>0)||!Number.isFinite(record.value)||record.value<policy.minimum)return 'The evidence does not establish the step target.';
+    return null;
+  }
+  if(policy?.kind==='sleep'&&record.kind==='sleep'&&hae?.representation==='derived daily view'){
+    if(!wsProjectedRecord(state,record.id))return 'This night is no longer current; review the source.';
+    if(syntheticPreviewData(record)&&state.syntheticWorkspace!==true)return 'This source is held, shadowed or unsupported.';
+    if(hae.day!==date)return 'This night belongs to another wake day.';
+    const need=Math.max(Number(policy.minimum)||0,v.normal?.minutes||0),got=Number.isFinite(record.durationSec)?record.durationSec/60:null;
+    if(got===null||got<need)return 'Recorded sleep is below the chosen target.';
+    return null;
+  }
+  if(policy?.kind==='toothbrushing'&&hae?.metric==='toothbrushing'&&hae.representation==='minute aggregate'){
+    if(!sourceIsActive(state,record.id,record)||syntheticPreviewData(record)&&state.syntheticWorkspace!==true)return 'This source is held, shadowed or unsupported.';
+    if((record.clashes||[]).length)return 'Review the source correction first.';
+    if(sourceLocalDay(record.start)!==date)return 'The source-local date differs from this action.';
+    if(!(record.value>0))return 'No brushing time was recorded in this minute.';
+    const night=['evening','night'].includes(v.anchor),late=sourceLocalHour(record.start)>=WS_NIGHT_HOUR;
+    if(night!==late)return night?'This brushing was recorded before 3 pm, so it belongs to the morning routine.':'This brushing was recorded after 3 pm, so it belongs to the night routine.';
+    return null;
+  }
   if(!sourceEvidenceEligible(state,record))return 'This source is held, shadowed or unsupported.';
   if((record.clashes||[]).length)return 'Review the source correction first.';
   if(sourceLocalDay(record.kind==='sleep'?(record.end||record.start):record.start)!==date)return 'The source-local date differs from this action.';
   if(record.unmapped?.healthAutoExport?.representation==='minute aggregate')return 'Minute buckets do not establish this action.';
   if(kind==='cardio'||kind==='strength'){
     if(record.kind!=='workout')return 'Only typed workout evidence supplies workout minutes.';
-    const type=String(record.type||'').toLowerCase();
-    const strength=/strength|resistance|weight.training|functional.training/.test(type);
-    const cardio=/cardio|walk|run|cycl|elliptical|row|swim|hiking|stair|aerobic|dance/.test(type)&&!strength;
-    if(kind==='cardio'&&!cardio||kind==='strength'&&!strength)return 'The workout type does not match this activity.';
-    if(kind==='cardio'&&!wsWatch(record))return 'Apple Watch provenance is unavailable; keep this evidence pending.';
-    if(kind==='strength'&&!record.sourceApp?.trim()||String(record.sourceApp).toLowerCase()==='unknown')return 'The original workout writer is unavailable.';
+    const cls=wsWorkoutClass(state,record);
+    if(cls===null)return 'Choose whether this workout is cardio or strength.';
+    if(cls==='other')return 'You marked this workout type as neither cardio nor strength.';
+    if(cls!==kind)return 'The workout type does not match this activity.';
+    if(!record.sourceApp?.trim()||String(record.sourceApp).toLowerCase()==='unknown')return 'The original workout writer is unavailable.';
     if(wsExactMinutes(record)===null||wsExactMinutes(record)<=0)return 'A positive exact reported duration is unavailable.';
     if(record.end&&record.unmapped?.healthAutoExport?.timestampPrecision!=='minute'&&wsExactMinutes(record)>(Date.parse(record.end)-Date.parse(record.start))/60000+1e-8)return 'Workout duration exceeds the recorded interval; review the source.';
   }else{
@@ -2727,10 +2803,11 @@ function wsEvidenceProblem(state,record,series,date){
 function wsEvidencePreview(state,id,date){
   const series=state.series.find(s=>s.id===id),v=series&&versionFor(series,date);if(!v||(!scheduledOn(v,date)&&!state.occurrences[occKey(id,date)]?.added))return {ok:false,error:'Choose an activity available on this date; saved end dates are retained.'};
   const o=state.occurrences[occKey(id,date)],eventId=o?rewardIdentity(state,o):occKey(id,date),records=[];
-  for(const record of state.sourceRecords||[]){
-    if(sourceLocalDay(record.kind==='sleep'?(record.end||record.start):record.start)!==date)continue;
+  for(const record of wsEvidenceCandidates(state,v,date)){
+    const derivedDay=record.unmapped?.healthAutoExport?.representation==='derived daily view'?record.unmapped.healthAutoExport.day:null;
+    if((derivedDay||sourceLocalDay(record.kind==='sleep'?(record.end||record.start):record.start))!==date)continue;
     let problem=wsEvidenceProblem(state,record,series,date);
-    const used=Object.values(state.rewards.evidence).find(e=>!e.retractedAt&&e.eventId!==eventId&&(e.sourceId===record.id||e.fingerprint===evidenceFingerprint(record)||evidenceOverlaps(record,state.sourceRecords.find(r=>r.id===e.sourceId))));
+    const used=Object.values(state.rewards.evidence).find(e=>!e.retractedAt&&e.eventId!==eventId&&(e.sourceId===record.id||e.fingerprint===evidenceFingerprint(record)||evidenceOverlaps(record,wsSourceRecord(state,e.sourceId))));
     if(used)problem='This evidence already belongs to another action.';
     records.push({id:record.id,sourceId:record.id,type:record.type||record.kind,writer:record.sourceApp||'unknown',minutes:wsExactMinutes(record),eligible:!problem,problem,confirmed:!!(state.rewards.evidence[record.id]&&!state.rewards.evidence[record.id].retractedAt&&state.rewards.evidence[record.id].eventId===eventId),record});
   }
@@ -2741,17 +2818,18 @@ function wsEvidenceQuantity(state,id,date){
   const records=[],sourceIds=[];let pending=false;
   for(const evidence of Object.values(state.rewards.evidence)){
     if(evidence.eventId!==rewardIdentity(state,o)||evidence.retractedAt)continue;
-    const record=state.sourceRecords.find(r=>r.id===evidence.sourceId);
+    const record=wsSourceRecord(state,evidence.sourceId);
     if(!record||evidence.fingerprint!==(evidence.ruleVersion===4?wsEvidenceFingerprint(record):evidenceFingerprint(record))||wsEvidenceProblem(state,record,series,date)){pending=true;continue;}
     if(records.some(r=>r.id===record.id||evidenceFingerprint(r)===evidenceFingerprint(record)||evidenceOverlaps(r,record))){pending=true;continue;}
     records.push(record);sourceIds.push(record.id);
   }
   return {minutes:records.reduce((sum,r)=>sum+(wsExactMinutes(r)||0),0),sourceIds,pending};
 }
-function wsConfirmEvidence(state,id,date,sourceIds){
+function wsConfirmEvidence(state,id,date,sourceIds){return wsTransaction(state,draft=>wsConfirmEvidenceIn(draft,id,date,sourceIds));}
+function wsConfirmEvidenceIn(draft,id,date,sourceIds,options={}){
   if(date>todayYmd()||!validCalendarDate(date))return {ok:false,error:'Evidence can confirm only a lived date.'};
   if(!Array.isArray(sourceIds)||!sourceIds.length||new Set(sourceIds).size!==sourceIds.length)return {ok:false,error:'Select each source record once.'};
-  return wsTransaction(state,draft=>{
+  {
     const preview=wsEvidencePreview(draft,id,date);if(!preview.ok)return preview;
     const selected=sourceIds.map(sourceId=>preview.records.find(r=>r.id===sourceId));
     if(selected.some(r=>!r||!r.eligible))return {ok:false,error:selected.find(r=>r&&!r.eligible)?.problem||'A selected source record is unavailable.'};
@@ -2760,12 +2838,73 @@ function wsConfirmEvidence(state,id,date,sourceIds){
     const active=Object.values(draft.rewards.evidence).filter(e=>e.eventId===rewardIdentity(draft,o)&&!e.retractedAt);
     if(o.status==='done'&&o.confirmation?.kind==='source'&&active.length===selected.length&&selected.every(r=>active.some(e=>e.sourceId===r.id&&e.ruleVersion===4&&e.fingerprint===wsEvidenceFingerprint(r.record))))return {ok:true,same:true,record:o,occurrence:o};
     const before=snapshot(o);
-    o.committed=true;o.evidenceOnly=true;o.status='done';o.confirmation={kind:'source',at,sourceIds:sourceIds.slice()};o.completedVersion='normal';o.loggedAt=at;
+    o.committed=true;o.evidenceOnly=true;o.status='done';o.confirmation={kind:'source',at,sourceIds:sourceIds.slice(),...(options.auto?{auto:true}:{})};o.completedVersion='normal';o.loggedAt=at;if(!options.auto)delete o.autoDeclined;
     for(const old of Object.values(draft.rewards.evidence))if(old.eventId===preview.eventId&&!sourceIds.includes(old.sourceId)&&!old.retractedAt){old.retractedAt=at;old.updatedAt=at;}
     for(const chosen of selected){if(draft.syntheticWorkspace===true){chosen.record.syntheticPreview=true;o.syntheticPreview=true;}const old=draft.rewards.evidence[chosen.id],history=old?[...(old.history||[]),{fingerprint:old.fingerprint,eventId:old.eventId,acceptedAt:old.acceptedAt,retractedAt:old.retractedAt,updatedAt:old.updatedAt}]:[];draft.rewards.evidence[chosen.id]={sourceId:chosen.id,eventId:rewardIdentity(draft,o),fingerprint:wsEvidenceFingerprint(chosen.record),seriesId:id,date,acceptedAt:at,updatedAt:at,retractedAt:null,ruleVersion:4,history,...(draft.syntheticWorkspace===true?{syntheticPreview:true}:{})};}
     if(kind==='cardio'||kind==='strength'){o.actualMinutes=selected.reduce((sum,r)=>sum+r.minutes,0);o.completedVersion=o.actualMinutes<(v.normal?.minutes||0)?'minimum':'normal';}
     wsPinRule(draft,o);recordCorrection(o,before,at);touch(o);return {ok:true,record:o,occurrence:o};
-  });
+  }
+}
+/* Imported evidence now checks off the activity it establishes (Mintay, 2026-09-23): a Watch
+   workout confirms Cardio, a strength workout confirms Strength, the day's step total confirms the
+   step goal, and a brushing record confirms the brush leaf for its half of the day. Only an
+   untouched or tentative entry, or one this pass linked earlier, is ever changed. Anything Mintay
+   decided himself — self-confirmed, skipped, partial, rest, or an automatic link he undid — is
+   left exactly as he set it. Points still wait for his claim. */
+const WS_AUTO_DAYS=7;
+function wsAutoEligible(state,series,date){
+  const v=versionFor(series,date);if(!v||v.childIds||series.demo||series.archivedAt&&series.archivedAt<=date||!scheduledOn(v,date))return false;
+  const kind=wsKind(series,date);if(!(kind==='cardio'||kind==='strength'||['steps','toothbrushing','sleep'].includes(v.matching?.kind)))return false;
+  const o=state.occurrences[occKey(series.id,date)];
+  if(!o)return true;
+  if(o.autoDeclined||o.removed||o.aliasOf||o.disposition||['skipped','partial'].includes(o.status))return false;
+  if(o.status==='done')return o.confirmation?.kind==='source'&&o.confirmation.auto===true;
+  return true;
+}
+function wsAutoEvidence(state,options={}){
+  const today=options.today||todayYmd(),days=options.days||WS_AUTO_DAYS,changes=[];
+  for(let i=days-1;i>=0;i--){
+    const date=addDays(today,-i);
+    for(const series of state.series.slice()){
+      if(!wsAutoEligible(state,series,date))continue;
+      const preview=wsEvidencePreview(state,series.id,date);if(!preview.ok)continue;
+      // Only the automatic feed links itself; a file imported by hand keeps its reviewed flow.
+      const eligible=preview.eligible.filter(r=>r.record.unmapped?.healthAutoExport?.format==='JSON');if(!eligible.length)continue;
+      const chosen=[];
+      for(const r of eligible.slice().sort((a,b)=>(b.minutes||0)-(a.minutes||0)||Date.parse(a.record.start)-Date.parse(b.record.start)||a.id.localeCompare(b.id)))
+        if(!chosen.some(c=>evidenceOverlaps(c.record,r.record)||evidenceFingerprint(c.record)===evidenceFingerprint(r.record)))chosen.push(r);
+      chosen.sort((a,b)=>Date.parse(a.record.start)-Date.parse(b.record.start)||a.id.localeCompare(b.id));
+      const ids=(['steps','sleep'].includes(versionFor(series,date).matching?.kind)?chosen.slice(-1):chosen).map(r=>r.id);
+      const result=wsConfirmEvidenceIn(state,series.id,date,ids,{auto:true});
+      if(result.ok&&!result.same)changes.push({seriesId:series.id,date,name:versionFor(series,date).name,sourceIds:ids,minutes:result.occurrence.actualMinutes??null});
+    }
+  }
+  return {ok:true,changes};
+}
+function wsUnsortedWorkouts(state,options={}){
+  const today=options.today||todayYmd(),from=addDays(today,-((options.days||WS_AUTO_DAYS)-1)),seen=new Map();
+  for(const r of state.sourceRecords||[]){
+    if(r.kind!=='workout'||!sourceEvidenceEligible(state,r)||wsWorkoutClass(state,r)!==null)continue;
+    const day=sourceLocalDay(r.start);if(day<from||day>today)continue;
+    const key=wsWorkoutTypeKey(r);if(!key)continue;
+    const item=seen.get(key)||{key,type:r.type,count:0,latest:null,minutes:0};item.count++;item.minutes+=wsExactMinutes(r)||0;item.latest=!item.latest||r.start>item.latest?r.start:item.latest;seen.set(key,item);
+  }
+  return [...seen.values()].sort((a,b)=>String(b.latest).localeCompare(String(a.latest)));
+}
+function wsClassifyWorkout(draft,key,cls){
+  if(!['cardio','strength','other'].includes(cls)||typeof key!=='string'||!key.trim())return {ok:false,error:'Choose cardio, strength or neither.'};
+  draft.prefs=draft.prefs||{};draft.prefs.workoutTypes={...(draft.prefs.workoutTypes||{}),[key.trim().toLowerCase()]:cls};
+  return {ok:true,record:{key,cls}};
+}
+function wsDeclineAuto(draft,id,date){
+  const o=draft.occurrences[occKey(id,date)];
+  if(!o||o.status!=='done'||o.confirmation?.kind!=='source'||o.confirmation.auto!==true)return {ok:false,error:'Only an entry checked off automatically can be unlinked here.'};
+  const eventId=rewardIdentity(draft,o);
+  if(Object.values(draft.rewards.claims).some(c=>c.id===eventId||c.eventId===eventId))return {ok:false,error:'Its points are already claimed. Use Correct in Collection so the ledger stays accurate.'};
+  const before=snapshot(o),at=nowIso();
+  for(const e of Object.values(draft.rewards.evidence))if(e.eventId===eventId&&!e.retractedAt){e.retractedAt=at;e.updatedAt=at;}
+  o.status=null;o.confirmation=null;o.evidenceOnly=false;o.actualMinutes=null;o.committed=false;o.autoDeclined={at};
+  recordCorrection(o,before,at);touch(o);return {ok:true,record:o};
 }
 function wsSlots(state,rows,date,options){
   const count=rows.length,width=count?Math.min(8,270/count):0;
@@ -2885,7 +3024,7 @@ actionConfirmation=function(state,o){
   if(wsEnabled(state)&&o?.confirmation?.kind==='source'&&o.status==='done'){
     const associations=Object.values(state.rewards.evidence).filter(e=>e.eventId===rewardIdentity(state,o)&&!e.retractedAt);
     if(associations.some(e=>e.ruleVersion===4)){
-      const series=state.series.find(s=>s.id===o.seriesId),valid=associations.length>0&&associations.every(e=>{const record=state.sourceRecords.find(r=>r.id===e.sourceId);return record&&series&&e.fingerprint===(e.ruleVersion===4?wsEvidenceFingerprint(record):evidenceFingerprint(record))&&!wsEvidenceProblem(state,record,series,o.date);});
+      const series=state.series.find(s=>s.id===o.seriesId),valid=associations.length>0&&associations.every(e=>{const record=wsSourceRecord(state,e.sourceId);return record&&series&&e.fingerprint===(e.ruleVersion===4?wsEvidenceFingerprint(record):evidenceFingerprint(record))&&!wsEvidenceProblem(state,record,series,o.date);});
       return {confirmed:valid&&o.date<=todayYmd(),kind:'source',label:valid?'Source-confirmed':'Evidence changed · review required'};
     }
     const series=state.series.find(s=>s.id===o.seriesId),kind=series&&wsKind(series,o.date);
@@ -3015,15 +3154,15 @@ function wsProposal(state,date){
   const proposal=WorkspaceProposal.build(date),additions=[],scheduleChanges=[],taxonomy=[],pending=[],idMap=new Map(),moves=[];
   const definitions=proposal.additions||[],used=new Set(),rollbackIds=new Set((state.workspace?.migrations||[]).filter(m=>m.status==='rolled-back').flatMap(m=>m.addedIds||[])),notes=(proposal.notes||[]).slice();
   for(const definition of definitions){
-    const matches=state.series.filter(s=>!s.demo&&!used.has(s.id)&&(!s.archivedAt||s.archivedAt>date||rollbackIds.has(s.id))).filter(s=>{const v=versionFor(s,date);return v&&(!definition.parentId||(['evening','night'].includes(v.anchor)?'night':v.anchor)===(['evening','night'].includes(definition.anchor)?'night':definition.anchor))&&(v.workspaceKind===definition.workspaceKind&&definition.workspaceKind&&!['home','care','ordinary','bathroom'].includes(definition.workspaceKind)||v.name.trim().toLowerCase()===definition.name.trim().toLowerCase());});
-    if(matches.length===1){const existing=matches[0],v=versionFor(existing,date);used.add(existing.id);idMap.set(definition.id,existing.id);const changes={workspaceKind:definition.workspaceKind,scoring:definition.scoring};if(definition.matching)changes.matching=wsClone(definition.matching);if(definition.budgetQ!==undefined)changes.budgetQ=definition.budgetQ;if(definition.deadlineDay!==undefined)changes.deadlineDay=definition.deadlineDay;if(!v.childIds&&!definition.container&&!definition.kind){changes.normal=definition.normal;changes.minimum=definition.minimum;changes.recurrence={...definition.recurrence,...(v.recurrence?.endDate?{endDate:v.recurrence.endDate}:{})};}const restore=!!existing.archivedAt&&rollbackIds.has(existing.id);scheduleChanges.push({seriesId:existing.id,changes,...(restore?{restore:true}:{})});if(restore)notes.push(v.name+' will be restored from archived rollback history on deliberate adoption.');if(definition.category!==wsGroup(existing,date))taxonomy.push({seriesId:existing.id,category:definition.category});}
+    const matches=state.series.filter(s=>!s.demo&&!used.has(s.id)&&(!s.archivedAt||s.archivedAt>date||rollbackIds.has(s.id))).filter(s=>{const v=versionFor(s,date);return v&&(!definition.parentId||definition.workspaceKind!=='care'||(['evening','night'].includes(v.anchor)?'night':v.anchor)===(['evening','night'].includes(definition.anchor)?'night':definition.anchor))&&(v.workspaceKind===definition.workspaceKind&&definition.workspaceKind&&!['home','care','ordinary','bathroom'].includes(definition.workspaceKind)||v.name.trim().toLowerCase()===definition.name.trim().toLowerCase());});
+    if(matches.length===1){const existing=matches[0],v=versionFor(existing,date);used.add(existing.id);idMap.set(definition.id,existing.id);if(definition.remap===true&&(v.category||existing.category)!==definition.category)taxonomy.push({seriesId:existing.id,category:definition.category});const changes={workspaceKind:definition.workspaceKind,scoring:definition.scoring};if(definition.matching)changes.matching=wsClone(definition.matching);if(definition.budgetQ!==undefined)changes.budgetQ=definition.budgetQ;if(definition.deadlineDay!==undefined)changes.deadlineDay=definition.deadlineDay;if(!v.childIds&&!definition.container&&!definition.kind){changes.normal=definition.normal;changes.minimum=definition.minimum;changes.recurrence={...definition.recurrence,...(v.recurrence?.endDate&&definition.workspaceKind!=='cardio'?{endDate:v.recurrence.endDate}:{})};}const restore=!!existing.archivedAt&&rollbackIds.has(existing.id);scheduleChanges.push({seriesId:existing.id,changes,...(restore?{restore:true}:{})});if(restore)notes.push(v.name+' will be restored from archived rollback history on deliberate adoption.');if(definition.category!==wsGroup(existing,date))taxonomy.push({seriesId:existing.id,category:definition.category});}
     else if(matches.length>1){pending.push({id:definition.id,reason:'Multiple existing actions could match; no automatic remap.',seriesIds:matches.map(s=>s.id)});idMap.set(definition.id,null);}
     else {idMap.set(definition.id,definition.id);additions.push(wsClone(definition));}
   }
   for(const s of state.series){const v=versionFor(s,date);if(v&&/^laundry$|^one load|^laundry load/i.test(v.name)&&!used.has(s.id))pending.push({seriesId:s.id,reason:'Generic prior laundry is preserved; review its relationship to the four weekly loads.'});}
   for(const definition of definitions){const id=idMap.get(definition.id),parentId=definition.parentId?idMap.get(definition.parentId):null;if(id&&id!==definition.id&&parentId&&parentFor(state.series.find(s=>s.id===id),date)!==parentId)moves.push({seriesId:id,parentId});}
   const filtered=additions.filter(a=>!a.parentId||idMap.get(a.parentId));for(const a of filtered)if(a.parentId)a.parentId=idMap.get(a.parentId)||a.parentId;
-  return {ok:true,effectiveFrom:date,quarterPoints:true,groups:proposal.groups||[],additions:filtered,scheduleChanges,taxonomy,moves,pending,notes,policies:proposal.policies||[]};
+  return {ok:true,effectiveFrom:date,quarterPoints:!quarterProgression(state),groups:proposal.groups||[],additions:filtered,scheduleChanges,taxonomy,moves,pending,notes,policies:proposal.policies||[]};
 }
 
 const Workspace={
@@ -3036,6 +3175,10 @@ const Workspace={
   reorder(state,id,order,date){if(!Number.isFinite(order))return {ok:false,error:'Choose a valid order.'};return wsTransaction(state,draft=>wsEdit(draft,id,{order},date));},
   commit(state,id,date,committed=true){return wsTransaction(state,draft=>{const s=draft.series.find(s=>s.id===id),v=s&&versionFor(s,date);if(!v||v.childIds||!validCalendarDate(date)||!scheduledOn(v,date))return {ok:false,error:'Choose an available leaf on this date.'};const o=ensureOcc(draft,id,date);o.committed=!!committed;if(committed&&v.recurrence?.kind==='target'&&v.recurrence.count===1&&v.recurrence.mode!=='rolling'&&!o.status&&!draft.rewards.claims[o.rewardEventId])o.rewardEventId=id+'|week:'+weekStartOf(date,1);touch(o);return {ok:true,record:o};});},
   evidencePreview:wsEvidencePreview,confirmEvidence:wsConfirmEvidence,
+  autoEvidence(state,options={}){if(!wsEnabled(state))return {ok:true,changes:[]};return wsTransaction(state,draft=>wsAutoEvidence(draft,options));},
+  declineAuto(state,id,date){return wsTransaction(state,draft=>wsDeclineAuto(draft,id,date));},
+  unsortedWorkouts:wsUnsortedWorkouts,workoutClass:wsWorkoutClass,
+  classifyWorkout(state,key,cls){return wsTransaction(state,draft=>{const r=wsClassifyWorkout(draft,key,cls);if(!r.ok)return r;if(wsEnabled(draft))wsAutoEvidence(draft);return r;});},
   proposal:wsProposal,migrationPreview:wsMigrationPreview,adopt:wsAdopt,rollbackPreview:wsRollbackPreview,rollback:wsRollback,
   correctionBatch:wsCorrectionBatch,applyCorrectionBatch(state,preview,note){return wsTransaction(state,draft=>wsApplyCorrectionBatch(draft,preview,note));},
 };

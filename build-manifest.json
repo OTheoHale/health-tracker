@@ -1,22 +1,22 @@
 {
-  "build": "2026-09-22-1447",
+  "build": "2026-09-23-0122",
   "files": {
-    "body-view.css": "7b99dcabb70d093705dcdbd8cceb65aaba475c4c680b1394367bd464f4329ba0",
-    "body-view.js": "904c9254e623f72c7abd79a922dade2b4e1ccea662a3fe2eb43dd5a7aa1b3dc7",
-    "convert-starter.js": "b4ca332aa0c6cd97e1877296286934d7110e1b223ee843607bcf2bb1f9a898d3",
-    "delivery.js": "892122e1f066e98932854a601d268cbffe0f6c0fdd626d4449cdece9383e2ee4",
-    "hae-adapter.js": "7e92adae2e323d2db4a8211dd783fabcb59ffd0212c3c13e4629650a1445e1c0",
-    "health-domain.js": "0e0b7cb3924fdf49dab6b2658696ad6599474cac7ca21d69bc4b47f8df016f2d",
-    "health-store.js": "aea9f203cf05d21427dc97bdea171e4d8ffaf1e2be22b4bfe46cf24789762a21",
+    "body-view.css": "ffe147ecc1aa5b8596183cc75544df374ea066aa8db99ea6cc023082af7fdd85",
+    "body-view.js": "7dcbaa2a1a664ea4f3a7e2457b0143d794e93fcec6d930390e407c91927a7db0",
+    "convert-starter.js": "40c333c133bdb5045fd7fe8660861c723ee1a940628a16d6f9bf05ff9cfa0fc4",
+    "delivery.js": "f53d964c722ff1eb4e846d44a01c1d595c22157422800bf00d94be736fc94aa6",
+    "hae-adapter.js": "babaef3308b67dd963a3622e565e941cd57fc82827906ed40e11eaad75095935",
+    "health-domain.js": "47f4efda3f7c0d451d5b6efe8b369fa1e29025bb1140ec08f5ecdf80bfd648da",
+    "health-store.js": "3d00915549863e75d024c4d3d9f9a7044d46e6c61ac048fa981607114048d609",
     "icon-192.png": "9293622062f8e7f952d83908a5241cbe71f6c056be5affd70a91af1a0d95df8a",
     "icon-512.png": "b33e8d919951159f8d93c74be7d5aa33c2e23f5d88864f2ade5fc579afae6691",
-    "index.html": "2176222ba2093c4e563c53c48d0d4b22c24e4e60aafdf7876fa43f1021ada3b1",
+    "index.html": "b48011a2a058785ad419bfa627ebd68cf00e6a25b3a8be1b03228bd1cfd16d20",
     "manifest.webmanifest": "f3813ec95e36ce358ca02bada755da135b50547a89690eef3b0b7e729199d1bd",
     "meal-water.js": "2ec35f37435af8cc8e5af71b16b7f3cc13436ef6150aa77c9373422b64e79a4a",
     "model-viewer.min.js": "774edda21e1be2a0934e460ca5943af1fe3f88da130a9f98bd6a9d611576cacf",
     "offline.html": "7f472596880496629a8dcbde453d2257e9815c088d609d013253a3469efe521d",
     "quarter-points.js": "fa70a0213cd1e498ae2fa750b613f502ef7399245b79db4432ee3a6bd02873bc",
-    "sw.js": "3bc147a846c3ed38f0c539cce6f23eca0659379cdc86e337b5c6e74c1255e69a",
-    "workspace-proposal.js": "b73a23000ef7fc223736c3f9dea9b5852c31ea4927e90b93964f1ec6630bb6ec"
+    "sw.js": "5f4504a9213deb839336088de41a98d4e30b473011dac4a40fca01d2281262b4",
+    "workspace-proposal.js": "4e8f5f8d5ee14e9ae40a74086335d372658ca1a7017de7b9311773b12a5d8090"
   }
 }

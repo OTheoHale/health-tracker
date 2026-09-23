@@ -166,7 +166,7 @@
     }
     async function write(state,options){
       const config=options||{};
-      if(config.delivery&&config.replaceRewards)return failed('DELIVERY_RESTORE','An automatic delivery cannot also replace the workspace. Finish the reviewed restore before catching up on deliveries.');
+      if(config.delivery&&(config.replaceRewards||config.replayDeliveries))return failed('DELIVERY_RESTORE','An automatic delivery cannot also replace the workspace. Finish the reviewed restore before catching up on deliveries.');
       try{
         const previous=await read(true);if(!previous.ok)return previous;
         if(previous.authority!=='indexeddb')return failed('MIGRATION',message.MIGRATION);
@@ -175,7 +175,11 @@
         if(expectedRevision!==previous.state.revision||expectedGeneration!==previous.state.rewardGeneration)return failed('CAS',message.CAS);
         const next=clone(state),problem=validate(next);if(problem)return failed('INVALID','The proposed record was refused: '+problem);
         next.revision=expectedRevision+1;
-        next.rewardGeneration=config.replaceRewards?root.crypto.randomUUID():expectedGeneration;
+        // The delivery ledger is scoped by generation, so deliveries already recorded would retire
+        // every re-delivered file as a duplicate and the data would never come back. replayDeliveries
+        // rotates the generation for exactly that reason, and unlike replaceRewards it does not
+        // relax the claim or evidence guards below — nothing is being replaced, only re-read.
+        next.rewardGeneration=config.replaceRewards||config.replayDeliveries?root.crypto.randomUUID():expectedGeneration;
         const nextParts=parts(next),oldParts=parts(previous.state);
         const oldSources=new Map(oldParts.sources.map(row=>[row.id,row])),newSources=new Map(nextParts.sources.map(row=>[row.id,row]));
         const oldReceipts=new Map(oldParts.receipts.map(row=>[row.id,row])),newReceipts=new Map(nextParts.receipts.map(row=>[row.id,row]));
