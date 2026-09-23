@@ -84,12 +84,14 @@
     return rows.sort(compareID).map(row=>({id:row.id,amountQ:number(row.amount,'Leaf quarter-points')}));
   }
 
-  function costBig(level){return level<=10n?BigInt(COSTS[Number(level-1n)]):1040n+10n*(level-10n);}
+  /* After level 10 each level costs 5 more points than the one before (Mintay, 2026-09-23): the
+     early game stays quick, and later levels keep getting a little harder instead of flattening out. */
+  function costBig(level){return level<=10n?BigInt(COSTS[Number(level-1n)]):1040n+20n*(level-10n);}
   function costQ(level){return number(costBig(integer(level,'Level',1)),'Level cost');}
   function thresholdBig(level){
     if(level<=11n)return COSTS.slice(0,Number(level-1n)).reduce((sum,cost)=>sum+BigInt(cost),0n);
     const count=level-11n;
-    return 7120n+1050n*count+5n*count*(count-1n);
+    return 7120n+1040n*count+10n*count*(count+1n);
   }
   /* thresholdQ is the cumulative start of this level, not the next level. */
   function levelFor(total){
