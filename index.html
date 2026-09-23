@@ -127,6 +127,7 @@ h4{font:600 12.5px/1.3 var(--sans); color:var(--faint); margin:12px 0 6px}
 .quest{margin-top:10px; font-size:14px; color:var(--muted)} .quest .cap{display:inline; margin-right:6px; color:var(--brass)}
 .intent{display:flex; gap:8px; margin-top:12px} .intent input{flex:1}
 .glance-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.glance-tile{border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--sunk)}.glance-tile .cap{margin:0}.glance-big{font-size:28px;margin:4px 0;font-variant-numeric:tabular-nums}.glance-big small{font-size:14px;color:var(--muted)}.glance-bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.glance-bar i{display:block;height:100%}.glance-tile .hint{margin:6px 0}.glance-spark{position:relative;display:flex;gap:4px;align-items:flex-end;height:36px}.glance-spark span{flex:1;border-radius:3px 3px 0 0}.glance-spark em{position:absolute;left:0;right:0;border-top:1px dashed var(--muted)}.glance-dots{display:inline-flex;gap:3px;vertical-align:middle}.glance-dots i{width:8px;height:8px;border-radius:50%}.glance-cols{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-top:14px}@media(max-width:760px){.glance-cols{grid-template-columns:1fr}}.glance-cols h3{margin:0 0 6px;font-size:15px}.glance-list{list-style:none;margin:0;padding:0}.glance-list li{display:grid;grid-template-columns:40px 1fr 60px 1fr auto;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)}.glance-tag{font-size:12px;padding:2px 8px;border-radius:10px;border:1px solid var(--t);color:var(--t)}.fitness-detail summary{cursor:pointer}
+.logo-version{font-size:.62em;letter-spacing:.04em;color:var(--brass);vertical-align:middle}
 .sleep-grid{display:flex;gap:16px;align-items:center;flex-wrap:wrap}.sleep-stages{display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px;margin-top:8px}.sleep-stages i{display:block}.sleep-week{position:relative;display:flex;gap:8px;align-items:flex-end;height:78px;margin-top:12px}.sleep-week div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}.sleep-week span{display:block;width:100%;max-width:26px;border-radius:4px 4px 0 0;background:var(--line-strong)}.sleep-week small{color:var(--muted);font-size:11px}.sleep-week em{position:absolute;left:0;right:0;border-top:1px dashed var(--muted);margin-bottom:18px}
 .proposal{margin-top:10px; border:1px solid var(--brass); border-radius:14px; padding:12px 14px; background:var(--brass-soft)}
 
@@ -976,7 +977,7 @@ addEventListener('load', () => {
     const env = typeof window.__healthTrackerDocumentToken === 'string' ? 'Mac app' : 'Browser';
     const storeKind = preview ? 'synthetic preview · nothing saved' : personalReview ? 'personal review store' : syntheticTest ? 'persistent invented-data store' : 'your saved local store';
     $('#storeNote').textContent += ' Body records are saved separately on this Mac; use Profile → Export model + four images for their backup.';
-    $('#buildIdentity').innerHTML = '<b>Build</b>' + esc((window.HealthDelivery && window.HealthDelivery.build) || (typeof BUILD === 'string' ? BUILD : 'unknown')) + ' · ' + esc((window.HealthDelivery && window.HealthDelivery.mode) || 'local') + '<br>' + esc(env + ' · ' + storeKind) +
+    $('#buildIdentity').innerHTML = '<b>Build</b>' + esc(((window.HealthDelivery && window.HealthDelivery.build) || (typeof BUILD === 'string' ? BUILD : 'unknown')).replace(/-(V\d+(?:\.\d+)*)$/,' · $1')) + ' · ' + esc((window.HealthDelivery && window.HealthDelivery.mode) || 'local') + '<br>' + esc(env + ' · ' + storeKind) +
       '<p class="hint" style="margin:5px 0 0;font-size:11px">'+(preview?'Invented records for review. Nothing is saved.':'Private records on this device.')+'</p>';
     $('#levelOrb').innerHTML = levelOrbHTML();
     $('#sideToggle').textContent = document.querySelector('.app').classList.contains('sidehidden') ? 'Show menu' : 'Hide menu';
@@ -2990,6 +2991,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   window.addEventListener('storage', e => { if (preview || e.key !== STORE_KEY) return; readOnly = true; saveError = 'The saved workspace changed in another view. Refresh to load it before saving here; export first if this tab has unsaved changes.'; renderNotices(); });
 
   /* ---------- boot ---------- */
+  { const v = window.HealthDelivery && window.HealthDelivery.version; if (v){ document.title = 'Health Tracker ' + v; const b = document.querySelector('.logo b'); if (b) b.insertAdjacentHTML('beforeend', ' <span class="logo-version">' + esc(v) + '</span>'); } }
   $('#build').textContent = BUILD+(personalReview?' · personal review':syntheticTest?' · persistent invented-data test':'');
   try { if (localStorage.getItem('ht-sidebar-hidden') === '1') document.querySelector('.app').classList.add('sidehidden'); } catch(err){}
   document.addEventListener('keydown', e => {
