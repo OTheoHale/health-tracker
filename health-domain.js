@@ -3164,6 +3164,48 @@ function wsProposal(state,date){
   const filtered=additions.filter(a=>!a.parentId||idMap.get(a.parentId));for(const a of filtered)if(a.parentId)a.parentId=idMap.get(a.parentId)||a.parentId;
   return {ok:true,effectiveFrom:date,quarterPoints:!quarterProgression(state),groups:proposal.groups||[],additions:filtered,scheduleChanges,taxonomy,moves,pending,notes,policies:proposal.policies||[]};
 }
+/* Mintay began the agreed activities on Monday 2026-09-21 but adopted them on the Wednesday. This
+   moves the start of scoring back, once, as a single transaction: the quarter epoch, every version
+   the adoption-day migrations wrote (so a parent keeps its children on the earlier days), and the
+   JSON display boundary. Later versions are untouched. It refuses while any claim already falls on
+   or after the new date outside the current epoch, so nothing is scored twice. */
+function wsBackdateCheck(state,date){
+  if(!validCalendarDate(date))return {ok:false,error:'Choose a valid start date.'};
+  if(!wsEnabled(state)||!quarterProgression(state))return {ok:false,error:'Adopt the agreed activities first.'};
+  const epoch=wsEpoch(state),from=epoch?.effectiveFrom;if(!epoch)return {ok:false,error:'The scoring period is unavailable.'};
+  if(date>=from)return {ok:false,error:'Scoring already starts on '+from+'.'};
+  if(date>todayYmd())return {ok:false,error:'Choose a date that has already begun.'};
+  const migrations=state.workspace.migrations.filter(m=>m.status==='active'&&m.effectiveFrom===from);
+  if(!migrations.some(m=>m.epochId===epoch.id))return {ok:false,error:'The adoption that started this scoring period is not active.'};
+  const earlier=Object.values(state.rewards.claims).filter(c=>c.date>=date&&c.epochId!==epoch.id);
+  if(earlier.length)return {ok:false,error:'Points were already claimed on '+[...new Set(earlier.map(c=>c.date))].sort().join(', ')+'. Moving the start would score those days twice.'};
+  const before=new Map(migrations.flatMap(m=>m.before.series).map(s=>[s.id,Math.max(0,...s.versions.map(v=>v.version))]));
+  const added=new Set(migrations.flatMap(m=>m.addedIds||[])),moves=[];
+  for(const series of state.series){
+    const known=before.get(series.id),wrote=series.versions.filter(v=>v.effectiveFrom===from&&(added.has(series.id)||known!==undefined&&v.version>known));
+    if(!wrote.length)continue;
+    if(series.versions.some(v=>v.effectiveFrom>=date&&v.effectiveFrom<from))return {ok:false,error:versionFor(series,from).name+' changed between '+date+' and '+from+'; review it before moving the start.'};
+    moves.push({seriesId:series.id,name:versionFor(series,from).name,versions:wrote.map(v=>v.version)});
+  }
+  const feed=state.autoFeed?.contract&&state.autoFeed.contract.activeFrom>date;
+  return {ok:true,date,from,epochId:epoch.id,migrationIds:migrations.map(m=>m.id),moves,feed,signature:wsSignature(state)};
+}
+function wsBackdate(draft,date,options={}){
+  const check=wsBackdateCheck(draft,date);if(!check.ok)return check;
+  const at=nowIso();
+  for(const move of check.moves){const series=draft.series.find(s=>s.id===move.seriesId);for(const v of series.versions)if(move.versions.includes(v.version))v.effectiveFrom=date;}
+  wsEpoch(draft).effectiveFrom=date;draft.rewards.progression.effectiveFrom=date;
+  for(const m of draft.workspace.migrations)if(check.migrationIds.includes(m.id)){m.backdated={from:check.from,to:date,at};m.effectiveFrom=date;}
+  if(check.feed){
+    draft.autoFeed.contract.activeFrom=date;
+    const problem=typeof HealthAutoExport!=='undefined'&&HealthAutoExport.validateContract(draft.autoFeed.contract);if(problem)return {ok:false,error:problem};
+  }
+  // Anything already done in the reopened days takes the rule it would have been given at the time.
+  for(const o of Object.values(draft.occurrences))if(o.status==='done'&&o.date>=date&&o.date<check.from)wsPinRule(draft,o);
+  const today=options.today||todayYmd(),span=Math.round((parseYmd(today)-parseYmd(date))/864e5)+1;
+  const auto=wsAutoEvidence(draft,{today,days:Math.max(WS_AUTO_DAYS,span)});
+  return {ok:true,record:{from:check.from,to:date,moved:check.moves.length,feed:check.feed},changes:auto.changes};
+}
 
 const Workspace={
   tree(state,date,options={}){const rows=planFor(state,date);if(!options.groupId)return rows;const filter=rows=>rows.flatMap(r=>{if(r.children){const children=filter(r.children);return children.length?[{...r,children,family:familySummary(leafRows(children))}]:[];}return r.group===options.groupId?[r]:[];});return filter(rows);},
@@ -3180,6 +3222,7 @@ const Workspace={
   unsortedWorkouts:wsUnsortedWorkouts,workoutClass:wsWorkoutClass,
   classifyWorkout(state,key,cls){return wsTransaction(state,draft=>{const r=wsClassifyWorkout(draft,key,cls);if(!r.ok)return r;if(wsEnabled(draft))wsAutoEvidence(draft);return r;});},
   proposal:wsProposal,migrationPreview:wsMigrationPreview,adopt:wsAdopt,rollbackPreview:wsRollbackPreview,rollback:wsRollback,
+  backdateCheck:wsBackdateCheck,backdate(state,date,options={}){return wsTransaction(state,draft=>wsBackdate(draft,date,options));},
   correctionBatch:wsCorrectionBatch,applyCorrectionBatch(state,preview,note){return wsTransaction(state,draft=>wsApplyCorrectionBatch(draft,preview,note));},
 };
 globalThis.Workspace=Workspace;
