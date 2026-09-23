@@ -1847,6 +1847,23 @@ function stopUntouchedExamples(state, from){
   }
   return n;
 }
+/* New stores no longer receive the invented examples (Mintay, 2026-09-23); existing ones get a
+   reviewed removal. Stopping keeps every entry and can be resumed; an example with an entry today or
+   later stops the day after that entry, so nothing recorded is hidden. */
+function exampleRemovalPreview(state, today){
+  today = today || todayYmd();
+  return state.series.filter(s => s.demo && !s.archivedAt).map(s => {
+    const dates = Object.values(state.occurrences).filter(o => o.seriesId === s.id && (o.status !== null || o.note || o.actualMinutes !== null)).map(o => o.date).sort();
+    const last = dates[dates.length - 1] || null;
+    return { seriesId:s.id, name:latestVersion(s).name, entries:dates.length, from:last && last >= today ? addDays(last, 1) : today };
+  });
+}
+function stopExamples(state, today){
+  today = today || todayYmd();
+  const plan = exampleRemovalPreview(state, today);
+  for (const x of plan) archiveSeries(state, x.seriesId, x.from, today);
+  return plan;
+}
 function liveExamples(state, asOf){
   return state.series.filter(s => s.demo && !(s.archivedAt && s.archivedAt <= asOf)).length;
 }
@@ -2586,9 +2603,8 @@ function bootstrap(){
   if (!state){ state = freshState(); firstRun = true; }
   migrateTo(state);
   if (!state.seeded){
-    state.series = seedDemo();
     state.seeded = true;
-    state.demo = true;
+    state.demo = false;
   }
   return { state, error:null, readOnly:false, firstRun, recovered };
 }
