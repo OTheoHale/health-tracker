@@ -795,7 +795,11 @@ addEventListener('load', () => {
             const projection=HealthAutoExport.project(draft.sourceRecords,contract);
             feed.lastReportedAt=projection.report.latestData||null;
             feed.lastReport={...merged.report,excluded:parsed.report.counts.excluded,held:projection.heldIds.length,shadow:projection.shadowIds.length,active:projection.activeIds.length};
-            draft.importReceipts.push({id:'auto:'+token,at:delivery.receivedAt,transport:'iCloud local JSON',counts:{added:merged.report.added,same:merged.report.same,clash:merged.report.status==='conflict'?parsed.records.length:0,invalid:0,unsupported:parsed.report.counts.excluded},feedId:contract.feedId,contentDigest:file.sha256,modifiedAt:file.modifiedAt,modifiedAtMs:file.modifiedAtMs,status:merged.report.status,revised:merged.report.revised,held:projection.heldIds.length,receivedKinds:[...new Set(parsed.records.map(r=>r.kind))],warnings:[accepted?'Only qualified received buckets enter daily displays; completeness is unknown.':'This delivery was held by the source ordering checks; earlier accepted values remain.']});
+            // A restore or a sleep re-read rotates the delivery ledger, so a file this record already
+            // holds a receipt for arrives again under the same token. Adding a second receipt with the
+            // same id made the store refuse every save of it ('identity'), every ten seconds.
+            const receipt={id:'auto:'+token,at:delivery.receivedAt,transport:'iCloud local JSON',counts:{added:merged.report.added,same:merged.report.same,clash:merged.report.status==='conflict'?parsed.records.length:0,invalid:0,unsupported:parsed.report.counts.excluded},feedId:contract.feedId,contentDigest:file.sha256,modifiedAt:file.modifiedAt,modifiedAtMs:file.modifiedAtMs,status:merged.report.status,revised:merged.report.revised,held:projection.heldIds.length,receivedKinds:[...new Set(parsed.records.map(r=>r.kind))],warnings:[accepted?'Only qualified received buckets enter daily displays; completeness is unknown.':'This delivery was held by the source ordering checks; earlier accepted values remain.']},prior=draft.importReceipts.findIndex(r=>r.id===receipt.id);
+            if(prior>=0)draft.importReceipts[prior]=receipt;else draft.importReceipts.push(receipt);
             // New records check off the activities they establish in the same saved write, so the
             // rings and Ready to claim move with the data (Mintay, 2026-09-23).
             const linked=accepted?Workspace.autoEvidence(draft):null;
