@@ -8,7 +8,7 @@
  * Health Tracker publishes to its own host for the same family of reasons, so today it is alone
  * there — but a worker that only cleans up after itself stays correct if that ever changes.
  */
-const BUILD = '2026-09-24-V1.10';                      // ship.sh stamps this in step with delivery.js
+const BUILD = '2026-09-24-V1.11';                      // ship.sh stamps this in step with delivery.js
 const SHELL_PREFIX = 'health-tracker-shell-';
 const SHELL = SHELL_PREFIX + BUILD;
 

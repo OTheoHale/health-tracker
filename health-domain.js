@@ -361,9 +361,37 @@ function clearOcc(state, seriesId, date){
   touch(o);
   pruneOcc(state, k);
 }
+/* "Not today" and "Exempt" (Mintay, Sept 24 evening) are neutral: the day is not required and never
+   counts as missed. A daily item is Skipped instead; an item on set days moves to tomorrow when it can. */
+function dailyItem(state, seriesId, date){
+  const s = state.series.find(x => x.id === seriesId), v = s && versionFor(s, date), r = (v && v.recurrence) || {};
+  return r.kind === 'weekly' && (r.days || []).length === 7 && !(r.intervalWeeks > 1);
+}
+function excuseOcc(state, seriesId, date, why){
+  const row = findPlanRow(state, seriesId, date);
+  if (!row || row.children) return null;
+  const o = ensureOcc(state, seriesId, date);
+  if (o.status === 'done' || o.removed) return null;
+  o.status = null; o.confirmation = null; o.completedVersion = null;
+  o.disposition = 'excused'; o.excuse = why === 'exempt' ? 'exempt' : 'not-today';
+  touch(o);
+  return o;
+}
+function unexcuseOcc(state, seriesId, date){
+  const k = occKey(seriesId, date), o = state.occurrences[k];
+  if (!o || o.disposition !== 'excused') return null;
+  delete o.disposition; delete o.excuse; touch(o); pruneOcc(state, k);
+  return o;
+}
+function notToday(state, seriesId, date){
+  if (dailyItem(state, seriesId, date)) return { ok:false, error:'A daily item is marked Skipped instead.' };
+  const s = state.series.find(x => x.id === seriesId), v = s && versionFor(s, date);
+  if (v && v.recurrence && v.recurrence.kind !== 'target' && moveOcc(state, seriesId, date, addDays(date, 1))) return { ok:true, moved:true };
+  return { ok:!!excuseOcc(state, seriesId, date, 'not-today'), moved:false };
+}
 function pruneOcc(state, k){
   const o = state.occurrences[k];
-  if (o && o.status === null && o.selected === 'normal' && !o.removed && !o.added &&
+  if (o && o.status === null && !o.disposition && o.selected === 'normal' && !o.removed && !o.added &&
       !o.override && !o.note && o.actualMinutes === null && !o.corrections.length && (!o.rewardEventId || o.rewardEventId === k)) delete state.occurrences[k];
 }
 
@@ -911,8 +939,9 @@ function setGradeIncluded(state, gid, included){
 const RANK_SLOTS={fitness:['fitness','health-physical'],food:['food'],care:['care','personal-care','hygiene','home','health-mental'],faith:['faith'],work:['work']};
 const RANK_CUTOFFS=[[95,'SSS'],[90,'SS'],[85,'S'],[80,'A'],[70,'B'],[55,'C'],[40,'D'],[0,'F']];
 function rankLetter(pct){return Number.isFinite(pct)?RANK_CUTOFFS.find(([c])=>pct>=c)[1]:null;}
-function overallRankReport(state,today){
-  const start=state.rewards&&state.rewards.progression&&state.rewards.progression.effectiveFrom;let to=addDays(today,-1),from=addDays(to,-27);
+function overallRankReport(state,today,windowKind){
+  // Window (Mintay, Sept 24 evening): the last 28 complete days by default, or this week so far.
+  const start=state.rewards&&state.rewards.progression&&state.rewards.progression.effectiveFrom;let to=addDays(today,-1),from=windowKind==='week'?weekStartOf(today,state.prefs&&state.prefs.weekStart||0):addDays(to,-27);
   if(start&&start>from)from=start;if(to<from){from=today;to=today;}
   // A weekly goal (prayer 3 days a week, church once in four weeks) counts against its goal, pro-rated
   // to the days counted and capped there, so meeting the goal is 100 % rather than 3 of 7.
@@ -1029,7 +1058,9 @@ function markTentative(state,id,date){
 function confirmAction(state,id,date,fields){
   const row=findPlanRow(state,id,date), f=fields||{};
   if (!row || row.children || date>todayYmd()) return {ok:false,error:'Choose an activity on a lived day.'};
-  const minutes=f.minutes==null?row.actualMinutes:Number(f.minutes), target=row.targets[f.selected||row.selected];
+  // Done is self-confirmed in one tap (Mintay, Sept 24 evening): with no minutes entered it means
+  // "done as planned", so a timed target no longer forces the review. Entered minutes still count.
+  const target=row.targets[f.selected||row.selected], minutes=f.minutes==null?(row.actualMinutes??(target&&target.minutes||null)):Number(f.minutes);
   if (!target || (minutes != null && (!Number.isFinite(minutes)||minutes<0))) return {ok:false,error:'Review the target and duration.'};
   if (target.minutes && (minutes==null || minutes<target.minutes)) return {ok:false,error:'This target needs '+target.minutes+' confirmed minutes. Record partial or choose a suitable minimum.'};
   if (f.selected) selectVersion(state,id,date,f.selected);
@@ -1955,6 +1986,9 @@ function migrate(state){
   if (!state.journal) state.journal = {};
   if (!Array.isArray(state.importReceipts)) state.importReceipts = [];
   if (!state.rewardGeneration) state.rewardGeneration = 'legacy-' + fnv(String(state.createdAt || 'original-store'));
+  // The nine starter activities first seeded as "examples" are Mintay's own templates (Sept 24
+  // evening): they count in Progress and carry no example tag or banner. Invented previews keep theirs.
+  if (!state.demo && !state.syntheticWorkspace) for (const s of state.series || []) if (s.demo) s.demo = false;
   migrateRewards(state);
   if(typeof MealWater!=='undefined')MealWater.ensure(state);
   for (const o of Object.values(state.occurrences || {})) if (!o.rewardEventId) o.rewardEventId = rewardIdentity(state,o);
