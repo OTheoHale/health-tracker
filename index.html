@@ -2064,7 +2064,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const s=steps.get(today),e=energy.get(today);
     const dots=(n,of,color)=>'<span class="glance-dots">'+Array.from({length:of},(_,i)=>'<i style="background:'+(i<n?color:'var(--line)')+'"></i>').join('')+'</span>';
     const tiles='<div class="glance-grid">'+
-      tile('Steps today',s===undefined?'—':Math.round(s).toLocaleString(),s===undefined?'No steps recorded yet today':Math.round(100*s/12000)+'% of 12,000',s/12000,'#7fc8a9',spark(days,steps,12000,'#7fc8a9'))+
+      tile('Steps today',s===undefined?'—':Math.round(s).toLocaleString(),s===undefined?'No steps recorded yet today':(s<12000?Math.round(12000-s).toLocaleString()+' to go · ':'')+Math.round(100*s/12000)+'% of 12,000',s/12000,'#7fc8a9',spark(days,steps,12000,'#7fc8a9'))+
       tile('Active energy',e===undefined?'—':Math.round(e).toLocaleString()+' <small>kcal</small>',e===undefined?'No energy recorded yet today':Math.round(100*e/1000)+'% of 1,000 kcal',e/1000,'#e8a15c',spark(days,energy,1000,'#e8a15c'))+
       tile('Workouts this week',Math.round(minutesBy('cardio',thisWeek)+minutesBy('strength',thisWeek))+' <small>min</small>','Cardio '+dots(cardioDays,4,'#6fb6e0')+' '+cardioDays+'/4 days · Strength '+dots(strengthDays,4,'#c98fd8')+' '+strengthDays+'/4',Math.min(cardioDays,4)/8+Math.min(strengthDays,4)/8,'#6fb6e0','')+
       tile('Last night',lastNight?(lastNight.minutes/60).toFixed(1)+' <small>h asleep</small>':'—',lastNight?Math.round(100*lastNight.minutes/480)+'% of 8 h':(st.autoFeed&&st.autoFeed.contract.sleepMode!=='include'?'Sleep not brought in yet':'No night recorded'),lastNight?lastNight.minutes/480:0,'#8e7cc3',spark(days,sleepVals,8,'#8e7cc3'))+

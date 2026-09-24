@@ -3,7 +3,7 @@
    ship.sh stamps BUILD here and in sw.js together: if they drift, an updated page keeps being
    served the previous shell out of the old cache. */
 window.HealthDelivery = (() => {
-  const BUILD = '2026-09-23-V1.7';
+  const BUILD = '2026-09-23-V1.8';
   const host = location.hostname;
   const local = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(host);
   const wrapper = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.native);
