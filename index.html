@@ -27,6 +27,7 @@ html,body{margin:0;padding:0}
 body{background:var(--bg) center/900px 900px; color:var(--ink); font:15px/1.5 var(--sans); -webkit-font-smoothing:antialiased; min-height:100vh}
 button{font:inherit; color:inherit; cursor:pointer}
 :focus-visible{outline:2px solid var(--brass); outline-offset:2px; border-radius:6px}
+#areaTitle:focus,#family-heading:focus{outline:none}
 [hidden]{display:none !important}
 h1,h2,h3,h4{margin:0; letter-spacing:-.01em}
 h1{font:600 30px/1.1 var(--serif)}
@@ -51,10 +52,14 @@ h4{font:600 12.5px/1.3 var(--sans); color:var(--faint); margin:12px 0 6px}
 .logo i{width:38px; height:38px; border-radius:50%; border:1.5px solid var(--brass); display:grid; place-items:center; color:var(--brass); font-style:normal; font-size:18px}
 .logo b{font:600 20px/1.05 var(--serif)}
 .nav button{display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:0; background:transparent; color:var(--muted); border-radius:12px; padding:0 12px; min-height:44px; font-size:14.5px; font-weight:600}
-.nav button i{font-style:normal; width:18px; text-align:center; color:var(--faint)}
+.nav button i{font-style:normal; width:18px; text-align:center; color:var(--ic,var(--faint)); display:inline-flex; justify-content:center}
+.nav .nav-sep{display:block;height:1px;background:var(--line);margin:8px 6px}
+.nav .nav-orb{width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 34% 28%,#f4fff9 0,#bfe9d6 10%,#56a88a 36%,#1d5a45 64%,#062019 100%);box-shadow:inset -2px -3px 4px rgba(0,0,0,.5)}
+.gena-link{display:block;margin:10px 12px 0;font-size:12.5px;color:var(--muted);text-decoration:none}.gena-link:hover{color:var(--ink);text-decoration:underline}
+@media(max-width:900px){.nav .nav-sep,.gena-link{display:none}}
 .nav button:hover{background:var(--sunk); color:var(--ink)}
 .nav button[aria-current="page"]{background:var(--brass-soft); color:var(--ink); box-shadow:inset 0 0 0 1px var(--brass)}
-.nav button[aria-current="page"] i{color:var(--brass)}
+
 .side .spacer{flex:1}
 .ck{border-top:1px solid var(--line); padding-top:14px; font-size:13px}
 .ck .cap{color:var(--brass)}
@@ -78,6 +83,7 @@ h4{font:600 12.5px/1.3 var(--sans); color:var(--faint); margin:12px 0 6px}
 .ph{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:0 0 10px} .ph h2{flex:1; min-width:0}
 .cols3{display:grid; grid-template-columns:minmax(300px,1fr) minmax(360px,1.6fr) minmax(300px,1fr); gap:16px; align-items:start}
 .cols2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:start}
+.cols2>.wide{grid-column:1/-1}.cols2>.panelcard{margin:0}
 .col{min-width:0}
 .story p{margin:0; font-size:15px} .story .basis{margin:8px 0 0; font-size:12.5px; color:var(--faint)}
 .daynav, .weeknav{display:flex; align-items:center; gap:10px; margin:0 0 14px; flex-wrap:wrap}
@@ -108,7 +114,14 @@ h4{font:600 12.5px/1.3 var(--sans); color:var(--faint); margin:12px 0 6px}
 .attrs{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:8px 0 0} .attrs.wide{max-width:420px}
 .attr{border:1px solid var(--line); border-radius:12px; padding:8px 6px; text-align:center} .attr b{display:block; font:700 24px var(--serif); color:var(--brass)} .attr b.un{color:var(--faint); font-weight:500}
 .orbs{display:flex; align-items:center; gap:12px; margin-top:12px; border-top:1px solid var(--line); padding-top:12px}
-.orb{width:44px; height:44px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #cfeee0, #3d8a70 55%, #0c3327); border:1.5px solid var(--brass); flex:none}
+.orb{width:44px; height:44px; aspect-ratio:1; border-radius:50%; flex:none; position:relative; border:1px solid rgba(201,165,90,.7);
+  background:radial-gradient(circle at 50% 118%, rgba(160,255,215,.5), transparent 46%), radial-gradient(circle at 34% 28%, #f4fff9 0, #bfe9d6 9%, #56a88a 34%, #1d5a45 62%, #062019 100%);
+  box-shadow:inset -.22em -.3em .5em rgba(0,0,0,.55), inset .14em .18em .3em rgba(255,255,255,.18), 0 .2em .4em rgba(0,0,0,.4), 0 0 .6em rgba(127,200,169,.3)}
+.orb::before{content:""; position:absolute; left:17%; top:9%; width:40%; height:26%; border-radius:50%; background:radial-gradient(ellipse at center, rgba(255,255,255,.95), rgba(255,255,255,0) 70%); transform:rotate(-25deg); pointer-events:none}
+.orb-fly{position:fixed; width:16px; height:16px; z-index:60; pointer-events:none; border-width:0}
+.orb-pulse{animation:orbPulse .55s ease-out}
+@keyframes orbPulse{40%{transform:scale(1.18); box-shadow:inset -.22em -.3em .5em rgba(0,0,0,.55), 0 0 1.4em rgba(127,200,169,.8)}}
+@media(prefers-reduced-motion:reduce){.orb-pulse{animation:none}}
 
 /* activities */
 .pill{display:inline-flex; background:var(--sunk); border-radius:999px; padding:3px} .pill button{border:0; background:transparent; border-radius:999px; padding:5px 12px; font-size:13px; color:var(--muted); font-weight:600}
@@ -196,7 +209,7 @@ footer{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font
 .body-card{padding:24px}.body-stage{min-height:480px;display:grid;place-items:center;background:radial-gradient(ellipse,var(--sunk),transparent 68%)}
 .body-stage svg{height:480px;max-height:none;width:min(100%,340px)}.body-photo{max-width:100%;max-height:480px;border-radius:12px}.body-card .hint{max-width:62ch}
 .rank-slots{margin:20px 0}.crow{padding:10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}.profile-aside .attrs{grid-template-columns:repeat(3,minmax(0,1fr))}.attr .cap{font-size:11px}
-.daily-row{border-top:1px solid var(--line);padding:12px 0}.daily-label{flex:1;min-width:0}.daily-label .an{background:none;border:0;font:600 15px var(--sans);padding:0;text-align:left}.daily-label p,.target{margin:3px 0 0}.daily-row .cb{width:42px;height:42px;border-radius:12px;border:1px solid var(--line-strong);background:var(--sunk)}.daily-row .cb[aria-checked=true]{background:var(--verd);color:var(--on-accent)}
+.daily-row{border-top:1px solid var(--line);padding:12px 0}.daily-label{flex:1;min-width:0}.daily-label .an{background:none;border:0;font:600 15px var(--sans);padding:0;text-align:left}.daily-label p,.target{margin:3px 0 0}.daily-row .rowhead{display:flex;align-items:center;gap:10px}.daily-row .cb{width:32px;height:32px;border-radius:50%;border:2px solid var(--line-strong);background:transparent;color:#fff;font-size:13px;padding:0;flex:none}.daily-row .cb[aria-checked=mixed]{border-style:dotted}.daily-row .cb[aria-checked=true]{background:var(--verd);color:var(--on-accent)}
 .children{padding-left:16px;border-left:1px solid var(--brass);margin-top:12px}.day-editor{border-color:var(--brass)}.rings{flex-wrap:wrap}.rings svg{max-width:118px;height:118px}.rings .rl{flex:1;min-width:155px}
 details summary{cursor:pointer;font-weight:600;min-height:38px}details p{font-size:14px;max-width:70ch}.claim-flash{animation:claimGlow .65s ease-out}@keyframes claimGlow{50%{box-shadow:0 0 25px var(--brass-soft)}}
 @media(max-width:1100px){.today-layout,.profile-layout{grid-template-columns:1fr}.body-stage{min-height:360px}.body-stage svg{height:360px}.ggrid{grid-template-columns:1fr}}
@@ -204,7 +217,7 @@ details summary{cursor:pointer;font-weight:600;min-height:38px}details p{font-si
 @media(prefers-reduced-motion:reduce){.claim-flash{animation:none}}
 
 .grade-control{display:grid;grid-template-columns:minmax(130px,1fr) 90px;gap:8px;padding:14px 0;border-bottom:1px solid var(--line)}.grade-control label{align-self:center}.grade-control .hint{grid-column:1/-1}
-.claim-token{width:28px;height:28px;animation:orbCollect .6s ease-out}@keyframes orbCollect{from{transform:translateY(8px) scale(.65);opacity:.2}to{transform:none;opacity:1}}@media(prefers-reduced-motion:reduce){.claim-token{animation:none}}
+.claim-token{width:28px;height:28px;flex:none;animation:orbCollect .6s ease-out}@keyframes orbCollect{from{transform:translateY(8px) scale(.65);opacity:.2}to{transform:none;opacity:1}}@media(prefers-reduced-motion:reduce){.claim-token{animation:none}}
 @media(max-width:900px){.topbar{gap:12px}.topbar .t{flex:1 1 100%;width:100%}#previewBadge{font-size:10px;padding:5px 10px}#conn .cap{flex-basis:100%}.claim-area .ph{align-items:flex-start}.claim-area .ph>.acts{margin-top:0}}
 .lesson-text{white-space:pre-wrap;overflow-wrap:anywhere}
 #briefOut{min-height:240px}
@@ -234,10 +247,13 @@ details summary{cursor:pointer;font-weight:600;min-height:38px}details p{font-si
 @media(max-width:900px){.dashboard-categories{grid-template-columns:1fr}.dashboard-heading{flex-wrap:wrap}.family-tabs button{flex:1 1 135px}.dashboard-metrics{gap:12px}.dashboard-metrics>div{min-width:80px}}
 
 /* Plan & Quests visual deck */
-.plan-family-deck{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;max-width:none;background:none;padding:0;margin-bottom:24px}
-.plan-family-deck .plan-family-tab{display:flex;flex-direction:column;align-items:stretch;gap:10px;min-height:158px;text-align:left;padding:17px;border:1px solid var(--line);border-radius:16px;background:var(--panel);color:var(--ink);box-shadow:none;transition:transform .18s ease,border-color .18s ease}
-.plan-family-deck .plan-overview-tab{grid-column:1/-1;min-height:106px;display:grid;grid-template-columns:minmax(200px,1fr) minmax(220px,1.6fr);align-items:center}.plan-overview-tab .plan-tab-title{grid-row:1/3}.plan-overview-tab .plan-tab-next{min-height:0}.plan-overview-tab .plan-tab-foot{margin:0}.plan-family-deck .plan-family-tab:hover{border-color:var(--brass);transform:translateY(-2px)}
-.plan-family-deck .plan-family-tab[aria-selected="true"]{background:var(--panel-2);border-color:var(--brass);box-shadow:inset 0 0 0 1px var(--brass)}
+.plan-family-deck{position:relative;display:flex;flex-wrap:wrap;gap:4px;max-width:none;background:var(--sunk);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:18px}
+.plan-family-deck .plan-family-tab{display:inline-flex;align-items:center;gap:7px;min-height:0;padding:6px 11px;border:0;border-radius:9px;background:transparent;color:var(--muted);font-weight:600;font-size:13px;box-shadow:none;white-space:nowrap;flex:0 0 auto}.plan-family-deck .plan-family-tab:hover{color:var(--ink)}
+.plan-family-deck .plan-family-tab .plan-tab-emblem{flex:0 0 auto;width:auto;height:auto;border:0;font-size:13px}
+.plan-family-deck .plan-family-tab[aria-selected="true"]{background:var(--panel-2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--brass)}
+.plan-fam-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.plan-fam-card{display:flex;flex-direction:column;gap:6px;text-align:left;padding:9px 10px;border:1px solid var(--line);border-radius:11px;background:transparent;color:var(--ink);min-width:0}.plan-fam-card:hover{border-color:var(--brass)}.plan-fam-card .plan-tab-title{font:600 14px/1.2 var(--serif);gap:7px}.plan-fam-card .plan-tab-emblem{flex:0 0 22px;width:22px;height:22px;font-size:11px}.plan-fam-count{margin-left:auto;white-space:nowrap;font:600 11px var(--sans,system-ui);color:var(--muted)}.plan-fam-card .plan-tab-next{min-height:0;font-size:11.5px}
+.plan-cards{margin-bottom:16px}.claim-bars{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;align-items:end;height:130px}.claim-day{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px;height:100%;font-size:11px;color:var(--muted)}.claim-day i{display:block;width:70%;border-radius:4px 4px 0 0;background:var(--verd);min-height:0}.claim-day.today small{color:var(--brass)}.claim-day b{color:var(--ink);font-size:12px}
+.plan-fold{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin:0 0 14px;padding:0 14px}.plan-fold>summary{display:flex;gap:10px;align-items:baseline;padding:12px 0;cursor:pointer;list-style:none}.plan-fold>summary::-webkit-details-marker{display:none}.plan-fold>summary::before{content:'▸';color:var(--brass)}.plan-fold[open]>summary::before{content:'▾'}.plan-fold[open]{padding-bottom:12px}
 .plan-tab-title{display:flex;align-items:center;gap:11px;font:600 18px/1.2 var(--serif)}.plan-tab-emblem{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border:1px solid var(--brass);border-radius:50%;color:var(--brass);font:600 16px var(--serif)}
 .plan-tab-next{font-size:12.5px;color:var(--muted);line-height:1.35;min-height:32px}.plan-tab-next b{color:var(--ink)}.plan-tab-foot{margin-top:auto;font-size:11.5px;color:var(--muted)}
 .plan-visual{display:flex;gap:3px;width:100%;height:12px;align-items:stretch}.plan-segment{display:block;flex:var(--amount) 1 0;min-width:6px;border-radius:3px}.plan-segment.normal{background:var(--verd)}.plan-segment.minimum{background:repeating-linear-gradient(90deg,var(--verd) 0 3px,transparent 3px 5px);border:1px solid var(--verd)}.plan-segment.partial{background:var(--brass-soft);border:2px solid var(--brass)}.plan-segment.skipped{background:repeating-linear-gradient(135deg,transparent 0 3px,var(--muted) 3px 5px,transparent 5px 8px);border:1px solid var(--muted)}.plan-segment.unknown{background:radial-gradient(circle,var(--faint) 1.5px,transparent 2px) center/7px 100% repeat-x}.plan-segment.ahead{border:1px dashed var(--faint)}.plan-visual-empty{display:block;width:100%;height:12px;border-bottom:1px dashed var(--faint)}
@@ -248,10 +264,10 @@ details summary{cursor:pointer;font-weight:600;min-height:38px}details p{font-si
 .plan-week-layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(250px,1fr);gap:16px;align-items:start;margin:0 0 18px}.plan-week-main{min-width:0}.plan-week-main .strip,.plan-week-main .plan-visual-legend{margin-bottom:0}.plan-quest{margin:0}
 .quest-orb-scene{display:flex;align-items:center;gap:14px;padding:12px 14px;margin:8px 0 10px;background:var(--sunk);border:1px solid var(--line);border-radius:14px}.quest-orb-scene .orb{width:44px;height:44px;flex:none}.quest-orb-scene .orb.is-resting{background:none;border-style:dashed;border-color:var(--faint)}.quest-orb-scene p{margin:0}
 .plan-notes{margin:22px 0 0}.plan-notes>summary{color:var(--muted)}.plan-notes .cols2{margin-top:10px}.plan-history-list{display:grid;gap:8px}.plan-history-row{display:grid;grid-template-columns:95px 1fr;gap:10px;align-items:center}.plan-history-row .plan-visual{height:14px}
-@media(max-width:1100px){.plan-family-deck{grid-template-columns:repeat(2,minmax(0,1fr))}.plan-week-layout{grid-template-columns:1fr}}
-@media(max-width:900px){.plan-family-deck{display:flex;overflow-x:auto;scroll-snap-type:x proximity;gap:10px;padding:5px 5px 10px;margin-bottom:18px}.plan-family-deck .plan-family-tab,.plan-family-deck .plan-overview-tab{display:flex;flex-direction:column;align-items:stretch;flex:0 0 min(70%,250px);min-height:132px;scroll-snap-align:start}.strip.plan-week-ribbon{gap:4px}.strip.plan-week-ribbon button{padding:7px 3px}.plan-day-rhythm{gap:3px}.plan-day-rhythm button{padding:5px 3px;font-size:11px}}
+@media(max-width:1100px){.plan-fam-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.plan-week-layout{grid-template-columns:1fr}}
+@media(max-width:900px){.plan-family-deck{flex-wrap:nowrap;overflow-x:auto}.plan-family-deck .plan-family-tab{flex:none}.strip.plan-week-ribbon{gap:4px}.strip.plan-week-ribbon button{padding:7px 3px}.plan-day-rhythm{gap:3px}.plan-day-rhythm button{padding:5px 3px;font-size:11px}}
 @media(max-width:600px){.plan-segment{min-width:3px}.plan-day-rhythm,.strip.plan-week-ribbon{grid-template-columns:repeat(7,minmax(44px,1fr));gap:1px;overflow-x:auto}.plan-day-rhythm button{min-height:48px}}
-@media(prefers-reduced-motion:reduce){.plan-family-deck .plan-family-tab{transition:none}.plan-family-deck .plan-family-tab:hover{transform:none}}
+
 
 .category-bars{display:grid;gap:3px;width:100%;margin-top:6px}.category-track{display:block;height:5px;background:var(--sunk);border-radius:3px;overflow:hidden}.category-fill{height:100%;display:block;background:var(--category)}
 [data-family="faith"]{--category:#7851a9}.daily-row{padding:8px 0!important}.daily-row .rowhead{gap:10px}.daily-row .hint{margin:3px 0}.daily-row .children{margin:6px 0 0 12px}.daily-row .daily-label{flex:1;min-width:0}
@@ -273,6 +289,17 @@ details summary{cursor:pointer;font-weight:600;min-height:38px}details p{font-si
 .topbar .sidetoggle{border:1px solid var(--line);background:transparent;border-radius:9px;min-height:34px;padding:0 11px;color:var(--muted);font-size:12.5px;font-weight:600;flex:none}
 .topbar .sidetoggle:hover{border-color:var(--brass);color:var(--ink)}
 .levelorb{display:flex;align-items:center;gap:10px;flex:none}
+.info{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-left:8px;padding:0;border-radius:50%;border:1px solid var(--faint);background:transparent;color:var(--faint);font:italic 600 11px/1 var(--serif);vertical-align:middle}
+.info:hover,.info[aria-expanded="true"]{border-color:var(--brass);color:var(--brass)}
+.card-feedback{transition:opacity .15s}
+@media(hover:hover){[data-feedback-id]{position:relative}[data-feedback-id]>.card-feedback{position:absolute;right:10px;bottom:6px;margin:0;padding:0;border:0;opacity:0;z-index:2}[data-feedback-id]>.card-feedback button{background:var(--panel-2);border-radius:8px}[data-feedback-id]:hover>.card-feedback,[data-feedback-id]:focus-within>.card-feedback{opacity:1}}
+.info-pop{margin:6px 0 10px;padding:10px 12px;border-radius:10px;background:var(--sunk);border:1px solid var(--line)}.info-pop p{margin:0 0 6px}.info-pop p:last-child{margin:0}
+.freshness{display:flex;align-items:center;gap:6px;flex:none;position:relative}
+.freshness .fresh-btn{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;min-height:34px;padding:0 12px;font-size:12.5px;font-weight:600}
+.freshness .fresh-btn i{width:9px;height:9px;border-radius:50%;background:var(--band);box-shadow:0 0 0 3px color-mix(in srgb,var(--band) 25%,transparent)}
+.freshness .attn-btn{border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;min-height:34px;padding:0 11px;font-size:12.5px;font-weight:700}
+.attn-list{position:absolute;right:0;top:40px;z-index:30;width:min(340px,86vw);background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:8px 12px;box-shadow:0 12px 30px #0008}
+.attn-list li{list-style:none;display:flex;gap:10px;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}.attn-list li:last-child{border:0}.attn-list ul{margin:0;padding:0}
 .levelorb .lvl{font:600 11px/1.1 var(--sans);color:var(--faint);text-align:right}
 .levelorb .lvl b{display:block;font:600 19px/1.15 var(--serif);color:var(--ink)}
 .levelorb figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:3px}
@@ -288,7 +315,7 @@ details summary{cursor:pointer;font-weight:600;min-height:38px}details p{font-si
 .ws-rings svg.ringchart{flex:none;width:178px;height:178px}
 .ws-rings .ringtrack{fill:none;stroke:var(--sunk);stroke-width:14}
 .ws-rings .ringtrack.excluded{stroke:var(--line-strong);stroke-width:14;stroke-dasharray:2 5}
-.ws-rings .ringarcq{fill:none;stroke-width:14;stroke-linecap:butt}
+.ws-rings .ringarcq{fill:none;stroke-width:14;stroke-linecap:butt}.ws-rings .ringlap{filter:drop-shadow(0 0 2px rgba(0,0,0,.85)) brightness(1.25)}.perfect-chip{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font:600 12px var(--sans);color:#f6ecff;background:linear-gradient(135deg,#7b4bd0,#b58cf0)}.deficit{margin:10px 0 0;font-size:13.5px}
 .ws-rings .slotbase{fill:none;stroke:var(--sunk);stroke-width:14}
 .ws-rings .slot{fill:none;stroke-width:14}
 .ws-rings .slot.s-partial{stroke-dasharray:3.5 3.5}
@@ -318,9 +345,11 @@ details summary{cursor:pointer;font-weight:600;min-height:38px}details p{font-si
 .railnav{display:flex;gap:6px}
 .railnav button{min-width:32px;min-height:32px;border:1px solid var(--line);background:transparent;border-radius:8px;color:var(--muted);padding:0}
 .railnav button:hover{border-color:var(--brass);color:var(--ink)}
-.ws-rail{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x proximity;padding:4px 2px 12px;margin:0;scroll-behavior:smooth}
-.ws-rail .gcard{flex:0 0 166px;min-height:152px;scroll-snap-align:start;border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:12px;display:flex;flex-direction:column;gap:5px;text-align:left;color:inherit}
+.ws-rail{display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,auto);grid-auto-columns:calc((100% - 40px)/4.5);gap:10px;overflow-x:auto;scroll-snap-type:x proximity;padding:4px 2px 12px;margin:0;scroll-behavior:smooth}
+.ws-rail .gcard{min-width:0;min-height:78px;scroll-snap-align:start;border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:12px;display:flex;flex-direction:column;gap:5px;text-align:left;color:inherit}
 .ws-rail .gcard:hover,.ws-rail .gcard:focus-visible{border-color:var(--brass)}
+.ws-rail .gcard .cnt{font:600 20px/1 var(--sans)}.ws-rail .gcard .cnt small{font-size:12px;color:var(--faint);font-weight:500}.ws-rail .gcard .cnt.once{font-size:22px;color:var(--category)}
+@container (max-width:700px){.ws-rail{grid-auto-columns:calc((100% - 20px)/2.3)}}
 .ws-rail .gcard .win{font-size:11px;color:var(--faint);line-height:1.35}
 .ws-rail .gcard .gt{font:600 14px/1.25 var(--sans);display:block}
 .ws-rail .gcard .cnt{font:600 21px/1.05 var(--serif);font-variant-numeric:tabular-nums}
@@ -363,9 +392,68 @@ details summary{cursor:pointer;font-weight:600;min-height:38px}details p{font-si
 .ws-tree{display:grid;gap:1px}
 .ws-node>.nrow{display:flex;align-items:center;flex-wrap:wrap;gap:5px 9px;padding:5px 4px;min-height:36px;border-radius:8px}
 .ws-node>.nrow:hover{background:var(--sunk)}
-.ws-node .cb{width:32px;height:32px;flex:none;border:1.5px solid var(--line-strong);border-radius:9px;background:var(--sunk);color:var(--on-accent);font-size:16px;line-height:1}
-.ws-node .cb[aria-checked="true"]{background:var(--verd);border-color:var(--verd)}
-.ws-node .cb[aria-checked="mixed"]{border-color:var(--brass);color:var(--brass)}
+.ws-node .cb{width:32px;height:32px;flex:none;border:2px solid var(--category,var(--line-strong));border-radius:50%;background:transparent;color:#fff;font-size:13px;line-height:1;padding:0}
+.ws-node .cb[aria-checked="true"]:not(.src){background:var(--category,var(--verd));border-color:var(--category,var(--verd))}
+.ws-node .cb[aria-checked="mixed"]{border-style:dotted}
+.ws-node>.nrow{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto auto;column-gap:10px;row-gap:0;align-items:center}
+.ws-node>.nrow>.cb,.ws-node>.nrow>.tw{grid-column:1;grid-row:1/span 2}
+.ws-node>.nrow>.nm{grid-column:2;grid-row:1;align-self:end}
+.ws-node>.nrow>.meta{grid-column:2;grid-row:2;align-self:start;white-space:normal}
+.ws-node>.nrow>.claim-one,.ws-node>.nrow>.chip{grid-column:3;grid-row:1/span 2}
+.ws-node>.nrow{grid-template-columns:auto minmax(0,1fr) auto auto auto}
+.ws-node>.nrow>.row-edit{grid-column:4;grid-row:1/span 2;font-size:12.5px}
+.ws-node>.nrow>details.more{grid-column:5;grid-row:1/span 2}
+@media(hover:hover){.ws-node>.nrow>.row-edit{opacity:0}.ws-node>.nrow:hover>.row-edit,.ws-node>.nrow:focus-within>.row-edit{opacity:1}}
+details.more{position:relative;flex:none}details.more>summary{list-style:none;cursor:pointer;color:var(--faint);letter-spacing:2px;padding:2px 8px;border-radius:8px;font-weight:700}details.more>summary::-webkit-details-marker{display:none}
+details.more>summary:hover,details.more[open]>summary{color:var(--ink);background:var(--sunk)}
+@media(hover:hover){.nrow details.more:not([open])>summary{opacity:.35}.nrow:hover details.more>summary,.nrow:focus-within details.more>summary{opacity:1}}
+.more-menu{position:absolute;right:0;top:28px;z-index:20;min-width:190px;display:flex;flex-direction:column;align-items:stretch;gap:2px;padding:6px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 26px #0007}
+.grad-key{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:11px;color:var(--faint)}.grad-key i{flex:0 1 160px;height:6px;border-radius:3px;background:linear-gradient(90deg,#c0392b 0%,#e0873a 38%,#d4c24a 62%,#3fae6b 77%,#3fae6b 85%,#9b6cf0 100%)}
+body[data-area="faith"] .panelcard,body[data-area="faith"] .ws-group{background:rgba(26,14,52,.78);border-color:rgba(182,156,240,.22)}
+.faith-cols .ws-groups{grid-template-columns:1fr!important}
+.faith-week .fw-grid{display:grid;grid-template-columns:72px repeat(7,1fr);gap:6px;align-items:center;margin-top:4px}
+.fw-day{text-align:center;font-size:11px;color:var(--faint)}.fw-day.today{color:var(--ink);font-weight:700}
+.fw-label{font-size:12px;color:var(--muted)}.fw-label b{color:#b69cf0;font-weight:400}
+.fw-cell{height:24px;border-radius:7px;border:1px solid var(--line);background:rgba(255,255,255,.04);padding:0}
+.fw-cell.done{background:#8e6bd8;border-color:#8e6bd8}.fw-cell.auto{box-shadow:inset 0 0 0 2px #3fae6b}.fw-cell.future{opacity:.45}.fw-cell.sel{outline:2px solid var(--brass);outline-offset:1px}
+.fw-cell.na{border-style:dashed;opacity:.35;background:none}
+.fw-minis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
+.fw-mini{border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:3px}.fw-mini b{font-size:22px;line-height:1}.fw-mini small{color:var(--faint);font-size:11px}
+.fw-toggles{display:flex;gap:8px;margin-top:4px}.fw-toggle{width:36px;height:36px;border-radius:50%;border:2px solid #b69cf0;background:transparent;color:#b69cf0;font-size:16px;padding:0}.fw-toggle.on{background:#b69cf0;color:#1b1230}
+.fw-pips{display:flex;gap:4px;margin:3px 0}.fw-pips i{width:16px;height:6px;border-radius:3px;background:var(--line)}.fw-pips i.on{background:#b69cf0}
+.fw-box{width:30px;height:30px;border:2px solid #b69cf0;border-radius:7px;background:transparent;color:#1b1230;font-weight:900;padding:0;margin-top:4px}.fw-box.on{background:#b69cf0}
+.fw-seasons{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:14px;padding-top:10px;border-top:1px solid var(--line)}.fw-seasons .cap{margin:0}
+.fw-season-add>summary{cursor:pointer;color:#b69cf0;font-size:12.5px;font-weight:600}.fw-season-add .form{margin-top:8px}
+.fw-dots{display:flex;gap:4px;margin-top:4px}.fw-dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}.fw-dots i.on{background:#b69cf0}
+@container (max-width:560px){.fw-minis{grid-template-columns:1fr}}
+.shelf>details>summary{list-style:none;display:flex;align-items:baseline;gap:10px;cursor:pointer}.shelf>details>summary::-webkit-details-marker{display:none}.shelf>details>summary h2::before{content:"▸ ";color:var(--faint);font-size:14px}.shelf>details[open]>summary h2::before{content:"▾ "}
+.tpl-chips{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+.tpl-chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-left:3px solid var(--category);border-radius:10px;padding:6px 11px;cursor:pointer;font-size:13.5px;font-weight:600}.tpl-chip input{accent-color:var(--category)}.tpl-chip small{color:var(--faint);font-weight:500}.tpl-chip.on{background:color-mix(in srgb,var(--category) 16%,transparent)}
+.shelf-manage{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}.tpl-row{display:flex;gap:12px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}.tpl-row>span{flex:1}.tpl-row small{color:var(--faint)}.tpl-edit{padding:10px 0}.tpl-edit textarea{width:100%}
+.shelf-done{margin:0 0 10px}
+.nut-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.nut{border:1px solid var(--line);border-radius:10px;padding:7px 9px;display:flex;flex-direction:column}.nut b{font-size:18px;line-height:1.1}.nut small{color:var(--faint);font-size:11px}
+@container (max-width:560px){.nut-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.profile-cards{margin-top:16px}
+.mf-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.mf{border:1px solid var(--line);border-left:3px solid var(--tone,var(--line));border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:2px}.mf.wide{grid-column:1/-1}.mf b{font-size:20px;line-height:1.15}.mf small{color:var(--faint);font-size:11px}.mf b small{font-size:11px}.mf-word{color:var(--tone,var(--faint));font-weight:700}
+.rank-row{display:flex;gap:16px;align-items:center;margin:6px 0 10px}.rank-grade{width:78px;height:78px;flex:none;border-radius:16px;border:2px solid var(--tone);display:flex;align-items:center;justify-content:center;font:700 30px var(--serif);color:var(--tone)}.rank-list{flex:1}.rank-list div{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--line)}
+.collect-row{display:flex;gap:14px;align-items:center;margin:6px 0 8px}.collect-row .orb{width:54px;height:54px}
+.fit-cards{margin:6px 0 16px}.fit-title{display:flex;align-items:baseline;gap:12px}.fit-title h2{margin:0}
+.fit-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:4px 0 12px}.fit-tile{display:flex;flex-direction:column;gap:3px;text-align:left;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:transparent}.fit-tile.on{border-color:var(--tone);box-shadow:inset 0 0 0 1px var(--tone)}.fit-tile b{font-size:22px;line-height:1.1}.fit-tile small{color:var(--faint);font-size:11px}
+.fit-bar{display:block;height:5px;border-radius:3px;background:var(--line)}.fit-bar>i{display:block;height:100%;border-radius:3px;background:var(--tone)}
+.fit-chart{position:relative;display:flex;align-items:flex-end;gap:3px;height:96px;border-bottom:1px solid var(--line)}.fit-chart .bar{flex:1;border:0;padding:0;border-radius:3px 3px 0 0;min-width:0}.fit-chart em{position:absolute;left:0;right:0;border-top:1px dashed var(--faint)}
+.fit-axis{display:flex;gap:3px;font-size:10px;color:var(--faint);margin-top:3px}.fit-axis span{flex:1;text-align:center;overflow:hidden;white-space:nowrap}
+.fit-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.fit-sum span{border:1px solid var(--line);border-radius:10px;padding:6px 9px;display:flex;flex-direction:column}.fit-sum b{font-size:16px}.fit-sum small{color:var(--faint);font-size:11px}
+.fit-kpi{margin:0 0 6px}
+.vit-row{border-bottom:1px solid var(--line)}.vit-row>summary,.vit-row.empty{display:grid;grid-template-columns:130px 1fr 92px;gap:10px;align-items:center;padding:8px 0;list-style:none;cursor:pointer}.vit-row>summary::-webkit-details-marker{display:none}
+.vit-band{position:relative;height:10px;border-radius:5px;background:rgba(255,255,255,.06)}.vit-band em{position:absolute;top:0;height:10px;border-radius:5px;background:rgba(63,174,107,.35)}.vit-band b{position:absolute;top:-3px;width:16px;height:16px;margin-left:-8px;border-radius:50%;border:2px solid var(--panel-2)}
+.vit-val{text-align:right;font-weight:700}.vit-val small{color:var(--faint);font-weight:500}.vit-trend{width:100%;height:46px;display:block;margin:4px 0}
+.fitness-sources>summary{cursor:pointer}
+.sleep-tiles{grid-template-columns:repeat(4,minmax(0,1fr));margin-top:10px}
+.sched{display:grid;grid-template-columns:34px 1fr;gap:4px 8px;align-items:center}.sched-d{font-size:11px;color:var(--faint)}.sched-t{position:relative;height:8px;background:rgba(255,255,255,.05);border-radius:4px}.sched-t i{position:absolute;top:0;height:8px;border-radius:4px}
+.sched-axis{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);margin:3px 0 0 42px}
+.ws-empty{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 14px;border:1px dashed var(--line);border-radius:12px;color:var(--faint);font-size:13px}
+@media(hover:hover){.ws-node .ws-addbtn{opacity:0}.ws-node:hover>div>.ws-addbtn,.ws-node:focus-within>div>.ws-addbtn,.ws-node .ws-addbtn:focus{opacity:1}}
+.more-menu .link{text-align:left;padding:6px 8px;border-radius:6px;color:var(--ink);font-weight:500}.more-menu .link:hover{background:var(--sunk);text-decoration:none}
 .ws-node .tw{border:0;background:transparent;color:var(--faint);min-width:26px;min-height:30px;padding:0;font-size:11px;flex:none}
 .ws-node .nm{flex:1;min-width:0;border:0;background:transparent;text-align:left;font-weight:600;font-size:13.5px;padding:0;white-space:normal;overflow-wrap:anywhere;flex-basis:140px}
 .ws-node .meta{font-size:11.5px;color:var(--muted);white-space:nowrap;flex:none}
@@ -453,18 +541,20 @@ addEventListener('load', () => {
     <div class="logo"><i aria-hidden="true">&#10047;</i><b>Health<br>Tracker</b></div>
     <div class="brandnav" id="viewNav" role="group" aria-label="View history"></div>
     <nav class="nav" aria-label="Areas">
-      <button data-area="faith"><i aria-hidden="true">&#10016;</i>Faith</button>
-      <button data-area="home" aria-current="page"><i aria-hidden="true">&#9679;</i>Today</button>
-      <button data-area="profile"><i aria-hidden="true">&#9675;</i>Profile</button>
-      <button data-area="fitness"><i aria-hidden="true">&#9889;</i>Fitness</button>
-      <button data-area="data"><i aria-hidden="true">&#9776;</i>Data</button>
-      <button data-area="plan"><i aria-hidden="true">&#9998;</i>Plan &amp; Quests</button>
-      <button data-area="log"><i aria-hidden="true">&#10010;</i>Log</button>
-      <button data-area="progress"><i aria-hidden="true">&#9650;</i>Progress</button>
-      <button data-area="collection"><i aria-hidden="true">&#9670;</i>Collection</button>
-      <button data-area="lessons"><i aria-hidden="true">&#9998;</i>Lessons &amp; Updates</button>
-      <button data-area="settings"><i aria-hidden="true">&#9881;</i>Settings</button>
+      <button data-area="faith"><i aria-hidden="true" style="--ic:#b69cf0">&#10016;</i>Faith</button>
+      <button data-area="home" aria-current="page"><i aria-hidden="true" style="--ic:#e0b458"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg></i>Today</button>
+      <button data-area="profile"><i aria-hidden="true" style="--ic:#7fc8c0"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.5" r="4"/><path d="M4 21.5c.7-4.6 4-7.5 8-7.5s7.3 2.9 8 7.5z"/></svg></i>Profile</button>
+      <button data-area="fitness"><i aria-hidden="true" style="--ic:#e8a15c">&#9889;</i>Fitness</button>
+      <button data-area="plan"><i aria-hidden="true" style="--ic:#e8a06a"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22V3"/><path d="M5 4h12l-2.5 4L17 12H5z" fill="currentColor"/></svg></i>Plan &amp; Quests</button>
+      <button data-area="log"><i aria-hidden="true" style="--ic:#9fd2a0"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="14" height="18" rx="2"/><path d="M8 8h6M8 12h6M8 16h3"/></svg></i>Log</button>
+      <button data-area="progress"><i aria-hidden="true" style="--ic:#6fd0a0"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M4 16l5-5 4 3 7-8"/><path d="M15 6h5v5"/></svg></i>Progress</button>
+      <button data-area="collection"><i aria-hidden="true" class="nav-orb"></i>Collection</button>
+      <button data-area="lessons"><i aria-hidden="true" style="--ic:#f0d070"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.3 1 2.1h5c0-.8.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg></i>Lessons &amp; Updates</button>
+      <span class="nav-sep" aria-hidden="true"></span>
+      <button data-area="data"><i aria-hidden="true" style="--ic:#6fb6e0"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></i>Data</button>
+      <button data-area="settings"><i aria-hidden="true" style="--ic:#b8c4be"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg></i>Settings</button>
     </nav>
+    <a class="gena-link" href="https://skabone.github.io/gena/" target="_blank" rel="noopener">Open Gena ↗</a>
     <div class="spacer"></div>
     <div class="ck"><p class="cap">Your checkpoint</p><b id="ckDate">—</b><p class="hint">A review point, not a promised result.</p></div>
     <div class="buildid" id="buildIdentity"></div>
@@ -472,7 +562,7 @@ addEventListener('load', () => {
     <button class="ghostbtn" id="previewToggle" aria-pressed="false">Preview workspace</button>
   </aside>
   <div class="content">
-    <header class="topbar"><button class="sidetoggle" id="sideToggle" data-act="toggleSidebar" aria-expanded="true" aria-controls="appSide">Hide</button><div class="t"><h1 id="areaTitle" tabindex="-1">Today</h1><p id="areaSub"></p></div><span id="previewBadge" hidden>LOCAL PREVIEW · SYNTHETIC</span><div id="levelOrb"></div><div id="conn"></div></header>
+    <header class="topbar"><button class="sidetoggle" id="sideToggle" data-act="toggleSidebar" aria-expanded="true" aria-controls="appSide">Hide</button><div class="t"><h1 id="areaTitle" tabindex="-1">Today</h1><p id="areaSub"></p></div><span id="previewBadge" hidden>LOCAL PREVIEW · SYNTHETIC</span><div id="fresh"></div><div id="levelOrb"></div><div id="conn"></div></header>
     <div id="notices"></div>
     <main id="main"></main>
     <footer><p id="storeNote"></p><p>Health Tracker &middot; build <span id="build"></span></p></footer>
@@ -777,9 +867,9 @@ addEventListener('load', () => {
   }
   async function scanIntake(resetAcknowledged=false){
     if(!NATIVE||!durableStore.active||!real.autoFeed||real.autoFeed.paused||intake.busy||preview||readOnly)return;
-    if(intakeEditing()){intake.deferred=true;document.querySelectorAll('[data-feedback-id="automatic-intake"] .ph .chip').forEach(el=>el.textContent='Waiting for your edits');return;}
+    if(intakeEditing()){intake.deferred=true;document.querySelectorAll('[data-feedback-id="automatic-intake"] .ph .chip').forEach(el=>el.textContent='Waiting for your edits');document.querySelectorAll('#fresh .fresh-label').forEach(el=>el.textContent='Waiting for your edits');return;}
     const priorRevision=real.revision,priorError=intake.error,priorDeferred=intake.deferred,priorSkipped=intake.skipped.join('|');
-    intake.busy=true;intake.deferred=false;
+    intake.busy=true;intake.deferred=false;let drain=false;
     try{
       const reply=await nativeRequest('intakeScan',resetAcknowledged||intakeResetPending?{resetAcknowledged:true}:{});
       if(!reply.ok){intake.error=reply.error||'The selected folder could not be read.';intakeLog('scan refused: '+intake.error);return;}
@@ -867,8 +957,12 @@ addEventListener('load', () => {
         if(!result.unreadable)outcome[result.duplicate?'same':'imported']++;
       }
       intake.error=fileError||fileProblem;intake.lastCheck=outcome;
+      // The native reader hands over at most two files per scan and scans every ten seconds, so a
+      // folder re-read (restore, Bring in sleep, a V1.8 update) crawled at two files per ten seconds
+      // with clicks refused throughout. A clean batch with more waiting asks again straight away.
+      drain=!fileError&&!intake.deferred&&outcome.delivered>0&&(reply.pendingCount||0)>outcome.delivered;
     }catch(e){intake.error='Automatic intake stopped before completing a delivery. Previously committed data remains available.';}
-    finally{intake.busy=false;if(real.revision!==priorRevision||intake.error!==priorError||intake.deferred!==priorDeferred||intake.skipped.join('|')!==priorSkipped)intakeRender();}
+    finally{intake.busy=false;if(real.revision!==priorRevision||intake.error!==priorError||intake.deferred!==priorDeferred||intake.skipped.join('|')!==priorSkipped)intakeRender();if(drain)setTimeout(()=>scanIntake(),300);}
   }
   async function toggleIntake(){
     if(!real.autoFeed||intake.busy||readOnly||preview)return;
@@ -893,9 +987,9 @@ addEventListener('load', () => {
     const capacity=feed&&(feed.capacityReason||state.sourceRecords.length>=AUTO_SOURCE_LIMIT*.8)?'<p class="notice">'+esc(feed.capacityReason||'History is approaching the current automatic intake limit of '+AUTO_SOURCE_LIMIT.toLocaleString()+' source rows. Intake will pause before adding a file that crosses it; no history is trimmed.')+'</p>':'';
     const lc=intake.lastCheck,checked=lc?'<p class="hint intake-outcome" role="status">Checked '+esc(dataWhen(lc.at))+' · '+(lc.imported?pl(lc.imported,'file')+' imported':lc.refused?'nothing imported':'nothing new')+(lc.same?' · '+lc.same+' already in':'')+(lc.refused?' · '+lc.refused+' refused (see below)':'')+(feed&&feed.paused?' · intake is paused':'')+'</p>':'';
     const times=feed?checked+'<dl class="feed-times"><dt>Last local delivery</dt><dd>'+esc(dataWhen(feed.lastDeliveryAt))+'</dd><dt>Last successful import</dt><dd>'+esc(dataWhen(feed.lastImportAt))+'</dd><dt>Latest reported bucket</dt><dd>'+esc(dataWhen(feed.lastReportedAt))+'</dd><dt>Completeness</dt><dd>Unknown · missing buckets are not zeros</dd></dl>':'';
-    return '<section class="panelcard '+(compact?'feed-strip':'feed-card')+'" data-feedback-id="automatic-intake" data-feedback-label="Automatic iCloud intake"><div class="ph"><h2>Apple Health <span class="hint">via Health Auto Export</span></h2><span class="chip'+tone+'">'+esc(status)+'</span></div>'+(intake.error?'<p class="notice bad">'+esc(intake.error)+'</p>':'')+strandedNotice+capacity+(compact?'<p class="hint">'+(feed.lastImportAt?'Last imported '+esc(dataWhen(feed.lastImportAt)):'Waiting for the first stable local file')+'. Updates resume when this app is open.</p><button class="link" data-act="go" data-area="data">Review feed</button>':times+(feed?'<p class="hint feed-note">Nothing is imported while this app is closed. Daily JSON figures reflect only the minute data received so far; once your agreed activities are set up, matching workouts, steps, brushing and sleep check themselves off; points still wait for your claim.</p><div class="acts"><button data-act="intakeScan">Check now</button><button data-act="intakePause" aria-pressed="'+(feed.paused?'true':'false')+'">'+(feed.paused?'▶ Resume intake':'⏸ Pause intake')+'</button><button data-act="intakeConnect">Reselect folder</button><button data-act="intakeMove">Change folder…</button><button data-act="intakeDisconnect">Disconnect</button><button data-act="intakeBackup">Save private recovery copy</button><button data-act="intakeCutover">Change JSON start date</button></div>'+(intake.skipped.length?'<p class="hint">Skipped as larger than the 128 MB this reader accepts: '+esc(intake.skipped.join(', '))+'. If it holds anything a smaller export does not, export a shorter date range from Health Auto Export.</p>':'')+'<p class="hint">JSON is eligible from '+esc(feed.contract.activeFrom)+'. Earlier CSV history remains; CSV also fills dates or metrics where qualified JSON is unavailable. Both are never added together.</p><p class="hint">'+esc(feed.folderName)+' · '+pl(state.sourceRecords.length,'retained source row')+' · '+pl(state.importReceipts.length,'receipt')+'. '+(report?pl(report.projected,'daily display row')+'; '+projection.heldIds.length+' held; '+pl(projection.shadowIds.length,'shadow row')+' before the start date.'+holdReasons(report):'')+'</p>':'<p>Connect the existing Health Auto Export folder once. Choose the folder that contains the daily JSON files.</p><p class="hint">Confirmed format: Health Metrics JSON v2, minute grouping, America/Los_Angeles. The file does not declare its grouping; keep the existing phone export settings. Connecting first writes and verifies a private recovery file, then activates storage with room for ongoing imports.</p><div class="acts"><button class="save" data-act="intakeConnect" '+(!NATIVE||preview?'disabled':'')+'>'+(durableStore.stagedState?'Resume verified migration':'Connect iCloud folder')+'</button></div>')+'<details><summary>What is included and how updates work</summary><p class="hint">This Mac reads only JSON files directly inside the folder you choose. Stable downloads are checked while the app is running and when you return. It catches up after reopening; no intake runs while the app is closed. iPhone export and iCloud delivery times may vary.</p><p class="hint">Steps, active energy, heart-rate summaries, resting heart rate, weight, distance, exercise time, stand time and flights are supported. Workout sessions arrive through the Workouts subfolder of the same connected folder. When writers disagree, Apple Health wins: a minute your Apple Watch or iPhone contributed to is Apple Health’s own merged figure, and other apps on that day yield to it. Unknown writers, and combinations with no Apple device in them, stay held. During a workout recorded by a connected app such as iFIT, active energy uses that workout’s own figure for its window, which is what your Move ring counts. Sleep stays excluded by the confirmed contract; existing CSV and manual history remains available. Imports never confirm activities or award points.</p><p class="hint">Daily sums cover only received minute buckets. Heart-rate minimum, latest minute average and maximum remain separate; no daily average is invented. Original rows and changed-value revisions remain in private storage. Removing a source file does not delete imported history.</p></details>')+'</section>';
+    return '<section class="panelcard '+(compact?'feed-strip':'feed-card')+'" data-feedback-id="automatic-intake" data-feedback-label="Automatic iCloud intake"><div class="ph"><h2>Apple Health <span class="hint">via Health Auto Export</span></h2><span class="chip'+tone+'">'+esc(status)+'</span></div>'+(intake.error?'<p class="notice bad">'+esc(intake.error)+'</p>':'')+strandedNotice+capacity+(compact?'<p class="hint">'+(feed.lastImportAt?'Last imported '+esc(dataWhen(feed.lastImportAt)):'Waiting for the first stable local file')+'. Updates resume when this app is open.</p><button class="link" data-act="go" data-area="data">Review feed</button>':times+(feed?'<p class="hint feed-note">Nothing is imported while this app is closed. Daily JSON figures reflect only the minute data received so far; once your agreed activities are set up, matching workouts, steps, brushing and sleep check themselves off; points still wait for your claim.</p><div class="acts"><button data-act="intakeScan">Check now</button><button data-act="intakePause" aria-pressed="'+(feed.paused?'true':'false')+'">'+(feed.paused?'▶ Resume intake':'⏸ Pause intake')+'</button><button data-act="intakeConnect">Reselect folder</button><button data-act="intakeMove">Change folder…</button><button data-act="intakeDisconnect">Disconnect</button><button data-act="intakeBackup">Save private recovery copy</button><button data-act="intakeCutover">Change JSON start date</button></div>'+(intake.skipped.length?'<p class="hint keep">Skipped as larger than the 128 MB this reader accepts: '+esc(intake.skipped.join(', '))+'. If it holds anything a smaller export does not, export a shorter date range from Health Auto Export.</p>':'')+'<p class="hint">JSON is eligible from '+esc(feed.contract.activeFrom)+'. Earlier CSV history remains; CSV also fills dates or metrics where qualified JSON is unavailable. Both are never added together.</p><p class="hint">'+esc(feed.folderName)+' · '+pl(state.sourceRecords.length,'retained source row')+' · '+pl(state.importReceipts.length,'receipt')+'. '+(report?pl(report.projected,'daily display row')+'; '+projection.heldIds.length+' held; '+pl(projection.shadowIds.length,'shadow row')+' before the start date.'+holdReasons(report):'')+'</p>':'<p>Connect the existing Health Auto Export folder once. Choose the folder that contains the daily JSON files.</p><p class="hint">Confirmed format: Health Metrics JSON v2, minute grouping, America/Los_Angeles. The file does not declare its grouping; keep the existing phone export settings. Connecting first writes and verifies a private recovery file, then activates storage with room for ongoing imports.</p><div class="acts"><button class="save" data-act="intakeConnect" '+(!NATIVE||preview?'disabled':'')+'>'+(durableStore.stagedState?'Resume verified migration':'Connect iCloud folder')+'</button></div>')+'<details><summary>What is included and how updates work</summary><p class="hint">This Mac reads only JSON files directly inside the folder you choose. Stable downloads are checked while the app is running and when you return. It catches up after reopening; no intake runs while the app is closed. iPhone export and iCloud delivery times may vary.</p><p class="hint">Steps, active energy, heart-rate summaries, resting heart rate, weight, distance, exercise time, stand time and flights are supported. Workout sessions arrive through the Workouts subfolder of the same connected folder. When writers disagree, Apple Health wins: a minute your Apple Watch or iPhone contributed to is Apple Health’s own merged figure, and other apps on that day yield to it. Unknown writers, and combinations with no Apple device in them, stay held. During a workout recorded by a connected app such as iFIT, active energy uses that workout’s own figure for its window, which is what your Move ring counts. Sleep stays excluded by the confirmed contract; existing CSV and manual history remains available. Imports never confirm activities or award points.</p><p class="hint">Daily sums cover only received minute buckets. Heart-rate minimum, latest minute average and maximum remain separate; no daily average is invented. Original rows and changed-value revisions remain in private storage. Removing a source file does not delete imported history.</p></details>')+'</section>';
   }
-  const draftNavigationActions=new Set(['go','goData','goGrades','goPlanGroup','goCompare','todayTab','quickLog','editRecurring','openRow','preview','step','jumpToday','stepWeek','jumpWeek','stepProg','jumpProg','pickDay','actScope','dataTab','logTab','planGroup','closePanel','detail','edit','editWorkout','addWorkout','editFood','viewBack','viewForward','planIdea','fitnessRange','fitnessWeek','fitnessCustom','collectionWeek','collectionToday','notesFilter','profileDetail','openFeedback','reviewFeedback','reviewAction','questReview','cancelConfirmation']);
+  const draftNavigationActions=new Set(['go','attentionGo','goData','goGrades','goPlanGroup','goCompare','todayTab','quickLog','editRecurring','openRow','preview','step','jumpToday','stepWeek','jumpWeek','stepProg','jumpProg','pickDay','actScope','dataTab','logTab','planGroup','closePanel','detail','edit','editWorkout','addWorkout','editFood','viewBack','viewForward','planIdea','fitnessRange','fitnessWeek','fitnessCustom','collectionWeek','collectionToday','notesFilter','profileDetail','openFeedback','reviewFeedback','reviewAction','questReview','cancelConfirmation']);
   function resolveDraftNavigation(){
     if(manualSaving)return false;
     if(!preserveManualDraft||!unsavedForm)return true;
@@ -915,7 +1009,9 @@ addEventListener('load', () => {
   // A feed that refuses every delivery holds intake.applying for most of each ten-second cycle, so
   // the one button that ends the loop was unclickable exactly while the loop was running. A genuine
   // manual save still blocks them, because that is someone's typing waiting to be written.
-  const INTAKE_ESCAPES=new Set(['intakeRetireForeign','intakePause','intakeDisconnect','intakeConnect']);
+  // Update now is one of them: a long intake refused it for minutes on the Mac (V1.8). It waits for
+  // the file being applied to finish, then reloads.
+  const INTAKE_ESCAPES=new Set(['intakeRetireForeign','intakePause','intakeDisconnect','intakeConnect','applyUpdate']);
   document.addEventListener('click',e=>{const button=e.target.closest('button,[data-act],label.filebtn');if(button&&!manualSaving&&INTAKE_ESCAPES.has(button.dataset&&button.dataset.act))return;if((intake.applying||manualSaving)&&button){e.preventDefault();e.stopImmediatePropagation();toast('A save is in progress. Your typing is kept; try that action again when it finishes.');return;}if(button&&(leavesManualDraft(button)||button.id==='previewToggle'||button.dataset.area||draftNavigationActions.has(button.dataset.act))&&!resolveDraftNavigation()){e.preventDefault();e.stopImmediatePropagation();}},true);
   document.addEventListener('keydown',e=>{const typing=e.target?.matches('input,textarea,select,[contenteditable=true]');if(((intake.applying||manualSaving)&&(!typing||e.key==='Escape'))||((e.key==='Escape'||(!typing&&/^[0-9/dD]$/.test(e.key)))&&!resolveDraftNavigation())){e.preventDefault();e.stopImmediatePropagation();}},true);
   document.addEventListener('change',e=>{const control=e.target,busy=intake.applying||(manualSaving&&control.dataset.act);if(busy||(control.dataset.act&&leavesManualDraft(control)&&!resolveDraftNavigation())){e.preventDefault();e.stopImmediatePropagation();if(control.dataset.act)restoreRenderedControl(control);if(busy)toast('A save is in progress. Reapply that choice when it finishes.');}},true);
@@ -972,6 +1068,8 @@ addEventListener('load', () => {
   const groupName = id => (groupById(S(), id) || {}).name || id;
   function relDay(s){ const d = dayDiff(s); return d === 0 ? 'Today' : d === 1 ? 'Tomorrow' : d === -1 ? 'Yesterday' : d > 0 ? 'In ' + d + ' days' : Math.abs(d) + ' days ago'; }
   function relWeek(start){ const w = Math.round((parseYmd(start) - parseYmd(wkStart(todayYmd()))) / (7 * 86400000)); return w === 0 ? 'This week' : w === 1 ? 'Next week' : w === -1 ? 'Last week' : w > 0 ? w + ' weeks ahead' : Math.abs(w) + ' weeks ago'; }
+  const TITLE_SMALL=new Set(['a','an','and','as','at','but','by','for','in','nor','of','on','or','per','the','to','vs','via','with']);
+  function titleCase(text){return text.replace(/[A-Za-z][\w’'-]*/g,(w,i)=>{const lower=w.toLowerCase();if(i>0&&TITLE_SMALL.has(lower)&&!/[:?!]\s*$/.test(text.slice(0,i)))return w;return /[A-Z].*[A-Z]/.test(w)?w:w[0].toUpperCase()+w.slice(1);});}
   const ICON = { run:'&#9889;', meal:'&#9679;', home:'&#8962;', cross:'&#10010;', work:'&#9998;', star:'&#10022;' };
 
   /* ---------- preview workspace: wholly synthetic, in memory only ---------- */
@@ -986,9 +1084,13 @@ addEventListener('load', () => {
       '<rect width="100%" height="100%" fill="' + base + '"/><rect width="100%" height="100%" filter="url(#a)"/><rect width="100%" height="100%" filter="url(#b)"/><rect width="100%" height="100%" filter="url(#g)"/></svg>';
     return 'url("data:image/svg+xml;utf8,' + encodeURIComponent(svg) + '")';
   }
+  // Faith keeps the same granite, in royal purple (Mintay, 2026-09-24); every other area stays green.
+  const wallpapers = {};
   function applyWallpaper(){
-    const light = S().prefs.theme === 'light';
-    document.body.style.backgroundImage = light ? plasterDataUri('#dfe3d8', '#eef0e8', '#c9cfc2', 11) : plasterDataUri('#0f2a21', '#1d4a3a', '#071a14', 4);
+    const light = S().prefs.theme === 'light', faith = area === 'faith', key = (light ? 'light' : 'dark') + (faith ? '-faith' : '');
+    wallpapers[key] = wallpapers[key] || (faith ? (light ? plasterDataUri('#e4dcef', '#f0ebf6', '#cdbfe0', 11) : plasterDataUri('#2a1a4d', '#46307c', '#140a2a', 4)) : (light ? plasterDataUri('#dfe3d8', '#eef0e8', '#c9cfc2', 11) : plasterDataUri('#0f2a21', '#1d4a3a', '#071a14', 4)));
+    if (document.body.style.backgroundImage !== wallpapers[key]) document.body.style.backgroundImage = wallpapers[key];
+    document.body.dataset.area = area;
   }
 
   /* ---------- shared pieces ---------- */
@@ -1006,6 +1108,33 @@ addEventListener('load', () => {
     const id = String(s.id || '').toLowerCase(), name = String(s.name || '');
     if (id.indexOf('hae') >= 0 || /health\s*auto\s*export/i.test(name)) return { short:'HAE', full:'Health Auto Export', detail:'Apple Health via Health Auto Export' };
     return { short:name, full:name, detail:name };
+  }
+  /* Freshness at a glance (P5, bands by Mintay 2026-09-24): one badge says how current the Apple Health
+     data is and is the one Refresh. Anything that needs him gathers behind a small count beside it,
+     not as notes on every page. Green ≤ 10 min, amber ≤ 12 h, orange ≤ 24 h, red after a day. */
+  let attentionOpen=false;
+  function attentionItems(st){
+    const feed=st.autoFeed,items=[],b=(label,act,extra='')=>'<button class="small" data-act="'+act+'"'+extra+'>'+esc(label)+'</button>';
+    if(!activitiesAdopted(st))items.push(['Your agreed activities aren’t set up yet',b('Set up','attentionGo',' data-area="home" data-tab="activities"')]);
+    if(!feed)return items;
+    if(intake.error)items.push([intake.error,b('Review feed','attentionGo',' data-area="data"')]);
+    const stranded=foreignFeedRows(st).length;if(stranded)items.push([pl(stranded,'record')+' from a replaced folder connection block new imports',b('Review feed','attentionGo',' data-area="data"')]);
+    if(feed.capacityReason)items.push([feed.capacityReason,b('Review feed','attentionGo',' data-area="data"')]);
+    else if(feed.paused)items.push(['Automatic intake is paused',b('Resume','intakePause')]);
+    if(feed.contract.sleepMode!=='include')items.push(['Sleep isn’t brought in yet',b('Open Fitness','attentionGo',' data-area="fitness"')]);
+    const unsorted=Workspace.unsortedWorkouts?Workspace.unsortedWorkouts(st):[];
+    if(unsorted.length)items.push([unsorted.map(u=>u.type).join(', ')+': cardio or strength?',b('Choose','attentionGo',' data-area="home" data-tab="activities"')]);
+    return items;
+  }
+  function freshnessHTML(){
+    const st=S(),feed=st.autoFeed;
+    if(!feed){const items=attentionItems(st);return items.length?'<div class="freshness"><button class="attn-btn" data-act="attentionToggle" aria-expanded="'+attentionOpen+'" aria-label="'+pl(items.length,'item')+' need attention">⚠ '+items.length+'</button>'+(attentionOpen?'<div class="attn-list" role="dialog" aria-label="Needs attention"><ul>'+items.map(([t,btn])=>'<li><span>'+esc(t)+'</span>'+btn+'</li>').join('')+'</ul></div>':'')+'</div>':'';}
+    const covered=feed.lastReportedAt||feed.lastImportAt,age=covered?Date.now()-Date.parse(covered):Infinity;
+    const [band,word]=age<=10*60e3?['#6fcf8f','current']:age<=12*3600e3?['#e6c35c','a few hours old']:age<=24*3600e3?['#e8914f','most of a day old']:['#d9534f','over a day old'];
+    const when=covered?(ymd(new Date(covered))===todayYmd()?new Date(covered).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):medDate(ymd(new Date(covered)))):'No data yet';
+    const items=attentionItems(st);
+    return '<div class="freshness"><button class="fresh-btn" data-act="intakeScan" style="--band:'+band+'" aria-label="Apple Health data covered through '+esc(when)+', '+word+'. Refresh" title="Refresh · covered through '+esc(when)+'"><i aria-hidden="true"></i><span class="fresh-label">'+(intake.deferred?'Waiting for your edits':'↻ '+esc(when))+'</span></button>'+
+      (items.length?'<button class="attn-btn" data-act="attentionToggle" aria-expanded="'+attentionOpen+'" aria-label="'+pl(items.length,'item')+' need attention">⚠ '+items.length+'</button>'+(attentionOpen?'<div class="attn-list" role="dialog" aria-label="Needs attention"><ul>'+items.map(([t,btn])=>'<li><span>'+esc(t)+'</span>'+btn+'</li>').join('')+'</ul></div>':''):'')+'</div>';
   }
   function levelOrbHTML(){
     let rw = null;
@@ -1026,12 +1155,13 @@ addEventListener('load', () => {
     $('#previewBadge').textContent=preview?'LOCAL PREVIEW · SYNTHETIC':personalReview?'PERSONAL DATA · REVIEW BUILD':syntheticTest?'PERSISTENT TEST · INVENTED DATA':'LOCAL PREVIEW · SYNTHETIC';
     $('#storeNote').textContent = preview ? 'Synthetic preview. Changes stay in memory and reset on refresh. Your installed app and its records are untouched.' : personalReview ? 'Saved in this separate review app on this Mac. Export a private copy from Settings.' : 'Saved only in this browser, on this device, at this address. Export a private copy from Settings.';
     $('#conn').innerHTML = '<span class="cap">Sources</span>' + SOURCES.map(s => { const x = sourceEvidenceSummary(st,s.id), d = sourceDisplay(s); return '<button class="conn" data-act="goData" aria-label="' + esc(d.full + ' — ' + sourceStateLabel(x) + '. ' + x.note) + '" title="' + esc(d.detail + ' — ' + x.note) + '"><b>' + esc(d.short) + '</b><small>' + esc(sourceStateLabel(x)) + '</small></button>'; }).join('') +
-      '<p class="hint" style="margin:6px 0 0;font-size:11px">Each line describes that source’s own freshness for the kinds it actually supplies. A working metric does not mean workouts, meals or brushing are supported, and no indicator here means an activity is complete.</p>';
+      '<button type="button" class="info" data-act="info" aria-expanded="false" aria-controls="info-sources" aria-label="About sources">i</button><div class="info-pop" id="info-sources" hidden><p class="hint" style="font-size:11px">Each line describes that source’s own freshness for the kinds it actually supplies. A working metric does not mean workouts, meals or brushing are supported, and no indicator here means an activity is complete.</p></div>';
     const env = typeof window.__healthTrackerDocumentToken === 'string' ? 'Mac app' : 'Browser';
     const storeKind = preview ? 'synthetic preview · nothing saved' : personalReview ? 'personal review store' : syntheticTest ? 'persistent invented-data store' : 'your saved local store';
     $('#storeNote').textContent += ' Body records are saved separately on this Mac; use Profile → Export model + four images for their backup.';
     $('#buildIdentity').innerHTML = '<b>Build</b>' + esc(((window.HealthDelivery && window.HealthDelivery.build) || (typeof BUILD === 'string' ? BUILD : 'unknown')).replace(/-(V\d+(?:\.\d+)*)$/,' · $1')) + ' · ' + esc((window.HealthDelivery && window.HealthDelivery.mode) || 'local') + '<br>' + esc(env + ' · ' + storeKind) +
       '<p class="hint" style="margin:5px 0 0;font-size:11px">'+(preview?'Invented records for review. Nothing is saved.':'Private records on this device.')+'</p>';
+    $('#fresh').innerHTML = freshnessHTML();
     $('#levelOrb').innerHTML = levelOrbHTML();
     $('#sideToggle').textContent = document.querySelector('.app').classList.contains('sidehidden') ? 'Show menu' : 'Hide';
     $('#sideToggle').setAttribute('aria-expanded', String(!document.querySelector('.app').classList.contains('sidehidden')));
@@ -1055,8 +1185,10 @@ addEventListener('load', () => {
       '<button role="radio" aria-checked="' + (r.selected === v) + '" data-act="version" data-v="' + v + '"><b>' + (v === 'normal' ? 'Normal' : 'Minimum') + '</b><small>' + esc(r.targets[v].label) + '</small></button>').join('') + '</div>';
   }
   const rowChips = r => (r.optional ? '<span class="chip quiet">optional</span>' : '') + (r.demo ? '<span class="chip quiet">example</span>' : '');
-  function actionButtons(r){
-    return '<button class="primary" data-act="log" data-s="tentative" aria-pressed="' + (r.status === 'done') + '">Check off</button><button data-act="reviewAction">Review &amp; confirm</button><button data-act="log" data-s="partial" aria-pressed="' + (r.status === 'partial') + '">Partial</button><button data-act="log" data-s="skipped" aria-pressed="' + (r.status === 'skipped') + '">Not done</button>';
+  // The Up Next card keeps one verb and a ⋯ menu; the detail panel (compact=false) shows every action.
+  function actionButtons(r,compact){
+    if(!compact)return '<button class="primary" data-act="'+(r.status==='tentative'?'reviewAction':'done')+'" aria-pressed="' + (r.status === 'done') + '">'+(r.status==='tentative'?'Confirm':'Done')+'</button><button data-act="reviewAction">Details</button><button data-act="log" data-s="partial" aria-pressed="' + (r.status === 'partial') + '">Partial</button><button data-act="log" data-s="skipped" aria-pressed="' + (r.status === 'skipped') + '">Not today</button>';
+    return '<button class="primary" data-act="'+(r.status==='tentative'?'reviewAction':'done')+'" aria-pressed="' + (r.status === 'done') + '">'+(r.status==='tentative'?'Confirm':'Done')+'</button><details class="more"><summary aria-label="More for '+esc(r.name)+'">⋯</summary><div class="more-menu"><button class="link" data-act="log" data-s="partial" aria-pressed="' + (r.status === 'partial') + '">Partial</button><button class="link" data-act="log" data-s="skipped" aria-pressed="' + (r.status === 'skipped') + '">Not today</button><button class="link" data-act="reviewAction">Details</button><button class="link" data-act="openRow">Adjust this day</button></div></details>';
   }
   function detailFields(r){
     return '<div class="fields"><div class="mins"><label for="m-' + r.key + '">Minutes</label><input id="m-' + r.key + '" type="number" inputmode="numeric" min="0" step="1" value="' + (r.actualMinutes === null || r.actualMinutes === undefined ? '' : r.actualMinutes) + '"></div><div class="note"><label for="n-' + r.key + '">Note</label><input id="n-' + r.key + '" type="text" maxlength="140" value="' + esc(r.note || '') + '"></div><button class="save" data-act="saveDetail">Save</button></div>';
@@ -1075,14 +1207,52 @@ addEventListener('load', () => {
       '<text x="60" y="58" text-anchor="middle" fill="var(--ink)" font-size="15" font-weight="600">' + rg.routine.done + '/' + rg.routine.planned + '</text><text x="60" y="71" text-anchor="middle" fill="var(--faint)" font-size="8">routine</text></svg>' +
       '<div class="rl"><div><i style="background:var(--verd)"></i>Routine <b>' + rg.routine.done + ' of ' + rg.routine.planned + '</b></div><div><i style="background:var(--brass)"></i>Movement <b>' + mv + '</b></div><div><i style="background:var(--ink)"></i>Check-in <b>' + (rg.checkin ? 'done' : 'not yet') + '</b></div><p class="hint">Confirmed minimums count. Planned rest is neutral. Check-ins show documentation; blank stays unknown.</p></div></div>';
   }
+  /* Profile (Mintay, 2026-09-24): the body view full width (model beside its reference image), then
+     Measured Fitness and Overall Rank side by side, Collection below. Every number comes from Apple
+     Health through the feed; with nothing recent, the last reading shows with its date. */
+  const FITNESS_METRICS=[
+    {id:'vo2',label:'Cardio · VO₂ max',metrics:['vo2_max'],kinds:['other'],unit:'ml/kg·min',digits:1,
+      // ACSM-style bands for a man aged 30–39 (Mintay is 31): good starts at 39, superior at 49.
+      tone:v=>v>=49?1.3:v>=44?1.12:v>=39?1:v>=35?.7:.45,word:v=>v>=49?'Superior':v>=44?'Excellent':v>=39?'Good':v>=35?'Fair':'Poor'},
+    {id:'rhr',label:'Resting heart rate',metrics:['resting_heart_rate'],kinds:['restingHeartRate'],unit:'bpm',digits:0,
+      // AHA: 60–100 is typical for adults; lower within reason is fitter.
+      tone:v=>Math.min(1.3,60/v),word:v=>v<50?'Athletic':v<=60?'Good':v<=80?'Typical':'High'},
+    {id:'walk',label:'Endurance · 6-minute walk',metrics:['six_minute_walking_test_distance'],kinds:['other'],unit:'m',digits:0,tone:v=>v/550,word:()=>''},
+    {id:'hrv',label:'Recovery · HRV',metrics:['heart_rate_variability'],kinds:['other'],unit:'ms',digits:0,tone:null,word:()=>''}
+  ];
+  function latestMetric(state,metrics,kinds){
+    let best=null;
+    for(const kind of kinds)for(const r of relayedRecords(state,kind)){
+      const meta=r.unmapped&&r.unmapped.healthAutoExport;if(!meta||!metrics.includes(meta.metric)||!Number.isFinite(r.value))continue;
+      const date=sourceLocalDay(r.start);if(!best||date>best.date||date===best.date&&r.start>best.start)best={value:r.value,date,start:r.start,source:r.sourceApp||'Apple Health'};
+    }
+    return best;
+  }
+  function measuredFitnessCard(st){
+    const today=todayYmd(),cells=FITNESS_METRICS.map(m=>{
+      const x=latestMetric(st,m.metrics,m.kinds);
+      if(!x)return '<div class="mf"><small>'+esc(m.label)+'</small><b>—</b><small>Not in your export yet</small></div>';
+      const tone=m.tone?m.tone(x.value):null,age=calendarDistance(x.date,today);
+      return '<div class="mf"'+(tone!==null?' style="--tone:'+perfColor(tone)+'"':'')+'><small>'+esc(m.label)+'</small><b>'+esc(x.value.toFixed(m.digits))+' <small>'+esc(m.unit)+'</small></b><small>'+(m.word(x.value)?'<span class="mf-word">'+esc(m.word(x.value))+'</span> · ':'')+(age>7?'Last '+esc(medDate(x.date)):age<=0?'Today':esc(medDate(x.date)))+'</small></div>';
+    }).join('');
+    return '<section class="panelcard" data-feedback-id="measured-fitness" data-feedback-label="Measured fitness"><div class="ph"><h2>Measured Fitness</h2></div><p class="hint">Readings from Apple Health, newest first. A reading older than a week shows its date. VO₂ max bands follow ACSM norms for a man aged 30–39; resting heart rate follows the AHA’s typical adult range. Strength stays unassessed until a strength test you log gives it a measure; routine consistency and points are never counted here.</p><div class="mf-grid">'+cells+'<div class="mf wide"><small>Strength</small><b class="dim">Unassessed</b><small>Needs a strength test you log</small></div></div>'+gradientKey()+'</section>';
+  }
+  function overallRankCard(st){
+    const rr=overallRankReport(st,todayYmd()),names={fitness:'Fitness',food:'Food & Hydration',care:'Personal Care',faith:'Faith',work:'Work & Learning'};
+    return '<section class="panelcard" data-feedback-id="overall-rank" data-feedback-label="Overall rank"><div class="ph"><h2>Overall Rank</h2><span class="hint">'+esc(rr.from===rr.to?medDate(rr.from):medDate(rr.from)+' – '+medDate(rr.to))+'</span></div>'+
+      '<p class="hint">Each category’s share of its required activities done over the last 28 complete days (or since scoring started), weighted Faith 10 and the others 9. F under 40 %, D 40, C 55, B 70, A 80, S 85, SS 90, SSS 95. A category with nothing scheduled shows a dash and stays out of the overall.</p>'+
+      '<div class="rank-row"><div class="rank-grade" style="--tone:'+(rr.overall===null?'var(--line)':perfColor(rr.overall/80))+'">'+esc(rr.letter||'—')+'</div><div class="rank-list">'+rr.slots.map(x=>'<div><span>'+esc(names[x.gid])+'</span><b title="'+(x.pct===null?'Nothing scheduled':x.done+' of '+x.planned+' · '+Math.round(x.pct)+'%')+'">'+esc(x.included?(x.letter||'—'):'Excluded')+'</b></div>').join('')+'</div></div>'+
+      '<button class="link" data-act="goGrades">Edit importance and inclusion</button></section>';
+  }
   function profileCard(){
-    const st = S(), rw = rewardReport(st, todayYmd()), gr = gradeReport(st), example = gradeReport(st,{fitness:80,food:80,care:80,faith:90,work:80});
-    const slots = [['fitness','Fitness'],['food','Food & Hydration'],['care','Personal Care'],['faith','Faith'],['work','Work & Learning']];
-    return '<div class="profile-layout"><ht-body-view></ht-body-view><div class="profile-aside"><section class="panelcard" data-feedback-id="overall-rank" data-feedback-label="Overall rank"><div class="ph"><h2>Overall rank</h2><span class="chip quiet">F through SSS</span></div><p class="big un">Unassessed</p><p class="hint">Category scoring, evidence coverage and grade cutoffs are still to be defined.</p><div class="rank-slots">' + slots.map(([id,name]) => '<div class="crow"><span>— ' + name + '</span><span class="hint">' + (!groupById(st,id) ? 'Empty' : gr.groups.find(g=>g.gid===id).status) + '</span></div>').join('') + '</div><details><summary>How the overall result is calculated</summary><p>Weighted average = Σ(category score × importance) ÷ Σ(included importance).</p><p class="hint">Current importance: ' + gr.groups.map(g=>esc(slots.find(x=>x[0]===g.gid)[1]) + ' ' + g.weight + (g.included ? ' (' + (g.share*100).toFixed(2) + '%)' : ' (excluded)')).join('; ') + '. Missing evidence holds the grade unassessed; hiding a category does not exclude it.</p><p class="hint">Example only: four scores of 80 and Faith at 90 produce ' + (example.overall === null ? 'no result with these settings' : example.overall.toFixed(2) + ' with your current weights') + '. Default 10:9 weights give 82.17. These are invented scores, not your grades.</p></details><button class="link" data-act="goGrades">Edit importance and inclusion</button></section><section class="panelcard" data-feedback-id="measured-fitness" data-feedback-label="Measured fitness"><h2>Measured fitness</h2><div class="attrs">' + ATTRIBUTES.map(a => '<div class="attr"><span class="cap">' + esc(a.name) + '</span><b class="un">—</b><span class="hint">Unassessed</span></div>').join('') + '</div><p class="hint">Measured fitness is separate from routine consistency and game rewards.</p><button class="link" data-act="go" data-area="data">Explore evidence</button></section><section class="panelcard" data-feedback-id="your-collection" data-feedback-label="Your collection"><h2>Your collection</h2><p>Level ' + rw.level + ' · ' + rw.orbs + ' points</p><p class="hint">' + rw.toNext + ' to the next level</p><button class="link" data-act="go" data-area="collection">Open collection</button><button class="link" style="display:block" data-act="go" data-area="progress">Routine consistency</button></section></div></div>';
+    const st = S(), rw = rewardReport(st, todayYmd());
+    return '<ht-body-view></ht-body-view><div class="cols2 profile-cards">' + measuredFitnessCard(st) + overallRankCard(st) +
+      '<section class="panelcard" data-feedback-id="your-collection" data-feedback-label="Your collection"><h2>Collection</h2><div class="collect-row"><span class="orb" aria-hidden="true"></span><div><b class="big">Level ' + rw.level + '</b><p class="hint" style="margin:0">' + rw.orbs + ' points · ' + rw.toNext + ' to the next level</p></div></div><button class="link" data-act="go" data-area="collection">Open collection</button></section></div>';
   }
   function dailyRow(r){
     const children=r.children||[], future=r.date>todayYmd(), confirmed=r.status==='done';
-    return '<article class="daily-row" data-series="'+r.seriesId+'" data-date="'+r.date+'" data-key="'+r.key+'"><div class="rowhead"><div class="daily-label"><button class="an" data-act="openRow">'+esc(r.name)+'</button><p class="hint">'+esc(r.window||anchorLabel(r.anchor))+' · '+esc(children.length?r.family.done+'/'+r.family.total+' confirmed':r.confirmation||'No entry')+'</p></div>'+(children.length?'<span class="chip quiet">Family</span>':'<button class="cb" role="checkbox" aria-checked="'+(confirmed?'true':r.status==='tentative'?'mixed':'false')+'" data-act="toggleDone" aria-label="'+(confirmed?'Review':'Check off')+' '+esc(r.name)+'" '+(future?'disabled':'')+'>'+(confirmed?'✓':r.status==='tentative'?'·':'')+'</button>')+'<button class="ghost small" data-act="'+(children.length?'openRow':'reviewAction')+'" '+(future&&!children.length?'disabled':'')+'>'+(children.length?'Adjust':confirmed?'Review':'Confirm / details')+'</button></div>'+(children.length?'<details class="children"><summary>'+children.length+' activities</summary>'+children.map(dailyRow).join('')+'</details>':'')+'</article>';
+    const who=confirmed?'Confirmed':r.status==='tentative'?'Checked off, not confirmed':'Not done yet';
+    return '<article class="daily-row" data-series="'+r.seriesId+'" data-date="'+r.date+'" data-key="'+r.key+'"><div class="rowhead">'+(children.length?'<span class="chip quiet">'+r.family.done+'/'+r.family.total+'</span>':'<button class="cb" role="checkbox" aria-checked="'+(confirmed?'true':r.status==='tentative'?'mixed':'false')+'" data-act="toggleDone" aria-label="'+(confirmed?'Review ':'Done: ')+esc(r.name)+' · '+who+'" title="'+who+'" '+(future?'disabled':'')+'>'+(confirmed?'✓':'')+'</button>')+'<div class="daily-label"><button class="an" data-act="openRow">'+esc(r.name)+'</button><p class="hint">'+esc(r.window||anchorLabel(r.anchor))+'</p></div><details class="more"><summary aria-label="More for '+esc(r.name)+'">⋯</summary><div class="more-menu"><button class="link" data-act="'+(children.length?'openRow':'reviewAction')+'" '+(future&&!children.length?'disabled':'')+'>Details</button></div></details></div>'+(children.length?'<details class="children"><summary>'+children.length+' activities</summary>'+children.map(dailyRow).join('')+'</details>':'')+'</article>';
   }
 
   function activitiesCard(){
@@ -1136,12 +1306,14 @@ addEventListener('load', () => {
     const st = S(), rows = typeof flatPlanFor === 'function' ? flatPlanFor(st,day).filter(r => !groupById(st,r.group)?.hidden) : agendaFor(st,day);
     const n = nextAction(rows), removed = removedFor(st,day);
     const nav = '<div class="daynav"><button class="nav-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b>' + esc(longDate(day)) + '</b><button class="nav-btn" data-act="step" data-n="1" aria-label="Next day">›</button>' + (day !== todayYmd() ? '<button class="link" data-act="jumpToday">Back to today</button>' : '') + (day >= todayYmd() ? lighterDayButton(st) : '') + '</div><div class="subtabs" role="tablist" aria-label="Today views">' + [['overview','Overview'],['activities','Activities'],['agenda','Agenda']].map(t => '<button role="tab" aria-selected="' + (todayTab === t[0]) + '" data-act="todayTab" data-tab="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>';
-    const next = '<section class="panelcard next-action" data-feedback-id="next-action" data-feedback-label="Next useful action"><p class="cap">'+(n&&n.status==='tentative'?'Review your check-off':'Next useful action')+'</p>' + (n ? '<h2>' + esc(n.name) + '</h2><p>' + esc(n.target.label) + '</p><div class="acts" data-series="' + n.seriesId + '" data-date="' + n.date + '" data-key="' + n.key + '">' + actionButtons(n) + '<button class="ghost" data-act="openRow">Adjust this day</button></div>' : '<h2>Room to pause.</h2><p class="hint">' + (rows.length ? 'Every planned task has an entry.' : 'No activities planned today. Add one in Plan when you are ready.') + '</p>') + '</section>';
+    const next = '<section class="panelcard next-action" data-feedback-id="next-action" data-feedback-label="Next useful action"><p class="cap">'+(n&&n.status==='tentative'?'Review your check-off':'Up Next')+'</p>' + (n ? '<h2>' + esc(n.name) + '</h2>' + (n.target.label && n.target.label.trim().toLowerCase() !== String(n.name).trim().toLowerCase() ? '<p>' + esc(n.target.label) + '</p>' : '') + '<div class="acts" data-series="' + n.seriesId + '" data-date="' + n.date + '" data-key="' + n.key + '">' + actionButtons(n,true) + '</div>' : '<h2>Room to pause.</h2><p class="hint">' + (rows.length ? 'Every planned task has an entry.' : 'No activities planned today. Add one in Plan when you are ready.') + '</p>') + '</section>';
     const undoRemoved = removed.length ? '<details class="panelcard" data-feedback-id="removed-activities" data-feedback-label="Removed activities"><summary>Taken off this day (' + removed.length + ')</summary>' + removed.map(r => '<div class="acts" data-series="' + r.seriesId + '" data-date="' + day + '"><span>' + esc(r.name) + '</span><button data-act="restore">Put back</button></div>').join('') + '</details>' : '';
-    const overview = '<div class="acts"><button class="save" data-act="todayTab" data-tab="activities">Add or review today’s activities</button></div>' + goalRailSection(day) + '<div class="today-layout"><div>' + next + quickLog() + '</div><div>' + ringsSection(day) + sleepCard(day) +
+    const overview = '<div class="acts"><button class="save" data-act="todayTab" data-tab="activities">Edit Today</button></div>' + goalRailSection(day) + '<div class="today-layout"><div>' + next + quickLog() + nutritionCard(day) + checkpointCard() + '</div><div>' + ringsSection(day) + sleepCard(day) +
       '<section class="panelcard" data-feedback-id="day-narration" data-feedback-label="Your day in words"><p class="hint" style="margin:0">' + esc(narrateDay(st,day,todayYmd()).text) + '</p></section>' +
-      '<section class="panelcard" data-feedback-id="coming-up" data-feedback-label="Coming up"><h2>Coming up</h2>' + rows.filter(r=>r.status===null).slice(0,3).map(dailyRow).join('') + '</section></div></div>';
-    return nav + intakeCard(true) + dayEditor() + (todayTab !== 'activities' && !activitiesAdopted(st) ? '<section class="panelcard setup-nudge"><h2>Your agreed activities aren’t set up yet</h2><p>Until they are, your imported workouts, steps, brushing and sleep can’t check anything off or fill the rings.</p><div class="acts"><button class="save" data-act="todayTab" data-tab="activities">Set them up</button></div></section>' : '') + (todayTab === 'activities' ? (activitiesPending(st) ? scoringProposalCard() : '') + exampleManagement() + unsortedWorkoutsCard() + wsActivities({includeClaims:true}) : claimsCard() + (todayTab === 'agenda' ? agendaCard() : overview)) + undoRemoved;
+      '<section class="panelcard" data-feedback-id="coming-up" data-feedback-label="Coming up"><h2>Later Today</h2>' + rows.filter(r=>r.status===null).slice(0,3).map(dailyRow).join('') + '</section></div></div>';
+    // No reminder panels on the page (Mintay, 2026-09-24): the feed's state is the header badge and
+    // "not set up yet" is an item behind its ⚠ count; the setup itself stays at the top of Activities.
+    return nav + dayEditor() + (todayTab === 'activities' ? (activitiesPending(st) ? scoringProposalCard() : '') + templateShelf() + unsortedWorkoutsCard() + wsActivities({includeClaims:true}) : claimsCard() + (todayTab === 'agenda' ? agendaCard() : overview)) + undoRemoved;
   }
 
   function starterFilePanel(){
@@ -1197,7 +1369,7 @@ out += '<div class="notice"><strong>Review before import.</strong> ' + c.measure
     return '';
   }
   function renderData(){
-    const st=S(),end=area!=='fitness'?todayYmd():fitnessRange==='custom'?fitnessTo:fitnessRange==='week'?addDays(weekStartOf(fitnessAnchor,0),6):todayYmd(),from=area!=='fitness'?addDays(end,-29):fitnessRange==='custom'?fitnessFrom:fitnessRange==='week'?weekStartOf(fitnessAnchor,0):addDays(end,1-Number(fitnessRange)),rel=(st.sourceRecords||[]).slice().sort((a,b)=>Date.parse(b.start)-Date.parse(a.start));
+    const st=S(),end=area!=='fitness'?todayYmd():fitnessRange==='custom'?fitnessTo:fitnessRange==='week'?addDays(weekStartOf(fitnessAnchor,0),6):todayYmd(),from=area!=='fitness'?addDays(end,-29):fitnessRange==='custom'?fitnessFrom:fitnessRange==='week'?weekStartOf(fitnessAnchor,0):fitnessRange==='today'?end:addDays(end,1-Number(fitnessRange)),rel=(st.sourceRecords||[]).slice().sort((a,b)=>Date.parse(b.start)-Date.parse(a.start));
     const weights = weightHistory(st, from, end, st.prefs.units), plotted = weights.filter(w => w.weight !== null);
     const nights = observationsBetween(st, from, end).filter(o => o.wake || o.sleepOnset || o.sleepAttempt);
     const sleepRecords = relayedRecords(st, 'sleep').filter(r => { const d = ymd(new Date(r.end || r.start)); return d >= from && d <= end; });
@@ -1232,7 +1404,7 @@ out += '<div class="notice"><strong>Review before import.</strong> ' + c.measure
       (NATIVE && !personalReview ? '<h4>Received deliveries</h4>' + (nativeInfo.relay.inbox.length ? nativeInfo.relay.inbox.map(it => '<div class="row compact" data-inbox="' + esc(it.id) + '"><div class="rowhead"><h3>Delivery · ' + esc(String(it.receivedAt || it.id).slice(0,19)) + '</h3><span class="hint">' + Math.round((it.size || 0)/1024) + ' KB · awaiting review</span><button class="ghost small" data-act="relayDiscard">Discard</button><button data-act="relayCheckInbox">Preview delivery</button></div></div>').join('') : '<p class="hint">No deliveries waiting. The native Action must be configured separately; no account connection is inferred.</p>') : '<p class="hint">Manual file import and relay paste are available here. The received-delivery inbox requires a separately configured native receiver; it is disabled in isolated review builds.</p>') + reviewHTML +
 '<h4>Import receipts</h4>' + (receipts.length ? receipts.map(r => '<details class="row compact"' + (r === receipts[0] ? ' open' : '') + '><summary>' + esc(dataWhen(r.at)) + ' · ' + esc(r.transport) + '</summary>' + relayCountsHTML(r.counts) + '<p class="hint">Source apps: ' + esc((r.sourceApps || []).join(', ') || 'unknown') + '<br>Requested dates: ' + esc(r.requestedWindow ? r.requestedWindow.from + ' to ' + r.requestedWindow.to : 'not recorded') + '<br>Reported coverage: ' + esc(r.reportedWindow ? r.reportedWindow.from + ' to ' + r.reportedWindow.to : 'unknown') + '<br>Received types: ' + esc((r.receivedKinds || []).join(', ') || 'none') + '<br>Retrieval time: ' + esc(dataWhen(r.relayedAt)) + '</p>' + (r.conversion ? '<p class="hint">Local conversion v' + esc(r.conversion.version) + ' · ' + esc(r.conversion.checksum) + ' · supported ' + (r.conversion.counts.converted||0) + ' · unsupported ' + (r.conversion.counts.unsupported||0) + ' · outside ' + (r.conversion.counts.outsideWindow||0) + ' · partial interval ' + (r.conversion.counts.partialWindow||0) + ' · invalid ' + (r.conversion.counts.invalid||0) + '<br>By kind: ' + esc(Object.entries(r.conversion.byKind||{}).map(([k,n])=>k+': '+n).join(', ')||'none') + '<br>Excluded reasons: ' + esc(Object.entries(r.conversion.exclusions||{}).map(([k,n])=>k+': '+n).join(', ')||'none') + '<br>Warnings: ' + esc(Object.entries(r.conversion.warnings||{}).map(([k,n])=>k+': '+n).join(', ')||'none') + '</p>' : '') + ((r.heldAmbiguous||[]).length ? '<details><summary>Ambiguous source copies held · ' + r.heldAmbiguous.length + '</summary>' + r.heldAmbiguous.map(item=>'<p class="hint">' + esc(item.record.kind+' · '+item.record.sourceApp+' · '+item.record.start) + '<br>Stored/file prior: ' + esc(item.current && item.current.value!==null ? item.current.value+' '+(item.current.unit||'') : 'unknown') + ' · Incoming: ' + esc(item.record.value!==null ? item.record.value+' '+(item.record.unit||'') : 'unknown') + '</p>').join('') + '</details>' : '') + (r.warnings || []).map(w => '<p class="hint">' + esc(w) + '</p>').join('') + '</details>').join('') : '<p class="hint">No receipts yet. Existing imports predate receipts and remain preserved.</p>') + '</section>';
 const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-derived" data-feedback-label="Raw, reported and derived"><h2>Raw, reported and derived</h2><p class="hint">Manual entries are self-reported. Imported source records retain the original writing app and reported source values; validation checks shape and duplicate identity, not medical accuracy. Derived displays include unit conversion, elapsed interval spans, source-specific workout comparisons, routine consistency and game rewards. Each uses its own rule; a completion or orb never becomes a fitness measurement.</p><details' + (rawOpen ? ' open' : '') + '><summary>All imported source records · ' + rel.length + '</summary>' + rel.slice(0,rawLimit).map(r => '<div class="row compact"><b>' + esc(r.kind + (r.type ? ' · ' + r.type : '')) + '</b><p class="hint">' + esc(r.sourceApp) + ' · ' + esc(dataWhen(r.start)) + (r.value === null || r.value === undefined ? '' : ' · ' + dataNumber(r.value) + ' ' + esc(r.unit || '(unit unknown)')) + '</p>' + relayTrace(r) + '</div>').join('') + (rel.length > rawLimit ? '<div class="acts"><button data-act="rawMore">Show next 40 records</button></div><p class="hint">Showing ' + Math.min(rawLimit,rel.length) + ' of ' + rel.length + ' records.</p>' : '') + '</details></section>';
-    return area==='fitness' ? '<div class="acts">'+[['week','Week · Sun–Sat'],['7','7 days'],['30','30 days'],['90','90 days'],['custom','Custom']].map(x=>'<button data-act="fitnessRange" data-value="'+x[0]+'" aria-pressed="'+(fitnessRange===x[0])+'">'+x[1]+'</button>').join('')+'</div>'+fitnessControls()+fitnessGlance(st,end)+sleepCard(end>todayYmd()?todayYmd():end)+'<details class="panelcard fitness-detail"><summary><b>Full detail by source</b> · '+esc(medDate(from))+' – '+esc(medDate(end))+' · missing records stay unknown</summary>'+metricTrends(st,from,end)+exportedSummaryHistory(st,from,end)+'<div class="cols2">'+weight+sleep+'</div>'+workouts+'</details><button data-act="go" data-area="data">Inspect sources and receipts</button>' : intakeCard()+localExportStatus(st)+starterFilePanel()+sources+relay+raw;
+    return area==='fitness' ? '<div class="acts">'+[['today','Today'],['week','Week · Sun–Sat'],['7','7 Days'],['30','30 Days'],['90','90 Days'],['custom','Custom']].map(x=>'<button data-act="fitnessRange" data-value="'+x[0]+'" aria-pressed="'+(fitnessRange===x[0])+'">'+x[1]+'</button>').join('')+'</div>'+fitnessControls()+fitnessCards(st,from,end)+'<details class="panelcard fitness-detail"><summary><b>Full detail by source</b> · '+esc(medDate(from))+' – '+esc(medDate(end))+' · missing records stay unknown</summary>'+metricTrends(st,from,end)+exportedSummaryHistory(st,from,end)+'<div class="cols2">'+weight+sleep+'</div>'+workouts+'</details><details class="panelcard fitness-sources"><summary><b>Sources &amp; Receipts</b></summary><p class="hint">Every imported file, what it held and when it arrived.</p><button data-act="go" data-area="data">Open in Data</button></details>' : intakeCard()+localExportStatus(st)+starterFilePanel()+sources+relay+raw;
   }
 
   /* ---------- Plan & Quests ---------- */
@@ -1352,7 +1524,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const all = agendaFor(st, weekSel);
     const rows = planGroup === 'all' ? all : all.filter(r => r.group === planGroup);
     const past = weekSel < todayYmd();
-    const filters = '<div class="chips"><button data-act="planGroup" data-group="all" aria-pressed="' + (planGroup === 'all') + '">All groups</button>' + visibleGroups(st).map(g => '<button data-act="planGroup" data-group="' + g.id + '" aria-pressed="' + (planGroup === g.id) + '">' + esc(g.name) + '</button>').join('') + '</div>';
+    const filters = '<div class="chips"><button data-act="planGroup" data-group="all" aria-pressed="' + (planGroup === 'all') + '">All groups</button>' + visibleGroups(st).map(g => '<button data-act="planGroup" data-group="' + g.id + '" aria-pressed="' + (planGroup === g.id) + '">' + esc(titleCase(g.name)) + '</button>').join('') + '</div>';
     const weekBlock = '<div class="plan-week-main"><div class="weeknav"><button class="nav-btn" data-act="stepWeek" data-n="-1" aria-label="Previous week">&#8249;</button><b>Week of ' + esc(monthDay(start)) + '</b><span class="hint">' + esc(relWeek(start)) + '</span><button class="nav-btn" data-act="stepWeek" data-n="1" aria-label="Next week">&#8250;</button>' + (start !== wkStart(todayYmd()) ? '<button class="link" data-act="jumpWeek">This week</button>' : '') + '</div>' + strip + categoryLegend(st) + '</div>';
     const dayBlock = filters +
       '<div class="dayhead"><h2 id="plan-day-heading" tabindex="-1">' + esc(longDate(weekSel)) + '</h2><span class="hint">' + esc(relDay(weekSel)) + '</span></div>' +
@@ -1364,11 +1536,28 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const stoppedHtml = stopped.length ? '<section class="sect"><h2>Stopped routines</h2>' + stopped.map(x => '<div class="row compact" data-series="' + x.seriesId + '"><div class="rowhead"><h3 class="dim">' + esc(x.name) + '</h3><span class="hint">since ' + esc(monthDay(x.since)) + '</span><button class="ghost small" data-act="resume">Resume</button></div></div>').join('') + '</section>' : '';
     const catalog = '<section class="sect" data-feedback-id="activity-catalog" data-feedback-label="Activity catalog"><h2>Add from the catalog</h2><p class="hint">Suggested activities per group. Choosing one opens + Add item on Today with its name filled in; nothing is added until you save.</p><div class="catalog">' + visibleGroups(st).map(g => '<div class="ccol"><p class="cap">' + esc(g.name) + '</p>' + CATALOG.filter(c => c.group === g.id).map(c => '<button class="citem" data-act="addRoute" data-group="' + esc(g.id) + '" data-name="' + esc(c.name) + '"' + (st.series.some(s => !s.archivedAt && latestVersion(s).name.toLowerCase() === c.name.toLowerCase()) ? ' disabled title="Already in your plan"' : '') + '>' + esc(c.name) + (c.optional ? ' <span class="chip quiet">optional</span>' : '') + '</button>').join('') + '</div>').join('') + '</div></section>';
     const notes = '<details class="plan-notes"><summary>About reminders and programs from other apps</summary><div class="cols2"><section class="panelcard" data-feedback-id="reminders" data-feedback-label="Reminders"><h2>Reminders</h2><p class="hint">Reminder controls are in each routine editor and quiet hours are in Settings. macOS delivery belongs to the native app; this browser preview only stores the settings and cannot verify OS delivery.</p></section><section class="panelcard" data-feedback-id="programs-from-other-apps" data-feedback-label="Programs from other apps"><h2>Programs from other apps</h2><p class="hint">Chosen a program in Apple Fitness, Bevel or iFIT? Add its sessions here as activities with the program name in the title; the app keeps your choice and proposes how it fits. Automatic catalog import is unverified.</p></section></div></details>';
-    return '<div class="plan-week-layout">' + weekBlock + planQuestCard(rewardReport(st,todayYmd())) + '</div>' + dayBlock + list + removedHtml + stoppedHtml + catalog + notes + futureIdeasCard();
+    const untouched = planUntouchedExamples(st), dayRows = rows.flatMap(r => r.children || [r]);
+    const families = planFamiliesCard(st, untouched);
+    const dayList = '<details class="plan-fold plan-day-list" data-fold="list"' + (planFold.list || panel ? ' open' : '') + '><summary><b>' + esc(dayRows.length ? dayRows.length + ' item' + (dayRows.length === 1 ? '' : 's') : 'Nothing planned') + '</b><span class="hint">' + dayRows.filter(r => r.status === 'done').length + ' done · tap to ' + (planFold.list ? 'fold' : 'open') + ' the routines</span></summary>' + list + removedHtml + stoppedHtml + '</details>';
+    const more = '<details class="plan-fold" data-fold="more"' + (planFold.more ? ' open' : '') + '><summary><b>Catalog, Future Ideas &amp; Notes</b><span class="hint">Add from suggestions or park an idea</span></summary>' + catalog + futureIdeasCard() + notes + '</details>';
+    return '<div class="plan-week-layout">' + weekBlock + planQuestCard(rewardReport(st,todayYmd())) + '</div><div class="cols2 plan-cards">' + families + claimHistoryCard(st, start, Object.fromEntries(days.filter(d => d <= todayYmd()).map(d => [d, perfectDay(st, d)]))) + '</div>' + dayBlock + dayList + more;
   }
 
   /* ---------- family dashboards: read-only views of the existing records ---------- */
   let planCanvas = 'overview';
+  const planFold = {list:false, more:false};
+  function planFamiliesCard(st, untouched){ return '<section class="panelcard plan-fams" data-feedback-id="plan-families" data-feedback-label="Families"><div class="ph"><h2>Families</h2><span class="hint">This week · done of planned</span></div><div class="plan-fam-grid">' + planFamilies(st).map(f => planFamilyTile(f.id,f.label,untouched || planUntouchedExamples(st),true)).join('') + '</div></section>'; }
+  /* Points claimed each day of the shown week, by the day the action happened. */
+  function claimHistoryCard(st, start, perfect){
+    const days = weekDays(start), by = new Map(days.map(d => [d, {pts:0, n:0}]));
+    for (const c of Object.values(st.rewards && st.rewards.claims || {})){ const b = by.get(c.date); if (b && !c.syntheticPreview){ b.pts += Number(c.amount) || 0; b.n++; } }
+    const total = [...by.values()].reduce((a, b) => a + b.pts, 0), max = Math.max(1, ...[...by.values()].map(b => b.pts)), fmt = n => (Math.round(n * 10) / 10).toLocaleString();
+    return '<section class="panelcard plan-claims" data-feedback-id="claim-history" data-feedback-label="Claims this week"><div class="ph"><h2>Claims This Week</h2><span class="hint">' + fmt(total) + ' pts</span></div><div class="claim-bars">' + days.map(d => { const b = by.get(d); return '<span class="claim-day' + (d === todayYmd() ? ' today' : '') + '" title="' + esc(medDate(d) + ': ' + fmt(b.pts) + ' pts from ' + b.n + ' action' + (b.n === 1 ? '' : 's')) + '"><i style="height:' + (b.pts ? Math.max(6, 100 * b.pts / max) : 0).toFixed(0) + '%"></i><small>' + esc(shortDay(d).slice(0, 3)) + (perfect && perfect[d] ? ' ✦' : '') + '</small><b>' + (b.pts ? fmt(b.pts) : '—') + '</b></span>'; }).join('') + '</div>' + (perfect ? perfectNote(perfect, days) : '') + '</section>';
+  }
+  function perfectNote(perfect, days){
+    const n = days.filter(d => perfect[d] === true).length, week = days.every(d => d <= todayYmd() && perfect[d] !== false) && n > 0;
+    return '<p class="hint keep">' + (n ? '✦ ' + n + ' perfect day' + (n === 1 ? '' : 's') : 'No perfect day yet') + (week ? ' · ✦ Perfect week' : '') + ' · recognition, no extra points yet</p>';
+  }
   let fitnessCanvas = 'overview';
   let familyReflection = null;
   const FAMILY_VIEWS = [
@@ -1459,14 +1648,16 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const deck = document.querySelector('.plan-family-deck'), tab = deck && deck.querySelector('[aria-selected="true"]');
     if (tab && deck.scrollWidth > deck.clientWidth) deck.scrollLeft = Math.max(0,tab.offsetLeft - (deck.clientWidth - tab.offsetWidth) / 2);
   }
-  function planFamilyTile(group, label, untouchedExamples){
+  function planFamilyTile(group, label, untouchedExamples, card){
     const st = S(), today = todayYmd(), untouched = untouchedExamples || planUntouchedExamples(st);
     const summary = familyWeekSummary(st,group,weekStartOf(today,0),today,untouched), upcoming = familyUpcoming(st,group,today,untouched), next = upcoming.pending[0];
     const emblem = {fitness:'◌',food:'◒',care:'◇',faith:'✣',work:'▤',interests:'✦'}[group] || '✦';
     const nextText = next ? 'Next: <b>' + esc(next.name) + '</b> · ' + esc(shortDay(next.date)) : familyNothingText(upcoming);
     const selected = planCanvas === group, initial = Array.from(String(label).trim())[0] || '';
     const mark = FAMILY_VIEWS.some(f => f[0] === group) || !initial ? emblem : esc(initial.toUpperCase());
-    return '<button class="plan-family-tab" role="tab" id="plan-tab-' + esc(group) + '" aria-controls="plan-panel" aria-selected="' + selected + '" tabindex="' + (selected ? 0 : -1) + '" data-act="familyCanvas" data-family="' + esc(group) + '" aria-label="' + esc(label) + '. Selected day '+esc(medDate(weekSel))+': '+completionRows(st,weekSel).filter(r=>r.group===group&&r.status==='done').length+' of '+completionRows(st,weekSel).filter(r=>r.group===group).length+' confirmed. This week, Sunday to Saturday: ' + planVisualCounts(summary) + '. ' + (next ? 'Next: ' + esc(next.name) + ', ' + esc(medDate(next.date)) : familyNothingText(upcoming)) + '."><span class="plan-tab-title"><span class="plan-tab-emblem" aria-hidden="true">' + mark + '</span><span>' + esc(label) + '</span></span>' + selectedCategoryBar(st,group,weekSel) + '<span class="plan-tab-next">' + nextText + '</span><span class="plan-tab-foot">Selected day · view details</span></button>';
+    const name = titleCase(String(label));
+    if (!card) return '<button class="plan-family-tab" role="tab" id="plan-tab-' + esc(group) + '" aria-controls="plan-panel" aria-selected="' + selected + '" tabindex="' + (selected ? 0 : -1) + '" data-act="familyCanvas" data-family="' + esc(group) + '"><span class="plan-tab-emblem" aria-hidden="true">' + mark + '</span><span>' + esc(name) + '</span></button>';
+    return '<button class="plan-fam-card" data-act="familyCanvas" data-family="' + esc(group) + '" aria-label="' + esc(label) + '. Selected day '+esc(medDate(weekSel))+': '+completionRows(st,weekSel).filter(r=>r.group===group&&r.status==='done').length+' of '+completionRows(st,weekSel).filter(r=>r.group===group).length+' confirmed. This week, Sunday to Saturday: ' + planVisualCounts(summary) + '. ' + (next ? 'Next: ' + esc(next.name) + ', ' + esc(medDate(next.date)) : familyNothingText(upcoming)) + '."><span class="plan-tab-title"><span class="plan-tab-emblem" aria-hidden="true">' + mark + '</span><span>' + esc(name) + '</span><span class="plan-fam-count">' + summary.done + ' of ' + summary.planned + '</span></span>' + selectedCategoryBar(st,group,weekSel) + '<span class="plan-tab-next">' + nextText + '</span></button>';
   }
   function dashboardCard(group, key, label, content, extra){
     return '<section class="panelcard ' + (extra || '') + '" data-feedback-id="family-' + esc(group) + '-' + key + '" data-feedback-label="' + esc(label) + '">' + content + '</section>';
@@ -1532,7 +1723,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const st = S(), families = planFamilies(st);
     if (planCanvas !== 'overview' && !families.some(f => f.id === planCanvas)) planCanvas = 'overview';
     const untouched = planUntouchedExamples(st), overview = planCanvas === 'overview';
-    const tabs = '<div class="subtabs plan-family-deck" role="tablist" aria-label="Plans and family dashboards"><button class="plan-family-tab plan-overview-tab" role="tab" id="plan-tab-overview" aria-controls="plan-panel" aria-selected="' + overview + '" tabindex="' + (overview ? 0 : -1) + '" data-act="familyCanvas" data-family="overview"><span class="plan-tab-title"><span class="plan-tab-emblem" aria-hidden="true">✧</span><span>Overview</span></span><span class="plan-tab-next">Shape your week and open the day that matters now.</span><span class="plan-tab-foot">All your areas · view plan</span></button>' + families.map(f => planFamilyTile(f.id,f.label,untouched)).join('') + '</div>';
+    const tabs = '<div class="subtabs plan-family-deck" role="tablist" aria-label="Plans and family dashboards"><button class="plan-family-tab plan-overview-tab" role="tab" id="plan-tab-overview" aria-controls="plan-panel" aria-selected="' + overview + '" tabindex="' + (overview ? 0 : -1) + '" data-act="familyCanvas" data-family="overview"><span class="plan-tab-emblem" aria-hidden="true">✧</span><span>Overview</span></button>' + families.map(f => planFamilyTile(f.id,f.label,untouched)).join('') + '</div>';
     return tabs + '<div id="plan-panel" role="tabpanel" aria-label="' + esc(overview ? 'Plan overview' : planFamilyLabel(st,planCanvas)) + '">' + (overview ? renderPlanOverview() : renderFamilyDashboard(planCanvas,untouched)) + '</div>';
   }
   document.addEventListener('keydown', e => {
@@ -1715,6 +1906,74 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const st = S(), gr = gradeReport(st), names = {fitness:'Fitness',food:'Food & Hydration',care:'Personal Care',faith:'Faith',work:'Work & Learning'};
     return '<section class="panelcard" id="grade-settings" data-feedback-id="category-importance" data-feedback-label="Category importance"><h2>Category importance</h2><p class="hint">Faith starts at 10 and the other four at 9. Inclusion is independent of visibility. A zero importance excludes a category. Category rubrics and grade cutoffs remain unassessed.</p>' + gr.groups.map(g=>'<div class="grade-control"><label for="grade-'+g.gid+'">'+names[g.gid]+'</label><input id="grade-'+g.gid+'" type="number" min="0" max="10" step="0.01" value="'+g.weight+'" data-act="gradeWeight" data-group="'+g.gid+'"><label class="radios"><input type="checkbox" id="grade-include-'+g.gid+'" data-act="gradeInclude" data-group="'+g.gid+'" '+(g.included?'checked':'')+'> Include in overall</label><span class="hint">'+(g.share*100).toFixed(2)+'% of the weighted result</span></div>').join('') + '<p class="hint">All included categories need valid, comparable evidence. Missing evidence never silently improves the average.</p><div class="acts"><button class="save" data-act="saveGrades">Save category settings</button></div></section>';
   }
+  /* Template shelf (Mintay, 2026-09-24). Blueprints for what varies day to day — the agreed daily
+     activities stay automatic. Tick several, Add to today, then Done for today hides the shelf until
+     tomorrow. Each added item lands in its category for that day only, sub-tasks and all, and is then
+     an ordinary item to rename, change or delete. Templates can be added, edited, removed and saved
+     from any card; Set as default makes the current set what Reset returns to. */
+  const DEFAULT_TEMPLATES = [
+    {id:'tpl-daylight', name:'Daylight', group:'health-physical', items:[]},
+    {id:'tpl-movement', name:'Easy movement', group:'fitness', items:[]},
+    {id:'tpl-workout', name:'Extra workout', group:'fitness', items:[{name:'Warm-up'},{name:'Main set'},{name:'Stretch'}]},
+    {id:'tpl-mealprep', name:'Meal prep', group:'food', items:[]},
+    {id:'tpl-groceries', name:'Groceries', group:'home', items:[]},
+    {id:'tpl-deepclean', name:'Deep clean', group:'home', items:[{name:'Kitchen'},{name:'Floors'},{name:'Fridge'}]},
+    {id:'tpl-winddown', name:'Quiet wind-down', group:'health-mental', items:[{name:'Screens off'},{name:'Read'},{name:'Lights out'}]},
+    {id:'tpl-family', name:'Call family', group:'care', items:[]},
+    {id:'tpl-reading', name:'Reading', group:'work', items:[]}
+  ];
+  let shelfPicked = new Set(), shelfManage = false, shelfEdit = null;
+  const tplCopy = x => JSON.parse(JSON.stringify(x));
+  function templatesOf(st){ return Array.isArray(st.prefs.templates) ? st.prefs.templates : DEFAULT_TEMPLATES; }
+  function templateDefaults(st){ return Array.isArray(st.prefs.templateDefaults) ? st.prefs.templateDefaults : DEFAULT_TEMPLATES; }
+  function tplLines(items, depth=0){ return (items || []).map(i => '  '.repeat(depth) + i.name + (i.items && i.items.length ? '\n' + tplLines(i.items, depth + 1) : '')).join('\n'); }
+  function tplParse(text){ const out = []; for (const raw of String(text || '').split('\n')){ const name = raw.replace(/^[\s\-•*]+/, '').trim(); if (!name) continue; if (/^\s{2,}|^\s*[-•*]/.test(raw) && out.length) (out[out.length - 1].items = out[out.length - 1].items || []).push({name}); else out.push({name, items:[]}); } return out; }
+  function saveTemplates(st, list, message){ stage(st, 'pref'); st.prefs.templates = list; commit('pref', message); }
+  // Nutrition beside hydration (P8, Mintay 2026-09-24): today's logged meals and water, nothing inferred.
+  function nutritionCard(date){
+    const st = S(), foods = (st.foods || []).filter(f => f.date === date && f.nutrition), sum = k => foods.reduce((n, f) => n + (Number(f.nutrition[k]) || 0), 0);
+    const oz = typeof MealWater !== 'undefined' ? MealWater.waterSummary(st, date).manual.usFlOz : 0;
+    const cell = (label, value, unit) => '<div class="nut"><small>' + label + '</small><b>' + value + '</b>' + (unit ? ' <small>' + unit + '</small>' : '') + '</div>';
+    return '<section class="panelcard" data-feedback-id="nutrition" data-feedback-label="Nutrition"><div class="ph"><h2>Nutrition</h2></div><div class="nut-grid">' +
+      cell('Calories', foods.length ? Math.round(sum('calories')).toLocaleString() : '—', foods.length ? 'kcal' : '') + cell('Protein', foods.length ? Math.round(sum('proteinG')) : '—', foods.length ? 'g' : '') +
+      cell('Carbs', foods.length ? Math.round(sum('carbsG')) : '—', foods.length ? 'g' : '') + cell('Fat', foods.length ? Math.round(sum('fatG')) : '—', foods.length ? 'g' : '') + cell('Water', oz ? Math.round(oz) : '—', oz ? 'fl oz' : '') +
+      '</div>' + deficitLine(st, date) + '<p class="hint">From the meals and water you log here; a day with nothing logged shows dashes, not zeros. Imported nutrition is not added.</p></section>';
+  }
+  function deficitLine(st, date){
+    const eb = wsTry('energyBalance', st, date); if (!eb || !eb.available) return '';
+    const deficit = -eb.balance, pts = energyDeficitPoints(deficit);
+    return '<p class="deficit keep">' + (deficit > 0 ? 'Deficit <b>' + Math.round(deficit).toLocaleString() + ' kcal</b>' : 'Surplus <b>' + Math.round(-deficit).toLocaleString() + ' kcal</b>') + (pts ? ' · would earn <b>' + pts + ' pts</b> <span class="hint">(preview; not scored yet)</span>' : '') + '</p>';
+  }
+  // Checkpoint countdown (P8): Jan 7 2027 by default, counted to midnight Seattle time.
+  function checkpointCard(){
+    const cp = S().prefs.checkpoint || '2027-01-07', left = calendarDistance(todayYmd(), cp);
+    return '<section class="panelcard" data-feedback-id="checkpoint" data-feedback-label="Checkpoint"><div class="ph"><h2>Checkpoint</h2><span class="hint">' + esc(medDate(cp)) + '</span></div><p class="big">' + (left > 0 ? left + ' <small class="dim">days to go</small>' : left === 0 ? 'Today' : 'Passed') + '</p><p class="hint">A review point, not a promised result.</p></section>';
+  }
+  function templateShelf(){
+    const st = S(), list = templatesOf(st), groups = visibleGroups(st), gname = id => (groups.find(g => g.id === id) || {}).name || 'Category';
+    if (st.prefs.templateShelfDone === day && !shelfManage) return '<div class="shelf-done"><button class="link" data-act="shelfShow">Templates</button></div>';
+    const chips = list.map(t => '<label class="tpl-chip' + (shelfPicked.has(t.id) ? ' on' : '') + '" style="--category:' + categoryColor(t.group) + '"><input type="checkbox" data-act="shelfPick" data-tpl="' + esc(t.id) + '"' + (shelfPicked.has(t.id) ? ' checked' : '') + '><span>' + esc(t.name) + '</span>' + (t.items && t.items.length ? '<small>' + t.items.length + '</small>' : '') + '</label>').join('');
+    const editor = t => '<div class="tpl-edit" data-tpl="' + esc(t.id) + '"><div class="form"><div><label for="tpl-name">Name</label><input id="tpl-name" type="text" maxlength="60" value="' + esc(t.name) + '"></div><div><label for="tpl-group">Category</label><select id="tpl-group">' + groups.map(g => '<option value="' + esc(g.id) + '"' + (g.id === t.group ? ' selected' : '') + '>' + esc(g.name) + '</option>').join('') + '</select></div></div><label for="tpl-items">Sub-tasks, one per line (indent with two spaces for a sub-task of the line above)</label><textarea id="tpl-items" rows="4">' + esc(tplLines(t.items)) + '</textarea><div class="acts"><button class="save" data-act="shelfSaveTpl">Save template</button><button class="ghost" data-act="shelfCancelTpl">Cancel</button></div></div>';
+    const manage = shelfManage ? '<div class="shelf-manage">' + list.map(t => shelfEdit === t.id ? editor(t) : '<div class="tpl-row"><span><b>' + esc(t.name) + '</b> <small>' + esc(gname(t.group)) + (t.items && t.items.length ? ' · ' + t.items.map(i => i.name).join(', ') : '') + '</small></span><button class="link" data-act="shelfEditTpl" data-tpl="' + esc(t.id) + '">Edit</button><button class="link" data-act="shelfRemoveTpl" data-tpl="' + esc(t.id) + '">Remove</button></div>').join('') +
+      (shelfEdit === 'new' ? editor({id:'new', name:'', group:(groups[0] || {}).id, items:[]}) : '') +
+      '<div class="acts"><button data-act="shelfNewTpl">+ New template</button><button data-act="shelfSetDefault">Set as default</button><button data-act="shelfReset">Reset to default</button></div>' + exampleManagement() + '</div>' : '';
+    return '<section class="panelcard shelf" data-feedback-id="template-shelf" data-feedback-label="Add to today"><details class="shelf-body" id="shelfBody"' + (shelfOpen() ? ' open' : '') + '><summary><h2>Add to Today</h2><span class="hint">' + list.length + ' templates</span></summary>' +
+      '<div class="tpl-chips">' + chips + '</div><div class="acts"><button class="save" data-act="shelfAdd"' + (shelfPicked.size ? '' : ' disabled') + '>' + (shelfPicked.size ? 'Add ' + shelfPicked.size + ' to today' : 'Add to today') + '</button><button class="ghost" data-act="shelfDone">Done for today</button><button class="link" data-act="shelfManage" aria-pressed="' + shelfManage + '">' + (shelfManage ? 'Close manage' : 'Manage') + '</button></div>' + manage + '</details></section>';
+  }
+  function shelfOpen(){ try { return localStorage.getItem('health-tracker.shelfOpen') !== '0'; } catch (_) { return true; } }
+  async function addTemplatesToday(st, picked){
+    const groups = visibleGroups(st), list = templatesOf(st).filter(t => picked.has(t.id)), date = day;
+    const result = await manualActionTransaction(st, d => {
+      let r = {ok:true};
+      const add = (parentId, item, group) => { const fields = {id:newDraftId(), name:item.name, category:group, container:!!(item.items && item.items.length), recurrence:{kind:'once', date}};
+        r = parentId ? Workspace.addChild(d, parentId, fields, date, {scope:'occurrence'}) : Workspace.create(d, fields, date, {scope:'occurrence'}); if (!r || !r.ok) throw new Error((r && r.error) || 'Not added.');
+        for (const child of item.items || []) add(fields.id, child, group); };
+      try { for (const t of list) add(null, t, groups.some(g => g.id === t.group) ? t.group : (groups[0] || {}).id); } catch (e) { return {ok:false, error:e.message}; }
+      d.prefs.templateUse = d.prefs.templateUse || {}; for (const t of list) d.prefs.templateUse[t.id] = [...(d.prefs.templateUse[t.id] || []).filter(x => x !== date), date].sort().slice(-7);
+      return r;
+    }, {persist:!preview});
+    return {result, list};
+  }
   function exampleManagement(){
     const plan = exampleRemovalPreview(S(), todayYmd());
     if (!plan.length) return '';
@@ -1735,7 +1994,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function actionLogCard(){const rows=flatPlanFor(S(),day).filter(r=>!r.demo);return '<section class="panelcard"><h2>Did / did not · '+esc(medDate(day))+'</h2><p class="hint">These are the same actions shown in Today and Plan. Logging detail alone does not confirm an action.</p>'+rows.map(dailyRow).join('')+'</section>';}
   function profileTrajectory(){const st=S(),end=todayYmd(),start=addDays(end,-27),list=weightHistory(st,start,end,st.prefs.units).filter(x=>x.weight!==null);return '<section class="panelcard"><h2>Your trajectory · 28 days</h2><p>'+esc(list.length>=2?'Recorded weight observations are available; compare their dates and sources in Fitness.':'Not enough comparable measurements for a body trend.')+'</p><p class="hint">Checkpoint '+esc(st.prefs.checkpoint||'not chosen')+' is a review date, not a promised outcome. Body composition remains Unassessed.</p><button data-act="go" data-area="fitness">Explore dated measurements</button><button data-act="go" data-area="progress">Review routine practice</button></section>';}
 
-  function categoryLegend(state){return '<div class="plan-visual-legend">'+visibleGroups(state).map(g=>'<span><i style="background:'+categoryColor(g.id)+'" aria-hidden="true"></i>'+esc(g.name)+'</span>').join('')+'</div><p class="hint">Bars show confirmed / committed actions. Select a day for exact outcomes; empty and future work stays unfilled.</p>'; }
+  function categoryLegend(state){return '<div class="plan-visual-legend">'+visibleGroups(state).map(g=>'<span><i style="background:'+categoryColor(g.id)+'" aria-hidden="true"></i>'+esc(titleCase(g.name))+'</span>').join('')+'</div><p class="hint">Bars show confirmed / committed actions. Select a day for exact outcomes; empty and future work stays unfilled.</p>'; }
   // One colour per category everywhere it appears (cards, rows, rings, bars). Faith is royal purple. A category
   // without an assigned colour gets a stable one derived from its id, so it never changes between views.
   function categoryColor(group){const fixed={fitness:'var(--verd)','health-physical':'var(--verd)','health-mental':'#6fa8dc',food:'#bf963e',care:'#c98aa6','personal-care':'#c98aa6',hygiene:'#4fb3aa',home:'#bc8873',work:'#bc8873',interests:'#9fb35a',faith:'#7851a9'}[group];if(fixed)return fixed;let h=0;for(const c of String(group||''))h=(h*31+c.charCodeAt(0))>>>0;return 'hsl('+(h%360)+' 42% 58%)';}
@@ -1933,7 +2192,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
         '<li>Prove the door from here first:<div class="acts"><button data-act="relaySelfTest">Send a test delivery</button></div></li></ol>' +
         '<p class="hint">Inbox folder on this Mac: <code>' + esc(nativeInfo.relay.path || '…/Application Support/HealthTracker/inbox') + '</code>. ' + nativeInfo.relay.inbox.length + ' waiting.</p>'
       : '<p class="hint">A Mac-app feature. In a browser there is no door and nothing listens; use the paste route in Data.</p>') + '</section>';
-    const keys = '<section class="panelcard" data-feedback-id="keyboard" data-feedback-label="Keyboard"><h2>Keyboard</h2><p class="hint">' + keyAreas().map((a,i) => '<b>' + (i === 9 ? 0 : i + 1) + '</b> ' + esc(TITLES[a][0])).join(' · ') + '</p><p class="hint"><b>D</b> marks the next action done · <b>/</b> writes a suggestion in Lessons · <b>Esc</b> closes a panel. Shortcuts pause while you type.</p></section>';
+    const keys = '<section class="panelcard" data-feedback-id="keyboard" data-feedback-label="Keyboard" data-tidy="keep"><h2>Keyboard</h2><p class="hint">' + keyAreas().map((a,i) => '<b>' + (i === 9 ? 0 : i + 1) + '</b> ' + esc(TITLES[a][0])).join(' · ') + '</p><p class="hint"><b>D</b> marks the next action done · <b>/</b> writes a suggestion in Lessons · <b>Esc</b> closes a panel. Shortcuts pause while you type.</p></section>';
     return (preview ? '<div class="notice"><strong>Preview workspace.</strong> Settings here change the demo only.</div>' : '') + '<div class="cols2">' + cats + goals + '</div><div class="cols2">' + sources + prefs + '</div><div class="cols2">' + notif + start + '</div><div class="cols2">' + rank + photo + '</div><div class="cols2">' + log + keys + '</div>' + gradeSettings() + ((!preview && store.quarantinedClaims()) ? '<section class="panelcard" data-feedback-id="set-aside-reward-ledger" data-feedback-label="Set-aside reward ledger"><h2>Set-aside reward ledger</h2><p class="hint">An unreadable reward ledger was preserved during recovery. Export it for private inspection; it is never restored automatically.</p><div class="acts"><button data-act="exportClaimQuarantine">Export set-aside reward ledger</button></div></section>' : '') + gpt + data;
   }
 
@@ -1979,7 +2238,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     else if (Number.isFinite(ring.value) && Number.isFinite(ring.target) && ring.target > 0) frac = Math.max(0, Math.min(0.985, ring.value / ring.target));
     const tint = RING_TINT[ring.id] || 'var(--brass)';
     if (frac <= 0) return base;
-    if (frac >= 1) return base + '<circle class="ringarcq" cx="90" cy="90" r="' + r + '" stroke="' + tint + '"/>';
+    // Past 100%: a second lap in the same style, drawn up to 150%. Closure and the ring count stay at 100%.
+    const lap = ring.closed && Number.isFinite(ring.value) && ring.target > 0 ? Math.min(0.5, ring.value / ring.target - 1) : 0;
+    if (frac >= 1) return base + '<circle class="ringarcq" cx="90" cy="90" r="' + r + '" stroke="' + tint + '"/>' + (lap > 0.01 ? '<path class="ringarcq ringlap" stroke="' + tint + '" d="' + arcPath(r, 0, lap * 360) + '"/>' : '');
     return base + '<path class="ringarcq" stroke="' + tint + '" d="' + arcPath(r, 0, frac * 360) + '"/>';
   }
   function routineArc(ring, r){
@@ -2014,7 +2275,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   }
   function clockOf(iso){if(!iso)return '—';const m=/T(\d{2}):(\d{2})/.exec(iso);if(!m)return '—';let h=+m[1];const ap=h>=12?'pm':'am';h=h%12||12;return h+':'+m[2]+' '+ap;}
   function hm(min){const h=Math.floor(min/60),m=Math.round(min%60);return h+' h'+(m?' '+m+' min':'');}
-  function sleepCard(date){
+  function sleepCard(date,opts={}){
     const st=S(),feed=st.autoFeed,off=feed&&feed.contract&&feed.contract.sleepMode!=='include';
     const head='<section class="panelcard sleep-card" data-feedback-id="sleep" data-feedback-label="Sleep"><div class="ph"><h2>Sleep</h2><span class="hint">Night ending '+esc(medDate(date))+'</span></div>';
     if(!feed)return head+'<p class="hint">Sleep appears here once Health Auto Export is connected.</p></section>';
@@ -2022,14 +2283,24 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const nights=sleepNights(st),n=nights.get(date),week=[];
     for(let i=6;i>=0;i--){const d=addDays(date,-i);week.push({d,night:nights.get(d)});}
     const pct=n?Math.min(1,n.minutes/SLEEP_GOAL_MIN):0,C=2*Math.PI*42;
-    const ring='<svg viewBox="0 0 100 100" width="112" height="112" role="img" aria-label="'+(n?esc(hm(n.minutes))+' asleep of 8 hours':'No night recorded')+'"><circle cx="50" cy="50" r="42" fill="none" stroke="var(--line)" stroke-width="10"/><circle cx="50" cy="50" r="42" fill="none" stroke="#8e7cc3" stroke-width="10" stroke-linecap="round" stroke-dasharray="'+(C*pct).toFixed(1)+' '+C.toFixed(1)+'" transform="rotate(-90 50 50)"/><text x="50" y="50" text-anchor="middle" font-size="16" fill="var(--ink)">'+(n?(n.minutes/60).toFixed(1):'—')+'</text><text x="50" y="65" text-anchor="middle" font-size="9" fill="var(--muted)">of 8 h</text></svg>';
+    const ring='<svg viewBox="0 0 100 100" width="112" height="112" role="img" aria-label="'+(n?esc(hm(n.minutes))+' asleep of 8 hours':'No night recorded')+'"><circle cx="50" cy="50" r="42" fill="none" stroke="var(--line)" stroke-width="10"/><circle cx="50" cy="50" r="42" fill="none" stroke="#5b8fd6" stroke-width="10" stroke-linecap="round" stroke-dasharray="'+(C*pct).toFixed(1)+' '+C.toFixed(1)+'" transform="rotate(-90 50 50)"/><text x="50" y="50" text-anchor="middle" font-size="16" fill="var(--ink)">'+(n?(n.minutes/60).toFixed(1):'—')+'</text><text x="50" y="65" text-anchor="middle" font-size="9" fill="var(--muted)">of 8 h</text></svg>';
     const stages=n?['deep','core','rem','awake'].filter(k=>Number.isFinite(n.stats[k])&&n.stats[k]>0).map(k=>({k,h:n.stats[k]})):[];
-    const tint={deep:'#5b4a9e',core:'#8e7cc3',rem:'#b9a9e6',awake:'#d9a066'},label=k=>k==='rem'?'REM':k[0].toUpperCase()+k.slice(1);
+    const tint={deep:'#2f4f9e',core:'#5b8fd6',rem:'#9cc4f0',awake:'#d9a066'},label=k=>k==='rem'?'REM':k[0].toUpperCase()+k.slice(1);
     const bar=stages.length?'<div class="sleep-stages" role="img" aria-label="Stages: '+esc(stages.map(x=>label(x.k)+' '+hm(x.h*60)).join(', '))+'">'+stages.map(x=>'<i style="flex:'+x.h+';background:'+tint[x.k]+'"></i>').join('')+'</div><p class="hint">'+stages.map(x=>'<span style="color:'+tint[x.k]+'">■</span> '+esc(label(x.k))+' '+esc(hm(x.h*60))).join(' · ')+'</p>':'';
     const max=Math.max(SLEEP_GOAL_MIN,...week.map(w=>w.night?w.night.minutes:0));
-    const bars='<div class="sleep-week" aria-label="Last seven nights">'+week.map(w=>'<div><span style="height:'+(w.night?Math.round(60*w.night.minutes/max):0)+'px'+(w.night&&w.night.minutes>=SLEEP_GOAL_MIN?';background:#8e7cc3':'')+'" title="'+esc(medDate(w.d)+': '+(w.night?hm(w.night.minutes):'no record'))+'"></span><small>'+esc(new Date(w.d+'T12:00:00').toLocaleDateString(undefined,{weekday:'narrow'}))+'</small></div>').join('')+'<em style="bottom:'+Math.round(60*SLEEP_GOAL_MIN/max)+'px"></em></div>';
+    const bars='<div class="sleep-week" aria-label="Last seven nights">'+week.map(w=>'<div><span style="height:'+(w.night?Math.round(60*w.night.minutes/max):0)+'px'+(w.night&&w.night.minutes>=SLEEP_GOAL_MIN?';background:#5b8fd6':'')+'" title="'+esc(medDate(w.d)+': '+(w.night?hm(w.night.minutes):'no record'))+'"></span><small>'+esc(new Date(w.d+'T12:00:00').toLocaleDateString(undefined,{weekday:'narrow'}))+'</small></div>').join('')+'<em style="bottom:'+Math.round(60*SLEEP_GOAL_MIN/max)+'px"></em></div>';
     const recorded=week.filter(w=>w.night),avg=recorded.length?recorded.reduce((a,w)=>a+w.night.minutes,0)/recorded.length:null;
-    return head+'<div class="sleep-grid"><div>'+ring+'</div><div>'+(n?'<p><b>'+esc(hm(n.minutes))+'</b> asleep · '+esc(clockOf(n.start))+' → '+esc(clockOf(n.end))+'</p><p class="hint">'+esc(n.source||'Health Auto Export')+'. A night counts on the day you woke up.</p>':'<p class="hint">No night recorded for this day yet. A missing night is unknown, not zero.</p>')+bar+'</div></div>'+bars+'<p class="hint">'+(avg!==null?'Average '+esc(hm(avg))+' over '+recorded.length+' recorded night'+(recorded.length===1?'':'s')+' this week.':'No nights recorded this week yet.')+'</p></section>';
+    return head+'<div class="sleep-grid"><div>'+ring+'</div><div>'+(n?'<p><b>'+esc(hm(n.minutes))+'</b> asleep · '+esc(clockOf(n.start))+' → '+esc(clockOf(n.end))+'</p><p class="hint">'+esc(n.source||'Health Auto Export')+'. A night counts on the day you woke up.</p>':'<p class="hint">No night recorded for this day yet. A missing night is unknown, not zero.</p>')+bar+'</div></div>'+bars+'<p class="hint">'+(avg!==null?'Average '+esc(hm(avg))+' over '+recorded.length+' recorded night'+(recorded.length===1?'':'s')+' this week.':'No nights recorded this week yet.')+'</p>'+(opts.fitness?sleepMore(st,date,n,week):'')+'</section>';
+  }
+  // Fitness keeps more of the night in view, in the spirit of Apple's sleep view: time in bed, the
+  // times, breathing rate when the export has it, and the last seven nights as bedtime → wake bars.
+  function sleepMore(st,date,n,week){
+    const rr=metricDaily(st,['respiratory_rate'],['other'],addDays(date,-1),date),resp=rr.get(date)??rr.get(addDays(date,-1));
+    const tile=(label,value)=>'<div class="nut"><small>'+label+'</small><b>'+value+'</b></div>';
+    const tiles=n?'<div class="nut-grid sleep-tiles">'+tile('Time in bed',Number.isFinite(n.stats.inBed)?esc(hm(n.stats.inBed*60)):'—')+tile('Bedtime',esc(clockOf(n.start)))+tile('Woke',esc(clockOf(n.end)))+tile('Breathing',Number.isFinite(resp)?resp.toFixed(1)+' <small>/min</small>':'—')+'</div>':'';
+    const at=iso=>{const m=/T(\d{2}):(\d{2})/.exec(iso||'');if(!m)return null;let h=+m[1]+ +m[2]/60;if(h<12)h+=24;return Math.max(0,Math.min(100,100*(h-20)/16));};
+    const rows=week.map(w=>{const s0=w.night&&at(w.night.start),e0=w.night&&at(w.night.end);return '<span class="sched-d">'+esc(new Date(w.d+'T12:00:00').toLocaleDateString(undefined,{weekday:'short'}))+'</span><span class="sched-t">'+(s0!==null&&e0!==null&&w.night?'<i style="left:'+s0.toFixed(1)+'%;width:'+Math.max(2,e0-s0).toFixed(1)+'%;background:'+perfColor(w.night.minutes/SLEEP_GOAL_MIN)+'" title="'+esc(clockOf(w.night.start)+' → '+clockOf(w.night.end))+'"></i>':'')+'</span>';}).join('');
+    return tiles+'<p class="cap" style="margin-top:12px">Schedule · last 7 nights</p><div class="sched">'+rows+'</div><div class="sched-axis"><span>8 PM</span><span>12 AM</span><span>4 AM</span><span>8 AM</span><span>12 PM</span></div>';
   }
   function unsortedWorkoutsCard(){
     if(typeof Workspace==='undefined'||!Workspace.unsortedWorkouts)return '';
@@ -2048,37 +2319,140 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const max=Math.max(goal||0,...days.map(d=>values.get(d)||0),1);
     return '<div class="glance-spark">'+days.map(d=>{const v=values.get(d);return '<span title="'+esc(medDate(d)+': '+(v===undefined?'no record':Math.round(v).toLocaleString()))+'" style="height:'+(v===undefined?2:Math.max(3,Math.round(34*v/max)))+'px;background:'+(v===undefined?'var(--line)':goal&&v>=goal?color:'color-mix(in srgb,'+color+' 45%,transparent)')+'"></span>';}).join('')+(goal?'<em style="bottom:'+Math.round(34*goal/max)+'px"></em>':'')+'</div>';
   }
+  /* One colour scale everywhere (Mintay, 2026-09-24), continuous rather than solid bands: red is far
+     behind, then orange, yellow, green on target, and violet only when well above it (purple otherwise
+     means Faith). `ratio` is value ÷ target; lower-is-better metrics pass their inverse. For today the
+     scale stops at orange until the evening, so red stays rare and never shames a morning. */
+  const PERF_STOPS=[[0,[192,57,43]],[.5,[224,135,58]],[.8,[212,194,74]],[1,[63,174,107]],[1.1,[63,174,107]],[1.3,[155,108,240]]];
+  function perfColor(ratio,opts={}){
+    let r=Number.isFinite(ratio)?Math.max(0,Math.min(1.3,ratio)):0;
+    if(opts.today&&new Date().getHours()<20)r=Math.max(r,.5);
+    let i=1;while(i<PERF_STOPS.length-1&&r>PERF_STOPS[i][0])i++;
+    const [a,ca]=PERF_STOPS[i-1],[b,cb]=PERF_STOPS[i],t=b===a?0:Math.max(0,Math.min(1,(r-a)/(b-a)));
+    return 'rgb('+ca.map((v,k)=>Math.round(v+(cb[k]-v)*t)).join(',')+')';
+  }
+  function perfWord(ratio){return !Number.isFinite(ratio)?'':ratio>=1.3?'▲ Excellent':ratio>=1?'● On target':ratio>=.8?'◐ Close':ratio>=.5?'▼ Behind':'▼▼ Far behind';}
+  function gradientKey(){return '<div class="grad-key" aria-label="Colour key: red far behind, orange behind, yellow close, green on target, violet excellent"><span>Behind</span><i aria-hidden="true"></i><span>Excellent</span></div>';}
   function tile(title,big,sub,pct,color,sparkHTML){
     return '<div class="glance-tile"><p class="cap">'+esc(title)+'</p><p class="glance-big">'+big+'</p><div class="glance-bar"><i style="width:'+Math.round(Math.min(1,pct||0)*100)+'%;background:'+color+'"></i></div><p class="hint">'+sub+'</p>'+sparkHTML+'</div>';
   }
-  function fitnessGlance(st,end){
-    const today=end>todayYmd()?todayYmd():end,from=addDays(today,-6),days=[];for(let i=6;i>=0;i--)days.push(addDays(today,-i));
-    const steps=dailyMax(st,'steps',from,today),energy=dailyMax(st,'activeEnergy',from,today);
+  // Every tile follows the range picked above it (Mintay, 2026-09-24). It used to show the seven days
+  // before the end date whatever was picked, so "Week · Sun–Sat" read Thu–Wed while the detail below
+  // said Sun–Sat. Day values show the range's last lived day; totals cover the whole range.
+  function fitnessGlance(st,from,end){
+    const today=todayYmd(),last=end>today?today:end,first=from>last?last:from,days=[];for(let d=first;d<=last;d=addDays(d,1))days.push(d);
+    const thisWeek=weekStartOf(fitnessAnchor,0)===weekStartOf(today,0);
+    const label=fitnessRange==='today'?'Today':fitnessRange==='week'?(thisWeek?'This Week':'Week of '+medDate(first)):fitnessRange==='custom'?'Custom Range':'Last '+days.length+' Days';
+    const dayName=d=>d===today?'today':new Date(d+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+    const steps=dailyMax(st,'steps',first,last),energy=dailyMax(st,'activeEnergy',first,last);
     const cls=r=>Workspace.workoutClass?Workspace.workoutClass(st,r.reference):null;
-    const wk=workoutHistory(st,from,today).filter(w=>w.origin==='relayed');
-    const weekStart=weekStartOf(today,st.prefs.weekStart),thisWeek=wk.filter(w=>w.date>=weekStart);
-    const minutesBy=(c,list)=>list.filter(w=>cls(w)===c).reduce((a,w)=>a+(w.minutes||0),0);
-    const perDay=c=>{const m=new Map();for(const w of thisWeek)if(cls(w)===c)m.set(w.date,(m.get(w.date)||0)+(w.minutes||0));return m;};
-    const cardioDays=[...perDay('cardio').values()].filter(v=>v>=20).length,strengthDays=[...perDay('strength').values()].filter(v=>v>=15).length;
-    const nights=sleepNights(st),lastNight=nights.get(today)||nights.get(addDays(today,-1)),sleepVals=new Map(days.filter(d=>nights.get(d)).map(d=>[d,nights.get(d).minutes/60]));
-    const s=steps.get(today),e=energy.get(today);
+    const wk=workoutSessions(st,workoutHistory(st,first,last).filter(w=>w.origin==='relayed'));
+    const minutesBy=c=>wk.filter(w=>cls(w)===c).reduce((a,w)=>a+(w.minutes||0),0);
+    const perDay=c=>{const m=new Map();for(const w of wk)if(cls(w)===c)m.set(w.date,(m.get(w.date)||0)+(w.minutes||0));return m;};
+    const cardioDays=[...perDay('cardio').values()].filter(v=>v>=20).length,strengthDays=[...perDay('strength').values()].filter(v=>v>=15).length,weekly=fitnessRange==='week'||fitnessRange==='7';
+    const nights=sleepNights(st),lastNight=nights.get(last)||(last===today?nights.get(addDays(last,-1)):null),sleepVals=new Map(days.filter(d=>nights.get(d)).map(d=>[d,nights.get(d).minutes/60]));
+    const s=steps.get(last),e=energy.get(last),many=days.length>1;
     const dots=(n,of,color)=>'<span class="glance-dots">'+Array.from({length:of},(_,i)=>'<i style="background:'+(i<n?color:'var(--line)')+'"></i>').join('')+'</span>';
     const tiles='<div class="glance-grid">'+
-      tile('Steps today',s===undefined?'—':Math.round(s).toLocaleString(),s===undefined?'No steps recorded yet today':(s<12000?Math.round(12000-s).toLocaleString()+' to go · ':'')+Math.round(100*s/12000)+'% of 12,000',s/12000,'#7fc8a9',spark(days,steps,12000,'#7fc8a9'))+
-      tile('Active energy',e===undefined?'—':Math.round(e).toLocaleString()+' <small>kcal</small>',e===undefined?'No energy recorded yet today':Math.round(100*e/1000)+'% of 1,000 kcal',e/1000,'#e8a15c',spark(days,energy,1000,'#e8a15c'))+
-      tile('Workouts this week',Math.round(minutesBy('cardio',thisWeek)+minutesBy('strength',thisWeek))+' <small>min</small>','Cardio '+dots(cardioDays,4,'#6fb6e0')+' '+cardioDays+'/4 days · Strength '+dots(strengthDays,4,'#c98fd8')+' '+strengthDays+'/4',Math.min(cardioDays,4)/8+Math.min(strengthDays,4)/8,'#6fb6e0','')+
-      tile('Last night',lastNight?(lastNight.minutes/60).toFixed(1)+' <small>h asleep</small>':'—',lastNight?Math.round(100*lastNight.minutes/480)+'% of 8 h':(st.autoFeed&&st.autoFeed.contract.sleepMode!=='include'?'Sleep not brought in yet':'No night recorded'),lastNight?lastNight.minutes/480:0,'#8e7cc3',spark(days,sleepVals,8,'#8e7cc3'))+
+      tile('Steps '+dayName(last),s===undefined?'—':Math.round(s).toLocaleString(),s===undefined?'No steps recorded '+(last===today?'yet today':'that day'):(s<12000?Math.round(12000-s).toLocaleString()+' to go · ':'')+Math.round(100*s/12000)+'% of 12,000',s/12000,'#7fc8a9',many?spark(days,steps,12000,'#7fc8a9'):'')+
+      tile('Active energy '+dayName(last),e===undefined?'—':Math.round(e).toLocaleString()+' <small>kcal</small>',e===undefined?'No energy recorded '+(last===today?'yet today':'that day'):Math.round(100*e/1000)+'% of 1,000 kcal',e/1000,'#e8a15c',many?spark(days,energy,1000,'#e8a15c'):'')+
+      tile('Workouts · '+label,Math.round(minutesBy('cardio')+minutesBy('strength'))+' <small>min</small>',weekly?'Cardio '+dots(cardioDays,4,'#6fb6e0')+' '+cardioDays+'/4 days · Strength '+dots(strengthDays,4,'#c98fd8')+' '+strengthDays+'/4':'Cardio '+cardioDays+' day'+(cardioDays===1?'':'s')+' · Strength '+strengthDays+' day'+(strengthDays===1?'':'s'),weekly?Math.min(cardioDays,4)/8+Math.min(strengthDays,4)/8:Math.min(1,(minutesBy('cardio')+minutesBy('strength'))/(45*Math.max(1,days.length))),'#6fb6e0','')+
+      tile(last===today?'Last night':'Night into '+dayName(last),lastNight?(lastNight.minutes/60).toFixed(1)+' <small>h asleep</small>':'—',lastNight?Math.round(100*lastNight.minutes/480)+'% of 8 h':(st.autoFeed&&st.autoFeed.contract.sleepMode!=='include'?'Sleep not brought in yet':'No night recorded'),lastNight?lastNight.minutes/480:0,'#5b8fd6',many?spark(days,sleepVals,8,'#5b8fd6'):'')+
       '</div>';
     const tag=w=>{const c=cls(w);return '<span class="glance-tag" style="--t:'+(c==='cardio'?'#6fb6e0':c==='strength'?'#c98fd8':'var(--muted)')+'">'+(c==='cardio'?'Cardio':c==='strength'?'Strength':c==='other'?'Other':'Choose in Activities')+'</span>';};
-    const list=wk.length?'<ul class="glance-list">'+wk.slice(0,10).map(w=>'<li><span>'+esc(new Date(w.date+'T12:00:00').toLocaleDateString(undefined,{weekday:'short'}))+'</span><b>'+esc(w.type)+'</b><span>'+(w.minutes===null?'—':Math.round(w.minutes)+' min')+'</span><span class="hint">'+esc(w.source||'')+'</span>'+tag(w)+'</li>').join('')+'</ul>':'<p class="hint">No workouts recorded in the last seven days.</p>';
-    const weights=weightHistory(st,addDays(today,-29),today,st.prefs.units).filter(w=>w.weight!==null&&w.weight!==undefined);
-    const wLine=weights.length?(()=>{const first=weights[0],last=weights[weights.length-1],d=last.weight-first.weight,u=st.prefs.units==='kg'?'kg':'lb';return '<p><b>'+last.weight.toFixed(1)+' '+u+'</b> latest · '+esc(medDate(last.date))+(weights.length>1?' · <span style="color:'+(d<=0?'#7fc8a9':'#e8a15c')+'">'+(d>0?'+':'')+d.toFixed(1)+' '+u+'</span> over 30 days':'')+'</p>';})():'<p class="hint">No body weight in the last 30 days.</p>';
-    return '<section class="panelcard glance" data-feedback-id="fitness-glance" data-feedback-label="Fitness at a glance"><div class="ph"><h2>This week at a glance</h2><span class="hint">'+esc(medDate(from))+' – '+esc(medDate(today))+'</span></div>'+tiles+'<div class="glance-cols"><div><h3>Workouts</h3>'+list+'</div><div><h3>Weight</h3>'+wLine+'</div></div></section>';
+    const list=wk.length?'<ul class="glance-list">'+wk.slice(0,10).map(w=>'<li><span>'+esc(new Date(w.date+'T12:00:00').toLocaleDateString(undefined,{weekday:'short'}))+'</span><b>'+esc(w.type)+'</b><span>'+(w.minutes===null?'—':Math.round(w.minutes)+' min')+'</span><span class="hint">'+esc(w.source||'')+(w.also?' · also '+esc(w.also.join(', ')):'')+'</span>'+tag(w)+'</li>').join('')+'</ul>':'<p class="hint">No workouts recorded '+(days.length===1?'this day':'in this range')+'.</p>';
+    const weights=weightHistory(st,addDays(last,-29),last,st.prefs.units).filter(w=>w.weight!==null&&w.weight!==undefined);
+    const wLine=weights.length?(()=>{const first=weights[0],lastW=weights[weights.length-1],d=lastW.weight-first.weight,u=st.prefs.units==='kg'?'kg':'lb';return '<p><b>'+lastW.weight.toFixed(1)+' '+u+'</b> latest · '+esc(medDate(lastW.date))+(weights.length>1?' · <span style="color:'+(d<=0?'#7fc8a9':'#e8a15c')+'">'+(d>0?'+':'')+d.toFixed(1)+' '+u+'</span> over 30 days':'')+'</p>';})():'<p class="hint">No body weight in the last 30 days.</p>';
+    return '<section class="panelcard glance" data-feedback-id="fitness-glance" data-feedback-label="Fitness at a glance"><div class="ph"><h2>'+esc(label)+'</h2><span class="hint">'+esc(first===last?medDate(first):medDate(first)+' – '+medDate(last))+'</span></div>'+tiles+'<div class="glance-cols"><div><h3>Workouts</h3>'+list+'</div><div><h3>Weight</h3>'+wLine+'</div></div></section>';
+  }
+  /* Fitness as four cards (Mintay, 2026-09-24): Activity, Sleep, Workouts, Vitals, each following the
+     picked range. Activity's tiles open their own timeline — hours for a single day, days otherwise —
+     coloured on the one scale against the goal. Vitals sit on your own 28-day typical range, with a
+     reputable default until there are enough readings; each row opens its 30-day trend. */
+  let fitMetric='steps';
+  const FIT_GOALS={steps:12000,energy:1000,exercise:45};
+  function minuteBuckets(st,kind,day){
+    const hours=Array(24).fill(0);let any=false;
+    // The display view folds minute buckets into one daily figure from one writer; draw that writer's own buckets.
+    const view=relayedRecords(st,kind).find(r=>r.unmapped?.healthAutoExport?.day===day),writer=view&&view.sourceApp;
+    for(const r of st.sourceRecords||[]){const m=r.unmapped&&r.unmapped.healthAutoExport;if(r.kind!==kind||!m||m.representation!=='minute aggregate'||m.day!==day||(writer&&r.sourceApp!==writer)||!Number.isFinite(r.value)||!sourceIsActive(st,r.id,r))continue;hours[sourceLocalHour(r.start)]+=r.value;any=true;}
+    return any?hours:null;
+  }
+  function metricDaily(st,metrics,kinds,from,to){
+    const out=new Map();
+    for(const kind of kinds)for(const r of relayedRecords(st,kind)){const m=r.unmapped&&r.unmapped.healthAutoExport;if(!m||!metrics.includes(m.metric)||!Number.isFinite(r.value))continue;const d=sourceLocalDay(r.start);if(d<from||d>to)continue;const prev=out.get(d);if(!prev||r.start>prev.start)out.set(d,{value:r.value,start:r.start});}
+    return new Map([...out].map(([d,x])=>[d,x.value]));
+  }
+  function barChart(labels,values,goal,opts={}){
+    const max=Math.max(goal||0,...values.map(v=>v||0),1),today=todayYmd();
+    return '<div class="fit-chart" role="img" aria-label="'+esc(opts.label||'Chart')+'">'+(goal?'<em style="bottom:'+(100*goal/max).toFixed(1)+'%" title="Goal"></em>':'')+values.map((v,i)=>{const d=opts.days&&opts.days[i],t=esc(labels[i]+': '+(v?Math.round(v).toLocaleString():'no record'));return (d?'<button class="bar" data-act="fitDay" data-date="'+d+'" aria-label="'+t+'"':'<span class="bar"')+' style="height:'+(v?Math.max(3,100*v/max):2).toFixed(1)+'%;background:'+(v?(goal?perfColor(v/goal,{today:d===today||opts.today}):'#5b8fd6'):'var(--line)')+'" title="'+t+'">'+(d?'</button>':'</span>');}).join('')+'</div><div class="fit-axis">'+labels.map((l,i)=>'<span>'+(opts.every&&i%opts.every?'':esc(l))+'</span>').join('')+'</div>';
+  }
+  function fitnessCards(st,from,end){
+    const today=todayYmd(),last=end>today?today:end,first=from>last?last:from,days=[];for(let d=first;d<=last;d=addDays(d,1))days.push(d);
+    const thisWeek=weekStartOf(fitnessAnchor,0)===weekStartOf(today,0);
+    const label=fitnessRange==='today'?'Today':fitnessRange==='week'?(thisWeek?'This Week':'Week of '+medDate(first)):fitnessRange==='custom'?(first===last?medDate(first):'Custom Range'):'Last '+days.length+' Days';
+    const dayName=d=>d===today?'today':new Date(d+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}),short=d=>new Date(d+'T12:00:00').toLocaleDateString(undefined,{weekday:'short'});
+    const steps=dailyMax(st,'steps',first,last),energy=dailyMax(st,'activeEnergy',first,last);
+    const cls=r=>Workspace.workoutClass?Workspace.workoutClass(st,r.reference):null;
+    const wk=workoutSessions(st,workoutHistory(st,first,last).filter(w=>w.origin==='relayed'));
+    const exercise=new Map();for(const w of wk)if(['cardio','strength'].includes(cls(w)))exercise.set(w.date,(exercise.get(w.date)||0)+(w.minutes||0));
+    const minutesBy=c=>wk.filter(w=>cls(w)===c).reduce((a,w)=>a+(w.minutes||0),0);
+    const perDay=c=>{const m=new Map();for(const w of wk)if(cls(w)===c)m.set(w.date,(m.get(w.date)||0)+(w.minutes||0));return m;};
+    const cardioDays=[...perDay('cardio').values()].filter(v=>v>=20).length,strengthDays=[...perDay('strength').values()].filter(v=>v>=15).length,weekly=fitnessRange==='week'||fitnessRange==='7',single=days.length===1;
+    const s=steps.get(last),e=energy.get(last),x=exercise.get(last)||0,cardioLast=(perDay('cardio').get(last)||0);
+    const tileBtn=(id,title,big,sub,ratio)=>'<button class="fit-tile'+(fitMetric===id?' on':'')+'" data-act="fitMetric" data-metric="'+id+'" aria-pressed="'+(fitMetric===id)+'" style="--tone:'+(Number.isFinite(ratio)?perfColor(ratio,{today:last===today}):'var(--line)')+'"><small>'+esc(title)+'</small><b>'+big+'</b><i class="fit-bar"><i style="width:'+Math.round(100*Math.min(1,ratio||0))+'%"></i></i><small>'+sub+'</small></button>';
+    const tiles='<div class="fit-tiles">'+
+      tileBtn('steps','Steps '+dayName(last),s===undefined?'—':Math.round(s).toLocaleString(),s===undefined?'No steps recorded '+(last===today?'yet today':'that day'):(s<12000?Math.round(12000-s).toLocaleString()+' to go · ':'')+Math.round(100*s/12000)+'% of 12,000',s/12000)+
+      tileBtn('energy','Active energy '+dayName(last),e===undefined?'—':Math.round(e).toLocaleString()+' <small>kcal</small>',e===undefined?'No energy recorded':Math.round(100*e/1000)+'% of 1,000 kcal',e/1000)+
+      tileBtn('exercise','Exercise '+dayName(last),Math.round(x)+' <small>min</small>','Cardio '+Math.round(cardioLast)+' of 45',x/45)+'</div>';
+    let chart;
+    if(single){const kind=fitMetric==='energy'?'activeEnergy':'steps',hours=fitMetric==='exercise'?null:minuteBuckets(st,kind,last),hl=Array.from({length:24},(_,h)=>h===0?'12a':h===12?'12p':h<12?h+'a':(h-12)+'p');
+      chart=hours?barChart(hl,hours,null,{label:(fitMetric==='energy'?'Active energy':'Steps')+' by hour',every:6}):'<p class="hint">'+(fitMetric==='exercise'?'Workouts for this day are listed under Workouts.':'No minute-by-minute record for this day.')+'</p>';}
+    else{const src=fitMetric==='energy'?energy:fitMetric==='exercise'?exercise:steps,vals=days.map(d=>src.get(d)),goal=FIT_GOALS[fitMetric],have=vals.filter(v=>v!==undefined&&v>0);
+      chart=barChart(days.map(short),vals,goal,{label:fitMetric+' by day',days,every:days.length>14?7:0})+'<div class="fit-sum"><span><small>Average</small><b>'+(have.length?Math.round(have.reduce((a,b)=>a+b,0)/have.length).toLocaleString():'—')+'</b></span><span><small>Best</small><b>'+(have.length?Math.round(Math.max(...have)).toLocaleString():'—')+'</b></span><span><small>Goal days</small><b>'+vals.filter(v=>v>=goal).length+' of '+days.length+'</b></span></div>';}
+    const activity='<section class="panelcard fit-activity" data-feedback-id="fitness-activity" data-feedback-label="Activity"><div class="ph"><h2>Activity</h2></div><p class="hint">Tap a tile for its timeline: hours on a single day, days across a range. Bars are coloured against the goal — 12,000 steps, 1,000 kcal, 45 minutes — and a day’s bar opens that day.</p>'+tiles+chart+gradientKey()+'</section>';
+    const sleep=sleepCard(last,{fitness:true});
+    const tag=w=>{const c=cls(w);return '<span class="glance-tag" style="--t:'+(c==='cardio'?'#6fb6e0':c==='strength'?'#c98fd8':'var(--muted)')+'">'+(c==='cardio'?'Cardio':c==='strength'?'Strength':c==='other'?'Other':'Choose in Activities')+'</span>';};
+    const dots=(n,of,color)=>'<span class="glance-dots">'+Array.from({length:of},(_,i)=>'<i style="background:'+(i<n?color:'var(--line)')+'"></i>').join('')+'</span>';
+    const workouts='<section class="panelcard" data-feedback-id="fitness-workouts" data-feedback-label="Workouts"><div class="ph"><h2>Workouts</h2><span class="hint">'+Math.round(minutesBy('cardio')+minutesBy('strength'))+' min</span></div>'+
+      '<p class="fit-kpi">'+(weekly?'Cardio '+dots(cardioDays,4,'#6fb6e0')+' '+cardioDays+'/4 days · Strength '+dots(strengthDays,4,'#c98fd8')+' '+strengthDays+'/4':'Cardio '+cardioDays+' day'+(cardioDays===1?'':'s')+' · Strength '+strengthDays+' day'+(strengthDays===1?'':'s'))+'</p>'+
+      (wk.length?'<ul class="glance-list">'+wk.slice(0,12).map(w=>'<li><span>'+esc(short(w.date))+'</span><b>'+esc(w.type)+'</b><span>'+(w.minutes===null?'—':Math.round(w.minutes)+' min')+'</span><span class="hint">'+esc(w.source||'')+(w.also?' · also '+esc(w.also.join(', ')):'')+'</span>'+tag(w)+'</li>').join('')+'</ul>':'<p class="hint">No workouts recorded '+(single?'this day':'in this range')+'.</p>')+'</section>';
+    return '<div class="cols2 fit-cards" data-feedback-id="fitness-glance" data-feedback-label="Fitness at a glance"><div class="fit-title wide"><h2>'+esc(label)+'</h2>'+(fitnessRange==='custom'&&first===last?'':'<span class="hint">'+esc(first===last?medDate(first):medDate(first)+' – '+medDate(last))+'</span>')+'</div>'+activity+sleep+workouts+vitalsCard(st,last)+'</div>';
+  }
+  const VITALS=[
+    {label:'Resting heart rate',metrics:['resting_heart_rate'],kinds:['restingHeartRate'],unit:'bpm',digits:0,band:[50,70]},
+    {label:'HRV',metrics:['heart_rate_variability'],kinds:['other'],unit:'ms',digits:0,band:null},
+    {label:'Respiratory rate',metrics:['respiratory_rate'],kinds:['other'],unit:'/min',digits:1,band:[12,20]},
+    {label:'Blood oxygen',metrics:['blood_oxygen_saturation'],kinds:['other'],unit:'%',digits:0,band:[95,100]},
+    {label:'VO₂ max',metrics:['vo2_max'],kinds:['other'],unit:'ml/kg·min',digits:1,band:[39,49]},
+    {label:'Weight',metrics:['weight_body_mass','weight_&_body_mass'],kinds:['weight'],unit:null,digits:1,band:null,weight:true}
+  ];
+  function vitalsCard(st,last){
+    const from=addDays(last,-29),q=(a,p)=>{const v=a.slice().sort((x,y)=>x-y),i=(v.length-1)*p,lo=Math.floor(i);return v[lo]+(v[Math.min(lo+1,v.length-1)]-v[lo])*(i-lo);};
+    const rows=VITALS.map(m=>{
+      const daily=metricDaily(st,m.metrics,m.kinds,from,last),dates=[...daily.keys()].sort(),vals=dates.map(d=>daily.get(d));
+      if(!vals.length)return '<div class="vit-row empty"><span>'+esc(m.label)+'</span><span class="hint">Not in your export yet</span><span></span></div>';
+      let unit=m.unit;
+      if(m.weight){const u=st.prefs.units==='kg'?'kg':'lb';unit=u;for(let i=0;i<vals.length;i++)vals[i]=u==='lb'?vals[i]*2.2046226218487757:vals[i];}
+      const latest=vals[vals.length-1],personal=vals.length>=7,band=personal?[q(vals,.25),q(vals,.75)]:m.band,lo=Math.min(...vals,band?band[0]:latest)*0.97,hi=Math.max(...vals,band?band[1]:latest)*1.03,pos=v=>Math.max(0,Math.min(100,100*(v-lo)/((hi-lo)||1)));
+      const inBand=band?latest>=band[0]&&latest<=band[1]:true,off=band&&!inBand?Math.min(1,Math.abs(latest-(latest<band[0]?band[0]:band[1]))/((band[1]-band[0])||1)):0;
+      const tone=inBand?'#3fae6b':off<.5?'#d4c24a':'#e0873a',yy=v=>(30-30*(v-lo)/((hi-lo)||1)).toFixed(1);
+      const trend='<svg viewBox="0 0 100 30" preserveAspectRatio="none" class="vit-trend" aria-hidden="true">'+(band?'<rect x="0" y="'+yy(band[1])+'" width="100" height="'+(30*(band[1]-band[0])/((hi-lo)||1)).toFixed(1)+'" fill="rgba(63,174,107,.18)"/>':'')+'<polyline fill="none" stroke="#9cc4f0" stroke-width="1.5" points="'+vals.map((v,i)=>(vals.length===1?50:100*i/(vals.length-1)).toFixed(1)+','+yy(v)).join(' ')+'"/></svg>';
+      return '<details class="vit-row"><summary><span>'+esc(m.label)+'</span><span class="vit-band">'+(band?'<em style="left:'+pos(band[0]).toFixed(1)+'%;width:'+(pos(band[1])-pos(band[0])).toFixed(1)+'%"></em>':'')+'<b style="left:'+pos(latest).toFixed(1)+'%;background:'+tone+'"></b></span><span class="vit-val">'+esc(latest.toFixed(m.digits))+(unit?' <small>'+esc(unit)+'</small>':'')+'</span></summary>'+trend+'<p class="hint">'+(band?(personal?'Band: your middle half over '+vals.length+' readings in 30 days.':'Band: a reputable typical range until you have a week of readings.'):'Building your range: '+vals.length+' reading'+(vals.length===1?'':'s')+'.')+' Latest '+esc(medDate(dates[dates.length-1]))+'.</p></details>';
+    }).join('');
+    return '<section class="panelcard" data-feedback-id="fitness-vitals" data-feedback-label="Vitals"><div class="ph"><h2>Vitals</h2></div><p class="hint">Each dot is your latest reading; the shaded band is your usual range over the last 30 days (a reputable default until there are seven readings). Green inside the band, yellow a little outside, orange further out. Tap a row for its 30-day trend.</p>'+rows+'</section>';
+  }
+  /* A perfect day: all three rings closed and every required item confirmed. Recognition only; it adds
+     no points until a scoring rule version adopts the bonus. null = a rest day with nothing required. */
+  function perfectDay(st, date){
+    const p = wsTry('rings', st, date, {}); if (!p || typeof p !== 'object' || p.noTargets) return null;
+    const req = flatPlanFor(st, date).filter(r => !r.optional && !r.demo && r.status !== 'skipped');
+    return p.closed === RING_ORDER.length && req.length > 0 && req.every(r => r.status === 'done');
   }
   function ringsSection(date, options){
-    if (!wsHas('rings')) return '<section class="panelcard" data-feedback-id="your-day-so-far" data-feedback-label="Your day so far"><h2>Your day so far</h2>' + depNote('Workspace','rings','The three-ring daily projection') + ringsHTML(date) + '<p class="hint">Above is this baseline’s earlier overview ring, kept so the day is not blank. It is not the agreed three-ring contract and its middle ring is not verified workout minutes.</p></section>';
+    if (!wsHas('rings')) return '<section class="panelcard" data-feedback-id="your-day-so-far" data-feedback-label="Your day so far"><h2>Rings</h2>' + depNote('Workspace','rings','The three-ring daily projection') + ringsHTML(date) + '<p class="hint">Above is this baseline’s earlier overview ring, kept so the day is not blank. It is not the agreed three-ring contract and its middle ring is not verified workout minutes.</p></section>';
     const p = wsTry('rings', S(), date, options || {});
-    if (!p || typeof p !== 'object') return '<section class="panelcard"><h2>Your day so far</h2>' + depNote('Workspace','rings','The three-ring daily projection') + '</section>';
+    if (!p || typeof p !== 'object') return '<section class="panelcard"><h2>Rings</h2>' + depNote('Workspace','rings','The three-ring daily projection') + '</section>';
     const legend = RING_ORDER.map(id => {
       const r = p[id] || {}, word = r.closed ? 'closed' : (STATE_WORD[r.status] || r.status || 'unknown');
       const minNote = r.applicable && r.unit === 'minutes' && Number.isFinite(r.minimum) && r.minimum>0 ? ' · ' + r.minimum + ' min qualifies a day' : '';
@@ -2090,9 +2464,10 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       const when = s.plannedTime ? esc(s.plannedTime) : s.period ? esc(String(s.period)) + ', no set time' : 'Untimed';
       return '<li><span class="when">' + when + '</span><button class="an" data-act="wsOpenSlot" data-series="' + esc(s.seriesId || '') + '" data-date="' + esc(date) + '">' + esc(s.title || 'Untitled') + '</button><span class="sst">' + esc((STATE_WORD[state] || state) + (s.actualTime ? ' · done ' + s.actualTime : '')) + '</span></li>';
     }).join('') + '</ul></details>' : '';
-    const spoken = (p.closed + ' of ' + RING_ORDER.length + ' displayed rings closed') + '. ' +
+    const spoken = (p.closed + ' of ' + RING_ORDER.length + ' displayed rings closed') + '. ' + RING_ORDER.filter(id => p[id] && p[id].closed && p[id].value > p[id].target).map(id => (p[id].label || id) + ' at ' + Math.round(100 * p[id].value / p[id].target) + '% of target. ').join('') +
       RING_ORDER.map(id => { const r = p[id] || {}; return (r.label || id) + ' ' + (Number.isFinite(r.target) ? ringQty(r) + (r.closed ? ', closed' : ', ' + (STATE_WORD[r.status] || r.status || 'open')) : STATE_WORD[r.status] || 'not applicable'); }).join('; ');
-    return '<section class="panelcard" data-feedback-id="your-day-so-far" data-feedback-label="Your day so far"><div class="ph"><h2>Your day so far</h2><span class="hint">' + esc(medDate(date)) + '</span></div>' +
+    const perfect = perfectDay(S(), date) === true;
+    return '<section class="panelcard" data-feedback-id="your-day-so-far" data-feedback-label="Your day so far"><div class="ph"><h2>Rings</h2>' + (perfect ? '<span class="perfect-chip" title="All three rings closed and every required item confirmed">✦ Perfect day</span>' : '') + '</div>' +
       '<div class="ws-rings"><svg class="ringchart" viewBox="0 0 180 180" role="img" aria-label="' + esc(spoken) + '">' +
       routineArc(p.routine, RING_R.routine) + quantArc(p.cardio, RING_R.cardio) + quantArc(p.strength, RING_R.strength) + ringCentre(p) + '</svg>' +
       '<div class="ws-legend">' + legend +
@@ -2119,11 +2494,12 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const sub = [g.kind==='prayer'?full+'/'+g.pairedTarget+' paired · '+g.additional+'/'+g.additionalTarget+' additional days':full + ' at full target'];
     if (Number.isFinite(g.minutes) && g.minutes) sub.push(g.minutes + ' min recorded');
     if (pend) sub.push(pend + ' day' + (pend === 1 ? '' : 's') + ' awaiting evidence');
-    const spoken = (g.title || 'Goal') + ': ' + qual + ' of ' + target + ' qualifying days, ' + full + ' at full target' + (g.complete ? ', complete' : '') +
+    const spoken = (g.title || 'Goal') + ': ' + qual + ' of ' + target + ' qualifying days, ' + (g.kind==='prayer' ? full + ' of ' + g.pairedTarget + ' paired, ' + g.additional + ' of ' + g.additionalTarget + ' additional' : full + ' at full target') + (g.complete ? ', complete' : '') +
       '. Window ' + goalWindowLabel(g.window) + (g.deadline && g.deadline.date ? '. Due ' + g.deadline.date + (g.deadline.label ? ', ' + g.deadline.label : '') : '');
     return '<button class="gcard'+(g.complete?' complete':'')+'" data-goal="'+esc(g.id)+'" style="--category:'+categoryColor(g.groupId)+';border-top:3px solid var(--category)" data-act="wsOpenGoal" data-series="' + esc((g.seriesIds || [])[0] || '') + '" data-date="' + esc(day) + '" aria-label="' + esc(spoken) + '">' +
-      '<span class="win">' + esc(goalWindowLabel(g.window)) + '</span><span class="gt">' + esc(g.title || 'Goal') + '</span>' +
-      '<span class="cnt">' + qual + '/' + target + '</span><span class="sub">' + esc(sub.join(' · ')) + '</span>' +
+      // Compact face (Mintay, 2026-09-24): name, count, bar; the window and detail stay in the spoken label and the goal dialog.
+      '<span class="gt">' + esc(String(g.title || 'Goal').split(' · ')[0]) + '</span>' +
+      (target === 1 ? '<span class="cnt once" aria-hidden="true">' + (qual ? '☑' : '☐') + '</span><span class="sub">' + (qual ? 'Done' : 'This ' + (g.window && g.window.from && g.window.to && calendarDistance(g.window.from, g.window.to) > 7 ? 'month' : 'week')) + '</span>' : '<span class="cnt">' + qual + ' <small>of ' + target + '</small></span>') +
       (g.deadline && g.deadline.date ? '<span class="due">Due ' + esc(g.deadline.label || g.deadline.date) + '</span>' : '') + goalBoxes(g) + '</button>';
   }
   function openWorkspaceGoal(goalId,date){
@@ -2291,22 +2667,32 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const auto = !container && confirmed && n.occurrence && n.occurrence.confirmation && n.occurrence.confirmation.auto === true;
     const sourced = !container && confirmed && n.occurrence && n.occurrence.confirmation && n.occurrence.confirmation.kind === 'source';
     const claimable = !container && confirmed ? (wsClaimable || []).find(c => c.id === key || (c.seriesId === n.seriesId && c.date === (n.date || day))) : null;
-    const summary = container ? doneCount + ' of ' + totalCount + ' confirmed'
-      : auto ? 'From Apple Health' + (Number.isFinite(n.occurrence.actualMinutes) && n.occurrence.actualMinutes > 0 ? ' · ' + Math.round(n.occurrence.actualMinutes) + ' min' : '')
-      : (n.confirmation || (confirmed ? 'Confirmed' : st === 'partial' ? 'Partial' : st === 'skipped' ? 'Not done' : st === 'tentative' ? 'Checked off, not confirmed' : 'No entry'));
+    // Gena-like rows (Mintay, 2026-09-24): the check sits on the left and says who confirmed it — filled
+    // green by your data, filled in the category colour by you, dotted when only checked off. Words like
+    // "No entry" or "From Apple Health" gave way to it; the less-used actions live behind ⋯.
+    const minutes = !container && n.occurrence && Number.isFinite(n.occurrence.actualMinutes) && n.occurrence.actualMinutes > 0 ? Math.round(n.occurrence.actualMinutes) + ' min' : '';
     const share = Number.isFinite(n.shareDisplay) ? n.shareDisplay : (n.allocation && Number.isFinite(n.allocation.displayAmount)) ? n.allocation.displayAmount : null;
+    const word = container ? doneCount + ' of ' + totalCount : st === 'partial' ? 'Partial' : st === 'skipped' ? 'Not today' : '';
+    const summary = [word, minutes, share !== null ? share + ' pts' : ''].filter(Boolean).join(' · ');
     const future = (n.date || day) > todayYmd();
     const tone = container ? '' : confirmed ? ' done' : runningOut(n) ? ' urgent' : '';
+    const who = sourced ? 'Confirmed by your data' : confirmed ? 'Confirmed by you' : st === 'tentative' ? 'Checked off, not confirmed' : 'Not done yet';
+    const menu = [
+      '<button class="link" data-act="openRow">Details</button>',
+      '<button class="link" data-act="saveTemplate">Save as template</button>',
+      !container && n.matching ? '<button class="link" data-act="wsEvidence">Review source evidence</button>' : '',
+      auto ? '<button class="link" data-act="wsDeclineAuto">Not this — unlink</button>' : '',
+      !container && n.recurrence?.kind === 'target' && !n.occurrence?.committed && !future ? '<button class="link" data-act="wsCommit">Plan for this day</button>' : ''
+    ].join('');
     let out = '<div class="ws-node' + tone + '" data-depth="' + depth + '" data-series="' + esc(n.seriesId || '') + '" data-date="' + esc(n.date || day) + '" data-key="' + esc(key) + '"><div class="nrow">' +
       (container
         ? '<button class="tw" data-act="wsToggleGroup" data-node="' + esc(nid) + '" aria-expanded="' + (!collapsed) + '" aria-label="' + (collapsed ? 'Expand ' : 'Collapse ') + esc(label) + '">' + (collapsed ? '▸' : '▾') + '</button>'
-        : '<span class="tw" aria-hidden="true"></span>') +
-      '<button class="nm" data-act="openRow">' + esc(label) + '</button><button class="link" data-act="wsHierarchyEdit" aria-label="Edit ' + esc(label) + '">Edit routine</button>' +
-      (share !== null ? '<span class="share" title="This leaf’s exact share of its routine budget">' + esc(String(share)) + ' pts</span>' : '') +
-      '<span class="meta">' + esc(summary) + '</span>' +
-      (container ? '<span class="chip quiet">summary</span>'
-        : (claimable ? '<button class="save claim-one" data-act="claimOne" data-claim="' + esc(claimable.id) + '">Claim ' + pointAmount(claimable, claimable.amount) + '</button>' : '') + '<button class="cb' + (sourced ? ' src' : '') + '" role="checkbox" aria-checked="' + (confirmed ? 'true' : st === 'tentative' ? 'mixed' : 'false') + '" data-act="toggleDone" aria-label="' + (confirmed ? 'Review ' : 'Check off ') + esc(label) + (sourced ? ' (confirmed by your data)' : '') + '"' + (future ? ' disabled' : '') + ' title="' + (sourced ? 'Confirmed by your data' : confirmed ? 'Confirmed by you' : '') + '">' + (confirmed ? '✓' : st === 'tentative' ? '·' : '') + '</button>') +
-      '</div>' + '<div class="ws-source-actions">' + (!container&&n.matching?'<button class="link" data-act="wsEvidence">Review source evidence</button>':'') + (auto?'<button class="link" data-act="wsDeclineAuto">Not this — unlink</button>':'') + (!container&&n.recurrence?.kind==='target'&&!n.occurrence?.committed&&!future?'<button class="link" data-act="wsCommit">Plan for this day</button>':'') + '</div>';
+        : '<button class="cb' + (sourced ? ' src' : '') + '" role="checkbox" aria-checked="' + (confirmed ? 'true' : st === 'tentative' ? 'mixed' : 'false') + '" data-act="toggleDone" aria-label="' + (confirmed ? 'Review ' : 'Done: ') + esc(label) + ' · ' + who + '"' + (future ? ' disabled' : '') + ' title="' + who + '">' + (confirmed ? '✓' : '') + '</button>') +
+      '<button class="nm" data-act="openRow">' + esc(label) + '</button>' + (summary ? '<span class="meta">' + esc(summary) + '</span>' : '') +
+      (claimable ? '<button class="save claim-one" data-act="claimOne" data-claim="' + esc(claimable.id) + '">Claim ' + pointAmount(claimable, claimable.amount) + ' ✦</button>' : '') +
+      '<button class="link row-edit" data-act="wsHierarchyEdit" aria-label="Edit ' + esc(label) + '">Edit</button>' +
+      '<details class="more"><summary aria-label="More for ' + esc(label) + '">⋯</summary><div class="more-menu">' + menu + '</div></details>' +
+      '</div>';
     if (container && !collapsed){
       out += kids.map(k => wsNode(k, Math.min(depth + 1, 2))).join('');
       if (depth < 2) out += '<div style="margin-left:' + ((depth + 1) * 16) + 'px">' + wsAddControls(n, depth + 1) + '</div>';
@@ -2499,8 +2885,49 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const opts = { groupId:'faith' };
     const nav = '<div class="daynav"><button class="nav-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b>' + esc(longDate(day)) + '</b><button class="nav-btn" data-act="step" data-n="1" aria-label="Next day">›</button>' +
       (day !== todayYmd() ? '<button class="link" data-act="jumpToday">Back to today</button>' : '') + '</div>';
-    return nav + ringsSection(day, opts) + goalRailSection(day, opts) + wsActivities(opts) +
-      '<p class="hint">Faith items also appear in Today, Plan, Log and Progress, and a change in either place updates the same record. The level and points shown at the top are your one global account, not a separate Faith balance.</p>';
+    return nav + '<div class="cols2 faith-cols">' + faithWeekCard(day) + '<div>' + wsActivities(opts) + '</div></div>';
+  }
+  /* Faith This Week (Mintay, 2026-09-24, Option A): one card instead of rings built for cardio and a
+     rail of wordy goal cards. A 3 × 7 grid — morning prayer, night prayer, fast — then three small
+     tiles: today's two prayers, the week's prayer goal (3 days with both, 5 days with at least one),
+     and church (this Sunday, with the rolling month's four Sundays as dots). Each cell opens that
+     day's entry; the ☀ and ☾ tiles mark a prayer done in one tap. Same records as everywhere else. */
+  function faithWeekCard(date){
+    const st = S(), today = todayYmd(), start = weekStartOf(date, st.prefs.weekStart), days = Array.from({length:7}, (_, i) => addDays(start, i));
+    const row = (id, d) => { try { return findPlanRow(st, id, d); } catch (_) { return null; } };
+    const occ = (id, d) => st.occurrences[occKey(id, d)] || null;
+    const done = (id, d) => { const r = row(id, d); return !!r && r.status === 'done'; };
+    const dayName = d => new Date(d + 'T12:00:00').toLocaleDateString(undefined, {weekday:'short'});
+    const longName = d => new Date(d + 'T12:00:00').toLocaleDateString(undefined, {weekday:'long', month:'short', day:'numeric'});
+    const cell = (id, d, what) => {
+      const r = row(id, d);
+      if (!r) return '<span class="fw-cell na" aria-hidden="true"></span>';
+      const o = occ(id, d), isDone = r.status === 'done', auto = isDone && o && o.confirmation && o.confirmation.kind === 'source', future = d > today;
+      const word = isDone ? (auto ? 'done, confirmed by your data' : 'done') : future ? 'ahead' : r.status === 'tentative' ? 'checked off, not confirmed' : 'not done';
+      return '<button class="fw-cell' + (isDone ? ' done' : '') + (auto ? ' auto' : '') + (future ? ' future' : '') + (d === date ? ' sel' : '') + '" data-act="openRow" data-series="' + id + '" data-date="' + d + '" aria-label="' + esc(what + ', ' + longName(d) + ': ' + word) + '"></button>';
+    };
+    const lived = days.filter(d => d <= today), both = lived.filter(d => done('dw-prayer-am', d) && done('dw-prayer-pm', d)).length, once = lived.filter(d => done('dw-prayer-am', d) || done('dw-prayer-pm', d)).length;
+    const pips = (n, of) => '<span class="fw-pips">' + Array.from({length:of}, (_, i) => '<i' + (i < n ? ' class="on"' : '') + '></i>').join('') + '</span>';
+    const toggle = (id, glyph, what) => { const r = row(id, date), isDone = !!r && r.status === 'done', future = date > today;
+      return '<button class="fw-toggle' + (isDone ? ' on' : '') + '" data-act="' + (isDone ? 'openRow' : 'done') + '" data-series="' + id + '" data-date="' + date + '" aria-pressed="' + isDone + '" aria-label="' + esc(what + (isDone ? ', done' : ', mark done')) + '"' + (!r || future ? ' disabled' : '') + '>' + glyph + '</button>'; };
+    const sunday = addDays(date, -new Date(date + 'T12:00:00').getDay()), sundays = [21, 14, 7, 0].map(n => addDays(sunday, -n));
+    const churchDone = done('dw-church', sunday), churchMonth = sundays.filter(d => done('dw-church', d)).length;
+    const grid = '<div class="fw-grid" role="group" aria-label="Prayer and fasting this week"><span></span>' + days.map(d => '<span class="fw-day' + (d === today ? ' today' : '') + '">' + esc(dayName(d)) + '</span>').join('') +
+      [['dw-prayer-am', '☀', 'Morning'], ['dw-prayer-pm', '☾', 'Night'], ['dw-fasting', '◇', 'Fast']].map(([id, g, label]) => '<span class="fw-label"><b aria-hidden="true">' + g + '</b> ' + label + '</span>' + days.map(d => cell(id, d, label === 'Fast' ? 'Fast' : label + ' prayer')).join('')).join('') + '</div>';
+    const minis = '<div class="fw-minis">' +
+      '<div class="fw-mini"><span class="cap">' + (date === today ? 'Today' : esc(dayName(date))) + '</span><div class="fw-toggles">' + toggle('dw-prayer-am', '☀', 'Morning prayer') + toggle('dw-prayer-pm', '☾', 'Night prayer') + '</div></div>' +
+      '<div class="fw-mini"><span class="cap">Prayed twice</span><b>' + both + '</b> <small>of 3 days</small>' + pips(Math.min(both, 3), 3) + '<small>At least once · ' + once + ' of 5</small></div>' +
+      '<div class="fw-mini"><span class="cap">Church</span><button class="fw-box' + (churchDone ? ' on' : '') + '" data-act="openRow" data-series="dw-church" data-date="' + sunday + '" aria-label="Church on ' + esc(longName(sunday)) + (churchDone ? ': attended' : ': not yet') + '">' + (churchDone ? '✓' : '') + '</button><small>Sunday</small><span class="fw-dots" aria-label="' + churchMonth + ' of the last four Sundays">' + sundays.map(d => '<i' + (done('dw-church', d) ? ' class="on"' : '') + '></i>').join('') + '</span></div>' +
+      '</div>';
+    return '<section class="panelcard faith-week" data-feedback-id="faith-week" data-feedback-label="Faith this week"><div class="ph"><h2>This Week</h2></div>' +
+      '<p class="hint">Each square is one prayer or fast: filled when done, with a green rim when your data confirmed it; faint squares are days ahead, and a blank space means nothing was planned. The prayer goal is 3 days with both prayers and 2 more days with at least one. Church counts one Sunday in any rolling four weeks. These are the same records as Today, Plan, Log and Progress, and points go to your one account.</p>' +
+      grid + minis + fastingSeasonsLine(st) + '</section>';
+  }
+  function fastingSeasonsLine(st){
+    const list = Workspace.fastingSeasons ? Workspace.fastingSeasons(st) : [], today = todayYmd(), shown = list.filter(x => !x.to || x.to >= today);
+    const when = x => medDate(x.from) + ' – ' + (x.to ? medDate(x.to) : 'open');
+    return '<div class="fw-seasons"><span class="cap">Fasting seasons</span>' + (shown.length ? shown.map(x => '<span class="chip quiet">' + esc(x.name) + ' · ' + esc(when(x)) + '</span>').join('') : '<span class="hint">None coming up</span>') +
+      '<details class="fw-season-add"><summary>+ Add season</summary><div class="form"><div><label for="fs-name">Name</label><input id="fs-name" type="text" maxlength="60" placeholder="e.g. the season’s name"></div><div><label for="fs-from">First day</label><input id="fs-from" type="date"></div><div><label for="fs-to">Last day</label><input id="fs-to" type="date"></div><button class="save" data-act="faithSeasonAdd">Add season</button></div></details></div>';
   }
 
   /* ---------- render ---------- */
@@ -2516,14 +2943,54 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     applyTheme(); applyWallpaper();
     renderHeader(); renderNotices();
     const sourceBadges=document.getElementById('conn');if(sourceBadges)document.getElementById('sidebarSources').append(sourceBadges);
-    $('#main').innerHTML = area === 'home' ? renderHome() : area === 'faith' ? renderFaith() : area === 'profile' ? profileCard()+profileTrajectory() : area === 'fitness' ? renderData() : area === 'data' ? coverageCard()+renderData()+evidenceTasksCard()+energyBalanceCard() : area === 'plan' ? renderPlan() : area === 'log' ? renderLog()+logLinksCard()+actionLogCard()+duplicateActionCard()+waterCard()+mealLibraryCard() : area === 'progress' ? renderProgress()+learningCard(progStart) : area === 'collection' ? renderCollection()+scoringProposalCard() : area === 'lessons' ? renderLessons() : renderSettings();
+    $('#main').innerHTML = area === 'home' ? renderHome() : area === 'faith' ? renderFaith() : area === 'profile' ? profileCard() : area === 'fitness' ? renderData() : area === 'data' ? coverageCard()+renderData()+evidenceTasksCard()+energyBalanceCard() : area === 'plan' ? renderPlan() : area === 'log' ? renderLog()+logLinksCard()+actionLogCard()+duplicateActionCard()+waterCard()+mealLibraryCard() : area === 'progress' ? renderProgress()+learningCard(progStart) : area === 'collection' ? renderCollection()+scoringProposalCard() : area === 'lessons' ? renderLessons() : renderSettings();
     $('#main').dataset.area = area;
     wsHierarchyRestore();
     if(!document.getElementById('viewNav')){const nav=document.createElement('div');nav.id='viewNav';nav.className='acts';document.querySelector('.topbar').append(nav);}
     document.getElementById('viewNav').innerHTML='<button data-act="viewBack" '+(viewIndex<=0?'disabled':'')+'>Back</button><button data-act="viewForward" '+(viewIndex>=viewHistory.length-1?'disabled':'')+'>Forward</button>';
     decorateFeedbackCards();
+    tidyCards($('#main'));
     if ($('#relayIn')) $('#relayIn').value = relayDraft;
     if ($('#rl-from') && relayDates){ $('#rl-from').value = relayDates.from; $('#rl-to').value = relayDates.to; if ($('#relayExact')) $('#relayExact').textContent = relayPacket(S(),relayDates.from,relayDates.to); }
+  }
+  /* Clean and calm, Apple/Bevel-like (Mintay, 2026-09-24): a card leads with its title and its
+     numbers. The paragraph explaining how a card counts moves behind a small ⓘ beside the title;
+     short captions, dates, statuses and notices stay in view. Card titles read in Title Case.
+     One pass after every render, so every module follows it. */
+  function tidyCards(root){
+    if(!root)return;
+    root.querySelectorAll('.ws-group .gh h3').forEach(h=>{for(const node of h.childNodes)if(node.nodeType===3)node.textContent=titleCase(node.textContent);});
+    root.querySelectorAll('.panelcard').forEach((card,n)=>{
+      const h=card.querySelector(':scope > h2, :scope > .ph > h2, :scope > summary h2');if(!h)return;
+      // An activity's own name (the detail panel, Up Next) is Mintay's text, not a card title.
+      if(!card.dataset.series&&!card.classList.contains('next-action'))for(const node of h.childNodes)if(node.nodeType===3&&node.textContent.trim())node.textContent=titleCase(node.textContent);
+      if(card.dataset.tidy==='keep'||h.querySelector('.info'))return;
+      // Only explanations move: an intro right after the title, or a footnote closing the card or a
+      // block inside it. A status line in the middle of a card (a skipped file, a held import) stays.
+      const skip=el=>el&&(el.classList.contains('card-feedback')||el.tagName==='DETAILS'&&false);
+      const intro=p=>{let e=p.previousElementSibling;while(e&&e.matches('p.hint'))e=e.previousElementSibling;return p.parentElement===card&&(!e||e===h||e.matches('.ph'));};
+      const footnote=p=>{let e=p.nextElementSibling;while(e&&(e.matches('p.hint')||e.classList.contains('card-feedback')))e=e.nextElementSibling;return !e&&(p.parentElement===card||p.textContent.trim().length>=90&&!p.closest('.dashboard-next,article,.nrow'));};
+      const notes=[...card.querySelectorAll('p.hint')].filter(p=>p.closest('.panelcard')===card&&!p.closest('details,li,table,form,.acts,.row,article,.info-pop,.glance-tile,.notice')&&(intro(p)||footnote(p))&&p.textContent.trim().length>=70&&!p.querySelector('button,a,input,select,textarea')&&p.getAttribute('role')!=='status'&&!p.classList.contains('intake-outcome')&&!p.classList.contains('keep'));
+      if(!notes.length)return;
+      const id='info-'+(card.dataset.feedbackId||'card-'+n),pop=document.createElement('div');pop.className='info-pop';pop.id=id;pop.hidden=true;pop.setAttribute('role','note');
+      for(const p of notes)pop.appendChild(p);
+      const b=document.createElement('button');b.type='button';b.className='info';b.dataset.act='info';b.setAttribute('aria-expanded','false');b.setAttribute('aria-controls',id);b.setAttribute('aria-label','About '+h.textContent.trim());b.textContent='i';
+      h.appendChild(b);h.after(pop);
+    });
+  }
+  /* Claimed orbs fly into the header orb (Mintay, 2026-09-24): eight small orbs lift off the Claim
+     button one after another, arc up and land in the orb, which pulses. Reduced motion skips it. */
+  function orbFlight(from){
+    const target=document.querySelector('#levelOrb .orb');
+    if(!from||!target||!target.animate||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    const t=target.getBoundingClientRect(),dx=t.left+t.width/2-(from.left+from.width/2),dy=t.top+t.height/2-(from.top+from.height/2);
+    for(let i=0;i<8;i++){
+      const o=document.createElement('span');o.className='orb orb-fly';o.setAttribute('aria-hidden','true');
+      o.style.left=(from.left+from.width/2-8)+'px';o.style.top=(from.top+from.height/2-8)+'px';document.body.appendChild(o);
+      const bend=(i%2?1:-1)*(24+i*9);
+      o.animate([{transform:'translate(0,0) scale(.5)',opacity:0},{transform:'translate('+(dx*.45+bend)+'px,'+(dy*.45-70)+'px) scale(1.05)',opacity:1,offset:.45},{transform:'translate('+dx+'px,'+dy+'px) scale(.45)',opacity:.85}],{duration:900,delay:i*70,easing:'cubic-bezier(.45,0,.3,1)',fill:'both'}).onfinish=()=>{
+        o.remove();if(i===7){const now=document.querySelector('#levelOrb .orb');if(now){now.classList.remove('orb-pulse');void now.offsetWidth;now.classList.add('orb-pulse');}}};
+    }
   }
   function toast(msg){ const oldOrb = $('#toast .claim-token'); if(oldOrb) oldOrb.remove(); $('#toastMsg').textContent = msg; $('#undoBtn').hidden = !canUndo() || preview; $('#toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('#toast').hidden = true; }, 7000); }
   function focusFirst(sel){ const el = document.querySelector(sel); if (el) el.focus(); }
@@ -2614,7 +3081,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     /* ---- Daily Workspace candidate actions ---- */
     if(act==='wsEvidence'){openWorkspaceEvidence(seriesId,date);return;}
     if(act==='applyUpdate'){
-      btn.disabled=true;btn.textContent='Updating…';
+      btn.disabled=true;btn.textContent=intake.applying?'Updating after the save…':'Updating…';
+      while(intake.applying)await new Promise(r=>setTimeout(r,150));
       const reg=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration().catch(()=>null);
       if(reg&&reg.waiting){navigator.serviceWorker.addEventListener('controllerchange',()=>location.reload(),{once:true});reg.waiting.postMessage('restart');setTimeout(()=>location.reload(),4000);}
       else location.reload();
@@ -2781,7 +3249,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       case 'acceptEvidence': { const sourceId = btn.closest('[data-source]').dataset.source, id = $('#evidence-task-'+btn.dataset.index).value; if (!id){ toast('Choose the task this evidence actually supports.'); return; } const r=await manualActionTransaction(st,d=>associateRewardEvidence(d,sourceId,id,btn.dataset.date),{persist:!preview});if(r.ok&&!r.newerInput)unsavedForm=false;render();toast(r.ok?'Evidence accepted. One action can be claimed once; existing corrections remain reviewable.':r.error);return; }
       case 'retractEvidence': {const source=btn.closest('[data-source]').dataset.source,r=await manualActionTransaction(st,d=>{retractRewardEvidence(d,source);return {ok:true};},{persist:!preview});render();toast(r.ok?'Association retracted. Review any point adjustment in Collection.':r.error);return;}
       case 'saveJournal': stage(st,'journal'); saveJournal(st,day,{intention:$('#journal-intention').value,reflection:$('#journal-reflection').value,feedback:$('#journal-feedback').value}); commit('journal','Journal saved.'); return;
-      case 'claimAll': case 'claimOne': { if (readOnly && !preview){ toast('Not saving. Restore saving before claiming; your completed work remains recorded.'); return; } btn.disabled = true; const result = await manualClaimRewards(st,act === 'claimAll'?null:[btn.dataset.claim],{persist:!preview,today:todayYmd()}); render(); if (!result.ok){ toast('Not claimed. '+result.error); return; } toast(result.amount ? (result.displayAmount??result.amount)+' orb'+((result.displayAmount??result.amount)===1?'':'s')+' claimed.' : 'Already claimed.'); if (result.amount){ $('#main').classList.add('claim-flash'); const orb = document.createElement('span'); orb.className='orb claim-token'; orb.setAttribute('aria-hidden','true'); $('#toast').prepend(orb); } setTimeout(()=>$('#main').classList.remove('claim-flash'),700); return; }
+      case 'claimAll': case 'claimOne': { if (readOnly && !preview){ toast('Not saving. Restore saving before claiming; your completed work remains recorded.'); return; } btn.disabled = true; const launch = btn.getBoundingClientRect(); const result = await manualClaimRewards(st,act === 'claimAll'?null:[btn.dataset.claim],{persist:!preview,today:todayYmd()}); render(); if (!result.ok){ toast('Not claimed. '+result.error); return; } toast(result.amount ? (result.displayAmount??result.amount)+' orb'+((result.displayAmount??result.amount)===1?'':'s')+' claimed.' : 'Already claimed.'); if (result.amount){ $('#main').classList.add('claim-flash'); const orb = document.createElement('span'); orb.className='orb claim-token'; orb.setAttribute('aria-hidden','true'); $('#toast').prepend(orb); orbFlight(launch); } setTimeout(()=>$('#main').classList.remove('claim-flash'),700); return; }
       case 'reviewClaim': openClaimReview(btn.dataset.claim);return;
       case 'gentleProgression': stage(st,'progression'); adoptGentleProgression(st); commit('progression','Gentle progression chosen. Your current milestone is preserved.'); return;
       case 'familyChildField': {
@@ -2803,6 +3271,24 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       case 'goGrades': go('settings'); $('#grade-settings').scrollIntoView({block:'start'}); focusFirst('#grade-fitness'); return;
       case 'go': go(btn.dataset.area); return;
       case 'todayTab': todayTab = btn.dataset.tab; panel = null; render(); focusFirst('[data-act=todayTab][aria-selected=true]'); return;
+      case 'attentionToggle': attentionOpen = !attentionOpen; render(); return;
+      case 'fitMetric': fitMetric = btn.dataset.metric; render(); return;
+      case 'fitDay': fitnessRange = 'custom'; fitnessFrom = fitnessTo = btn.dataset.date; render(); return;
+      case 'shelfShow': shelfManage = false; stage(st, 'pref'); st.prefs.templateShelfDone = null; commit('pref', 'Templates are back for today.'); return;
+      case 'shelfManage': shelfManage = !shelfManage; shelfEdit = null; render(); return;
+      case 'shelfDone': shelfPicked.clear(); shelfManage = false; stage(st, 'pref'); st.prefs.templateShelfDone = day; commit('pref', 'Templates hidden until tomorrow.'); return;
+      case 'shelfEditTpl': shelfEdit = btn.dataset.tpl; render(); focusFirst('#tpl-name'); return;
+      case 'shelfNewTpl': shelfEdit = 'new'; render(); focusFirst('#tpl-name'); return;
+      case 'shelfCancelTpl': shelfEdit = null; render(); return;
+      case 'shelfSaveTpl': { const name = $('#tpl-name').value.trim(); if (!name){ toast('Give the template a name.'); return; } const t = {id: shelfEdit === 'new' ? 'tpl-' + newDraftId() : shelfEdit, name, group: $('#tpl-group').value, items: tplParse($('#tpl-items').value)}; const list = tplCopy(templatesOf(st)); const i = list.findIndex(x => x.id === t.id); if (i >= 0) list[i] = t; else list.push(t); shelfEdit = null; saveTemplates(st, list, 'Template saved. It carries forward until you reset.'); return; }
+      case 'shelfRemoveTpl': { const list = tplCopy(templatesOf(st)).filter(x => x.id !== btn.dataset.tpl); shelfPicked.delete(btn.dataset.tpl); saveTemplates(st, list, 'Template removed. Items already added stay.'); return; }
+      case 'shelfSetDefault': { if (!confirm('Make these ' + templatesOf(st).length + ' templates your default?\n\nReset to default will return to exactly this set.')) return; stage(st, 'pref'); st.prefs.templateDefaults = tplCopy(templatesOf(st)); commit('pref', 'Saved as your default templates.'); return; }
+      case 'shelfReset': { if (!confirm('Reset templates to your default set?\n\nChanges since you last set a default are replaced. Items already added to days stay.')) return; saveTemplates(st, tplCopy(templateDefaults(st)), 'Templates reset to your default.'); return; }
+      case 'shelfAdd': { if (!shelfPicked.size || preview && false) return; const {result, list} = await addTemplatesToday(st, shelfPicked); if (!result.ok){ toast('Not added. ' + result.error); render(); return; } const streak = list.find(t => { const u = (S().prefs.templateUse || {})[t.id] || []; return [0,1,2].every(n => u.includes(addDays(day, -n))); }); shelfPicked.clear(); render(); toast('Added ' + list.map(t => t.name).join(', ') + ' to ' + medDate(day) + '.' + (streak ? ' ' + streak.name + ' three days running: make it daily from its Edit.' : '')); return; }
+      case 'saveTemplate': { const r = findPlanRow(st, seriesId, date); if (!r){ toast('This item is not on this day.'); return; } const tree = x => ({name:x.name, items:(x.children || []).map(tree)}); const t = {id:'tpl-' + newDraftId(), group: r.group || r.category, ...tree(r)}; saveTemplates(st, [...tplCopy(templatesOf(st)), t], 'Saved ' + r.name + ' as a template.'); return; }
+      case 'faithSeasonAdd': { if (preview || readOnly) return; const season = {name:$('#fs-name').value, from:$('#fs-from').value, to:$('#fs-to').value}; const r = Workspace.addFastingSeason(st, season); if (!r.ok) { toast(r.error); return; } commit('auto', 'Added ' + season.name.trim() + ': one fast a day, ' + medDate(season.from) + ' – ' + medDate(season.to) + '.'); return; }
+      case 'info': { const pop=document.getElementById(btn.getAttribute('aria-controls')); if(pop){ pop.hidden=!pop.hidden; btn.setAttribute('aria-expanded',String(!pop.hidden)); } return; }
+      case 'attentionGo': attentionOpen = false; if (btn.dataset.tab) todayTab = btn.dataset.tab; go(btn.dataset.area); return;
       case 'quickLog': quickTab = quickTab === btn.dataset.tab ? null : btn.dataset.tab; panel = null; render(); return;
       case 'editRecurring': area = 'plan'; openRow(seriesId,date); return;
       case 'dayTarget': { if (date < todayYmd()){ toast('Past targets are preserved. Correct the entry or edit future occurrences.'); return; } const r = (typeof findPlanRow === 'function' ? findPlanRow(st,seriesId,date) : planFor(st,date).find(x=>x.seriesId===seriesId)); if (!r) return; const label = $('#day-target').value.trim(); if (!label){ toast('Describe the target.'); return; } stage(st,'dayTarget'); const targets = JSON.parse(JSON.stringify(r.targets)); targets[r.selected].label = label; overrideOcc(st,seriesId,date,{window:$('#day-time').value,normal:targets.normal,minimum:targets.minimum}); commit('dayTarget','Adjusted this day only.'); return; }
@@ -2872,7 +3358,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
         const result=await manualActionTransaction(st,d=>activateConfirmedProgression(d,todayYmd()),{persist:!preview});render();toast(result.ok?'Confirmed progression started; legacy history preserved.':result.error);return;
       }
 
-      case 'toggleDone': { const r=findPlanRow(st,seriesId,date); if(r.status==='done'||r.status==='tentative'){openActionReview(seriesId,date);return;} const result=await manualActionTransaction(st,d=>({ok:!!markTentative(d,seriesId,date)}),{persist:!preview}); render(); toast(result.ok?'Tentative check-off saved. Review to confirm.':result.error); return; }
+      // Done means "I did it" (Mintay, 2026-09-24): one tap self-confirms, with Undo in the toast. A timed
+      // target that needs its minutes opens the review instead; a confirmed row opens its review.
+      case 'done': case 'toggleDone': { const r=findPlanRow(st,seriesId,date); if(act==='toggleDone'&&(r.status==='done'||r.status==='tentative')){openActionReview(seriesId,date);return;} const result=await manualActionTransaction(st,d=>confirmAction(d,seriesId,date,{}),{persist:!preview}); if(!result.ok&&/minutes|target/i.test(result.error||'')){openActionReview(seriesId,date,'done');return;} render(); toast(result.ok?'Done · '+r.name+'. Claim its points when you’re ready.':result.error); return; }
       case 'version': stage(st, 'version'); selectVersion(st, seriesId, date, btn.dataset.v); commit('version', 'Plan set to the ' + btn.dataset.v + ' version for ' + relDay(date).toLowerCase() + '.'); return;
       case 'log': if(btn.dataset.s==='tentative'){const result=await manualActionTransaction(st,d=>({ok:!!markTentative(d,seriesId,date)}),{persist:!preview});render();toast(result.ok?'Tentative · review to confirm.':result.error);}else openActionReview(seriesId,date,btn.dataset.s); return;
       case 'clear': openActionReview(seriesId,date,'none'); return;
@@ -3007,10 +3495,13 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     }
   });
   document.addEventListener('input', e => {if(e.target.closest('#main')&&!['newNote','relayIn'].includes(e.target.id))unsavedForm=true; if(e.target.closest('#actionReview')&&actionReview){actionReview.fields=null;$('#confirm-preview').innerHTML='';} if(e.target.id==='newNote')feedbackText=noteDraft.text=e.target.value; if (e.target.id === 'starter-from' || e.target.id === 'starter-to') starterReview = null; if (e.target.id === 'relayIn' || e.target.id === 'rl-from' || e.target.id === 'rl-to'){ relayPreview = null; const confirm = document.querySelector('[data-act=relayImport]'); if (confirm){ confirm.disabled = true; confirm.textContent = 'Recheck the edited reply and dates'; } if (e.target.id === 'relayIn'){ relayDraft = e.target.value; relayInboxId = null; } else { relayDates = {from:$('#rl-from').value,to:$('#rl-to').value}; if ($('#relayExact')) $('#relayExact').textContent = relayPacket(S(),relayDates.from,relayDates.to); } } });
+  document.addEventListener('toggle', e => { const d = e.target; if (d && d.classList && d.classList.contains('plan-fold') && d.dataset.fold) planFold[d.dataset.fold] = d.open; }, true);
+  document.addEventListener('toggle', e => { if (e.target && e.target.id === 'shelfBody') try { localStorage.setItem('health-tracker.shelfOpen', e.target.open ? '1' : '0'); } catch (_) {} }, true);
   document.addEventListener('change', e => { if(e.target.closest('#actionReview')&&actionReview){actionReview.fields=null;$('#confirm-preview').innerHTML='';}
     const el = e.target; const st = S();
     if (el.matches('.days input[name$="-day"]')){ el.closest('label').classList.toggle('on', el.checked); return; }
     if (el.matches('input[type="radio"][name$="-kind"]')){ const wrap = el.closest('.form').querySelector('[data-days]'); if (wrap) wrap.hidden = el.value === 'once'; return; }
+    if (el.dataset.act === 'shelfPick'){ if (el.checked) shelfPicked.add(el.dataset.tpl); else shelfPicked.delete(el.dataset.tpl); render(); return; }
     if (el.dataset.act === 'fasting'){ el.closest('label').classList.toggle('on', el.checked); stage(st, 'pref'); st.prefs.fastingDays = [...document.querySelectorAll('input[name="fast-day"]:checked')].map(i => +i.value).sort(); commit('fasting','Fasting days saved. Shown on Log, never enforced.'); return; }
     if (el.dataset.act === 'weekStart'){ stage(st, 'pref'); st.prefs.weekStart = +el.value; progStart = wkStart(todayYmd()); commit('pref', 'Week now starts on ' + (st.prefs.weekStart === 1 ? 'Monday' : 'Sunday') + '.'); return; }
     if (el.dataset.act === 'theme'){ stage(st, 'pref'); st.prefs.theme = el.value === 'light' ? 'light' : 'dark'; commit('pref', 'Appearance saved.'); return; }

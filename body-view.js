@@ -129,8 +129,13 @@ class HealthBodyView extends HTMLElement {
       method: 'POST', headers: {'X-Body-Request': '1', 'X-Source-Name': data instanceof File ? data.name : '', 'Content-Type': data instanceof File ? 'application/octet-stream' : 'application/json'},
       body: data instanceof File ? data : JSON.stringify(data)
     } : {});
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'The body record could not be opened.');
+    // A missing or empty reply used to surface as the raw parser message "Unexpected end of JSON
+    // input". No records list yet is simply no records; anything else names what failed in words.
+    const text = await response.text();
+    let result = null;
+    try { result = text ? JSON.parse(text) : null; } catch (_) { result = null; }
+    if (response.status === 404 && action === 'records') return [];
+    if (!response.ok || result === null) throw new Error((result && result.error) || 'The body record could not be opened.');
     return result;
   }
 
@@ -202,7 +207,8 @@ class HealthBodyView extends HTMLElement {
       {label: 'weight', figure: newer(app.weight, fromFitdays('weight', 'lb'))},
       {label: 'body fat', figure: newer(app.bodyFat, fromFitdays('bodyFatPercentage', '%'))},
       {label: 'lean mass', figure: app.leanMass || null},
-      {label: 'muscle', figure: fromFitdays('muscleMass', 'lb')},
+      // Fitdays' muscle has no Apple Health twin; it shows only when your export has no lean mass.
+      {label: 'muscle', figure: app.leanMass ? null : fromFitdays('muscleMass', 'lb')},
       {label: 'BMI', figure: newer(app.bmi, fromFitdays('bmi', null))}
     ].filter(row => row.figure);
   }
@@ -323,11 +329,13 @@ class HealthBodyView extends HTMLElement {
       (record ? '<div class="body-record-heading"><h3>' + esc(this.date(record.captureDate)) + '</h3><span class="chip quiet">' + (this.stage ? 'Import preview · not saved' : esc(record.variantLabel)) + '</span></div>' +
         (!this.stage ? this.compositionHeadingHTML() : '') +
         (this.stage ? '<div class="body-review"><label>Reference type<select data-body="variant" aria-label="Reference type"><option value="reconstructed-reference">Reconstructed reference</option><option value="original-photo-reference">Original-photo reference</option></select></label><p class="hint">One model and four reference images checked. Review the date, views and reference type before saving.</p><div class="acts"><button class="primary" data-body="save">Save body record</button><button data-body="cancel">Cancel import</button></div></div>' : '') +
+        // Model and reference image side by side (Mintay, 2026-09-24); the image follows the model's angle.
+        '<div class="body-pair"><div class="body-pane">' +
         '<div class="body-model-stage"><model-viewer class="body-model" src="' + this.asset(!this.stage && Object.keys(this.regions).length ? 'regions.glb' : 'model.glb') + '" alt="Approximate body model. Drag to rotate; scroll to zoom." camera-controls camera-orbit="0deg 85deg 115%" field-of-view="30deg" min-camera-orbit="auto auto 20%" max-camera-orbit="auto auto 250%" interaction-prompt="none" shadow-intensity="0.4" exposure="1"></model-viewer><span class="body-load" role="status">Loading 3D view…</span>'+(!this.stage ? '<div class="body-region-overlay" aria-live="polite"></div>' : '')+'</div>' +
-        '<div class="body-angle-controls" aria-label="Model viewing angle">' + ['Front','Back','Left','Right','Reset view'].map(name => '<button data-body="angle" data-angle="' + name + '">' + name + '</button>').join('') + '</div><p class="hint">Drag to rotate · scroll to zoom. The photo follows the nearest angle; Reset returns both to Front. Solid-color model; skin is shown in the reference images.</p>' +
+        '<div class="body-angle-controls" aria-label="Model viewing angle">' + ['Front','Back','Left','Right','Reset view'].map(name => '<button data-body="angle" data-angle="' + name + '">' + name + '</button>').join('') + '</div><p class="hint">Drag to rotate · scroll to zoom. The photo follows the nearest angle; Reset returns both to Front. Solid-color model; skin is shown in the reference images.</p></div>' +
+        '<div class="body-pane body-photos"><p class="cap">Reference image</p><div class="body-photo-tabs" role="group" aria-label="Reference image">' + ['Front','Back','Left','Right'].map(name => '<button data-body="photo" data-photo="' + name + '" aria-pressed="' + (name === this.photo) + '">' + name + '</button>').join('') + '</div><a class="body-photo-link" href="' + this.asset(this.photo + '.png') + '" target="_blank" rel="noopener"><img class="body-reference" src="' + this.asset(this.photo + '.png') + '" alt="' + this.photo + ' reference image"><span>Open full-size image ↗</span></a></div></div>' +
         (!this.stage ? this.regionHTML() : '') +
         (!this.stage ? this.compositionHTML() : '') +
-        '<details class="body-photos" open><summary>Matching reference images</summary><div class="body-photo-tabs" role="group" aria-label="Reference image">' + ['Front','Back','Left','Right'].map(name => '<button data-body="photo" data-photo="' + name + '" aria-pressed="' + (name === this.photo) + '">' + name + '</button>').join('') + '</div><a class="body-photo-link" href="' + this.asset(this.photo + '.png') + '" target="_blank" rel="noopener"><img class="body-reference" src="' + this.asset(this.photo + '.png') + '" alt="' + this.photo + ' reference image"><span>Open full-size image ↗</span></a></details>' +
         (!this.stage ? this.measurementHTML() : '') +
         '<p class="hint body-limitation">' + (this.stage || record.variant === 'reconstructed-reference' ? 'Reconstructed reference: shape and hidden skin details may be estimated. ' : 'Original-photo references with an approximate generated model. ') + 'This view does not measure body fat, muscle or circumferences.</p>' +
         (!this.stage ? '<div class="acts"><a class="body-export" href="' + this.asset('export.zip') + '" download>Export model + four images</a><span class="hint">Saved locally · available after reopening</span></div>' : '') :

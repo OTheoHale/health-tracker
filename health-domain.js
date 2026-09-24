@@ -904,6 +904,33 @@ function setGradeIncluded(state, gid, included){
   if (!GRADE_CATEGORIES.includes(gid)) return null;
   state.grades.included[gid] = !!included; state.grades.updatedAt = nowIso(); return !!included;
 }
+/* Overall Rank, connected (Mintay, 2026-09-24): each category's share of its required activities done
+   over the last 28 complete days (or since scoring started, if later), weighted by the existing 10/9
+   importance. A category with nothing scheduled shows no letter and stays out of the overall rather
+   than blocking it. Arcade-style ladder: A is excellent; S, SS and SSS are the elite 15 %. */
+const RANK_SLOTS={fitness:['fitness','health-physical'],food:['food'],care:['care','personal-care','hygiene','home','health-mental'],faith:['faith'],work:['work']};
+const RANK_CUTOFFS=[[95,'SSS'],[90,'SS'],[85,'S'],[80,'A'],[70,'B'],[55,'C'],[40,'D'],[0,'F']];
+function rankLetter(pct){return Number.isFinite(pct)?RANK_CUTOFFS.find(([c])=>pct>=c)[1]:null;}
+function overallRankReport(state,today){
+  const start=state.rewards&&state.rewards.progression&&state.rewards.progression.effectiveFrom;let to=addDays(today,-1),from=addDays(to,-27);
+  if(start&&start>from)from=start;if(to<from){from=today;to=today;}
+  // A weekly goal (prayer 3 days a week, church once in four weeks) counts against its goal, pro-rated
+  // to the days counted and capped there, so meeting the goal is 100 % rather than 3 of 7.
+  const tally={},goals={},slotOf=c=>Object.keys(RANK_SLOTS).find(k=>RANK_SLOTS[k].includes(c)),span=calendarDistance(from,to)+1;
+  for(let d=from;d<=to;d=addDays(d,1))for(const r of allRows(planFor(state,d))){
+    if(r.children&&r.children.length)continue;
+    const slot=slotOf(r.category);if(!slot)continue;
+    const series=state.series.find(x=>x.id===r.seriesId),rec=series&&versionFor(series,d)?.recurrence;
+    if(rec&&rec.kind==='target'&&rec.count>0){const g=goals[r.seriesId]=goals[r.seriesId]||{slot,count:rec.count,weeks:rec.weeks||1,done:0};if(r.status==='done')g.done++;continue;}
+    if(r.optional)continue;
+    const t=tally[slot]=tally[slot]||{planned:0,done:0};t.planned++;if(r.status==='done')t.done++;
+  }
+  for(const g of Object.values(goals)){const expected=g.count*span/(7*g.weeks),t=tally[g.slot]=tally[g.slot]||{planned:0,done:0};t.planned+=expected;t.done+=Math.min(g.done,expected);}
+  const settings=state.grades||defaultGradeSettings();let weights=0,sum=0;
+  const slots=GRADE_CATEGORIES.map(gid=>{const t=tally[gid],pct=t&&t.planned?100*t.done/t.planned:null,w=settings.included[gid]?settings.weights[gid]:0;if(pct!==null&&w){weights+=w;sum+=pct*w;}return {gid,planned:t?t.planned:0,done:t?t.done:0,pct,letter:rankLetter(pct),weight:w,included:!!settings.included[gid]};});
+  const overall=weights?sum/weights:null;
+  return {from,to,slots,overall,letter:rankLetter(overall)};
+}
 function gradeReport(state, exampleScores){
   const settings = state.grades || defaultGradeSettings();
   const totalWeight = GRADE_CATEGORIES.reduce((n, id) => n + (settings.included[id] ? settings.weights[id] : 0), 0);
@@ -1270,7 +1297,8 @@ function reconcileRewardClaim(state, id, note){
   const claim = state.rewards.claims[id]; if (!claim) return null;
   claim.reconciledAt = nowIso(); claim.reconciliation = String(note || 'Reviewed correction; previously claimed credit retained.').slice(0,300); claim.reconciliationSignature = rewardReviewSignature(state,claim); return claim;
 }
-function evidenceFingerprint(record){ if(record.unmapped?.healthAutoExport?.format==='JSON'&&typeof HealthAutoExport!=='undefined')return HealthAutoExport.signature(record);return JSON.stringify([record.kind,record.type || null,record.start,record.end || null,record.value == null ? null : record.value,record.unit || null,record.durationSec == null ? null : record.durationSec]); }
+function evidenceFingerprint(record){ if(wsPass){let f=wsPass.fp.get(record);if(f===undefined){f=evidenceFingerprintOf(record);wsPass.fp.set(record,f);}return f;} return evidenceFingerprintOf(record); }
+function evidenceFingerprintOf(record){ if(record.unmapped?.healthAutoExport?.format==='JSON'&&typeof HealthAutoExport!=='undefined')return HealthAutoExport.signature(record);return JSON.stringify([record.kind,record.type || null,record.start,record.end || null,record.value == null ? null : record.value,record.unit || null,record.durationSec == null ? null : record.durationSec]); }
 function evidenceOverlaps(a, b){
   if (!a || !b || a.kind !== b.kind) return false;
   if (a.kind === 'steps') return ymd(new Date(a.start)) === ymd(new Date(b.start));
@@ -1593,6 +1621,24 @@ function workoutHistory(state, from, to){
     rows.push({ id:r.id, date, start:r.start, type:r.type || 'Workout', minutes:r.durationSec === null || r.durationSec === undefined ? null : r.durationSec / 60, elapsedMinutes:r.elapsedSec === null || r.elapsedSec === undefined ? null : r.elapsedSec / 60, source:r.sourceApp, origin:'relayed', effort:null, reference:r });
   }
   return rows.sort((a, b) => b.date.localeCompare(a.date) || (b.start || '').localeCompare(a.start || ''));
+}
+/* One run recorded by the Watch and by iFIT is one session (Mintay, 2026-09-24): an imported workout
+   of the same kind (cardio or strength) from another app that overlaps a Watch workout by at least
+   half of the shorter one folds into the Watch record, which names the other app under `also`. It
+   was listed twice and counted twice in Fitness (182 min for 145). Types not yet classified, manual
+   logs and two Watch workouts never merge. Evidence check-offs already choose one of the two. */
+function workoutSessions(state, rows){
+  const kind=r=>wsWorkoutClass(state,r.reference),span=r=>{const a=Date.parse(r.reference.start),b=r.reference.end?Date.parse(r.reference.end):a+(r.minutes||0)*60000;return [a,b];};
+  const copies=rows.map(r=>({...r})),watch=copies.filter(r=>r.origin==='relayed'&&wsWatch(r.reference)),out=[];
+  for(const r of copies){
+    if(r.origin==='relayed'&&!wsWatch(r.reference)){
+      const k=kind(r),[a,b]=span(r);
+      const host=(k==='cardio'||k==='strength')&&watch.find(w=>{if(kind(w)!==k)return false;const [c,d]=span(w),o=Math.min(b,d)-Math.max(a,c);return o>0&&o>=0.5*Math.min(b-a,d-c);});
+      if(host){(host.also=host.also||[]).push(r.source);continue;}
+    }
+    out.push(r);
+  }
+  return out;
 }
 function workoutComparison(rows, end, span){
   span=Math.max(1,Math.min(7,span||7));
@@ -2642,7 +2688,7 @@ function planFor(state,date){
     const o=state.occurrences[occKey(series.id,date)]||null;if(o?.removed)continue;
     if(!scheduledOn(v,date)&&!(o&&(o.added||o.status!==null||o.committed))&&!v.childIds)continue;
     const ov=o?.override||{},variant=recurrenceVariant(v,date),normal=ov.normal||variant?.normal||v.normal,minimum=ov.minimum||variant?.minimum||v.minimum,selected=o?o.selected:'normal';
-    rows.push({key:occKey(series.id,date),seriesId:series.id,date,name:ov.name||v.name,category:v.category||series.category,anchor:ov.anchor||v.anchor,window:ov.window!==undefined?ov.window:v.window||'',order:ov.order??v.order,version:v.version,demo:!!series.demo,targets:{normal,minimum},selected,target:selected==='minimum'?minimum:normal,status:o&&o.status==='done'&&confirmedProgression(state)&&!actionConfirmation(state,o).confirmed?'tentative':o?o.status:null,confirmation:o?.aliasOf?'Same action · linked in Log':o?actionConfirmation(state,o).label:'No entry',completedVersion:o?.completedVersion||null,actualMinutes:o?.actualMinutes??null,note:o?.note||'',corrections:o?.corrections?.length||0,added:!!o?.added,addedFrom:o?.addedFrom||null,overridden:!!o?.override,aliasOf:o?.aliasOf||null,optional:!!v.optional,once:v.recurrence?.kind==='once',group:wsGroup(series,date),parentId:wsHas(ov,'parentId')?ov.parentId:parentFor(series,date),childIds:v.childIds||null,session:v.recurrence?.session||'',variant:variant?.label||'',recurrence:v.recurrence,matching:v.matching||null,targetProgress:null,workspaceKind:wsKind(series,date),budgetQ:v.budgetQ??null,occurrence:o});
+    rows.push({key:occKey(series.id,date),seriesId:series.id,date,name:ov.name||wsDayName(v,date),category:v.category||series.category,anchor:ov.anchor||v.anchor,window:ov.window!==undefined?ov.window:v.window||'',order:ov.order??v.order,version:v.version,demo:!!series.demo,targets:{normal,minimum},selected,target:selected==='minimum'?minimum:normal,status:o&&o.status==='done'&&confirmedProgression(state)&&!actionConfirmation(state,o).confirmed?'tentative':o?o.status:null,confirmation:o?.aliasOf?'Same action · linked in Log':o?actionConfirmation(state,o).label:'No entry',completedVersion:o?.completedVersion||null,actualMinutes:o?.actualMinutes??null,note:o?.note||'',corrections:o?.corrections?.length||0,added:!!o?.added,addedFrom:o?.addedFrom||null,overridden:!!o?.override,aliasOf:o?.aliasOf||null,optional:!!v.optional,once:v.recurrence?.kind==='once',group:wsGroup(series,date),parentId:wsHas(ov,'parentId')?ov.parentId:parentFor(series,date),childIds:v.childIds||null,session:v.recurrence?.session||'',variant:variant?.label||'',recurrence:v.recurrence,matching:v.matching||null,targetProgress:null,workspaceKind:wsKind(series,date),budgetQ:v.budgetQ??null,occurrence:o});
   }
   const time=r=>/^([01]\d|2[0-3]):[0-5]\d$/.test(r.window||'')?r.window:'99:99';
   const order=(a,b)=>time(a).localeCompare(time(b))||anchorOrder(a.anchor)-anchorOrder(b.anchor)||a.order-b.order||a.seriesId.localeCompare(b.seriesId);
@@ -2697,6 +2743,31 @@ function wsTransaction(state,change){
   try{const result=change(draft);if(result?.ok===false)return result;const error=validateState(draft);if(error)return {ok:false,error};replaceState(state,draft);return result&&result.ok!==undefined?result:{ok:true,record:result||null};}
   catch(error){return {ok:false,error:error.message};}
 }
+/* Fasting (Mintay, 2026-09-24): outside a season the Wednesday and Friday fasts read "Wed Fasting" and
+   "Fri Fasting". A season he adds (its name, first and last day) is a dated version of the same
+   Fasting activity — daily and named after the season — and the day after it ends the Wednesday and
+   Friday version returns. One fasting task a day; scheduling, rings and points follow the versions. */
+const WS_EVERY_DAY=[0,1,2,3,4,5,6];
+function wsDayName(v,date){if(v.workspaceKind==='fasting'&&v.name==='Fasting'){const d=dow(date);return d===3?'Wed Fasting':d===5?'Fri Fasting':v.name;}return v.name;}
+function wsFastingSeries(state){return state.series.find(s=>s.id==='dw-fasting')||state.series.find(s=>s.versions.some(v=>v.workspaceKind==='fasting'))||null;}
+function wsFastingSeasons(state){
+  const series=wsFastingSeries(state);if(!series)return [];
+  const vs=series.versions.slice().sort((a,b)=>a.effectiveFrom.localeCompare(b.effectiveFrom)||a.version-b.version),out=[];
+  vs.forEach((v,i)=>{if(v.recurrence?.kind==='weekly'&&(v.recurrence.days||[]).length===7&&!vs.slice(i+1).some(n=>n.effectiveFrom===v.effectiveFrom)){const next=vs.slice(i+1).find(n=>n.effectiveFrom>v.effectiveFrom);out.push({name:v.name,from:v.effectiveFrom,to:next?addDays(next.effectiveFrom,-1):null});}});
+  return out;
+}
+function wsAddFastingSeason(state,season){
+  const name=String(season?.name||'').trim(),from=season?.from,to=season?.to;
+  if(!name)throw new Error('Name the fasting season.');
+  if(!validCalendarDate(from)||!validCalendarDate(to)||to<from)throw new Error('Choose a first and last day, in order.');
+  const series=wsFastingSeries(state);if(!series)throw new Error('Set up the agreed activities first; the season belongs to your Fasting activity.');
+  if(wsFastingSeasons(state).some(x=>x.from<=to&&(x.to===null||x.to>=from)))throw new Error('This overlaps a fasting season you already added.');
+  if(series.versions.some(v=>v.effectiveFrom>from))throw new Error('Your Fasting activity has a later change; add the season before editing it further.');
+  const before=versionFor(series,addDays(from,-1))||versionFor(series,from);if(!before)throw new Error('Fasting is not scheduled on this date.');
+  wsRevise(state,series.id,{name,recurrence:{kind:'weekly',days:WS_EVERY_DAY}},from);
+  wsRevise(state,series.id,{name:before.name,recurrence:JSON.parse(JSON.stringify(before.recurrence))},addDays(to,1));
+  return {ok:true,season:{name,from,to}};
+}
 function wsRevise(state,id,changes,date){
   const series=state.series.find(s=>s.id===id),base=series&&versionFor(series,date);if(!base)throw new Error('Choose an existing activity on this date.');
   const version=versionFrom({...base,...changes},latestVersion(series).version+1,date);series.versions.push(version);return version;
@@ -2747,7 +2818,23 @@ function wsSyncMembership(state,parentIds,from){
 const WS_NIGHT_HOUR=15;
 function sourceLocalHour(instant){const zone=/([+-])(\d{2}):(\d{2})$/.exec(instant),offset=zone?(zone[1]==='-'?-1:1)*(Number(zone[2])*60+Number(zone[3])):0;return new Date(Date.parse(instant)+offset*60000).getUTCHours();}
 function wsProjectedRecord(state,id){const projected=sourceProjection(state);return projected?projected.records.find(r=>r.id===id)||null:null;}
-function wsSourceRecord(state,id){return (state.sourceRecords||[]).find(r=>r.id===id)||wsProjectedRecord(state,id);}
+function wsSourceRecord(state,id){
+  if(wsPass&&wsPass.state===state){if(!wsPass.byId){wsPass.byId=new Map();const projected=sourceProjection(state);for(const r of projected?projected.records:[])if(!wsPass.byId.has(r.id))wsPass.byId.set(r.id,r);for(const r of state.sourceRecords||[])wsPass.byId.set(r.id,r);}return wsPass.byId.get(id)||null;}
+  return (state.sourceRecords||[]).find(r=>r.id===id)||wsProjectedRecord(state,id);
+}
+/* One automatic evidence pass asks the same questions of the same records for every activity on
+   every day of its window: each candidate was re-signed (a deep clone) and every lookup scanned the
+   whole store, so a pass grew with the square of the records — 14 s after three days of files, and
+   intake held the app's click guard the whole time (V1.8). The pass now indexes its records once by
+   day and by id and signs each record once. The cache lives only for that pass, on that draft, and
+   the answers are the same (test-auto-evidence.js compares a pass with and without it). */
+let wsPass=null;
+function wsPassCandidates(state,v,date){
+  if(!wsPass.byDay){wsPass.byDay=new Map();for(const r of state.sourceRecords||[]){const derived=r.unmapped?.healthAutoExport?.representation==='derived daily view'?r.unmapped.healthAutoExport.day:null,day=derived||sourceLocalDay(r.kind==='sleep'?(r.end||r.start):r.start);if(!wsPass.byDay.has(day))wsPass.byDay.set(day,[]);wsPass.byDay.get(day).push(r);}}
+  const stored=wsPass.byDay.get(date)||[],kind=v?.matching?.kind;if(kind!=='steps'&&kind!=='sleep')return stored;
+  const projected=sourceProjection(state);if(!projected)return stored;
+  return stored.concat(projected.records.filter(r=>r.kind===kind&&r.unmapped?.healthAutoExport?.representation==='derived daily view'&&r.unmapped.healthAutoExport.day===date));
+}
 function wsEvidenceCandidates(state,v,date){
   const stored=state.sourceRecords||[],kind=v?.matching?.kind;if(kind!=='steps'&&kind!=='sleep')return stored;
   const projected=sourceProjection(state);if(!projected)return stored;
@@ -2819,11 +2906,12 @@ function wsEvidenceProblem(state,record,series,date){
 function wsEvidencePreview(state,id,date){
   const series=state.series.find(s=>s.id===id),v=series&&versionFor(series,date);if(!v||(!scheduledOn(v,date)&&!state.occurrences[occKey(id,date)]?.added))return {ok:false,error:'Choose an activity available on this date; saved end dates are retained.'};
   const o=state.occurrences[occKey(id,date)],eventId=o?rewardIdentity(state,o):occKey(id,date),records=[];
-  for(const record of wsEvidenceCandidates(state,v,date)){
+  for(const record of wsPass&&wsPass.state===state?wsPassCandidates(state,v,date):wsEvidenceCandidates(state,v,date)){
     const derivedDay=record.unmapped?.healthAutoExport?.representation==='derived daily view'?record.unmapped.healthAutoExport.day:null;
     if((derivedDay||sourceLocalDay(record.kind==='sleep'?(record.end||record.start):record.start))!==date)continue;
     let problem=wsEvidenceProblem(state,record,series,date);
-    const used=Object.values(state.rewards.evidence).find(e=>!e.retractedAt&&e.eventId!==eventId&&(e.sourceId===record.id||e.fingerprint===evidenceFingerprint(record)||evidenceOverlaps(record,wsSourceRecord(state,e.sourceId))));
+    // Within a pass only eligibility matters, so a record that already has a problem skips the scan.
+    const used=problem&&wsPass&&wsPass.state===state?null:Object.values(state.rewards.evidence).find(e=>!e.retractedAt&&e.eventId!==eventId&&(e.sourceId===record.id||e.fingerprint===evidenceFingerprint(record)||evidenceOverlaps(record,wsSourceRecord(state,e.sourceId))));
     if(used)problem='This evidence already belongs to another action.';
     records.push({id:record.id,sourceId:record.id,type:record.type||record.kind,writer:record.sourceApp||'unknown',minutes:wsExactMinutes(record),eligible:!problem,problem,confirmed:!!(state.rewards.evidence[record.id]&&!state.rewards.evidence[record.id].retractedAt&&state.rewards.evidence[record.id].eventId===eventId),record});
   }
@@ -2856,7 +2944,7 @@ function wsConfirmEvidenceIn(draft,id,date,sourceIds,options={}){
     const before=snapshot(o);
     o.committed=true;o.evidenceOnly=true;o.status='done';o.confirmation={kind:'source',at,sourceIds:sourceIds.slice(),...(options.auto?{auto:true}:{})};o.completedVersion='normal';o.loggedAt=at;if(!options.auto)delete o.autoDeclined;
     for(const old of Object.values(draft.rewards.evidence))if(old.eventId===preview.eventId&&!sourceIds.includes(old.sourceId)&&!old.retractedAt){old.retractedAt=at;old.updatedAt=at;}
-    for(const chosen of selected){if(draft.syntheticWorkspace===true){chosen.record.syntheticPreview=true;o.syntheticPreview=true;}const old=draft.rewards.evidence[chosen.id],history=old?[...(old.history||[]),{fingerprint:old.fingerprint,eventId:old.eventId,acceptedAt:old.acceptedAt,retractedAt:old.retractedAt,updatedAt:old.updatedAt}]:[];draft.rewards.evidence[chosen.id]={sourceId:chosen.id,eventId:rewardIdentity(draft,o),fingerprint:wsEvidenceFingerprint(chosen.record),seriesId:id,date,acceptedAt:at,updatedAt:at,retractedAt:null,ruleVersion:4,history,...(draft.syntheticWorkspace===true?{syntheticPreview:true}:{})};}
+    for(const chosen of selected){if(draft.syntheticWorkspace===true){chosen.record.syntheticPreview=true;o.syntheticPreview=true;if(wsPass)wsPass.fp.delete(chosen.record);}const old=draft.rewards.evidence[chosen.id],history=old?[...(old.history||[]),{fingerprint:old.fingerprint,eventId:old.eventId,acceptedAt:old.acceptedAt,retractedAt:old.retractedAt,updatedAt:old.updatedAt}]:[];draft.rewards.evidence[chosen.id]={sourceId:chosen.id,eventId:rewardIdentity(draft,o),fingerprint:wsEvidenceFingerprint(chosen.record),seriesId:id,date,acceptedAt:at,updatedAt:at,retractedAt:null,ruleVersion:4,history,...(draft.syntheticWorkspace===true?{syntheticPreview:true}:{})};}
     if(kind==='cardio'||kind==='strength'){o.actualMinutes=selected.reduce((sum,r)=>sum+r.minutes,0);o.completedVersion=o.actualMinutes<(v.normal?.minutes||0)?'minimum':'normal';}
     wsPinRule(draft,o);recordCorrection(o,before,at);touch(o);return {ok:true,record:o,occurrence:o};
   }
@@ -2878,6 +2966,7 @@ function wsAutoEligible(state,series,date){
   return true;
 }
 function wsAutoEvidence(state,options={}){
+  if(!wsPass&&!options.uncached){wsPass={state,fp:new WeakMap(),byId:null,byDay:null};try{return wsAutoEvidence(state,options);}finally{wsPass=null;}}
   const today=options.today||todayYmd(),days=options.days||WS_AUTO_DAYS,changes=[];
   for(let i=days-1;i>=0;i--){
     const date=addDays(today,-i);
@@ -3229,6 +3318,8 @@ const Workspace={
   create(state,fields,date){return wsTransaction(state,draft=>wsCreate(draft,fields,date,fields.parentId||null));},
   addChild(state,parentId,fields,date,options={}){return wsTransaction(state,draft=>wsCreate(draft,{...fields,...(options.scope==='occurrence'?{recurrence:{kind:'once',date}}:{})},date,parentId));},
   edit(state,id,changes,date,options={}){return wsTransaction(state,draft=>wsEdit(draft,id,changes,date,options));},
+  fastingSeasons:wsFastingSeasons,
+  addFastingSeason(state,season){return wsTransaction(state,draft=>wsAddFastingSeason(draft,season));},
   move(state,id,parentId,date){return wsTransaction(state,draft=>wsMove(draft,id,parentId,date));},
   reorder(state,id,order,date){if(!Number.isFinite(order))return {ok:false,error:'Choose a valid order.'};return wsTransaction(state,draft=>wsEdit(draft,id,{order},date));},
   commit(state,id,date,committed=true){return wsTransaction(state,draft=>{const s=draft.series.find(s=>s.id===id),v=s&&versionFor(s,date);if(!v||v.childIds||!validCalendarDate(date)||!scheduledOn(v,date))return {ok:false,error:'Choose an available leaf on this date.'};const o=ensureOcc(draft,id,date);o.committed=!!committed;if(committed&&v.recurrence?.kind==='target'&&v.recurrence.count===1&&v.recurrence.mode!=='rolling'&&!o.status&&!draft.rewards.claims[o.rewardEventId])o.rewardEventId=id+'|week:'+weekStartOf(date,1);touch(o);return {ok:true,record:o};});},
@@ -3284,6 +3375,10 @@ confirmAction=function(state,id,date,fields={}){
   const result=wsLegacyConfirmAction(state,id,date,fields);if(result.ok&&state.syntheticWorkspace===true)result.occurrence.syntheticPreview=true;return result;
 };
 Workspace.confirmHealthyMeal=function(state,id,date,tags,options={}){return wsTransaction(state,draft=>{const result=confirmAction(draft,id,date,{mealTags:tags,attested:options.attested===true});return result.ok?{ok:true,record:result.occurrence}:result;});};
+/* Energy-deficit points on Mintay's curve (500 → 8, 800 → 10, 1,000 → 12 kcal → points). A preview only:
+   claims still use the adopted rule; paying these needs a new rule version so earlier claims keep their amounts. */
+const DEFICIT_STEPS=[[1000,12],[800,10],[500,8]];
+function energyDeficitPoints(deficit){if(!Number.isFinite(deficit))return 0;for(const [kcal,points] of DEFICIT_STEPS)if(deficit>=kcal)return points;return 0;}
 Workspace.energyBalance=function(state,date){
   const source=(kind)=>{const records=relayedRecords(state,kind).filter(r=>sourceLocalDay(r.start)===date&&!r.clashes?.length&&r.unit==='kcal'&&Number.isFinite(r.value)&&r.value>=0);const signatures=new Map();for(const record of records){const key=JSON.stringify([record.sourceRecordId||null,record.sourceApp,record.start,record.end,record.value]);if(!signatures.has(key))signatures.set(key,record);}const distinct=[...signatures.values()];if(new Set(distinct.map(r=>r.sourceApp)).size>1)return null;if(distinct.some((r,i)=>distinct.slice(0,i).some(other=>evidenceOverlaps(r,other))))return null;return distinct.length?distinct.reduce((n,r)=>n+r.value,0):null;};
   const foods=(state.foods||[]).filter(f=>f.date===date),manualFood=foods.length&&foods.every(f=>Number.isFinite(f.nutrition?.calories))?foods.reduce((n,f)=>n+f.nutrition.calories,0):null;
