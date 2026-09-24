@@ -891,10 +891,13 @@ addEventListener('load', () => {
           if(intakeEditing())return {ok:false,deferred:true};
           intake.applying=true;
           try{
-            const current=await store.readFresh();if(!current.ok)return current;
-            if(current.state.rewardGeneration!==real.rewardGeneration||current.state.revision!==real.revision)return {ok:false,error:'The workspace changed in another view. Reload before automatic intake continues.'};
+            // Every app load re-reads the whole folder (the native acknowledgements are reset), and
+            // each file here costs a full read of the store. A file already delivered is answered
+            // first, so it costs one full read instead of two; nothing is written on that path.
             const known=await durableStore.engine.readDelivery(token);if(!known.ok)return known;
             if(known.delivery)return {ok:true,duplicate:true};
+            const current=await store.readFresh();if(!current.ok)return current;
+            if(current.state.rewardGeneration!==real.rewardGeneration||current.state.revision!==real.revision)return {ok:false,error:'The workspace changed in another view. Reload before automatic intake continues.'};
             const draft=current.state,feed=draft.autoFeed,contract=feed.contract;
             const delivery={id:token,feedId:contract.feedId,fileId:file.id,digest:file.sha256,modifiedAt:file.modifiedAt,modifiedAtMs:file.modifiedAtMs,receivedAt:nowIso()};
             const previous=feed.files.find(x=>x.fileId===file.id);
