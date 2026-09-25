@@ -3,19 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Temple Keep</title>
-<meta name="apple-mobile-web-app-title" content="Temple Keep">
-<meta name="application-name" content="Temple Keep">
+<title>Glow</title>
+<meta name="apple-mobile-web-app-title" content="Glow">
+<meta name="application-name" content="Glow">
 <style>
 :root, :root[data-theme="dark"]{
-  --bg:#0f2a21; --panel:rgba(8,32,25,.78); --panel-2:rgba(14,44,35,.9); --sunk:rgba(255,255,255,.06); --line:rgba(243,239,227,.13); --line-strong:rgba(243,239,227,.28);
-  --ink:#f3efe3; --muted:#c3c9bd; --faint:#93a099;
-  --verd:#8fd3bd; --wash:#4f8a72; --brass:#c9a45c; --brass-soft:rgba(201,164,92,.18);
-  --accent:#8fd3bd; --accent-soft:rgba(143,211,189,.14); --accent-ink:#bfeadb; --on-accent:#08201a;
-  --warn:#d9b26a; --warn-soft:rgba(217,178,106,.16); --bad:#e39a8f; --bad-soft:rgba(227,154,143,.14);
-  --radius:16px; --tap:42px; --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif; --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
+  /* Glow V2.1: verde marble (default), antique gold, washed complications. Black Marble swaps the stone tones below. */
+  --bg:#0e2219; --panel:rgba(9,27,20,.66); --panel-2:rgba(12,34,26,.92); --sunk:rgba(255,255,255,.055); --line:rgba(236,240,226,.1); --line-strong:rgba(236,240,226,.26);
+  --glass:linear-gradient(160deg,rgba(255,255,255,.075),rgba(255,255,255,.015) 60%);
+  --ink:#ece6d6; --muted:#b9b4a5; --faint:#8f8c81;
+  --verd:#8fd9bf; --wash:#4f8a72; --brass:#cfae63; --brass-soft:rgba(207,174,99,.16);
+  --accent:#8fd9bf; --accent-soft:rgba(143,217,191,.14); --accent-ink:#c3efdf; --on-accent:#08201a;
+  --warn:#e2bb6b; --warn-soft:rgba(226,187,107,.16); --bad:#ee8a7a; --bad-soft:rgba(238,138,122,.14);
+  --radius:20px; --radius-sm:14px; --radius-ctl:12px; --tap:42px; --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif; --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
   color-scheme:dark;
 }
+:root[data-marble="black"]:not([data-theme="light"]){ --bg:#0b0d0c; --panel:rgba(14,18,16,.66); --panel-2:rgba(18,24,21,.92); --line:rgba(236,228,210,.1); --line-strong:rgba(236,228,210,.26) }
 :root[data-theme="light"]{
   --bg:#dfe3d8; --panel:rgba(255,253,247,.86); --panel-2:rgba(236,238,229,.95); --sunk:rgba(0,0,0,.05); --line:rgba(20,40,32,.14); --line-strong:rgba(20,40,32,.3);
   --ink:#16261f; --muted:#4f5f57; --faint:#536459;
@@ -25,21 +28,36 @@
   color-scheme:light;
 }
 *{box-sizing:border-box}
+/* V2.1 finish: capsule bars, the water glass, the jar, steppers, the heat key. */
+.grad-key.heat i{background:linear-gradient(90deg,#5b8fd6 0%,#86bdf0 28%,#e6c07a 55%,#f0a058 78%,#f07a5a 88%,#e85a4a 100%)}
+.heat-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.water-row{display:flex;gap:16px;align-items:center;margin:4px 0 8px}.water-row .big{margin:0}.water-row .water-num{flex:1;min-width:0}.panelcard .water-glass{flex:none;width:60px;height:84px}
+.wg-water path{animation:wgWave 3.4s linear infinite}@keyframes wgWave{to{transform:translateX(40px)}}@media(prefers-reduced-motion:reduce){.wg-water path{animation:none}}
+.stepper{display:flex;align-items:center;gap:4px}.stepper input{text-align:center;min-width:0}.stepper button{flex:none;width:38px;min-height:40px;border:1px solid var(--line-strong);background:var(--sunk);border-radius:var(--radius-ctl);font-size:18px;line-height:1}
+.jar-row{display:flex;gap:18px;align-items:center;margin:6px 0 8px}.jar-row>div{flex:1;min-width:0}.jar-row .big{margin:0 0 2px}.jar-row progress{max-width:220px}.panelcard .jar-row .jar{flex:none;width:112px;height:146px}.panelcard .collect-row .jar{flex:none;width:64px;height:83px}.collect-row>div{flex:1;min-width:0}
+.mf-window{max-width:300px;margin:0 0 10px}
+.tpl-daily{align-self:center;font-size:12.5px;padding:0 4px}
+
 html,body{margin:0;padding:0}
-body{background:var(--bg) center/900px 900px; color:var(--ink); font:15px/1.5 var(--sans); -webkit-font-smoothing:antialiased; min-height:100vh}
+body{background:var(--bg); color:var(--ink); font:15px/1.5 var(--sans); -webkit-font-smoothing:antialiased; min-height:100vh}
+/* The polished stone: one bitmap per marble on its own fixed layer, so scrolling never repaints it; a sheen on top. */
+.stone{position:fixed; inset:0; z-index:-1; background:var(--bg) center/cover no-repeat; transform:translateZ(0)}
+.stone::before{content:""; position:absolute; inset:0; background:radial-gradient(110% 70% at 22% -12%,rgba(255,255,255,.07),transparent 55%),radial-gradient(80% 60% at 100% 110%,rgba(0,0,0,.42),transparent 60%)}
+.stone.wash::after{content:""; position:absolute; inset:0; background:linear-gradient(160deg,rgba(96,44,170,.55),rgba(44,14,84,.6))}
+:root[data-theme="light"] .stone::before{background:none}
 button{font:inherit; color:inherit; cursor:pointer}
 :focus-visible{outline:2px solid var(--brass); outline-offset:2px; border-radius:6px}
 #areaTitle:focus,#family-heading:focus{outline:none}
 [hidden]{display:none !important}
 h1,h2,h3,h4{margin:0; letter-spacing:-.01em}
-h1{font:600 30px/1.1 var(--serif)}
+h1{font:600 32px/1.1 var(--serif)}
 h2{font:600 20px/1.2 var(--serif)}
 h3{font:600 15.5px/1.3 var(--sans)}
 h4{font:600 12.5px/1.3 var(--sans); color:var(--faint); margin:12px 0 6px}
 .sr{position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden}
 .hint{font-size:13px; color:var(--faint); line-height:1.5}
 .cap{font-size:12px; font-weight:600; color:var(--faint); letter-spacing:.01em; margin:0 0 4px}
-.big{font:600 26px/1.15 var(--serif); margin:2px 0 4px}
+.big{font:600 30px/1.1 var(--serif); margin:2px 0 4px; font-variant-numeric:tabular-nums} .big small{font:500 14px var(--sans); color:var(--muted)}
 .big.un{color:var(--faint); font-weight:500}
 .dim{color:var(--faint); font-weight:500}
 .up{color:var(--verd)} .dn{color:var(--brass)}
@@ -48,27 +66,33 @@ h4{font:600 12.5px/1.3 var(--sans); color:var(--faint); margin:12px 0 6px}
 
 /* frame */
 .app{display:grid; grid-template-columns:232px 1fr; min-height:100vh}
-.side{position:sticky; top:0; height:100vh; padding:26px 18px 18px; border-right:1px solid var(--line); background:rgba(0,0,0,.14); display:flex; flex-direction:column; gap:6px}
+.side{position:sticky; top:0; height:100vh; padding:24px 16px 16px; border-right:1px solid rgba(236,228,210,.07); background:rgba(5,8,7,.58); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); display:flex; flex-direction:column; gap:6px}
+:root[data-theme="light"] .side{background:rgba(255,253,247,.6)}
 @media(min-width:901px){.side{overflow-y:auto}.side>*{flex-shrink:0}}
-.logo{display:flex; align-items:center; gap:10px; margin:0 0 22px}
-.logo-mark{flex:0 0 40px;width:40px;height:40px;display:block}.logo-mark svg{display:block}.logo-mark .lm-sm{display:none}
+.logo{display:flex; align-items:center; gap:6px; margin:0 0 18px}
+.logo-mark{flex:0 0 42px;width:42px;height:42px;display:block}.logo-mark svg{display:block}
+.wordmark{display:flex;align-items:flex-end;gap:6px;min-width:0}.wordmark svg{display:block;flex:none}.wordmark .logo-version{margin:0 0 9px}
 .logo i{width:38px; height:38px; border-radius:50%; border:1.5px solid var(--brass); display:grid; place-items:center; color:var(--brass); font-style:normal; font-size:18px}
 .logo b{font:600 20px/1.05 var(--serif)}
-.nav button{display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:0; background:transparent; color:var(--muted); border-radius:12px; padding:0 12px; min-height:44px; font-size:14.5px; font-weight:600}
+.nav button{display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:0; background:transparent; color:var(--muted); border-radius:14px; padding:0 12px; min-height:44px; font-size:14.5px; font-weight:600}
 .nav button i{font-style:normal; width:18px; text-align:center; color:var(--ic,var(--faint)); display:inline-flex; justify-content:center}
 .nav .nav-sep{display:block;height:1px;background:var(--line);margin:8px 6px}
 .nav .nav-orb{width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 34% 28%,#f4fff9 0,#bfe9d6 10%,#56a88a 36%,#1d5a45 64%,#062019 100%);box-shadow:inset -2px -3px 4px rgba(0,0,0,.5)}
 .gena-link{display:block;margin:10px 12px 0;font-size:12.5px;color:var(--muted);text-decoration:none}.gena-link:hover{color:var(--ink);text-decoration:underline}
 @media(max-width:900px){.nav .nav-sep,.gena-link{display:none}}
 .nav button:hover{background:var(--sunk); color:var(--ink)}
-.nav button[aria-current="page"]{background:var(--brass-soft); color:var(--ink); box-shadow:inset 0 0 0 1px var(--brass)}
+.nav button[aria-current="page"]{background:linear-gradient(90deg,rgba(207,174,99,.22),rgba(207,174,99,.05)); color:var(--ink); box-shadow:inset 0 0 0 1px rgba(207,174,99,.45)}
 
 .side .spacer{flex:1}
 .ck{border-top:1px solid var(--line); padding-top:14px; font-size:13px}
 .ck .cap{color:var(--brass)}
-.side .ghostbtn{margin-top:10px; border:1px solid var(--line); background:transparent; border-radius:10px; min-height:38px; font-size:13px; color:var(--muted)}
+.side .ghostbtn{margin-top:10px; border:1px solid var(--line); background:transparent; border-radius:var(--radius-ctl); min-height:38px; font-size:13px; color:var(--muted)}
+.stone-toggle{display:flex;align-items:center;justify-content:center;gap:7px}.stone-toggle .swatch{width:14px;height:14px;border-radius:50%;border:1px solid rgba(207,174,99,.6);flex:none}.stone-toggle .swatch.black{background:linear-gradient(150deg,#2a2c2a,#050606)}.stone-toggle .swatch.verde{background:linear-gradient(150deg,#2b5a44,#0a1c14)}
 .side .ghostbtn[aria-pressed="true"]{border-color:var(--brass); color:var(--brass)}
-.content{padding:26px 28px 60px; min-width:0;container-type:inline-size}
+.content{padding:26px 30px 60px; min-width:0;container-type:inline-size; background:linear-gradient(180deg,rgba(6,9,8,.2),rgba(6,9,8,.36) 30%,rgba(6,9,8,.4))}
+/* A gentle scrim keeps the veins under the numbers; chart-heavy pages get a little more. */
+body[data-area="fitness"] .content,body[data-area="progress"] .content,body[data-area="data"] .content{background:linear-gradient(180deg,rgba(6,9,8,.3),rgba(6,9,8,.48) 30%,rgba(6,9,8,.52))}
+:root[data-theme="light"] .content{background:none}
 .topbar{display:flex; align-items:flex-start; gap:18px; flex-wrap:wrap; margin:0 0 18px}
 .topbar .t{flex:1; min-width:240px}
 .topbar .t p{margin:4px 0 0; color:var(--muted); font-size:15px}
@@ -81,11 +105,12 @@ h4{font:600 12.5px/1.3 var(--sans); color:var(--faint); margin:12px 0 6px}
 .notice.bad{border-color:var(--warn); color:var(--warn)} .notice strong{color:var(--ink)}
 
 /* panels */
-.panelcard{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; margin:0 0 16px; box-shadow:0 1px 0 rgba(255,255,255,.04) inset}
+.panelcard{background:var(--glass),var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px; margin:0 0 18px; box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 10px 28px rgba(0,0,0,.22)}
+:root[data-theme="light"] .panelcard{box-shadow:0 6px 20px rgba(20,40,32,.08)}
 .panelcard > h2{margin:0 0 8px}
 .ph{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:0 0 10px} .ph h2{flex:1; min-width:0}
-.cols3{display:grid; grid-template-columns:minmax(300px,1fr) minmax(360px,1.6fr) minmax(300px,1fr); gap:16px; align-items:start}
-.cols2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:start}
+.cols3{display:grid; grid-template-columns:minmax(300px,1fr) minmax(360px,1.6fr) minmax(300px,1fr); gap:18px; align-items:start}
+.cols2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; align-items:stretch}
 .cols2>.wide{grid-column:1/-1}.cols2>.panelcard{margin:0}
 .col{min-width:0}
 .story p{margin:0; font-size:15px} .story .basis{margin:8px 0 0; font-size:12.5px; color:var(--faint)}
@@ -145,9 +170,9 @@ h4{font:600 12.5px/1.3 var(--sans); color:var(--faint); margin:12px 0 6px}
 .glance-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}.glance-tile{border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--sunk)}.glance-tile .cap{margin:0}.glance-big{font-size:28px;margin:4px 0;font-variant-numeric:tabular-nums}.glance-big small{font-size:14px;color:var(--muted)}.glance-bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.glance-bar i{display:block;height:100%}.glance-tile .hint{margin:6px 0}.glance-spark{position:relative;display:flex;gap:4px;align-items:flex-end;height:36px}.glance-spark span{flex:1;border-radius:3px 3px 0 0}.glance-spark em{position:absolute;left:0;right:0;border-top:1px dashed var(--muted)}.glance-dots{display:inline-flex;gap:3px;vertical-align:middle}.glance-dots i{width:8px;height:8px;border-radius:50%}.glance-cols{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-top:14px}@media(max-width:760px){.glance-cols{grid-template-columns:1fr}}.glance-cols h3{margin:0 0 6px;font-size:15px}.glance-list{list-style:none;margin:0;padding:0}.glance-list li{display:grid;grid-template-columns:40px 1fr 60px 1fr auto;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)}.glance-tag{font-size:12px;padding:2px 8px;border-radius:10px;border:1px solid var(--t);color:var(--t)}.fitness-detail summary{cursor:pointer}
 .logo-version{font-size:.62em;letter-spacing:.04em;color:var(--brass);vertical-align:middle}
 #updateBar{position:fixed;right:18px;bottom:18px;z-index:50;display:flex;gap:12px;align-items:center;padding:10px 14px;border-radius:14px;background:var(--panel);border:1px solid var(--brass);box-shadow:0 6px 24px rgba(0,0,0,.35)}
-.ws-node .cb.src{background:#2f8f5b;border-color:#2f8f5b;color:#fff}
+.ws-node .cb.src{background:#4cbf7e;border-color:#4cbf7e;color:#fff}
 .ws-node .claim-one{font-size:12px;padding:3px 10px}
-.sleep-grid{display:flex;gap:16px;align-items:center;flex-wrap:wrap}.sleep-stages{display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px;margin-top:8px}.sleep-stages i{display:block}.sleep-week{position:relative;display:flex;gap:8px;align-items:flex-end;height:78px;margin-top:12px}.sleep-week div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}.sleep-week span{display:block;width:100%;max-width:26px;border-radius:4px 4px 0 0;background:var(--line-strong)}.sleep-week small{color:var(--muted);font-size:11px}.sleep-week em{position:absolute;left:0;right:0;border-top:1px dashed var(--muted);margin-bottom:18px}
+.sleep-grid{display:flex;gap:16px;align-items:center;flex-wrap:wrap}.sleep-stages{display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px;margin-top:8px}.sleep-stages i{display:block}.sleep-week{position:relative;display:flex;gap:8px;align-items:flex-end;height:78px;margin-top:12px}.sleep-week div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}.sleep-week span{display:block;width:100%;max-width:22px;border-radius:999px;background:var(--line-strong)}.sleep-week small{color:var(--muted);font-size:11px}.sleep-week em{position:absolute;left:0;right:0;border-top:1px dashed var(--muted);margin-bottom:18px}
 .proposal{margin-top:10px; border:1px solid var(--brass); border-radius:14px; padding:12px 14px; background:var(--brass-soft)}
 
 /* agenda + fitness */
@@ -155,14 +180,14 @@ h4{font:600 12.5px/1.3 var(--sans); color:var(--faint); margin:12px 0 6px}
 .recent{display:grid; gap:2px; margin-top:12px; border-top:1px solid var(--line); padding-top:10px} .recent b{font:600 16px var(--serif)}
 
 /* rows, seg, acts (shared) */
-.row{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:13px 14px; margin:0 0 9px} .row.settled{background:transparent} .row.compact{padding:11px 14px}
+.row{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:13px 14px; margin:0 0 9px} .row.settled{background:transparent} .row.compact{padding:11px 14px}
 .rowhead{display:flex; align-items:center; gap:8px; flex-wrap:wrap} .rowhead h3{flex:1; min-width:0}
 .win{font-size:12.5px; color:var(--brass); white-space:nowrap; font-weight:600}
-.seg{display:flex; gap:6px; margin:8px 0 0} .seg button{flex:1; min-width:0; text-align:left; background:var(--sunk); border:1px solid transparent; border-radius:10px; padding:7px 10px; min-height:var(--tap)}
+.seg{display:flex; gap:6px; margin:8px 0 0} .seg button{flex:1; min-width:0; text-align:left; background:var(--sunk); border:1px solid transparent; border-radius:var(--radius-ctl); padding:7px 10px; min-height:var(--tap)}
 .seg button[aria-checked="true"]{background:var(--accent-soft); border-color:var(--accent)} .seg b{display:block; font-size:12px; font-weight:600; color:var(--muted)} .seg button[aria-checked="true"] b{color:var(--accent-ink)} .seg small{display:block; font-size:13px; color:var(--ink); line-height:1.3}
 .seg.mini button{min-height:36px; padding:5px 10px} .seg.mini small{display:none}
 .acts{display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 0; align-items:center}
-.acts button, .intent button, .fields > button{border:1px solid var(--line-strong); background:transparent; border-radius:10px; padding:0 13px; min-height:38px; font-size:14px; font-weight:600}
+.acts button, .intent button, .fields > button{border:1px solid var(--line-strong); background:transparent; border-radius:var(--radius-ctl); padding:0 14px; min-height:40px; font-size:14px; font-weight:600}
 .acts button:hover{border-color:var(--brass)}
 .acts .primary{background:var(--verd); border-color:var(--verd); color:var(--on-accent)}
 .acts button[aria-pressed="true"]{background:var(--accent-soft); border-color:var(--accent); color:var(--accent-ink)} .acts .primary[aria-pressed="true"]{background:var(--verd); color:var(--on-accent)}
@@ -175,18 +200,18 @@ h4{font:600 12.5px/1.3 var(--sans); color:var(--faint); margin:12px 0 6px}
 .chip{border-radius:999px; padding:2px 9px; font-size:12px; font-weight:600; background:var(--accent-soft); color:var(--accent-ink); white-space:nowrap}
 .chip.partial{background:var(--warn-soft); color:var(--warn)} .chip.skipped, .chip.quiet{background:var(--sunk); color:var(--muted)} .chip.self{background:transparent; border:1px dashed var(--line-strong); color:var(--faint); font-weight:500} .chip.demo{background:var(--brass-soft); color:var(--brass)}
 .ws-node .cb.skip,.cb.skip{color:#e05a55!important;border-color:rgba(224,90,85,.85)!important;background:rgba(224,90,85,.16)!important} .cb.part{color:var(--muted);border-color:var(--line-strong)} .cb.exempt{color:var(--faint);border-style:dashed}
-.skip-x{background:transparent;border:0;color:var(--faint);font-size:.8em;padding:0 4px;cursor:pointer;opacity:.35} .ws-node:hover .skip-x,.skip-x:focus-visible{opacity:1;color:#d9534f} @media (hover:none){.skip-x{opacity:.8}}
+.skip-x{background:transparent;border:0;color:var(--faint);font-size:.8em;padding:0 4px;cursor:pointer;opacity:0} .ws-node:hover .skip-x,.skip-x:focus-visible{opacity:1;color:#d9534f} @media (hover:none){.skip-x{opacity:.6}}
 .skip-btn[aria-pressed="true"]{color:#d9534f;border-color:rgba(217,83,79,.7)}
 .detail, .panel{margin:10px 0 0; padding:11px 0 2px; border-top:1px solid var(--line)}
 label{display:block; font-size:12.5px; color:var(--muted); margin:0 0 4px}
 .fields{display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap} .mins{flex:0 0 100px} .note{flex:1 1 150px; min-width:0}
-input[type="text"], input[type="number"], input[type="time"], input[type="date"], select, textarea{font:inherit; color:var(--ink); background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:0 11px; min-height:38px; width:100%}
+input[type="text"], input[type="number"], input[type="time"], input[type="date"], select, textarea{font:inherit; color:var(--ink); background:var(--panel-2); border:1px solid var(--line); border-radius:var(--radius-ctl); padding:0 11px; min-height:40px; width:100%}
 textarea{padding:10px 11px; min-height:64px; resize:vertical; line-height:1.4}
 .form{display:grid; grid-template-columns:1fr 1fr; gap:9px 8px} .form .full{grid-column:1/-1}
 .days{display:flex; gap:4px} .days label{flex:1; min-width:0; text-align:center; border:1px solid var(--line); border-radius:8px; min-height:38px; display:flex; align-items:center; justify-content:center; font-size:13px; margin:0; cursor:pointer; color:var(--ink); background:var(--sunk); position:relative}
 .days label.on{background:var(--brass-soft); border-color:var(--brass); color:var(--ink); font-weight:600} .days input{position:absolute; opacity:0; width:1px; height:1px; margin:0} .days label:focus-within{outline:2px solid var(--brass); outline-offset:2px}
 .radios{display:flex; gap:6px; flex-wrap:wrap} .radios label{display:flex; align-items:center; gap:6px; margin:0; color:var(--ink); font-size:14px; min-height:38px; padding:0 4px}
-.subtabs{display:flex; gap:4px; margin:0 0 14px; background:var(--sunk); border-radius:12px; padding:4px; max-width:420px} .subtabs button{flex:1; border:0; background:transparent; border-radius:9px; min-height:38px; font-size:14px; color:var(--muted); font-weight:600} .subtabs button[aria-selected="true"]{background:var(--panel); color:var(--ink); box-shadow:inset 0 0 0 1px var(--brass)}
+.subtabs{display:flex; gap:4px; margin:0 0 14px; background:var(--sunk); border-radius:14px; padding:4px; max-width:420px} .subtabs button{flex:1; border:0; background:transparent; border-radius:11px; min-height:38px; font-size:14px; color:var(--muted); font-weight:600} .subtabs button[aria-selected="true"]{background:var(--panel); color:var(--ink); box-shadow:inset 0 0 0 1px var(--brass)}
 .strip{display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin:0 0 14px; max-width:620px} .strip button{border:1px solid var(--line); background:var(--panel); border-radius:12px; padding:6px 0; min-height:60px; display:flex; flex-direction:column; align-items:center; gap:1px}
 .strip button[aria-pressed="true"]{border-color:var(--brass); background:var(--brass-soft)} .strip .dn{font-size:11px; color:var(--muted)} .strip .dd{font:600 18px var(--serif)} .strip .dc{font-size:10.5px; color:var(--faint)} .strip button.is-today .dd{color:var(--brass)}
 .dayhead{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin:6px 0 10px} .dayhead h2{flex:1}
@@ -206,12 +231,12 @@ footer{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font
 .ring{animation:pop .5s ease-out} @keyframes pop{from{transform:scale(.92);opacity:.6}}
 @media (prefers-reduced-motion:reduce){ .ring{animation:none} *{scroll-behavior:auto !important} }
 .deficit{margin:10px 0 4px}.deficit-head{margin:0 0 6px}.deficit-parts{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.85em;opacity:.85}
-.deficit-bar{position:relative;height:8px;border-radius:4px;background:rgba(127,127,127,.22);margin:4px 0 6px;overflow:visible}.deficit-bar i{display:block;height:100%;border-radius:4px;background:#3fae6a}
-.deficit.tone-close .deficit-bar i{background:#d9b938}.deficit.tone-behind .deficit-bar i{background:#e08a3c}.deficit.tone-far .deficit-bar i{background:#d0564b}
+.deficit-bar{position:relative;height:8px;border-radius:4px;background:rgba(127,127,127,.22);margin:4px 0 6px;overflow:visible}.deficit-bar i{display:block;height:100%;border-radius:4px;background:#6fd39a}
+.deficit.tone-close .deficit-bar i{background:#e6cf5c}.deficit.tone-behind .deficit-bar i{background:#f0a058}.deficit.tone-far .deficit-bar i{background:#e87060}
 .deficit-bar em{position:absolute;top:-3px;bottom:-3px;width:2px;background:currentColor;opacity:.6}
 .self-mark{margin-left:6px;font-size:.85em;opacity:.7}
 /* Source freshness (Sept 24 scale): green ≤ 10 min, amber ≤ 3 h, orange ≤ 1 day, red older, grey none. */
-.fresh-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle;background:#8a8f8c}.f-live{background:#3fae6a}.f-recent{background:#d9b938}.f-today{background:#e08a3c}.f-stale{background:#d0564b}
+.fresh-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle;background:#8a8f8c}.f-live{background:#6fd39a}.f-recent{background:#e6cf5c}.f-today{background:#f0a058}.f-stale{background:#e87060}
 .pct{margin-left:6px;font-size:.8em;font-variant-numeric:tabular-nums;opacity:.75}
 .nut-inputs{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.85em;margin:4px 0}.nut-inputs b{display:inline-block;min-width:1.2em;text-align:center}
 
@@ -221,7 +246,7 @@ footer{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font
 .side-foot{display:flex;gap:6px}.side-foot .ghostbtn{flex:1;margin-top:6px;min-height:32px;font-size:12px}
 .side-resize{position:absolute;top:0;right:-4px;width:8px;height:100%;cursor:col-resize;z-index:5}
 .side-resize:hover,.side-resize:focus-visible{background:linear-gradient(90deg,transparent 3px,var(--brass) 3px,var(--brass) 5px,transparent 5px);outline:none}
-.side-peek{display:none;position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:30;width:22px;height:64px;border:1px solid var(--line);border-left:0;border-radius:0 12px 12px 0;background:var(--card,rgba(20,40,32,.95));color:var(--brass);font-size:16px;cursor:pointer}
+.side-peek{display:none;position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:30;width:22px;height:64px;border:1px solid var(--line);border-left:0;border-radius:0 12px 12px 0;background:var(--panel-2);color:var(--brass);font-size:16px;cursor:pointer}
 .app.sidehidden ~ .side-peek,.app.sidehidden .side-peek{display:block}
 .app.sidehidden.peeking{grid-template-columns:minmax(0,1fr)}
 .app.sidehidden.peeking .side{display:flex;position:fixed;left:0;top:0;z-index:29;width:var(--side-w,232px);background:var(--bg,#10241c);box-shadow:8px 0 30px rgba(0,0,0,.45)}
@@ -237,16 +262,19 @@ footer{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font
 
 /* Goals (V2.0 Phase 5) */
 .goal-row{margin:10px 0}.goal-row .gr-h{display:flex;justify-content:space-between;gap:8px}.goal-row .gr-f{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);margin-top:4px}
-.goal-bar{position:relative;height:10px;border-radius:5px;background:rgba(127,127,127,.2);margin-top:6px}.goal-bar i{display:block;height:100%;border-radius:5px;background:#3fae6a}
+.goal-bar{position:relative;height:10px;border-radius:5px;background:rgba(127,127,127,.2);margin-top:6px}.goal-bar i{display:block;height:100%;border-radius:5px;background:#6fd39a}
 .goal-bar em,.goal-bar u{position:absolute;top:-4px;bottom:-4px;width:2px}.goal-bar em{background:var(--ink);opacity:.7}.goal-bar u{background:var(--brass)}
 .goal-row.small{padding-top:8px;border-top:1px solid var(--line)}.goal-setup{margin-top:12px}.goal-setup summary{cursor:pointer;color:var(--brass)}
 .ck-list{list-style:none;padding:0;margin:0}.ck-list li{display:grid;grid-template-columns:1.2fr 1fr .7fr 1.4fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}.ck-name{font-weight:600}
 
 /* Faith (V2.0 Phase 7): one large Ethiopian cross, gold outline, behind the cards. */
 body[data-area="faith"] .content{position:relative}
-body[data-area="faith"] .content::before{content:'';position:fixed;z-index:0;pointer-events:none;right:6vw;top:14vh;width:min(46vw,560px);height:min(62vh,760px);opacity:.16;background:no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 280' fill='none' stroke='%23d9b35a' stroke-width='3' stroke-linejoin='round'%3E%3Cpath d='M92 10h16v38c10-12 26-16 36-8 8 7 6 20-4 26l-32 18v36l32 18c10 6 12 19 4 26-10 8-26 4-36-8v38h-16v-38c-10 12-26 16-36 8-8-7-6-20 4-26l32-18V84L60 66c-10-6-12-19-4-26 10-8 26-4 36 8z'/%3E%3Ccircle cx='100' cy='102' r='14'/%3E%3Cpath d='M100 88l14 14-14 14-14-14z'/%3E%3Cpath d='M92 186h16v70c0 8-4 14-8 14s-8-6-8-14z'/%3E%3Cpath d='M72 230h56M78 244h44'/%3E%3Ccircle cx='100' cy='20' r='6'/%3E%3Ccircle cx='44' cy='52' r='5'/%3E%3Ccircle cx='156' cy='52' r='5'/%3E%3Ccircle cx='44' cy='152' r='5'/%3E%3Ccircle cx='156' cy='152' r='5'/%3E%3C/svg%3E")}
+/* Faith (V2.1): the Gondar Interlace cross, gold with a bloom, sits in the open lower-right of the content column,
+   behind the glass cards and clear of the rail. data-cross="soft" is the quieter setting (Settings → Faith cross). */
+body[data-area="faith"] .content::before{content:'';position:fixed;z-index:0;pointer-events:none;right:calc(30px + 4vw);bottom:4vh;width:min(32vw,460px);height:min(32vw,460px);opacity:.84;filter:drop-shadow(0 0 26px rgba(255,214,130,.4));background:no-repeat center/contain url("data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%22-112%20-112%20224%20224%22%20width=%22224%22%20height=%22224%22%20role=%22img%22%20aria-label=%22Ethiopian%20Orthodox%20cross%22%3E%3Cdefs%3E%3ClinearGradient%20id=%22cx-gold%22%20x1=%220%22%20y1=%22-110%22%20x2=%220%22%20y2=%22110%22%20gradientUnits=%22userSpaceOnUse%22%3E%3Cstop%20offset=%220%22%20stop-color=%22%23f6e2a6%22/%3E%3Cstop%20offset=%22.45%22%20stop-color=%22%23dcb76a%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22%23a27d3c%22/%3E%3C/linearGradient%3E%3Cg%20id=%22cx-r%22%3E%3Cpath%20d=%22M9%20-18C9%20-48%2020%20-58%2020%20-73C20%20-87%200%20-91%200%20-91%22%20stroke-width=%223.2%22/%3E%3Cpath%20d=%22M4%20-24C4%20-47%2012%20-57%2012%20-71C12%20-80%200%20-83%200%20-83%22%20stroke-width=%221.4%22%20opacity=%22.75%22/%3E%3Cpath%20d=%22M20%20-73C28%20-73%2033%20-66%2028%20-61C25%20-58%2021%20-61%2023%20-64%22%20stroke-width=%222.6%22/%3E%3C/g%3E%3Cg%20id=%22cx-l%22%20transform=%22scale(-1,1)%22%3E%3Cuse%20href=%22%23cx-r%22/%3E%3C/g%3E%3Cg%20id=%22cx-r4%22%3E%3Cuse%20href=%22%23cx-r%22/%3E%3Cuse%20href=%22%23cx-r%22%20transform=%22rotate(90)%22/%3E%3Cuse%20href=%22%23cx-r%22%20transform=%22rotate(180)%22/%3E%3Cuse%20href=%22%23cx-r%22%20transform=%22rotate(270)%22/%3E%3C/g%3E%3Cg%20id=%22cx-l4%22%3E%3Cuse%20href=%22%23cx-l%22/%3E%3Cuse%20href=%22%23cx-l%22%20transform=%22rotate(90)%22/%3E%3Cuse%20href=%22%23cx-l%22%20transform=%22rotate(180)%22/%3E%3Cuse%20href=%22%23cx-l%22%20transform=%22rotate(270)%22/%3E%3C/g%3E%3Cg%20id=%22cx-tip%22%3E%3Ccircle%20cx=%220%22%20cy=%22-97%22%20r=%224.4%22%20stroke-width=%222.4%22/%3E%3Ccircle%20cx=%220%22%20cy=%22-97%22%20r=%221.6%22%20fill=%22url(%23cx-gold)%22%20stroke=%22none%22/%3E%3Cpath%20d=%22M0%20-40%205%20-48%200%20-56%20-5%20-48Z%22%20stroke-width=%221.5%22/%3E%3C/g%3E%3C%21--%20the%20weave:%20the%20outer%20strand%20of%20each%20arm%20passes%20over%20the%20ring,%20the%20inner%20strand%20under%20it%20--%3E%3Cmask%20id=%22cx-ring-gap%22%20maskUnits=%22userSpaceOnUse%22%20x=%22-112%22%20y=%22-112%22%20width=%22224%22%20height=%22224%22%3E%3Crect%20x=%22-112%22%20y=%22-112%22%20width=%22224%22%20height=%22224%22%20fill=%22%23fff%22/%3E%3Cg%20fill=%22none%22%20stroke=%22%23000%22%20stroke-linecap=%22round%22%3E%3Cpath%20id=%22cx-cut%22%20d=%22M9%20-18C9%20-48%2020%20-58%2020%20-73%22%20stroke-width=%227.6%22/%3E%3Cuse%20href=%22%23cx-cut%22%20transform=%22rotate(90)%22/%3E%3Cuse%20href=%22%23cx-cut%22%20transform=%22rotate(180)%22/%3E%3Cuse%20href=%22%23cx-cut%22%20transform=%22rotate(270)%22/%3E%3Cpath%20id=%22cx-cut2%22%20d=%22M4%20-24C4%20-47%2012%20-57%2012%20-71%22%20stroke-width=%225%22/%3E%3Cuse%20href=%22%23cx-cut2%22%20transform=%22rotate(90)%22/%3E%3Cuse%20href=%22%23cx-cut2%22%20transform=%22rotate(180)%22/%3E%3Cuse%20href=%22%23cx-cut2%22%20transform=%22rotate(270)%22/%3E%3C/g%3E%3C/mask%3E%3Cmask%20id=%22cx-under%22%20maskUnits=%22userSpaceOnUse%22%20x=%22-112%22%20y=%22-112%22%20width=%22224%22%20height=%22224%22%3E%3Crect%20x=%22-112%22%20y=%22-112%22%20width=%22224%22%20height=%22224%22%20fill=%22%23fff%22/%3E%3Ccircle%20r=%2240%22%20fill=%22none%22%20stroke=%22%23000%22%20stroke-width=%227.4%22/%3E%3C/mask%3E%3Cfilter%20id=%22cx-bloom%22%20x=%22-20%25%22%20y=%22-20%25%22%20width=%22140%25%22%20height=%22140%25%22%3E%3CfeGaussianBlur%20stdDeviation=%222.6%22%20result=%22b%22/%3E%3CfeColorMatrix%20in=%22b%22%20type=%22matrix%22%20values=%221%200%200%200%20.25%20%200%201%200%200%20.16%20%200%200%201%200%20-.1%20%200%200%200%20.95%200%22%20result=%22g%22/%3E%3CfeMerge%3E%3CfeMergeNode%20in=%22g%22/%3E%3CfeMergeNode%20in=%22SourceGraphic%22/%3E%3C/feMerge%3E%3C/filter%3E%3C/defs%3E%3Cg%20fill=%22none%22%20stroke=%22url(%23cx-gold)%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%20filter=%22url(%23cx-bloom)%22%3E%3Ccircle%20r=%2235%22%20stroke-width=%221.2%22%20opacity=%22.7%22/%3E%3Cg%20mask=%22url(%23cx-under)%22%3E%3Cuse%20href=%22%23cx-l4%22/%3E%3C/g%3E%3Ccircle%20r=%2240%22%20stroke-width=%223%22%20mask=%22url(%23cx-ring-gap)%22/%3E%3Cuse%20href=%22%23cx-r4%22/%3E%3Cuse%20href=%22%23cx-tip%22/%3E%3Cuse%20href=%22%23cx-tip%22%20transform=%22rotate(90)%22/%3E%3Cuse%20href=%22%23cx-tip%22%20transform=%22rotate(180)%22/%3E%3Cuse%20href=%22%23cx-tip%22%20transform=%22rotate(270)%22/%3E%3Cpath%20d=%22M0%20-15%2015%200%200%2015%20-15%200Z%22%20stroke-width=%222.6%22/%3E%3Ccircle%20r=%225%22%20fill=%22url(%23cx-gold)%22%20stroke=%22none%22/%3E%3Cg%20fill=%22url(%23cx-gold)%22%20stroke=%22none%22%3E%3Ccircle%20cx=%2228%22%20cy=%22-28%22%20r=%223.2%22/%3E%3Ccircle%20cx=%2228%22%20cy=%2228%22%20r=%223.2%22/%3E%3Ccircle%20cx=%22-28%22%20cy=%2228%22%20r=%223.2%22/%3E%3Ccircle%20cx=%22-28%22%20cy=%22-28%22%20r=%223.2%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
+body[data-area="faith"][data-cross="soft"] .content::before{opacity:.52;filter:drop-shadow(0 0 12px rgba(255,214,130,.22))}
 body[data-area="faith"] #main{position:relative;z-index:1}
-body[data-area="faith"] .app:not(.railhidden) .content::before{right:calc(300px + 4vw)}@media(max-width:1230px){body[data-area="faith"] .app:not(.railhidden) .content::before{right:6vw}}
+body[data-area="faith"] .app:not(.railhidden) .content::before{right:calc(288px + 18px + 30px)}@media(max-width:1230px){body[data-area="faith"] .app:not(.railhidden) .content::before{right:calc(30px + 4vw)}}
 .church-cal .season-now{font-size:1.1em;margin:4px 0 6px}.church-cal .season-now.feast b{color:var(--brass)}.church-cal .season-now.quiet{color:var(--muted)}
 .cal-next{list-style:none;padding:0;margin:8px 0}.cal-next li{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line);font-size:13px}
 .faith-journal .prompts{margin:6px 0 10px;padding-left:18px;color:var(--muted);font-size:13px}.faith-journal textarea{width:100%;border-radius:10px;border:1px solid var(--line);background:var(--sunk);color:var(--ink);padding:10px}
@@ -295,6 +323,7 @@ body[data-area="faith"] .app:not(.railhidden) .content::before{right:calc(300px 
 .on-plan .nut-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 /* Visual pass (V2.0 Phase 11) */
 .stack{display:flex;flex-direction:column;gap:16px;min-width:0}.stack>.panelcard{margin:0}.data-pair{margin:16px 0}
+
 /* Instant answer to a tap (V1.12): the control fills left to right while its save runs, with no size change. */
 .is-pending{position:relative;overflow:hidden}
 .is-pending::after{content:'';position:absolute;inset:0;background:currentColor;opacity:.18;transform-origin:left;animation:tapfill .45s ease-out forwards;pointer-events:none}
@@ -508,10 +537,10 @@ details summary{cursor:pointer;font-weight:600;min-height:38px}details p{font-si
 @media(hover:hover){.ws-node>.nrow>.row-edit{opacity:0}.ws-node>.nrow:hover>.row-edit,.ws-node>.nrow:focus-within>.row-edit{opacity:1}}
 details.more{position:relative;flex:none}details.more>summary{list-style:none;cursor:pointer;color:var(--faint);letter-spacing:2px;padding:2px 8px;border-radius:8px;font-weight:700}details.more>summary::-webkit-details-marker{display:none}
 details.more>summary:hover,details.more[open]>summary{color:var(--ink);background:var(--sunk)}
-@media(hover:hover){.nrow details.more:not([open])>summary{opacity:.35}.nrow:hover details.more>summary,.nrow:focus-within details.more>summary{opacity:1}}
+@media(hover:hover){.nrow details.more:not([open])>summary{opacity:0}.nrow:hover details.more>summary,.nrow:focus-within details.more>summary{opacity:1}}
 .more-menu{position:absolute;right:0;top:28px;z-index:20;min-width:190px;display:flex;flex-direction:column;align-items:stretch;gap:2px;padding:6px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 26px #0007}
-.grad-key{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:11px;color:var(--faint)}.grad-key i{flex:0 1 160px;height:6px;border-radius:3px;background:linear-gradient(90deg,#c0392b 0%,#e0873a 38%,#d4c24a 62%,#3fae6b 77%,#3fae6b 85%,#9b6cf0 100%)}
-body[data-area="faith"] .panelcard,body[data-area="faith"] .ws-group{background:rgba(26,14,52,.78);border-color:rgba(182,156,240,.22)}
+.grad-key{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:11px;color:var(--faint)}.grad-key i{flex:0 1 160px;height:6px;border-radius:3px;background:linear-gradient(90deg,#e87060 0%,#f0a058 38%,#e6cf5c 62%,#6fd39a 77%,#6fd39a 85%,#b08cf5 100%)}
+body[data-area="faith"] .panelcard,body[data-area="faith"] .ws-group{background:var(--glass),rgba(36,14,68,.62);border-color:rgba(190,160,250,.22)}
 .faith-cols .ws-groups{grid-template-columns:1fr!important}
 .faith-week .fw-grid{display:grid;grid-template-columns:72px repeat(7,1fr);gap:6px;align-items:center;margin-top:4px}
 .fw-day{text-align:center;font-size:11px;color:var(--faint)}.fw-day.today{color:var(--ink);font-weight:700}
@@ -542,12 +571,12 @@ body[data-area="faith"] .panelcard,body[data-area="faith"] .ws-group{background:
 .fit-cards{margin:6px 0 16px}.fit-title{display:flex;align-items:baseline;gap:12px}.fit-title h2{margin:0}
 .fit-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:4px 0 12px}.fit-tile{display:flex;flex-direction:column;gap:3px;text-align:left;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:transparent}.fit-tile.on{border-color:var(--tone);box-shadow:inset 0 0 0 1px var(--tone)}.fit-tile b{font-size:22px;line-height:1.1}.fit-tile small{color:var(--faint);font-size:11px}
 .fit-bar{display:block;height:5px;border-radius:3px;background:var(--line)}.fit-bar>i{display:block;height:100%;border-radius:3px;background:var(--tone)}
-.fit-chart{position:relative;display:flex;align-items:flex-end;gap:3px;height:96px;border-bottom:1px solid var(--line)}.fit-chart .bar{flex:1;border:0;padding:0;border-radius:3px 3px 0 0;min-width:0}.fit-chart em{position:absolute;left:0;right:0;border-top:1px dashed var(--faint)}
-.fit-axis{display:flex;gap:3px;font-size:10px;color:var(--faint);margin-top:3px}.fit-axis span{flex:1;text-align:center;overflow:hidden;white-space:nowrap}
+.fit-chart{position:relative;display:flex;align-items:flex-end;justify-content:space-around;gap:6px;height:96px;border-bottom:1px solid var(--line)}.fit-chart .bar{flex:1;max-width:30px;border:0;padding:0;border-radius:999px;min-width:0}.fit-chart em{position:absolute;left:0;right:0;border-top:1px dashed var(--faint)}
+.fit-axis{display:flex;justify-content:space-around;gap:6px;font-size:10px;color:var(--faint);margin-top:3px}.fit-axis span{flex:1;max-width:30px;text-align:center;overflow:hidden;white-space:nowrap}
 .fit-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.fit-sum span{border:1px solid var(--line);border-radius:10px;padding:6px 9px;display:flex;flex-direction:column}.fit-sum b{font-size:16px}.fit-sum small{color:var(--faint);font-size:11px}
 .fit-kpi{margin:0 0 6px}
 .vit-row{border-bottom:1px solid var(--line)}.vit-row>summary,.vit-row.empty{display:grid;grid-template-columns:130px 1fr 92px;gap:10px;align-items:center;padding:8px 0;list-style:none;cursor:pointer}.vit-row>summary::-webkit-details-marker{display:none}
-.vit-band{position:relative;height:10px;border-radius:5px;background:rgba(255,255,255,.06)}.vit-band em{position:absolute;top:0;height:10px;border-radius:5px;background:rgba(63,174,107,.35)}.vit-band b{position:absolute;top:-3px;width:16px;height:16px;margin-left:-8px;border-radius:50%;border:2px solid var(--panel-2)}
+.vit-band{position:relative;height:10px;border-radius:5px;background:rgba(255,255,255,.06)}.vit-band em{position:absolute;top:0;height:10px;border-radius:5px;background:rgba(111,211,154,.35)}.vit-band b{position:absolute;top:-3px;width:16px;height:16px;margin-left:-8px;border-radius:50%;border:2px solid var(--panel-2)}
 .vit-val{text-align:right;font-weight:700}.vit-val small{color:var(--faint);font-weight:500}.vit-trend{width:100%;height:46px;display:block;margin:4px 0}
 .fitness-sources>summary{cursor:pointer}
 .sleep-tiles{grid-template-columns:repeat(4,minmax(0,1fr));margin-top:10px}
@@ -592,12 +621,56 @@ body[data-area="faith"] .panelcard,body[data-area="faith"] .ws-group{background:
 
 :root[data-view="faith"]{--accent:#a98cf5; --accent-soft:rgba(144,102,232,.2); --accent-ink:#cbb6fc; --on-accent:#170b2e; --verd:#a98cf5}
 :root[data-theme="light"][data-view="faith"]{--accent:#54309f; --accent-soft:rgba(84,48,159,.12); --accent-ink:#3d2078; --on-accent:#fff; --verd:#54309f}
+/* Activities (V2.1): the same glass and radius as every card, taller rows with the check leading; serif group titles. */
+.ws-group{border-radius:16px;padding:14px 16px;background-image:var(--glass);box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 8px 22px rgba(0,0,0,.16)}
+.ws-group>.gh h3{font:600 17px/1.2 var(--serif)}
+.ws-node>.nrow{min-height:44px;padding:6px 6px;border-radius:12px}
+.ws-node .nm{font-size:14px}
+.ws-addbtn{border-radius:var(--radius-ctl)}
+.ws-rail{grid-auto-columns:calc((100% - 30px)/3.6)}.ws-rail .gcard{border-radius:var(--radius-sm);padding:13px 14px}
+.gcard{border-radius:var(--radius-sm)}.ws-groups>.claim-area{padding:14px 18px}
+.ws-rings .ringarcq{stroke-linecap:round}
+/* V2.1 declutter (Mintay, Sept 25): quiet controls, one + Add, packed columns, softer marks, a + Log menu, Bevel-style macros, calmer rings. */
+.ws-node .meta .pts{opacity:0;transition:opacity .15s}
+@media(hover:hover){.ws-node>.nrow:hover .pts,.ws-node>.nrow:focus-within .pts{opacity:1}}
+@media(hover:none){.ws-node .meta .pts{opacity:.7}}
+.ws-group>.gh .gcount{padding:2px 9px;border-radius:999px;background:var(--sunk);font-size:11px}
+@media(hover:hover){.ws-group>.gh>.link{opacity:0;transition:opacity .15s}.ws-group:hover>.gh>.link,.ws-group>.gh>.link:focus-visible{opacity:1}}
+.ws-addbtn{border:0;background:transparent;color:var(--faint);font-size:12.5px;font-weight:600;padding:0 6px;min-height:30px;margin:2px 0 0;border-radius:8px}
+.ws-addbtn:hover,.ws-addbtn:focus-visible{color:var(--ink);background:var(--sunk);border-color:transparent}
+.ws-addsub{font-size:12px;color:var(--faint);margin-left:2px;opacity:0;transition:opacity .15s}
+.ws-addbtn:hover+.ws-addsub,.ws-addsub:hover,.ws-addsub:focus-visible,.gbody:hover>.ws-addsub,.ws-node:hover>div>.ws-addsub{opacity:.9}
+@media(hover:none){.ws-addsub{opacity:.7}}
+.ws-groups.packed{grid-auto-rows:1px;row-gap:0;grid-auto-flow:row dense;align-items:start}.ws-groups.packed>section{margin:0 0 12px}
+.quick-log .acts{align-items:center}.quick-log .log-btn{min-width:88px}.quick-log .acts .hint{margin:0;font-size:12.5px}
+.macros{margin:2px 0 10px}.macro-kcal{display:flex;align-items:baseline;gap:7px}.macro-kcal b{font:600 30px/1.05 var(--sans);font-variant-numeric:tabular-nums}.macro-kcal small{color:var(--muted);font-size:12px}
+.macro-bar{display:flex;height:10px;border-radius:999px;overflow:hidden;background:var(--sunk);margin:8px 0 9px;gap:2px}.macro-bar i{display:block;height:100%;border-radius:999px}
+.mp{background:#f29378}.mc{background:#f3c86f}.mf{background:#86bdf0}.mw{background:#7fd0f0}
+.macro-row{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted)}.macro-row span{display:inline-flex;align-items:center;gap:6px}.macro-row i{width:8px;height:8px;border-radius:50%;display:inline-block}.macro-row b{color:var(--ink);font-weight:600}
+.deficit-parts{font-size:12px;color:var(--muted);opacity:1}
+.ws-rings .slot.s-open{stroke:transparent}
+.ws-rings .slot.s-future{stroke:transparent;stroke-dasharray:none}
+.ws-rings .slot.s-not-done{stroke:var(--bad);stroke-dasharray:none;stroke-opacity:.5}
+.ws-rings .slot.s-partial{stroke-dasharray:none;stroke-opacity:.6}
+.ws-rings .slot.s-pending-evidence{stroke-dasharray:none;stroke-opacity:.45}
+.ws-rings .slot.s-rest,.ws-rings .slot.s-no-target,.ws-rings .slot.s-uncommitted{stroke:transparent;stroke-dasharray:none}
+.ws-rings .slotbase{stroke:transparent}
+.ws-legend .lrow .st{color:var(--faint);font-size:11px}
+.gcard .tboxes i{border-radius:999px;border-color:color-mix(in srgb,var(--category) 70%,transparent)}
+.ws-rail .gcard .boxes i{height:8px;border-radius:999px}.ws-rail .gcard .boxes i.pend{border-style:dotted}
+.hc-card .hc-row{font-size:12px}
+footer{position:relative;z-index:2}
+.hc-rows{display:grid;grid-template-columns:1fr;gap:0 10px}.hc-rows.two{grid-template-columns:1fr 1fr}
+.ws-rings .slot-hollow{opacity:0}
+body[data-area="faith"] .content{padding-bottom:70px}body[data-area="faith"] #main{min-height:calc(100vh - 260px)}body[data-area="faith"] .content::before{position:absolute;bottom:190px;max-height:none}
+.faith-journal{display:flex;flex-direction:column}.faith-journal textarea{flex:1;min-height:150px;resize:vertical}.faith-journal .acts{margin-top:10px}
 </style>
 <link rel="stylesheet" href="body-view.css">
 <script type="module" src="model-viewer.min.js"></script>
 <script defer src="body-view.js"></script>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png" sizes="192x192">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%2218%2022%2030%2030%22%20width=%2232%22%20height=%2232%22%3E%3Cdefs%3E%3ClinearGradient%20id=%22gf-gold%22%20x1=%220%22%20y1=%220%22%20x2=%220%22%20y2=%2264%22%20gradientUnits=%22userSpaceOnUse%22%3E%3Cstop%20offset=%220%22%20stop-color=%22#f0dca6%22/%3E%3Cstop%20offset=%22.5%22%20stop-color=%22#c9a45c%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22#86652f%22/%3E%3C/linearGradient%3E%3CradialGradient%20id=%22gf-orb%22%20cx=%22.36%22%20cy=%22.3%22%20r=%22.78%22%3E%3Cstop%20offset=%220%22%20stop-color=%22#fff%22/%3E%3Cstop%20offset=%22.2%22%20stop-color=%22#eafff5%22/%3E%3Cstop%20offset=%22.45%22%20stop-color=%22#94f2c9%22/%3E%3Cstop%20offset=%22.75%22%20stop-color=%22#2fae80%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22#0e3d2c%22/%3E%3C/radialGradient%3E%3CradialGradient%20id=%22gf-halo%22%3E%3Cstop%20offset=%22.12%22%20stop-color=%22#e2fff2%22%20stop-opacity=%22.85%22/%3E%3Cstop%20offset=%22.4%22%20stop-color=%22#94f2c9%22%20stop-opacity=%22.38%22/%3E%3Cstop%20offset=%221%22%20stop-color=%22#7fd6b2%22%20stop-opacity=%220%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Cg%20fill=%22none%22%20stroke=%22url(#gf-gold)%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%3E%3Cpath%20d=%22M41%2030.6C39.6%2026.4%2033.4%2024.8%2028.6%2027.4C22.4%2030.8%2021.2%2039.2%2025.4%2044C28.4%2047.4%2034.4%2048.2%2038.6%2045.4C41%2043.8%2042.2%2041.4%2042.2%2038.8%22%20stroke-width=%221.6%22/%3E%3Cpath%20d=%22M41%2030.6C42.4%2029%2041.5%2026.8%2039.7%2027.2C38.4%2027.5%2038.4%2029.2%2039.7%2029.4%22%20stroke-width=%221.3%22/%3E%3Cpath%20d=%22M45.2%2037.8C43.4%2037%2040.2%2037.3%2038.4%2039%22%20stroke-width=%221.4%22/%3E%3Cpath%20d=%22M42.2%2038.8C42.7%2043%2041.1%2047.2%2037.6%2048.3C35.5%2049%2033.6%2048.2%2033.7%2046.8%22%20stroke-width=%221.5%22/%3E%3C/g%3E%3Cpath%20d=%22M31.6%2026.1C24%2028.7%2020.4%2037.6%2025.2%2044.4C22.9%2037.9%2025.1%2030.1%2031.6%2026.1Z%22%20fill=%22url(#gf-gold)%22/%3E%3Cpath%20d=%22M42.2%2038.9C42.8%2043.1%2041.2%2047%2037.8%2048.2C40.1%2046.4%2041.7%2043%2042.2%2038.9Z%22%20fill=%22url(#gf-gold)%22/%3E%3Ccircle%20cx=%2234.2%22%20cy=%2236.6%22%20r=%229.8%22%20fill=%22url(#gf-halo)%22/%3E%3Ccircle%20cx=%2234.2%22%20cy=%2236.6%22%20r=%223.6%22%20fill=%22url(#gf-orb)%22/%3E%3Cellipse%20cx=%2233.1%22%20cy=%2235.3%22%20rx=%221%22%20ry=%22.6%22%20fill=%22#fff%22%20opacity=%22.85%22/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" href="icon-192.png">
 <script defer src="delivery.js"></script>
 <script>
@@ -637,10 +710,10 @@ addEventListener('load', () => {
 </script>
 </head>
 <body>
-
+<div class="stone" id="stone" aria-hidden="true"></div>
 <div class="app">
   <aside class="side" id="appSide">
-    <div class="logo" title="Temple Keep · Tend the Temple, Keep the Day"><span class="logo-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="40" height="40" aria-hidden="true" focusable="false">  <defs> <linearGradient id="tkBr" x1="0" y1="4" x2="0" y2="60" gradientUnits="userSpaceOnUse"> <stop offset="0" stop-color="#e8cf95"/><stop offset=".5" stop-color="#c9a45c"/><stop offset="1" stop-color="#9f7c3b"/> </linearGradient> <radialGradient id="tkOrb" cx=".36" cy=".3" r=".78"> <stop offset="0" stop-color="#f4fff9"/><stop offset=".13" stop-color="#bfe9d6"/><stop offset=".42" stop-color="#56a88a"/><stop offset=".72" stop-color="#1d5a45"/><stop offset="1" stop-color="#062019"/> </radialGradient> <radialGradient id="tkGlow"> <stop offset=".45" stop-color="#8fd3bd" stop-opacity=".38"/><stop offset="1" stop-color="#8fd3bd" stop-opacity="0"/> </radialGradient> </defs> <path d="M14 20a6 6 0 0 1 6-6h24a6 6 0 0 1 6 6v24a6 6 0 0 1-6 6H20a6 6 0 0 1-6-6Z" fill="#03120d" fill-opacity=".35"/> <rect x="21.5" y="21.5" width="21" height="21" rx="3.5" fill="#8fd3bd" fill-opacity=".1"/> <g fill="none" stroke="url(#tkBr)" stroke-linejoin="round"> <path class="lm-fine" d="M8.2 8.2 21.9 21.9M55.8 8.2 42.1 21.9M8.2 55.8 21.9 42.1M55.8 55.8 42.1 42.1" stroke-width="1.3" opacity=".7"/> <path class="lm-fine" d="M24 7.5v5M32 7.5v5M40 7.5v5M24 51.5v5M32 51.5v5M40 51.5v5M7.5 24h5M7.5 32h5M7.5 40h5M51.5 24h5M51.5 32h5M51.5 40h5" stroke-width="1.2" opacity=".5"/> <rect x="5" y="5" width="54" height="54" rx="9" stroke-width="3.2"/> <rect x="14" y="14" width="36" height="36" rx="6" stroke-width="2.6"/> <rect class="lm-lg" x="21.5" y="21.5" width="21" height="21" rx="3.5" stroke-width="2"/> </g> <circle cx="32" cy="32" r="12" fill="url(#tkGlow)"/> <circle class="lm-lg" cx="32" cy="32" r="7" fill="url(#tkOrb)"/> <circle class="lm-sm" cx="32" cy="32" r="10" fill="url(#tkOrb)"/> </svg></span><b>Temple<br>Keep</b></div>
+    <div class="logo" title="Glow"><span class="logo-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="42" height="42" aria-hidden="true" focusable="false"><defs><linearGradient id="gl-gold" x1="0" y1="0" x2="0" y2="64" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#f0dca6"/><stop offset=".5" stop-color="#c9a45c"/><stop offset="1" stop-color="#86652f"/></linearGradient><radialGradient id="gl-orb" cx=".36" cy=".3" r=".78"><stop offset="0" stop-color="#fff"/><stop offset=".2" stop-color="#eafff5"/><stop offset=".45" stop-color="#94f2c9"/><stop offset=".75" stop-color="#2fae80"/><stop offset="1" stop-color="#0e3d2c"/></radialGradient><radialGradient id="gl-halo"><stop offset=".12" stop-color="#e2fff2" stop-opacity=".85"/><stop offset=".4" stop-color="#94f2c9" stop-opacity=".38"/><stop offset="1" stop-color="#7fd6b2" stop-opacity="0"/></radialGradient></defs><path d="M17 19h30l-2.8 32H19.8Z" fill="#0c1a14" fill-opacity=".55"/><g fill="none" stroke="url(#gl-gold)" stroke-linejoin="round" stroke-linecap="round"><circle cx="32" cy="4.4" r="2.3" stroke-width="1.5"/><path d="M32 6.8v2.6" stroke-width="1.5"/><path d="M15.5 19 32 9.4 48.5 19Z" stroke-width="2.1"/><path d="M17 19h30l-2.8 32H19.8Z" stroke-width="2.3"/><path d="M19.8 22.2h24.4l-2.3 25.6H22.1Z" stroke-width=".8" opacity=".5"/><path d="M18.5 51h27l-3.2 5H21.7Z" stroke-width="2.1"/><path d="M29 56h6l-3 4.2Z" stroke-width="1.5"/></g><g id="gl-g"><g fill="none" stroke="url(#gl-gold)" stroke-linecap="round" stroke-linejoin="round"><path d="M41 30.6C39.6 26.4 33.4 24.8 28.6 27.4C22.4 30.8 21.2 39.2 25.4 44C28.4 47.4 34.4 48.2 38.6 45.4C41 43.8 42.2 41.4 42.2 38.8" stroke-width="1.6"/><path d="M41 30.6C42.4 29 41.5 26.8 39.7 27.2C38.4 27.5 38.4 29.2 39.7 29.4" stroke-width="1.3"/><path d="M45.2 37.8C43.4 37 40.2 37.3 38.4 39" stroke-width="1.4"/><path d="M42.2 38.8C42.7 43 41.1 47.2 37.6 48.3C35.5 49 33.6 48.2 33.7 46.8" stroke-width="1.5"/></g><path d="M31.6 26.1C24 28.7 20.4 37.6 25.2 44.4C22.9 37.9 25.1 30.1 31.6 26.1Z" fill="url(#gl-gold)"/><path d="M42.2 38.9C42.8 43.1 41.2 47 37.8 48.2C40.1 46.4 41.7 43 42.2 38.9Z" fill="url(#gl-gold)"/></g><g id="gl-light"><circle cx="34.2" cy="36.6" r="9.8" fill="url(#gl-halo)"/><circle cx="34.2" cy="36.6" r="3.6" fill="url(#gl-orb)"/><ellipse cx="33.1" cy="35.3" rx="1" ry=".6" fill="#fff" opacity=".85"/></g></svg></span><span class="wordmark"><span class="sr">Glow</span><svg viewBox="0 0 118 52" width="104" height="46" aria-hidden="true" focusable="false"><use href="#gl-g" transform="translate(-36.6,-42.8) scale(1.83)"/><text x="49" y="40" font-family="Snell Roundhand,'Apple Chancery','Brush Script MT',cursive" font-weight="700" font-size="34" fill="url(#gl-gold)">low</text></svg><span class="logo-version" id="brandVersion"></span></span></div>
     <div class="brandnav" id="viewNav" role="group" aria-label="View history"></div>
     <nav class="nav" aria-label="Areas">
       <button data-area="faith"><i aria-hidden="true" style="--ic:#b69cf0">&#10016;</i>Faith</button>
@@ -662,6 +735,7 @@ addEventListener('load', () => {
     <div id="sidebarSources"></div>
     <div class="ck"><p class="cap">Next checkpoint</p><b id="ckDate">—</b><p class="hint" id="ckLeft"></p></div>
     <div class="buildid" id="buildIdentity"></div>
+    <button class="ghostbtn stone-toggle" id="stoneToggle" data-act="marbleToggle" title="Switch the marble"></button>
     <div class="side-foot"><button class="ghostbtn" id="sideHide" data-act="toggleSidebar" aria-controls="appSide" aria-expanded="true">Hide</button><button class="ghostbtn" id="previewToggle" aria-pressed="false">Preview workspace</button></div>
     <div class="side-resize" id="sideResize" role="separator" aria-orientation="vertical" aria-label="Resize the sidebar" tabindex="0" title="Drag to resize · double-click to reset"></div>
   </aside>
@@ -671,7 +745,7 @@ addEventListener('load', () => {
     <div id="notices"></div>
     <div class="with-rail"><main id="main"></main><aside id="ctxRail" aria-label="In context"></aside></div>
     <button class="rail-peek" id="railPeek" data-act="toggleRail" aria-label="Show the side panel" title="Show the side panel">‹</button>
-    <footer><p id="storeNote"></p><p>Temple Keep &middot; build <span id="build"></span></p></footer>
+    <footer><p id="storeNote"></p><p>Glow &middot; build <span id="build"></span></p></footer>
   </div>
 </div>
 <div id="toast" hidden role="status" aria-live="polite"><span id="toastMsg"></span><button id="undoBtn">Undo</button></div>
@@ -717,7 +791,7 @@ addEventListener('load', () => {
   let weekSel = todayYmd();
   let progStart = weekStartOf(todayYmd(), real.prefs.weekStart);
   let todayTab = 'overview';
-  let quickTab = null;
+  let quickTab = null, quickOpen = false;
   let notesView = 'open';
   let noteDraft = { text:'', area:'General' };
   let feedbackContext = null;
@@ -773,7 +847,7 @@ addEventListener('load', () => {
     return r.ok;
   }
   async function commit(label, msg, options){ const generation=inputGeneration,focused = document.activeElement, action = focused && focused.dataset && focused.dataset.act, series = focused && focused.closest('[data-series]'); const sid = series && series.dataset.series; const ok = await save(options),newerInput=inputGeneration!==generation; if (ok){if(!newerInput)unsavedForm=false;syncReminders();} render(); if (ok && action&&!newerInput){ const buttons = [...document.querySelectorAll('[data-act]')]; const next = buttons.find(b=>b.dataset.act===action && (!sid || b.closest('[data-series]')?.dataset.series===sid)); if(next) next.focus(); } if (!ok) toast('Not saved. Your changes remain in this tab; export a recovery copy from Settings.'); else if(newerInput)toast('Earlier changes saved. Your newer edits are still here; save them when ready.');else if (msg) toast(msg); return ok; }
-  function applyTheme(){ document.documentElement.dataset.textSize = S().prefs.textSize; document.documentElement.dataset.theme = S().prefs.theme === 'light' ? 'light' : 'dark'; document.documentElement.style.fontSize = S().prefs.textSize === 'large' ? '18px' : '16px'; if (area === 'faith') document.documentElement.dataset.view = 'faith'; else delete document.documentElement.dataset.view; }
+  function applyTheme(){ document.documentElement.dataset.textSize = S().prefs.textSize; document.documentElement.dataset.theme = S().prefs.theme === 'light' ? 'light' : 'dark'; document.documentElement.dataset.marble = S().prefs.theme === 'black' ? 'black' : 'verde'; document.documentElement.style.fontSize = S().prefs.textSize === 'large' ? '18px' : '16px'; if (area === 'faith') document.documentElement.dataset.view = 'faith'; else delete document.documentElement.dataset.view; }
 
   /* ---------- body numbers travel; body files do not ----------
      <ht-body-view> reaches the model and reference photos through the Mac app's body service.
@@ -848,7 +922,7 @@ addEventListener('load', () => {
     const next = String(event.detail || ''), label = (/-(V\d+(?:\.\d+)*)$/.exec(next) || [])[1] || next;
     let bar = document.getElementById('updateBar');
     if (!bar) { bar = document.createElement('div'); bar.id = 'updateBar'; bar.setAttribute('role', 'status'); document.body.appendChild(bar); }
-    bar.innerHTML = '<span>Temple Keep ' + esc(label) + ' is ready.</span><button class="save" data-act="applyUpdate">Update now</button>';
+    bar.innerHTML = '<span>Glow ' + esc(label) + ' is ready.</span><button class="save" data-act="applyUpdate">Update now</button>';
   });
   // Rows imported under a folder connection that has since been replaced. reconcile() refuses to
   // write anything at all while the store holds one, which is a dead end until they are retired.
@@ -1195,22 +1269,72 @@ addEventListener('load', () => {
   /* ---------- preview workspace: wholly synthetic, in memory only ---------- */
   function buildDemo(){ const made = Workspace.syntheticPreview(todayYmd(), real.prefs); if (!made.ok) throw new Error(made.error); return made.record; }
 
-  /* ---------- plaster texture ---------- */
-  function plasterDataUri(base, wash, dark, seed){
-    const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900"><defs>' +
-      '<filter id="a" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.0075" numOctaves="5" seed="' + seed + '"/><feColorMatrix type="luminanceToAlpha"/><feComponentTransfer result="m"><feFuncA type="table" tableValues="0 0.85"/></feComponentTransfer><feFlood flood-color="' + wash + '" result="c"/><feComposite in="c" in2="m" operator="in"/></filter>' +
-      '<filter id="b" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="3" seed="' + (seed + 7) + '"/><feColorMatrix type="luminanceToAlpha"/><feComponentTransfer result="m"><feFuncA type="table" tableValues="0.55 0"/></feComponentTransfer><feFlood flood-color="' + dark + '" result="c"/><feComposite in="c" in2="m" operator="in"/></filter>' +
-      '<filter id="g" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="' + (seed + 2) + '"/><feColorMatrix type="luminanceToAlpha"/><feComponentTransfer result="m"><feFuncA type="table" tableValues="0 0.14"/></feComponentTransfer><feFlood flood-color="#f3efe3" result="c"/><feComposite in="c" in2="m" operator="in"/></filter></defs>' +
-      '<rect width="100%" height="100%" fill="' + base + '"/><rect width="100%" height="100%" filter="url(#a)"/><rect width="100%" height="100%" filter="url(#b)"/><rect width="100%" height="100%" filter="url(#g)"/></svg>';
-    return 'url("data:image/svg+xml;utf8,' + encodeURIComponent(svg) + '")';
+  /* ---------- polished stone (Glow V2.1) ----------
+     Two marbles Mintay switches between (Black with antique-gold veins, Verde with cream veins) and a purple
+     porphyry for Faith. Each is drawn once per session from an SVG - long, thin, forking veins are the 0.5
+     iso-band of a stretched fractal noise, with softer secondary veins and a cloudy layer underneath - then
+     rasterised to a bitmap, so scrolling and taps never re-run the filters. Ivory (light) stays a plain colour. */
+  /* Marble (V2.1, Mintay Sept 25: "the white swirls more accurate, deeper"): veins are the zero-contours of
+     low-frequency noise, cracked by a displacement, fading in and out under a slow mask, drawn crisp over a
+     soft halo; dark clouds give depth under the polish. Drawn once per session to a bitmap (applyWallpaper). */
+  const STONES = {
+    black:{top:'#181b19', bottom:'#050606', dark:{f:'0.010',oct:3,seed:9,rgb:[0,0,0],table:'0 0 .55 .85',blur:3,op:.32}, light:{f:'0.003',oct:2,seed:5,rgb:[.9,.84,.62],table:'0 0 .1 .22',blur:8,op:.07},
+      veins:[{f:'0.003 0.005',oct:3,seed:17,rgb:[.9,.76,.46],n:121,w:1,jf:'0.025',jag:30,mf:'0.004',mask:'0 0 .25 .75 1 1',blur:.6,halo:6,haloOp:.26,op:.5},{f:'0.007 0.011',oct:2,seed:41,rgb:[.62,.6,.54],n:161,w:0,jf:'0.03',jag:12,mf:'0.006',mask:'0 0 0 .5 1',blur:.5,halo:3,haloOp:.3,op:.14}]},
+    verde:{top:'#1a3a2c', bottom:'#06120c', dark:{f:'0.010',oct:3,seed:9,rgb:[.01,.05,.03],table:'0 0 .55 .85',blur:3,op:.42}, light:{f:'0.003',oct:2,seed:5,rgb:[.6,.86,.7],table:'0 0 .1 .22',blur:8,op:.06},
+      veins:[{f:'0.003 0.005',oct:3,seed:31,rgb:[.95,.96,.9],n:121,w:1,jf:'0.025',jag:22,mf:'0.004',mask:'0 0 .25 .75 1 1',blur:.7,halo:6,haloOp:.22,op:.42},{f:'0.007 0.011',oct:2,seed:19,rgb:[.72,.9,.8],n:161,w:0,jf:'0.03',jag:12,mf:'0.006',mask:'0 0 0 .5 1',blur:.5,halo:3,haloOp:.3,op:.12}]},
+    porphyry:{top:'#3d1670', bottom:'#14062a', dark:{f:'0.010',oct:3,seed:9,rgb:[.05,0,.12],table:'0 0 .55 .85',blur:3,op:.34}, light:{f:'0.0026',oct:2,seed:6,rgb:[.66,.36,1],table:'0 0 .12 .2',blur:8,op:.14},
+      veins:[{f:'0.003 0.005',oct:3,seed:37,rgb:[.96,.91,.86],n:121,w:1,jf:'0.025',jag:24,mf:'0.004',mask:'0 0 .25 .75 1 1',blur:.7,halo:6,haloOp:.22,op:.34},{f:'0.007 0.011',oct:2,seed:43,rgb:[.88,.74,.48],n:161,w:0,jf:'0.03',jag:12,mf:'0.006',mask:'0 0 0 .5 1',blur:.5,halo:3,haloOp:.3,op:.1}]}
+  };
+  const STONE_W = 1440, STONE_H = 900;
+  function stoneSVG(kind){
+    const st = STONES[kind];
+    const lum = rgb => '<feColorMatrix type="matrix" values="0 0 0 0 ' + rgb[0] + ' 0 0 0 0 ' + rgb[1] + ' 0 0 0 0 ' + rgb[2] + ' 0.33 0.33 0.34 0 0"/>';
+    const spike = (n, w) => Array.from({length:n}, (_, i) => { const c = (n - 1) / 2, d = Math.abs(i - c); return d <= w ? (1 - d / (w + 1)).toFixed(2) : '0'; }).join(' ');
+    const cloud = (id, c) => '<filter id="' + id + '" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="' + c.f + '" numOctaves="' + c.oct + '" seed="' + c.seed + '"/>' + lum(c.rgb) + '<feComponentTransfer><feFuncA type="table" tableValues="' + c.table + '"/></feComponentTransfer><feGaussianBlur stdDeviation="' + c.blur + '"/></filter>';
+    const vein = (id, v) => '<filter id="' + id + '" x="0" y="0" width="100%" height="100%">' +
+      '<feTurbulence type="fractalNoise" baseFrequency="' + v.f + '" numOctaves="' + v.oct + '" seed="' + v.seed + '"/>' + lum(v.rgb) +
+      '<feComponentTransfer result="c"><feFuncA type="table" tableValues="' + spike(v.n, v.w) + '"/></feComponentTransfer>' +
+      '<feTurbulence type="fractalNoise" baseFrequency="' + v.jf + '" numOctaves="3" seed="' + (v.seed + 7) + '" result="j"/>' +
+      '<feDisplacementMap in="c" in2="j" scale="' + v.jag + '" xChannelSelector="R" yChannelSelector="G" result="d"/>' +
+      '<feTurbulence type="fractalNoise" baseFrequency="' + v.mf + '" numOctaves="2" seed="' + (v.seed + 11) + '"/>' +
+      '<feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.33 0.33 0.34 0 0"/>' +
+      '<feComponentTransfer result="m"><feFuncA type="table" tableValues="' + v.mask + '"/></feComponentTransfer>' +
+      '<feComposite in="d" in2="m" operator="in" result="v"/>' +
+      '<feGaussianBlur in="v" stdDeviation="' + v.blur + '" result="crisp"/><feGaussianBlur in="v" stdDeviation="' + v.halo + '" result="h"/>' +
+      '<feComponentTransfer in="h" result="h2"><feFuncA type="linear" slope="' + v.haloOp + '"/></feComponentTransfer>' +
+      '<feMerge><feMergeNode in="h2"/><feMergeNode in="crisp"/></feMerge></filter>';
+    let defs = '<linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + st.top + '"/><stop offset="1" stop-color="' + st.bottom + '"/></linearGradient>' + cloud('d', st.dark) + cloud('c', st.light);
+    let body = '<rect width="100%" height="100%" fill="url(#g)"/><rect width="100%" height="100%" filter="url(#d)" opacity="' + st.dark.op + '"/><rect width="100%" height="100%" filter="url(#c)" opacity="' + st.light.op + '"/>';
+    st.veins.forEach((v, i) => { defs += vein('v' + i, v); body += '<rect width="100%" height="100%" filter="url(#v' + i + ')" opacity="' + v.op + '"/>'; });
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + STONE_W + '" height="' + STONE_H + '" viewBox="0 0 ' + STONE_W + ' ' + STONE_H + '"><defs>' + defs + '</defs>' + body + '</svg>';
   }
-  // Faith keeps the same granite, in royal purple (Mintay, 2026-09-24); every other area stays green.
-  const wallpapers = {};
+  const stoneCache = {};
+  function stoneKind(){
+    const theme = S().prefs.theme, light = theme === 'light', marble = theme === 'black' ? 'black' : 'verde', faith = area === 'faith';   // Verde is the default (Mintay, Sept 25); 'dark' means Verde too
+    return light ? 'ivory' : faith && S().prefs.faithStone !== 'wash' ? 'porphyry' : marble;
+  }
   function applyWallpaper(){
-    const light = S().prefs.theme === 'light', faith = area === 'faith', key = (light ? 'light' : 'dark') + (faith ? '-faith' : '');
-    wallpapers[key] = wallpapers[key] || (faith ? (light ? plasterDataUri('#e4dcef', '#f0ebf6', '#cdbfe0', 11) : plasterDataUri('#2a1a4d', '#46307c', '#140a2a', 4)) : (light ? plasterDataUri('#dfe3d8', '#eef0e8', '#c9cfc2', 11) : plasterDataUri('#0f2a21', '#1d4a3a', '#071a14', 4)));
-    if (document.body.style.backgroundImage !== wallpapers[key]) document.body.style.backgroundImage = wallpapers[key];
+    const el = document.getElementById('stone'), kind = stoneKind(), faith = area === 'faith';
     document.body.dataset.area = area;
+    document.body.dataset.cross = S().prefs.faithCross === 'soft' ? 'soft' : 'strong';
+    if (!el) return;
+    el.classList.toggle('wash', faith && kind !== 'porphyry' && kind !== 'ivory');
+    if (el.dataset.kind === kind) return;
+    el.dataset.kind = kind;
+    if (kind === 'ivory'){ el.style.backgroundImage = 'none'; el.style.backgroundColor = ''; return; }   // Ivory: the plain --bg colour, no leftover stone tone
+    el.style.backgroundColor = STONES[kind].bottom;
+    if (typeof stoneCache[kind] === 'string'){ el.style.backgroundImage = 'url("' + stoneCache[kind] + '")'; return; }
+    if (stoneCache[kind] === null) return;   // already being drawn
+    stoneCache[kind] = null;
+    const svg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(stoneSVG(kind));
+    const show = url => { stoneCache[kind] = url; if (el.dataset.kind === kind) el.style.backgroundImage = 'url("' + url + '")'; };
+    const img = new Image();
+    img.onload = () => { try {
+        const c = document.createElement('canvas'); c.width = STONE_W; c.height = STONE_H; c.getContext('2d').drawImage(img, 0, 0, STONE_W, STONE_H);
+        c.toBlob(b => show(b ? URL.createObjectURL(b) : svg), 'image/jpeg', .88);
+      } catch (_) { show(svg); } };
+    img.onerror = () => show(svg);
+    setTimeout(() => { img.src = svg; }, 0);
   }
 
   /* ---------- shared pieces ---------- */
@@ -1285,6 +1409,7 @@ addEventListener('load', () => {
     $('#levelOrb').innerHTML = levelOrbHTML();
     $('#topStats').innerHTML = topStatsHTML();
     $('#sideToggle').textContent = document.querySelector('.app').classList.contains('sidehidden') ? 'Show menu' : 'Hide';
+    { const t = $('#stoneToggle'); if (t){ const black = st.prefs.theme === 'black'; t.innerHTML = '<i class="swatch ' + (black ? 'verde' : 'black') + '" aria-hidden="true"></i>' + (black ? 'Verde marble' : 'Black marble'); t.setAttribute('aria-label', 'Switch to ' + (black ? 'Verde' : 'Black') + ' marble'); } }
     $('#sideHide').setAttribute('aria-expanded', String(!document.querySelector('.app').classList.contains('sidehidden')));
     $('#sideToggle').setAttribute('aria-expanded', String(!document.querySelector('.app').classList.contains('sidehidden')));
     document.querySelectorAll('.nav button[data-area]').forEach(b => { if (b.dataset.area === area) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
@@ -1358,14 +1483,26 @@ addEventListener('load', () => {
     }
     return best;
   }
+  let mfWindow = 'day';
   function measuredFitnessCard(st){
-    const today=todayYmd(),cells=FITNESS_METRICS.map(m=>{
-      const x=latestMetric(st,m.metrics,m.kinds);
-      if(!x)return '<div class="mf"><small>'+esc(m.label)+'</small><b>—</b><small>No reading yet</small></div>';
-      const tone=m.tone?m.tone(x.value):null,age=calendarDistance(x.date,today);
-      return '<div class="mf"'+(tone!==null?' style="--tone:'+perfColor(tone)+'"':'')+'><small>'+esc(m.label)+'</small><b>'+esc(x.value.toFixed(m.digits))+' <small>'+esc(m.unit)+'</small></b><small>'+(m.word(x.value)?'<span class="mf-word">'+esc(m.word(x.value))+'</span> · ':'')+(age>7?'Last '+esc(medDate(x.date)):age<=0?'Today':esc(medDate(x.date)))+'</small></div>';
+    // Day shows the newest reading; Week and Month average the readings in the last 7 or 28 days and compare
+    // with the same span before (V2.1 d). Every number comes from Apple Health.
+    const today=todayYmd(),win=mfWindow==='week'?'week':mfWindow==='month'?'month':'day',span=win==='week'?7:win==='month'?28:1,from=addDays(today,-(span-1)),prevFrom=addDays(from,-span),prevTo=addDays(from,-1);
+    const mean=list=>list.length?list.reduce((a,b)=>a+b,0)/list.length:null;
+    const cells=FITNESS_METRICS.map(m=>{
+      if(win==='day'){
+        const x=latestMetric(st,m.metrics,m.kinds);
+        if(!x)return '<div class="mf"><small>'+esc(m.label)+'</small><b>—</b><small>No reading yet</small></div>';
+        const tone=m.tone?m.tone(x.value):null,age=calendarDistance(x.date,today);
+        return '<div class="mf"'+(tone!==null?' style="--tone:'+perfColor(tone)+'"':'')+'><small>'+esc(m.label)+'</small><b>'+esc(x.value.toFixed(m.digits))+' <small>'+esc(m.unit)+'</small></b><small>'+(m.word(x.value)?'<span class="mf-word">'+esc(m.word(x.value))+'</span> · ':'')+(age>7?'Last '+esc(medDate(x.date)):age<=0?'Today':esc(medDate(x.date)))+'</small></div>';
+      }
+      const cur=[...metricDaily(st,m.metrics,m.kinds,from,today).values()],prev=[...metricDaily(st,m.metrics,m.kinds,prevFrom,prevTo).values()],avg=mean(cur),before=mean(prev);
+      if(avg===null){const x=latestMetric(st,m.metrics,m.kinds);return '<div class="mf"><small>'+esc(m.label)+'</small><b class="dim">—</b><small>'+(x?'None in '+span+' days · last '+esc(medDate(x.date)):'No reading yet')+'</small></div>';}
+      const tone=m.tone?m.tone(avg):null,delta=before===null?null:avg-before,change=delta===null?'':Math.abs(delta)<Math.pow(10,-m.digits)/2?'● same as before':(delta>0?'▲ +':'▼ −')+Math.abs(delta).toFixed(m.digits)+' vs the '+span+' days before';
+      return '<div class="mf"'+(tone!==null?' style="--tone:'+perfColor(tone)+'"':'')+'><small>'+esc(m.label)+'</small><b>'+esc(avg.toFixed(m.digits))+' <small>'+esc(m.unit)+'</small></b><small>'+(m.word(avg)?'<span class="mf-word">'+esc(m.word(avg))+'</span> · ':'')+'average of '+cur.length+(change?' · '+esc(change):'')+'</small></div>';
     }).join('');
-    return '<section class="panelcard" data-feedback-id="measured-fitness" data-feedback-label="Measured fitness"><div class="ph"><h2>Measured Fitness</h2></div><p class="hint">Readings from Apple Health, newest first. A reading older than a week shows its date. VO₂ max bands follow ACSM norms for a man aged 30–39; resting heart rate follows the AHA’s typical adult range. Strength stays unassessed until a strength test you log gives it a measure; routine consistency and points are never counted here.</p><div class="mf-grid">'+cells+'<div class="mf wide"><small>Strength</small><b class="dim">Unassessed</b><small>Needs a strength test you log</small></div></div>'+gradientKey()+'</section>';
+    const seg='<div class="seg rank-window mf-window" role="group" aria-label="Measured Fitness window">'+[['day','Day'],['week','Week'],['month','Month']].map(([k,l])=>'<button data-act="mfWindow" data-w="'+k+'" aria-pressed="'+(win===k)+'">'+l+'</button>').join('')+'</div>';
+    return '<section class="panelcard" data-feedback-id="measured-fitness" data-feedback-label="Measured fitness"><div class="ph"><h2>Measured Fitness</h2></div>'+seg+'<p class="hint">Readings from Apple Health. Day shows the newest reading (older than a week, with its date); Week and Month average the readings in the last 7 or 28 days and compare with the span before. VO₂ max bands follow ACSM norms for a man aged 30–39; resting heart rate follows the AHA’s typical adult range. Strength stays unassessed until a strength test you log gives it a measure; routine consistency and points are never counted here.</p><div class="mf-grid">'+cells+'<div class="mf wide"><small>Strength</small><b class="dim">Unassessed</b><small>Needs a strength test you log</small></div></div>'+gradientKey()+'</section>';
   }
   function overallRankCard(st){
     const win=(typeof rankWindow!=='undefined'&&rankWindow)||'rolling',rr=overallRankReport(st,todayYmd(),win),names={fitness:'Fitness',food:'Food & Hydration',care:'Personal Care',faith:'Faith',work:'Work & Learning',health:'Health',hygiene:'Hygiene',relationship:'Relationship',career:'Career'};
@@ -1378,7 +1515,7 @@ addEventListener('load', () => {
   function profileCard(){
     const st = S(), rw = rewardReport(st, todayYmd());
     return '<div class="cols2 profile-cards">' + measuredFitnessCard(st) + overallRankCard(st) + '</div><ht-body-view></ht-body-view><div class="cols2 profile-cards">' +
-      '<section class="panelcard" data-feedback-id="your-collection" data-feedback-label="Your collection"><h2>Collection</h2><div class="collect-row"><span class="orb" aria-hidden="true"></span><div><b class="big">Level ' + rw.level + '</b><p class="hint" style="margin:0">' + rw.orbs + ' points · ' + rw.toNext + ' to the next level</p></div></div><button class="link" data-act="go" data-area="collection">Open collection</button></section></div>';
+      '<section class="panelcard" data-feedback-id="your-collection" data-feedback-label="Your collection"><h2>Collection</h2><div class="collect-row">' + jarHTML(rw, st, 64) + '<div><b class="big">Level ' + rw.level + '</b><p class="hint keep" style="margin:0">' + rw.orbs + ' points · ' + rw.toNext + ' to the next level</p></div></div><button class="link" data-act="go" data-area="collection">Open collection</button></section></div>';
   }
   function dailyRow(r){
     const children=r.children||[], future=r.date>todayYmd(), confirmed=r.status==='done';
@@ -1422,12 +1559,11 @@ addEventListener('load', () => {
     return '<section class="panelcard day-editor" data-series="' + r.seriesId + '" data-date="' + day + '" data-key="' + r.key + '"><div class="ph"><h2 tabindex="-1">' + esc(r.name) + '</h2><button class="ghost small" data-act="closePanel">Close</button></div><p class="hint">This occurrence only · ' + esc(medDate(day)) + '</p>' + (family ? '<p class="hint">Family progress comes from its child tasks.</p>' + r.children.map(dailyRow).join('') : (past ? '' : segHTML(r,false)) + '<div class="acts">' + actionButtons(r) + (r.status !== null ? '<button class="ghost" data-act="clear">Clear entry</button>' : '') + '</div>' + stateLine(r) + detailFields(r) + (past ? '<p class="hint">Past targets are preserved. Entries can be corrected.</p>' : '<div class="form" style="margin-top:12px"><div><label for="day-target">Target for this day</label><input id="day-target" type="text" maxlength="80" value="' + esc(r.target.label) + '"></div><div><label for="day-time">Time for this day</label><input id="day-time" type="text" maxlength="30" value="' + esc(r.window) + '"></div></div><div class="acts"><button data-act="dayTarget">Save day adjustment</button></div>')) + (!family && day >= todayYmd() && r.status === null ? '<div class="fields" style="margin-top:12px"><div class="note"><label for="mv-' + r.key + '">Move this occurrence to</label><input id="mv-' + r.key + '" type="date" min="' + todayYmd() + '" value="' + addDays(day,1) + '"></div><button data-act="move">Move</button><button class="ghost" data-act="remove">Take off this day</button></div>' : '') + '<div class="acts"><button class="link" data-act="editRecurring">Edit this and future occurrences</button></div></section>';
   }
   function quickLog(){
-    const tabs = [['food','Add food'],['water','Add water'],['movement','Log workout'],['checkin','Check in'],['journal','Journal']];
-    return '<section class="panelcard quick-log" data-feedback-id="log-something" data-feedback-label="Quick entry"><div class="acts">' +
-      tabs.map(t => '<button data-act="quickLog" data-tab="' + t[0] + '" aria-pressed="' + (quickTab === t[0]) + '">' + t[1] + '</button>').join('') +
-      '<button class="link" data-act="go" data-area="log">Open full log</button><button class="link" data-act="go" data-area="data">Review source data</button></div>' +
-      '<p class="hint">' + esc(medDate(day)) + ' · each editor opens here and keeps this day. Logging detail never confirms an action by itself.</p></section>' +
-      (quickTab ? '<div id="quick-content">' + (quickTab === 'food' ? logFood() + mealLibraryCard() : quickTab === 'water' ? waterCard() : quickTab === 'movement' ? logMovement() : quickTab === 'journal' && typeof journalCard === 'function' ? journalCard() : checkinForm(day, observationFor(S(),day))) + '</div>' : '');
+    const tabs = [['food','Food'],['water','Water'],['movement','Workout'],['checkin','Check in'],['journal','Journal']], open = quickOpen || !!quickTab;
+    return '<section class="panelcard quick-log' + (open ? ' open' : '') + '" data-feedback-id="log-something" data-feedback-label="Quick entry" data-tidy="keep"><div class="acts"><button class="' + (open ? 'ghost' : 'save') + ' log-btn" data-act="quickMenu" aria-expanded="' + open + '">' + (open ? 'Close' : '+ Log') + '</button>' +
+      (open ? tabs.map(t => '<button data-act="quickLog" data-tab="' + t[0] + '" aria-pressed="' + (quickTab === t[0]) + '">' + t[1] + '</button>').join('') + '<button class="link" data-act="go" data-area="log">Full log</button><button class="link" data-act="go" data-area="data">Source data</button>'
+            : '<span class="hint keep">Food, water, a workout, a check-in or the journal · ' + esc(medDate(day)) + '</span>') + '</div>' +
+      (quickTab ? '<div id="quick-content">' + (quickTab === 'food' ? logFood() + mealLibraryCard() : quickTab === 'water' ? waterCard() : quickTab === 'movement' ? logMovement() : quickTab === 'journal' && typeof journalCard === 'function' ? journalCard() : checkinForm(day, observationFor(S(),day))) + '</div>' : '') + '</section>';
   }
   function renderHome(){
     const st = S(), rows = typeof flatPlanFor === 'function' ? flatPlanFor(st,day).filter(r => !groupById(st,r.group)?.hidden) : agendaFor(st,day);
@@ -1440,9 +1576,9 @@ addEventListener('load', () => {
     const nav = '<div class="daynav"><button class="nav-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b>' + esc(dayWord) + '</b>' + (dayWord !== longDate(day) ? '<span class="hint day-sub">' + esc(longDate(day)) + '</span>' : '') + '<button class="nav-btn" data-act="step" data-n="1" aria-label="Next day">›</button><input type="date" class="daypick" value="' + esc(day) + '" aria-label="Pick a day">' + (day !== todayYmd() ? '<button class="link" data-act="jumpToday">Back to today</button>' : '') + '</div><div class="subtabs" role="tablist" aria-label="Today views">' + [['overview','Overview'],['activities','Activities'],['agenda','Agenda']].map(t => '<button role="tab" aria-selected="' + (todayTab === t[0]) + '" data-act="todayTab" data-tab="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>';
     const next = '<section class="panelcard next-action" data-feedback-id="next-action" data-feedback-label="Next useful action"><p class="cap">'+(n&&n.status==='tentative'?'Review your check-off':'Up Next')+'</p>' + (n ? '<h2>' + esc(n.name) + '</h2>' + (n.target.label && n.target.label.trim().toLowerCase() !== String(n.name).trim().toLowerCase() ? '<p>' + esc(n.target.label) + '</p>' : '') + '<div class="acts" data-series="' + n.seriesId + '" data-date="' + n.date + '" data-key="' + n.key + '">' + actionButtons(n,true) + (ordered.length > 1 ? '<button class="link" data-act="upNextLater" data-key="' + esc(n.key) + '">Skip for now</button><span class="upnext-cycle"><button class="link" data-act="upNextCycle" data-n="-1" aria-label="Previous open item">‹</button><small>' + (ordered.indexOf(n) + 1) + ' of ' + ordered.length + '</small><button class="link" data-act="upNextCycle" data-n="1" aria-label="Next open item">›</button></span>' : '') + '</div>' : '<h2>Room to pause.</h2><p class="hint">' + (rows.length ? 'Every planned task has an entry.' : 'No activities planned today. Add one in Plan when you are ready.') + '</p>') + '</section>';
     const undoRemoved = removed.length ? '<details class="panelcard" data-feedback-id="removed-activities" data-feedback-label="Removed activities"><summary>Taken off this day (' + removed.length + ')</summary>' + removed.map(r => '<div class="acts" data-series="' + r.seriesId + '" data-date="' + day + '"><span>' + esc(r.name) + '</span><button data-act="restore">Put back</button></div>').join('') + '</details>' : '';
-    const overview = '<div class="acts"><button class="save" data-act="todayTab" data-tab="activities">Edit Today</button></div>' + goalRailSection(day) + '<div class="today-layout"><div>' + next + quickLog() + nutritionCard(day) + '</div><div>' + ringsSection(day) + sleepCard(day) +
+    const overview = '<div class="acts"><button class="save" data-act="todayTab" data-tab="activities">Edit Today</button></div>' + goalRailSection(day) + '<div class="today-layout"><div>' + next + quickLog() + nutritionCard(day) +
       '<section class="panelcard" data-feedback-id="day-narration" data-feedback-label="Your day in words"><p class="hint" style="margin:0">' + esc(narrateDay(st,day,todayYmd()).text) + '</p></section>' +
-      '<section class="panelcard" data-feedback-id="coming-up" data-feedback-label="Coming up"><h2>Later Today</h2>' + rows.filter(r=>r.status===null).slice(0,3).map(dailyRow).join('') + '</section></div></div>';
+      '<section class="panelcard" data-feedback-id="coming-up" data-feedback-label="Coming up"><h2>Later Today</h2>' + rows.filter(r=>r.status===null).slice(0,3).map(dailyRow).join('') + '</section></div><div>' + ringsSection(day) + sleepCard(day) + '</div></div>';
     // No reminder panels on the page (Mintay, 2026-09-24): the feed's state is the header badge and
     // "not set up yet" is an item behind its ⚠ count; the setup itself stays at the top of Activities.
     return nav + dayEditor() + (todayTab === 'activities' ? (activitiesPending(st) && !(typeof structureV2Adopted === 'function' && structureV2Adopted(st)) ? scoringProposalCard() : '') + unsortedWorkoutsCard() + wsActivities({includeClaims:true}) : claimsCard() + (todayTab === 'agenda' ? agendaCard() : overview)) + undoRemoved;
@@ -2033,7 +2169,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const row=findPlanRow(S(),id,date);workspaceDialog('<h2 id="workspaceReviewTitle" tabindex="-1">Review sources for '+esc(row.name)+'</h2><p>'+esc(medDate(date))+' · Full target '+esc(row.targets.normal.label)+(p.minimum?' · Weekly qualifying minimum '+p.minimum+' minutes':'')+'</p><p class="hint">Select separate matching records for this one action. Exact reported duration is retained. Apple Watch provenance is required for cardio.</p>'+p.records.map((r,i)=>'<div class="row compact"><label><input type="checkbox" data-evidence-id="'+esc(r.id)+'" '+(r.eligible?'':'disabled ') +(r.confirmed&&r.eligible?'checked':'')+'> '+esc(r.type)+' · '+esc(r.writer)+'</label><p>'+esc(r.minutes===null?String(r.record.value??'')+' '+(r.record.unit||''):r.minutes+' minutes')+' · '+esc(new Date(r.record.start).toLocaleString())+'</p>'+(r.problem?'<p class="notice">'+esc(r.problem)+'</p>':'')+'</div>').join('')+(p.records.length?'':'<p>No source records are available for this date. Import a supported local file in Data.</p>')+'<div id="workspaceReviewPreview" role="status"></div><div class="acts"><button class="save" data-act="wsEvidencePreview">Review selected evidence</button><button data-act="wsReviewCancel">Cancel</button></div>');
   }
   function energyBalanceCard(){
-    const p=Workspace.energyBalance(S(),day),n=v=>Number.isFinite(v)?v.toLocaleString(undefined,{maximumFractionDigits:2})+' kcal':'Unavailable';
+    const p=Workspace.energyBalance(S(),day),n=v=>Number.isFinite(v)?Math.round(v).toLocaleString()+' kcal':'Unavailable';
     return '<section class="panelcard" data-feedback-id="energy-balance" data-feedback-label="Energy balance"><div class="ph"><h2>Energy balance · '+esc(medDate(day))+'</h2><span class="chip quiet">'+(p.complete?'Coverage reviewed':'Provisional')+'</span></div><div class="byseries"><span>Food intake</span><span>'+n(p.food)+'</span><span>Resting energy</span><span>'+n(p.resting)+'</span><span>Active energy</span><span>'+n(p.active)+'</span><span>Intake − resting − active</span><span>'+n(p.balance)+'</span></div><p class="hint">'+esc(p.note)+' Workouts are already part of active energy and are not added again. This display earns no points. Automatic nutrition import and a calorie-deficit award remain pending.</p></section>';
   }
   document.addEventListener('change',event=>{if(event.target.matches('.daypick')&&/^\d{4}-\d{2}-\d{2}$/.test(event.target.value)){day=event.target.value;panel=null;upNextIndex=0;render();return;}if(event.target.matches('#workspaceReview [data-evidence-id]')&&workspaceReview?.kind==='evidence'){workspaceReview.sourceIds=null;document.getElementById('workspaceReviewPreview').textContent='Selection changed. Review the selected evidence before confirming.';}});
@@ -2080,11 +2216,15 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const manualOz = typeof MealWater !== 'undefined' ? MealWater.waterSummary(st, date).manual.usFlOz : 0, importedOz = imp.dietary_water ? imp.dietary_water.value / 29.5735295625 : 0;
     const replace = !!st.prefs.foodReplacesImported?.[date], both = manual && Object.keys(imp).some(k => k !== 'dietary_water');
     const oz = manualOz || importedOz, pick = (k, metric) => { const i = imp[metric] ? imp[metric].value : null; return manual ? (replace || i === null ? sum(k) : sum(k) + i) : i; };
-    const cell = (label, value, unit) => '<div class="nut"><small>' + label + '</small><b>' + (value === null ? '—' : Math.round(value).toLocaleString()) + '</b>' + (value !== null && unit ? ' <small>' + unit + '</small>' : '') + '</div>';
+    const n = v => v === null ? '—' : Math.round(v).toLocaleString();
+    // Bevel-style macros (V2.1): calories lead, one capsule shows the split of calories by macro, values read plainly.
+    const kcal = pick('calories', 'dietary_energy'), pro = pick('proteinG', 'protein'), carb = pick('carbsG', 'carbohydrates'), fat = pick('fatG', 'total_fat');
+    const pk = (pro || 0) * 4, ck = (carb || 0) * 4, fk = (fat || 0) * 9, tot = pk + ck + fk, pctOf = v => (100 * v / tot).toFixed(1);
+    const split = tot ? '<div class="macro-bar" role="img" aria-label="' + esc('Protein ' + Math.round(100 * pk / tot) + '%, carbs ' + Math.round(100 * ck / tot) + '%, fat ' + Math.round(100 * fk / tot) + '% of calories') + '"><i class="mp" style="width:' + pctOf(pk) + '%"></i><i class="mc" style="width:' + pctOf(ck) + '%"></i><i class="mf" style="width:' + pctOf(fk) + '%"></i></div>' : '';
+    const macros = '<div class="macros"><div class="macro-kcal"><small>Calories</small><b>' + n(kcal) + '</b><small>kcal</small></div>' + split +
+      '<div class="macro-row"><span><i class="mp"></i>Protein <b>' + n(pro) + ' g</b></span><span><i class="mc"></i>Carbs <b>' + n(carb) + ' g</b></span><span><i class="mf"></i>Fat <b>' + n(fat) + ' g</b></span><span><i class="mw"></i>Water <b>' + (oz ? Math.round(oz) + ' fl oz' : '—') + '</b></span></div></div>';
     const from = manual ? (both && !replace ? 'Logged here + Apple Health' : 'Logged here') : Object.keys(imp).length ? 'From ' + [...new Set(Object.values(imp).map(x => x.source).filter(Boolean))].join(', ') : 'Nothing logged or imported yet';
-    return '<section class="panelcard" data-feedback-id="nutrition" data-feedback-label="Nutrition"><div class="ph"><h2>Nutrition</h2><span class="hint keep">' + esc(from) + '</span></div><div class="nut-grid">' +
-      cell('Calories', pick('calories', 'dietary_energy'), 'kcal') + cell('Protein', pick('proteinG', 'protein'), 'g') + cell('Carbs', pick('carbsG', 'carbohydrates'), 'g') + cell('Fat', pick('fatG', 'total_fat'), 'g') + cell('Water', oz || null, 'fl oz') +
-      '</div>' + deficitLine(st, date) + (both ? '<div class="acts"><button class="link" data-act="foodReplaceToggle" data-date="' + esc(date) + '" aria-pressed="' + replace + '">' + (replace ? 'Add my food on top of Apple Health' : 'Replace Apple Health with my food today') + '</button></div>' : '') + '<p class="hint">Food you log adds on top of Apple Health unless you replace it for the day. Water counts toward 100 fl oz.</p></section>';
+    return '<section class="panelcard" data-feedback-id="nutrition" data-feedback-label="Nutrition"><div class="ph"><h2>Nutrition</h2><span class="hint keep">' + esc(from) + '</span></div>' + macros + deficitLine(st, date) + (both ? '<div class="acts"><button class="link" data-act="foodReplaceToggle" data-date="' + esc(date) + '" aria-pressed="' + replace + '">' + (replace ? 'Add my food on top of Apple Health' : 'Replace Apple Health with my food today') + '</button></div>' : '') + '<p class="hint">Food you log adds on top of Apple Health unless you replace it for the day. Water counts toward 100 fl oz.</p></section>';
   }
   // The deficit always shows (V1.12): target 825 kcal a day, on track from 750. A missing part is
   // named instead of hiding the panel. Points stay a preview until the scoring version that pays them.
@@ -2142,7 +2282,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const parts=[];
     if(tr)parts.push('<span title="Latest weight, change since your start and over the last week"><b>'+n(tr.latest)+' lb</b>'+(g.startWeightLb?' <span class="dim">'+(tr.latest-g.startWeightLb<=0?'−':'+')+n(Math.abs(tr.latest-g.startWeightLb))+'</span>':'')+arrow(tr.week)+'</span>');
     if(steps.length)parts.push('<span title="Steps today"><b>'+Math.max(...steps).toLocaleString()+'</b> steps</span>');
-    if(eb&&eb.available)parts.push('<span title="Food − resting − active today"><b>'+Math.round(-eb.balance).toLocaleString()+'</b> kcal '+(eb.balance<=0?'deficit':'surplus')+'</span>');
+    if(eb&&eb.available)parts.push('<span title="Food − resting − active today"><i class="heat-dot" style="background:'+heatColor(-eb.balance/(g.deficit.daily||825))+'"></i><b>'+Math.round(-eb.balance).toLocaleString()+'</b> kcal '+(eb.balance<=0?'deficit':'surplus')+'</span>');
     return parts.join('');
   }
   function checkpointCard(){
@@ -2154,7 +2294,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function templateShelf(){
     const st = S(), list = templatesOf(st), groups = visibleGroups(st), gname = id => (groups.find(g => g.id === id) || {}).name || 'Category';
     if (st.prefs.templateShelfDone === day && !shelfManage) return '<div class="shelf-done"><button class="link" data-act="shelfShow">Templates</button></div>';
-    const chips = list.map(t => '<label class="tpl-chip' + (shelfPicked.has(t.id) ? ' on' : '') + '" style="--category:' + categoryColor(t.group) + '"><input type="checkbox" data-act="shelfPick" data-tpl="' + esc(t.id) + '"' + (shelfPicked.has(t.id) ? ' checked' : '') + '><span>' + esc(t.name) + '</span>' + (t.items && t.items.length ? '<small>' + t.items.length + '</small>' : '') + '</label>').join('');
+    const chips = list.map(t => '<label class="tpl-chip' + (shelfPicked.has(t.id) ? ' on' : '') + '" style="--category:' + categoryColor(t.group) + '"><input type="checkbox" data-act="shelfPick" data-tpl="' + esc(t.id) + '"' + (shelfPicked.has(t.id) ? ' checked' : '') + '><span>' + esc(t.name) + '</span>' + (t.items && t.items.length ? '<small>' + t.items.length + '</small>' : '') + '</label>' + (templateStreak(st, t) ? '<button class="link tpl-daily" data-act="shelfDaily" data-tpl="' + esc(t.id) + '" title="' + esc(t.name) + ' was added three days running">Make it daily</button>' : '')).join('');
     const editor = t => '<div class="tpl-edit" data-tpl="' + esc(t.id) + '"><div class="form"><div><label for="tpl-name">Name</label><input id="tpl-name" type="text" maxlength="60" value="' + esc(t.name) + '"></div><div><label for="tpl-group">Category</label><select id="tpl-group">' + groups.map(g => '<option value="' + esc(g.id) + '"' + (g.id === t.group ? ' selected' : '') + '>' + esc(g.name) + '</option>').join('') + '</select></div></div><label for="tpl-items">Sub-tasks, one per line (indent with two spaces for a sub-task of the line above)</label><textarea id="tpl-items" rows="4">' + esc(tplLines(t.items)) + '</textarea><div class="acts"><button class="save" data-act="shelfSaveTpl">Save template</button><button class="ghost" data-act="shelfCancelTpl">Cancel</button></div></div>';
     const manage = shelfManage ? '<div class="shelf-manage">' + list.map(t => shelfEdit === t.id ? editor(t) : '<div class="tpl-row"><span><b>' + esc(t.name) + '</b> <small>' + esc(gname(t.group)) + (t.items && t.items.length ? ' · ' + t.items.map(i => i.name).join(', ') : '') + '</small></span><button class="link" data-act="shelfEditTpl" data-tpl="' + esc(t.id) + '">Edit</button><button class="link" data-act="shelfRemoveTpl" data-tpl="' + esc(t.id) + '">Remove</button></div>').join('') +
       (shelfEdit === 'new' ? editor({id:'new', name:'', group:(groups[0] || {}).id, items:[]}) : '') +
@@ -2163,6 +2303,29 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       '<div class="tpl-chips">' + chips + '</div><div class="acts"><button class="save" data-act="shelfAdd"' + (shelfPicked.size ? '' : ' disabled') + '>' + (shelfPicked.size ? 'Add ' + shelfPicked.size + ' to today' : 'Add to today') + '</button><button class="ghost" data-act="shelfDone">Done for today</button><button class="link" data-act="shelfManage" aria-pressed="' + shelfManage + '">' + (shelfManage ? 'Close manage' : 'Manage') + '</button></div>' + manage + '</details></section>';
   }
   function shelfOpen(){ try { return localStorage.getItem('health-tracker.shelfOpen') !== '0'; } catch (_) { return true; } }
+  /* Make it daily (V2.1 c): the same template or one-off added three days running becomes a daily activity from
+     this day, sub-tasks and all. The days already added stay as they were. */
+  const templateStreak = (st, t) => { const u = (st.prefs.templateUse || {})[t.id] || []; return [0, 1, 2].every(n => u.includes(addDays(day, -n))); };
+  function onceStreak(n){
+    if (Array.isArray(n.children) || !n.seriesId || typeof versionFor !== 'function') return false;
+    const st = S(), d = n.date || day, ser = st.series.find(x => x.id === n.seriesId), v = ser && versionFor(ser, d);
+    if (!v || !v.recurrence || v.recurrence.kind !== 'once') return false;
+    const nm = String(v.name || '').trim().toLowerCase();
+    const on = x => st.series.some(z => { const w = versionFor(z, x); return !!(w && w.recurrence && w.recurrence.kind === 'once' && w.recurrence.date === x && String(w.name || '').trim().toLowerCase() === nm); });
+    return on(addDays(d, -1)) && on(addDays(d, -2));
+  }
+  async function makeDaily(st, name, group, items){
+    const groups = visibleGroups(st), category = groups.some(g => g.id === group) ? group : (groups[0] || {}).id, date = day;
+    const daily = () => ({kind:'weekly', days:[0, 1, 2, 3, 4, 5, 6], intervalWeeks:1, count:1, weeks:1, mode:'fixed', startDate:date, session:''});
+    return manualActionTransaction(st, d => {
+      let r = {ok:true};
+      const add = (parentId, item) => { const fields = {id:newDraftId(), name:item.name, category, container:!!(item.items && item.items.length), recurrence:daily()};
+        r = parentId ? Workspace.addChild(d, parentId, fields, date) : Workspace.create(d, fields, date); if (!r || !r.ok) throw new Error((r && r.error) || 'Not added.');
+        for (const child of item.items || []) add(fields.id, child); };
+      try { add(null, {name, items}); } catch (e) { return {ok:false, error:e.message}; }
+      return r;
+    }, {persist:!preview});
+  }
   async function addTemplatesToday(st, picked){
     const groups = visibleGroups(st), list = templatesOf(st).filter(t => picked.has(t.id)), date = day;
     const result = await manualActionTransaction(st, d => {
@@ -2264,13 +2427,27 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const label=parseYmd(monday).toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
     return '<section class="panelcard" data-feedback-id="backdate-scoring" data-feedback-label="Start scoring from Monday"><h2>Start scoring from '+esc(label)+'</h2><p>You began on '+esc(label)+'; the agreed activities were adopted on '+esc(medDate(rw.activeEpoch.effectiveFrom))+'. This moves the scoring period, the agreed activities and the Apple Health start back to '+esc(label)+', then checks off those days from your data. Points still wait for your claim; anything you add by hand for those days scores too.</p><button class="primary" data-act="wsBackdate" data-date="'+esc(monday)+'">Start scoring from '+esc(label)+'</button></section>';
   }
+  /* Not everything a ring (Mintay, Sept 25): Collection is an apothecary jar. Each claim drops an orb coloured by
+     its area, packed from the bottom with the newest on top, and the jar fills toward the next level. */
+  function jarHTML(rw, st, size){
+    const within = Number.isFinite(rw.within) ? rw.within : 0, cost = Number.isFinite(rw.cost) && rw.cost > 0 ? rw.cost : Math.max(1, (rw.toNext || 0) + within), frac = Math.max(0, Math.min(1, within / cost));
+    const claims = (rw.claims || []).slice().sort((a, b) => String(a.claimedAt || '').localeCompare(String(b.claimedAt || '')));
+    const tone = c => { const ser = st.series.find(x => x.id === c.seriesId); return categoryColor(ser ? (typeof groupOf === 'function' ? groupOf(ser) : ser.category) : 'care'); };
+    const slots = []; for (let row = 0; row < 8; row++){ const y = 90 - row * 7.6, n = row % 2 ? 6 : 7, x0 = row % 2 ? 16.2 : 12; for (let i = 0; i < n; i++) slots.push([x0 + i * 8.4, y]); }
+    const filled = Math.round(slots.length * frac), level = (95 - 70 * frac).toFixed(1);
+    const orbs = slots.slice(0, filled).map(([x, y], i) => { const c = claims.length ? tone(claims[Math.max(0, claims.length - filled + i)]) : 'var(--verd)'; return '<circle cx="' + x + '" cy="' + y + '" r="3.7" fill="' + c + '"/><circle cx="' + (x - 1.1) + '" cy="' + (y - 1.2) + '" r="1.1" fill="#fff" opacity=".55"/>'; }).join('');
+    const jar = 'M12 30c0-4 3-7 7-7h42c4 0 7 3 7 7v58c0 6-5 10-11 10H23c-6 0-11-4-11-10Z';
+    return '<svg class="jar" viewBox="0 0 80 104" width="' + size + '" height="' + Math.round(size * 1.3) + '" role="img" aria-label="' + esc(within + ' of ' + cost + ' points toward level ' + (rw.level + 1)) + '"><defs><clipPath id="jar-clip-' + size + '"><path d="' + jar + '"/></clipPath></defs>' +
+      '<g clip-path="url(#jar-clip-' + size + ')"><rect width="80" height="104" fill="rgba(255,255,255,.045)"/><rect x="0" y="' + level + '" width="80" height="100" fill="rgba(143,217,191,.13)"/>' + orbs + '</g>' +
+      '<path d="' + jar + '" fill="none" stroke="var(--brass)" stroke-width="2.2"/><path d="M24 23v-6h32v6" fill="none" stroke="var(--brass)" stroke-width="2"/><rect x="21" y="8" width="38" height="9" rx="3" fill="var(--brass)" opacity=".9"/><path d="M19 36c-1 18 0 34 3 46" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2.5" stroke-linecap="round"/></svg>';
+  }
   function renderCollection(){
     const st=S(),rw=rewardReport(st,todayYmd()),end=addDays(collectionWeek,6),quarter=!!rw.activeEpoch;
     const all=Object.values(st.rewards.claims),events=all.flatMap(c=>[{...c,eventAt:c.claimedAt,delta:c.amount,reason:'Claim'}].concat((c.adjustments||[]).map(a=>({...c,eventAt:a.at,delta:a.delta,reason:a.reason}))));
     const weekly=events.filter(c=>{const d=ymd(new Date(c.eventAt));return d>=collectionWeek&&d<=end;}).sort((a,b)=>b.eventAt.localeCompare(a.eventAt));
     const review=[...rw.claims,...(rw.historyClaims||[])].filter(c=>c.needsReview);
     const explanation=quarter?'<p>Ordinary full actions earn 1.6 × (importance + difficulty), rounded once to a quarter point. Ratings stay on the 1–3 scale. Care routines share one fixed budget across their leaves. Cardio uses the exact accepted duration; 45 minutes earns 8 points and 60 earns 10.</p><p>Full recurring instances build a 5%, 10%, then 20% continuity bonus after 3, 7, and 14 prior full instances. One-off actions have no continuity bonus. Pending evidence holds the bonus until reviewed; partial care retains its earned leaf shares and restarts the full-instance chain.</p><p>The first level costs 65 points; later costs rise with level. After level 10 each level costs 5 more points than the last, so later levels stay meaningful. The invented mixed 90-day reference reaches levels 10, 15 and 21 at days 30, 60 and 90. This is a test reference, not a personal forecast.</p>':'<p>This record still uses its original progression rule. Existing claims keep their original units. Preview the quarter-point proposal below before adopting a new scoring period.</p>';
-    return backdateCard(st,rw)+claimsCard()+'<div class="cols2"><section class="panelcard"><h2>'+ (quarter?'Current scoring period':'Confirmed points')+'</h2><div class="orbs"><span class="orb" aria-hidden="true"></span><p class="big">'+rw.orbs+'</p></div><p>Level '+rw.level+' · '+rw.toNext+' points to level '+(rw.level+1)+'</p><progress aria-label="Progress to next level" max="'+(rw.cost||Math.max(1,rw.nextThreshold-levelThreshold(rw.level)))+'" value="'+(rw.within??Math.max(0,rw.orbs-levelThreshold(rw.level)))+'"></progress><p class="hint">Missed routines never erase valid earnings. A reviewed correction can lower the current level.</p><details><summary>How points and levels work</summary>'+explanation+'</details></section><section class="panelcard"><h2>Today’s recognition</h2>'+recognitionCard(todayYmd())+weekRecognitionCard()+'<p class="hint">Recognition and level are separate from body measurements and health grades.</p></section></div>'+
+    return backdateCard(st,rw)+claimsCard()+'<div class="cols2"><section class="panelcard"><h2>'+ (quarter?'Current scoring period':'Confirmed points')+'</h2><div class="jar-row">'+jarHTML(rw,st,112)+'<div><p class="big">'+rw.orbs+' <small>points</small></p><p>Level '+rw.level+' · '+rw.toNext+' to level '+(rw.level+1)+'</p><progress aria-label="Progress to next level" max="'+(rw.cost||Math.max(1,rw.nextThreshold-levelThreshold(rw.level)))+'" value="'+(rw.within??Math.max(0,rw.orbs-levelThreshold(rw.level)))+'"></progress></div></div><p class="hint">Missed routines never erase valid earnings. A reviewed correction can lower the current level.</p><details><summary>How points and levels work</summary>'+explanation+'</details></section><section class="panelcard"><h2>Today’s recognition</h2>'+recognitionCard(todayYmd())+weekRecognitionCard()+'<p class="hint">Recognition and level are separate from body measurements and health grades.</p></section></div>'+
       '<details class="panelcard"><summary>Preserved scoring history</summary><p>Each claim retains its rule and scoring period. Historical periods are not added to the current period or converted into new awards.</p>'+ (st.rewards.epochs||[]).map(e=>'<p>'+esc(e.id)+' · from '+esc(e.effectiveFrom)+' · '+all.filter(c=>c.epochId===e.id).reduce((n,c)=>n+pointAmount(c,claimBalance(c)),0)+' points</p>').join('')+(st.rewards.legacy?'<p>'+esc(st.rewards.legacy.points)+' original points · level '+esc(st.rewards.legacy.level)+'</p>':'')+'</details>'+
       (review.length?'<section class="panelcard"><h2>Corrections to review</h2>'+review.map(c=>'<div class="crow"><span>'+esc(c.name)+' · '+esc(medDate(c.date))+'</span><button data-act="reviewClaim" data-claim="'+esc(c.id)+'">Review point adjustment</button></div>').join('')+'</section>':'')+
       '<section class="panelcard" data-feedback-id="claim-history" data-feedback-label="Claim history"><div class="weeknav"><button data-act="collectionWeek" data-n="-1" aria-label="Previous claim week">‹</button><h2>Claims · '+esc(monthDay(collectionWeek))+' – '+esc(monthDay(end))+'</h2><button data-act="collectionWeek" data-n="1" aria-label="Next claim week">›</button><button data-act="collectionToday">This week</button></div><p class="hint">Grouped by claim or correction time · '+esc(tzName())+'. Action dates stay unchanged.</p>'+(weekly.length?weekly.map(c=>'<div class="row compact"><div class="rowhead"><h3>'+esc(c.name)+'</h3><span class="chip">'+(c.delta>=0?'+':'')+pointAmount(c,c.delta)+' points</span></div><p class="hint">'+esc(new Date(c.eventAt).toLocaleString())+' · '+esc(c.reason)+'</p><p class="hint">Action '+esc(medDate(c.date))+' · '+esc(c.origin==='import'?'Source-confirmed':'Self-confirmed')+' · current award '+pointAmount(c,claimBalance(c))+' points · rule '+esc(c.ruleVersion)+' · '+esc(c.epochId||'original period')+'</p><details><summary>Evidence and calculation</summary><p>'+ (c.ruleVersion===4?'Base '+pointAmount(c,c.calculation.baseQ)+' + continuity '+pointAmount(c,c.calculation.bonusQ)+' points. '+(c.calculation.minutes!=null?'Accepted duration '+c.calculation.minutes+' minutes. ':''):'Original rule calculation retained. ')+'</p><p class="hint">'+esc((c.evidenceIds||[]).join(', ')||'Deliberate self-confirmation')+'</p></details></div>').join(''):'<p class="hint">No claims this week. Confirm an action, then claim when ready.</p>')+'</section>';
@@ -2365,7 +2542,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const cats = '<section class="panelcard" data-feedback-id="categories" data-feedback-label="Categories"><h2>Categories</h2><p class="hint">Hide a group to take it off Today and the agenda; its routines and history stay and come back when shown. Rename or add your own.</p>' + groupsOf(st).map(g => '<div class="row compact" data-group="' + g.id + '"><div class="rowhead"><h3' + (g.hidden ? ' class="dim"' : '') + '>' + esc(g.name) + '</h3>' + (g.custom ? '<span class="chip quiet">yours</span>' : '') + '<span class="hint">' + pl(st.series.filter(s => !s.archivedAt && groupOf(s) === g.id).length, 'routine') + '</span><button class="ghost small" data-act="renameGroup">Rename</button><button class="ghost small" data-act="toggleGroup">' + (g.hidden ? 'Show' : 'Hide') + '</button></div></div>').join('') + '<div class="fields" style="margin-top:10px"><div class="note"><label for="newGroup">Add a group</label><input id="newGroup" type="text" maxlength="40" placeholder="Music, garden, volunteering…"></div><button class="save" data-act="addGroup">Add</button></div></section>';
     const goals = '<section class="panelcard" data-feedback-id="goals" data-feedback-label="Goals"><h2>Goals</h2><p class="hint">Your words, up to eight lines. No number is invented for you; write one only if you have chosen it.</p><textarea id="goals" maxlength="1000" placeholder="One goal per line">' + esc(st.goals.join('\n')) + '</textarea><div class="fields" style="margin-top:8px"><div class="mins" style="flex-basis:180px"><label for="ck">Checkpoint</label><input id="ck" type="date" value="' + esc(st.prefs.checkpoint || '') + '"></div><button class="save" data-act="saveGoals">Save goals</button></div><p class="hint">The checkpoint is a review point, not a promised result.</p></section>';
     const sources = '<section class="panelcard" data-feedback-id="sources" data-feedback-label="Sources"><h2>Sources</h2>' + SOURCES.map(s => { const x = sourceEvidenceSummary(st,s.id); return '<div class="row compact"><div class="rowhead"><h3>' + esc(s.name) + '</h3><span class="chip quiet">' + esc(sourceStateLabel(x)) + '</span><span class="hint">' + esc(x.route) + '</span></div></div>'; }).join('') + '<p class="hint">A source label means records from a matching reported writer are present locally. Format checks do not verify source accuracy or a direct connection.</p></section>';
-    const prefs = '<section class="panelcard" data-feedback-id="preferences" data-feedback-label="Preferences"><h2>Preferences</h2><div class="form"><div><label for="pref-size">Text size</label><select id="pref-size" data-act="textSize"><option value="normal"' + (st.prefs.textSize !== 'large' ? ' selected' : '') + '>Normal</option><option value="large"' + (st.prefs.textSize === 'large' ? ' selected' : '') + '>Large</option></select></div><div><label for="pref-theme">Appearance</label><select id="pref-theme" data-act="theme"><option value="dark"' + (st.prefs.theme !== 'light' ? ' selected' : '') + '>Emerald</option><option value="light"' + (st.prefs.theme === 'light' ? ' selected' : '') + '>Ivory</option></select></div><div><label for="pref-ws">Week starts on</label><select id="pref-ws" data-act="weekStart"><option value="1"' + (st.prefs.weekStart === 1 ? ' selected' : '') + '>Monday</option><option value="0"' + (st.prefs.weekStart === 0 ? ' selected' : '') + '>Sunday</option></select></div><div><label for="pref-units">Weight unit</label><select id="pref-units" data-act="units"><option value="lb"' + (st.prefs.units === 'lb' ? ' selected' : '') + '>lb</option><option value="kg"' + (st.prefs.units === 'kg' ? ' selected' : '') + '>kg</option></select></div><div><label>Timezone</label><p style="margin:0;min-height:var(--tap);display:flex;align-items:center">' + esc(st.prefs.timezone) + '</p></div><div class="full"><label>Fasting days (shown on Log, never enforced)</label><div class="days">' + dl.map(l => '<label class="' + (st.prefs.fastingDays.includes(l.dow) ? 'on' : '') + '"><input type="checkbox" name="fast-day" data-act="fasting" value="' + l.dow + '"' + (st.prefs.fastingDays.includes(l.dow) ? ' checked' : '') + '>' + esc(l.label) + '</label>').join('') + '</div></div></div></section>';
+    const prefs = '<section class="panelcard" data-feedback-id="preferences" data-feedback-label="Preferences"><h2>Preferences</h2><div class="form"><div><label for="pref-size">Text size</label><select id="pref-size" data-act="textSize"><option value="normal"' + (st.prefs.textSize !== 'large' ? ' selected' : '') + '>Normal</option><option value="large"' + (st.prefs.textSize === 'large' ? ' selected' : '') + '>Large</option></select></div><div><label for="pref-theme">Appearance</label><select id="pref-theme" data-act="theme"><option value="verde"' + (st.prefs.theme !== 'light' && st.prefs.theme !== 'black' ? ' selected' : '') + '>Verde Marble</option><option value="black"' + (st.prefs.theme === 'black' ? ' selected' : '') + '>Black Marble</option><option value="light"' + (st.prefs.theme === 'light' ? ' selected' : '') + '>Ivory</option></select></div><div><label for="pref-faith-stone">Faith stone</label><select id="pref-faith-stone" data-act="faithStone"><option value="porphyry"' + (st.prefs.faithStone !== 'wash' ? ' selected' : '') + '>Purple porphyry</option><option value="wash"' + (st.prefs.faithStone === 'wash' ? ' selected' : '') + '>Purple wash over the marble</option></select></div><div><label for="pref-faith-cross">Faith cross</label><select id="pref-faith-cross" data-act="faithCross"><option value="strong"' + (st.prefs.faithCross !== 'soft' ? ' selected' : '') + '>Bright</option><option value="soft"' + (st.prefs.faithCross === 'soft' ? ' selected' : '') + '>Soft</option></select></div><div><label for="pref-ws">Week starts on</label><select id="pref-ws" data-act="weekStart"><option value="1"' + (st.prefs.weekStart === 1 ? ' selected' : '') + '>Monday</option><option value="0"' + (st.prefs.weekStart === 0 ? ' selected' : '') + '>Sunday</option></select></div><div><label for="pref-units">Weight unit</label><select id="pref-units" data-act="units"><option value="lb"' + (st.prefs.units === 'lb' ? ' selected' : '') + '>lb</option><option value="kg"' + (st.prefs.units === 'kg' ? ' selected' : '') + '>kg</option></select></div><div><label>Timezone</label><p style="margin:0;min-height:var(--tap);display:flex;align-items:center">' + esc(st.prefs.timezone) + '</p></div><div class="full"><label>Fasting days (shown on Log, never enforced)</label><div class="days">' + dl.map(l => '<label class="' + (st.prefs.fastingDays.includes(l.dow) ? 'on' : '') + '"><input type="checkbox" name="fast-day" data-act="fasting" value="' + l.dow + '"' + (st.prefs.fastingDays.includes(l.dow) ? ' checked' : '') + '>' + esc(l.label) + '</label>').join('') + '</div></div></div></section>';
     const qh = st.prefs.quietHours || { from:'', to:'' };
     const sched = reminderSchedule(st, todayYmd());
     const notif = '<section class="panelcard" data-feedback-id="notifications" data-feedback-label="Notifications"><h2>Notifications</h2>' + (personalReview
@@ -2460,7 +2637,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (!ring || !ring.applicable) return '<path class="ringtrack excluded" d="' + arcPath(r, 0, 359.99) + '"/>';
     const slots = Array.isArray(ring.slots) ? ring.slots : [];
     if (!slots.length) return '<circle class="ringtrack" cx="90" cy="90" r="' + r + '"/>';
-    return slots.map(s => {
+    return '<circle class="ringtrack" cx="90" cy="90" r="' + r + '"/>' + slots.map(s => {
       const a0 = Number.isFinite(s.angle) ? s.angle : 0;
       const w = Number.isFinite(s.width) && s.width > 0 ? Math.min(s.width, 359) : 6;
       const d = arcPath(r, a0, a0 + w), state = String(s.state || 'open');
@@ -2497,7 +2674,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const nights=sleepNights(st),n=nights.get(date),week=[],span=opts.days&&opts.days.length>1?opts.days:null;
     if(span)for(const d of span)week.push({d,night:nights.get(d)});else for(let i=6;i>=0;i--){const d=addDays(date,-i);week.push({d,night:nights.get(d)});}
     const pct=n?Math.min(1,n.minutes/SLEEP_GOAL_MIN):0,C=2*Math.PI*42;
-    const ring='<svg viewBox="0 0 100 100" width="112" height="112" role="img" aria-label="'+(n?esc(hm(n.minutes))+' asleep of 8 hours':'No night recorded')+'"><circle cx="50" cy="50" r="42" fill="none" stroke="var(--line)" stroke-width="10"/><circle cx="50" cy="50" r="42" fill="none" stroke="#5b8fd6" stroke-width="10" stroke-linecap="round" stroke-dasharray="'+(C*pct).toFixed(1)+' '+C.toFixed(1)+'" transform="rotate(-90 50 50)"/><text x="50" y="50" text-anchor="middle" font-size="16" fill="var(--ink)">'+(n?(n.minutes/60).toFixed(1):'—')+'</text><text x="50" y="65" text-anchor="middle" font-size="9" fill="var(--muted)">of 8 h</text></svg>';
+    const ring='<svg viewBox="0 0 100 100" width="112" height="112" role="img" aria-label="'+(n?esc(hm(n.minutes))+' asleep of 8 hours':'No night recorded')+'"><circle cx="50" cy="50" r="42" fill="none" stroke="var(--line)" stroke-width="10"/><circle cx="50" cy="50" r="42" fill="none" stroke="#5b8fd6" stroke-width="10" stroke-linecap="round" stroke-dasharray="'+(C*pct).toFixed(1)+' '+C.toFixed(1)+'" transform="rotate(-90 50 50)"/><text x="50" y="49" text-anchor="middle" font-size="12" font-weight="600" fill="var(--ink)">'+(n?esc(hm(n.minutes)):'—')+'</text><text x="50" y="63" text-anchor="middle" font-size="9" fill="var(--muted)">of 8 h</text></svg>';
     const stages=n?['deep','core','rem','awake'].filter(k=>Number.isFinite(n.stats[k])&&n.stats[k]>0).map(k=>({k,h:n.stats[k]})):[];
     const tint={deep:'#2f4f9e',core:'#5b8fd6',rem:'#9cc4f0',awake:'#d9a066'},label=k=>k==='rem'?'REM':k[0].toUpperCase()+k.slice(1);
     const bar=stages.length?'<div class="sleep-stages" role="img" aria-label="Stages: '+esc(stages.map(x=>label(x.k)+' '+hm(x.h*60)).join(', '))+'">'+stages.map(x=>'<i style="flex:'+x.h+';background:'+tint[x.k]+'"></i>').join('')+'</div><p class="hint">'+stages.map(x=>'<span style="color:'+tint[x.k]+'">■</span> '+esc(label(x.k))+' '+esc(hm(x.h*60))).join(' · ')+'</p>':'';
@@ -2538,7 +2715,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
      behind, then orange, yellow, green on target, and violet only when well above it (purple otherwise
      means Faith). `ratio` is value ÷ target; lower-is-better metrics pass their inverse. For today the
      scale stops at orange until the evening, so red stays rare and never shames a morning. */
-  const PERF_STOPS=[[0,[192,57,43]],[.5,[224,135,58]],[.8,[212,194,74]],[1,[63,174,107]],[1.1,[63,174,107]],[1.3,[155,108,240]]];
+  const PERF_STOPS=[[0,[232,112,96]],[.5,[240,160,88]],[.8,[230,207,92]],[1,[111,211,154]],[1.1,[111,211,154]],[1.3,[176,140,245]]];
   function perfColor(ratio,opts={}){
     let r=Number.isFinite(ratio)?Math.max(0,Math.min(1.3,ratio)):0;
     if(opts.today&&new Date().getHours()<20)r=Math.max(r,.5);
@@ -2546,6 +2723,16 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const [a,ca]=PERF_STOPS[i-1],[b,cb]=PERF_STOPS[i],t=b===a?0:Math.max(0,Math.min(1,(r-a)/(b-a)));
     return 'rgb('+ca.map((v,k)=>Math.round(v+(cb[k]-v)*t)).join(',')+')';
   }
+  /* Energy is a heat scale (Mintay, Sept 25, confirmed): cool blue when eating over or
+     barely moving, warming through amber to red-orange as the day burns. Steps, prayers and sleep keep the scale above. */
+  const HEAT_STOPS=[[-0.5,[91,143,214]],[0,[134,189,240]],[.5,[230,192,122]],[.9,[240,160,88]],[1,[240,122,90]],[1.3,[232,90,74]]];
+  function heatColor(ratio){
+    const r=Number.isFinite(ratio)?Math.max(-0.5,Math.min(1.3,ratio)):0;
+    let i=1;while(i<HEAT_STOPS.length-1&&r>HEAT_STOPS[i][0])i++;
+    const [a,ca]=HEAT_STOPS[i-1],[b,cb]=HEAT_STOPS[i],t=b===a?0:Math.max(0,Math.min(1,(r-a)/(b-a)));
+    return 'rgb('+ca.map((v,k)=>Math.round(v+(cb[k]-v)*t)).join(',')+')';
+  }
+  function heatKey(){return '<div class="grad-key heat" aria-label="Colour key: blue eating over or a quiet day, amber warming up, orange and red burning"><span>Quiet</span><i aria-hidden="true"></i><span>Burning</span></div>';}
   function perfWord(ratio){return !Number.isFinite(ratio)?'':ratio>=1.3?'▲ Excellent':ratio>=1?'● On target':ratio>=.8?'◐ Close':ratio>=.5?'▼ Behind':'▼▼ Far behind';}
   function gradientKey(){return '<div class="grad-key" aria-label="Colour key: red far behind, orange behind, yellow close, green on target, violet excellent"><span>Behind</span><i aria-hidden="true"></i><span>Excellent</span></div>';}
   function tile(title,big,sub,pct,color,sparkHTML){
@@ -2600,7 +2787,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   }
   function barChart(labels,values,goal,opts={}){
     const max=Math.max(goal||0,...values.map(v=>v||0),1),today=todayYmd();
-    return '<div class="fit-chart" role="img" aria-label="'+esc(opts.label||'Chart')+'">'+(goal?'<em style="bottom:'+(100*goal/max).toFixed(1)+'%" title="Goal"></em>':'')+values.map((v,i)=>{const d=opts.days&&opts.days[i],t=esc(labels[i]+': '+(v?Math.round(v).toLocaleString():'no record'));return (d?'<button class="bar" data-act="fitDay" data-date="'+d+'" aria-label="'+t+'"':'<span class="bar"')+' style="height:'+(v?Math.max(3,100*v/max):2).toFixed(1)+'%;background:'+(v?(goal?perfColor(v/goal,{today:d===today||opts.today}):'#5b8fd6'):'var(--line)')+'" title="'+t+'">'+(d?'</button>':'</span>');}).join('')+'</div><div class="fit-axis">'+labels.map((l,i)=>'<span>'+(opts.every&&i%opts.every?'':esc(l))+'</span>').join('')+'</div>';
+    return '<div class="fit-chart" role="img" aria-label="'+esc(opts.label||'Chart')+'">'+(goal?'<em style="bottom:'+(100*goal/max).toFixed(1)+'%" title="Goal"></em>':'')+values.map((v,i)=>{const d=opts.days&&opts.days[i],t=esc(labels[i]+': '+(v?Math.round(v).toLocaleString():'no record'));return (d?'<button class="bar" data-act="fitDay" data-date="'+d+'" aria-label="'+t+'"':'<span class="bar"')+' style="height:'+(v?Math.max(3,100*v/max):2).toFixed(1)+'%;background:'+(v?(goal?(opts.heat?heatColor(v/goal):perfColor(v/goal,{today:d===today||opts.today})):'#7fb2ec'):'var(--line)')+'" title="'+t+'">'+(d?'</button>':'</span>');}).join('')+'</div><div class="fit-axis">'+labels.map((l,i)=>'<span>'+(opts.every&&i%opts.every?'':esc(l))+'</span>').join('')+'</div>';
   }
   /* Sleep Credit (V2.0 Fitness): the week's running balance against 7 h a night, night by night from
      Monday, with the two lines that set the week bonus — full credit within 4.9 h of debt, none at 14 h.
@@ -2694,15 +2881,15 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const def=d=>{const e=bal.get(d);return e&&e.available?{v:Math.round(-e.balance),complete:e.complete}:null;};
     const vals=days.map(def),max=Math.max(target*1.3,...vals.map(x=>x?x.v:0));
     const chart='<div class="fit-chart def-chart" role="img" aria-label="Daily deficit against '+target+' kcal"><em style="bottom:'+(100*target/max).toFixed(1)+'%" title="Target"></em><em class="ontrack" style="bottom:'+(100*onTrack/max).toFixed(1)+'%" title="On track"></em>'+
-      vals.map((x,i)=>{const t=esc(medDate(days[i])+': '+(x?(x.v>=0?x.v.toLocaleString()+' kcal deficit':(-x.v).toLocaleString()+' kcal over')+(x.complete?'':' · provisional'):'no complete record'));return '<button class="bar'+(x&&!x.complete?' prov':'')+'" data-act="fitDay" data-date="'+days[i]+'" aria-label="'+t+'" title="'+t+'" style="height:'+(x?Math.max(3,100*Math.max(0,x.v)/max):2).toFixed(1)+'%;background:'+(!x?'var(--line)':x.v<0?'#c0392b':perfColor(x.v/target,{today:days[i]===today}))+'"></button>';}).join('')+
+      vals.map((x,i)=>{const t=esc(medDate(days[i])+': '+(x?(x.v>=0?x.v.toLocaleString()+' kcal deficit':(-x.v).toLocaleString()+' kcal over')+(x.complete?'':' · provisional'):'no complete record'));return '<button class="bar'+(x&&!x.complete?' prov':'')+'" data-act="fitDay" data-date="'+days[i]+'" aria-label="'+t+'" title="'+t+'" style="height:'+(x?Math.max(3,100*Math.max(0,x.v)/max):2).toFixed(1)+'%;background:'+(!x?'var(--line)':heatColor(x.v/target))+'"></button>';}).join('')+
       '</div>'+(days.length>1?'<div class="fit-axis">'+days.map((d,i)=>'<span>'+(days.length>14&&i%7?'':esc(new Date(d+'T12:00:00').toLocaleDateString(undefined,{weekday:'short'})))+'</span>').join('')+'</div>':'');
     const mon=weekStartOf(last,1),wk=[];for(let d=mon;d<=last&&d<=addDays(mon,6);d=addDays(d,1))wk.push(d);
     const wkBal=first<=mon?bal:(Workspace.energyBalances?Workspace.energyBalances(st,mon,last):new Map()),wkVals=wk.map(d=>{const e=wkBal.get(d);return e&&e.available?-e.balance:null;}).filter(v=>v!==null),wkSum=Math.round(wkVals.reduce((a,b)=>a+b,0));
     const known=vals.filter(Boolean),avg=known.length?Math.round(known.reduce((a,x)=>a+x.v,0)/known.length):null;
     const sum='<div class="fit-sum"><span><small>This week</small><b>'+(wkVals.length?wkSum.toLocaleString():'—')+'</b><small>of '+(target*7).toLocaleString()+' kcal</small></span><span><small>Daily average</small><b>'+(avg===null?'—':avg.toLocaleString())+'</b><small>target '+target+'</small></span><span><small>On-track days</small><b>'+known.filter(x=>x.v>=onTrack).length+' of '+days.length+'</b><small>'+onTrack+'+ kcal</small></span></div>';
     const weight=weightPlanBlock(st,calendarDistance(first,last)>=29?first:addDays(last,-29),last);
-    return '<section class="panelcard fit-energy" data-feedback-id="fitness-energy" data-feedback-label="Energy &amp; Weight"><div class="ph"><h2>Energy &amp; Weight</h2></div><p class="cap">Deficit · target '+target+' kcal, on track '+onTrack+'</p>'+chart+sum+'<p class="cap" style="margin-top:14px">Weight · plan line to the goal</p>'+weight+
-      '<button type="button" class="info" data-act="info" aria-expanded="false" aria-controls="info-energy" aria-label="About Energy and Weight">i</button><div class="info-pop" id="info-energy" hidden><p class="hint">Deficit is resting plus active energy minus food, the same figure Nutrition scores. Faded bars are provisional: the day is not over or its coverage is not yet confirmed. Red means you ate more than you burned. The green dashed line runs from your start weight to your goal on the goal date; it is the plan, not a prediction.</p></div></section>';
+    return '<section class="panelcard fit-energy" data-feedback-id="fitness-energy" data-feedback-label="Energy &amp; Weight"><div class="ph"><h2>Energy &amp; Weight</h2></div><p class="cap">Deficit · target '+target+' kcal, on track '+onTrack+'</p>'+chart+heatKey()+sum+'<p class="cap" style="margin-top:14px">Weight · plan line to the goal</p>'+weight+
+      '<button type="button" class="info" data-act="info" aria-expanded="false" aria-controls="info-energy" aria-label="About Energy and Weight">i</button><div class="info-pop" id="info-energy" hidden><p class="hint">Deficit is resting plus active energy minus food, the same figure Nutrition scores. Faded bars are provisional: the day is not over or its coverage is not yet confirmed. Blue means you ate more than you burned; the warmer the bar, the larger the deficit. The green dashed line runs from your start weight to your goal on the goal date; it is the plan, not a prediction.</p></div></section>';
   }
   function fitnessCards(st,from,end){
     const today=todayYmd(),last=end>today?today:end,first=from>last?last:from,days=[];for(let d=first;d<=last;d=addDays(d,1))days.push(d);
@@ -2717,17 +2904,17 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const perDay=c=>{const m=new Map();for(const w of wk)if(cls(w)===c)m.set(w.date,(m.get(w.date)||0)+(w.minutes||0));return m;};
     const cardioDays=[...perDay('cardio').values()].filter(v=>v>=20).length,strengthDays=[...perDay('strength').values()].filter(v=>v>=15).length,weekly=fitnessRange==='week'||fitnessRange==='7',single=days.length===1;
     const s=steps.get(last),e=energy.get(last),x=exercise.get(last)||0,cardioLast=(perDay('cardio').get(last)||0);
-    const tileBtn=(id,title,big,sub,ratio)=>'<button class="fit-tile'+(fitMetric===id?' on':'')+'" data-act="fitMetric" data-metric="'+id+'" aria-pressed="'+(fitMetric===id)+'" style="--tone:'+(Number.isFinite(ratio)?perfColor(ratio,{today:last===today}):'var(--line)')+'"><small>'+esc(title)+'</small><b>'+big+'</b><i class="fit-bar"><i style="width:'+Math.round(100*Math.min(1,ratio||0))+'%"></i></i><small>'+sub+'</small></button>';
+    const tileBtn=(id,title,big,sub,ratio,heat)=>'<button class="fit-tile'+(fitMetric===id?' on':'')+'" data-act="fitMetric" data-metric="'+id+'" aria-pressed="'+(fitMetric===id)+'" style="--tone:'+(Number.isFinite(ratio)?(heat?heatColor(ratio):perfColor(ratio,{today:last===today})):'var(--line)')+'"><small>'+esc(title)+'</small><b>'+big+'</b><i class="fit-bar"><i style="width:'+Math.round(100*Math.min(1,ratio||0))+'%"></i></i><small>'+sub+'</small></button>';
     const tiles='<div class="fit-tiles">'+
       tileBtn('steps','Steps '+dayName(last),s===undefined?'—':Math.round(s).toLocaleString(),s===undefined?'No steps recorded '+(last===today?'yet today':'that day'):(s<12000?Math.round(12000-s).toLocaleString()+' to go · ':'')+Math.round(100*s/12000)+'% of 12,000',s/12000)+
-      tileBtn('energy','Active energy '+dayName(last),e===undefined?'—':Math.round(e).toLocaleString()+' <small>kcal</small>',e===undefined?'No energy recorded':Math.round(100*e/1000)+'% of 1,000 kcal',e/1000)+
-      tileBtn('exercise','Exercise '+dayName(last),Math.round(x)+' <small>min</small>','Cardio '+Math.round(cardioLast)+' of 45',x/45)+'</div>';
+      tileBtn('energy','Active energy '+dayName(last),e===undefined?'—':Math.round(e).toLocaleString()+' <small>kcal</small>',e===undefined?'No energy recorded':Math.round(100*e/1000)+'% of 1,000 kcal',e/1000,true)+
+      tileBtn('exercise','Exercise '+dayName(last),Math.round(x)+' <small>min</small>','Cardio '+Math.round(cardioLast)+' of 45',x/45,true)+'</div>';
     let chart;
     if(single){const kind=fitMetric==='energy'?'activeEnergy':'steps',hours=fitMetric==='exercise'?null:minuteBuckets(st,kind,last),hl=Array.from({length:24},(_,h)=>h===0?'12a':h===12?'12p':h<12?h+'a':(h-12)+'p');
       chart=hours?barChart(hl,hours,null,{label:(fitMetric==='energy'?'Active energy':'Steps')+' by hour',every:6}):'<p class="hint">'+(fitMetric==='exercise'?'Workouts for this day are listed under Workouts.':'No minute-by-minute record for this day.')+'</p>';}
     else{const src=fitMetric==='energy'?energy:fitMetric==='exercise'?exercise:steps,vals=days.map(d=>src.get(d)),goal=FIT_GOALS[fitMetric],have=vals.filter(v=>v!==undefined&&v>0);
-      chart=barChart(days.map(short),vals,goal,{label:fitMetric+' by day',days,every:days.length>14?7:0})+'<div class="fit-sum"><span><small>Average</small><b>'+(have.length?Math.round(have.reduce((a,b)=>a+b,0)/have.length).toLocaleString():'—')+'</b></span><span><small>Best</small><b>'+(have.length?Math.round(Math.max(...have)).toLocaleString():'—')+'</b></span><span><small>Goal days</small><b>'+vals.filter(v=>v>=goal).length+' of '+days.length+'</b></span></div>';}
-    const activity='<section class="panelcard fit-activity" data-feedback-id="fitness-activity" data-feedback-label="Activity"><div class="ph"><h2>Activity</h2></div><p class="hint">Tap a tile for its timeline: hours on a single day, days across a range. Bars are coloured against the goal — 12,000 steps, 1,000 kcal, 45 minutes — and a day’s bar opens that day.</p>'+tiles+chart+gradientKey()+'@@WORKOUTS@@</section>';
+      chart=barChart(days.map(short),vals,goal,{label:fitMetric+' by day',days,every:days.length>14?7:0,heat:fitMetric!=='steps'})+'<div class="fit-sum"><span><small>Average</small><b>'+(have.length?Math.round(have.reduce((a,b)=>a+b,0)/have.length).toLocaleString():'—')+'</b></span><span><small>Best</small><b>'+(have.length?Math.round(Math.max(...have)).toLocaleString():'—')+'</b></span><span><small>Goal days</small><b>'+vals.filter(v=>v>=goal).length+' of '+days.length+'</b></span></div>';}
+    const activity='<section class="panelcard fit-activity" data-feedback-id="fitness-activity" data-feedback-label="Activity"><div class="ph"><h2>Activity</h2></div><p class="hint">Tap a tile for its timeline: hours on a single day, days across a range. Bars are coloured against the goal — 12,000 steps, 1,000 kcal, 45 minutes — and a day’s bar opens that day.</p>'+tiles+chart+(fitMetric==='steps'?gradientKey():heatKey())+'@@WORKOUTS@@</section>';
     const sleep=sleepCard(last,{fitness:true,days});
     const tag=w=>{const c=cls(w);return '<span class="glance-tag" style="--t:'+(c==='cardio'?'#6fb6e0':c==='strength'?'#c98fd8':'var(--muted)')+'">'+(c==='cardio'?'Cardio':c==='strength'?'Strength':c==='other'?'Other':'Choose in Activities')+'</span>';};
     const dots=(n,of,color)=>'<span class="glance-dots">'+Array.from({length:of},(_,i)=>'<i style="background:'+(i<n?color:'var(--line)')+'"></i>').join('')+'</span>';
@@ -2756,7 +2943,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       if(m.weight){const u=st.prefs.units==='kg'?'kg':'lb';unit=u;for(let i=0;i<vals.length;i++)vals[i]=u==='lb'?vals[i]*2.2046226218487757:vals[i];}
       const latest=vals[vals.length-1],personal=vals.length>=7,band=personal?[q(vals,.25),q(vals,.75)]:m.band,lo=Math.min(...vals,band?band[0]:latest)*0.97,hi=Math.max(...vals,band?band[1]:latest)*1.03,pos=v=>Math.max(0,Math.min(100,100*(v-lo)/((hi-lo)||1)));
       const inBand=band?latest>=band[0]&&latest<=band[1]:true,off=band&&!inBand?Math.min(1,Math.abs(latest-(latest<band[0]?band[0]:band[1]))/((band[1]-band[0])||1)):0;
-      const tone=inBand?'#3fae6b':off<.5?'#d4c24a':'#e0873a',yy=v=>(30-30*(v-lo)/((hi-lo)||1)).toFixed(1);
+      const tone=inBand?'#6fd39a':off<.5?'#e6cf5c':'#f0a058',yy=v=>(30-30*(v-lo)/((hi-lo)||1)).toFixed(1);
       const trend='<svg viewBox="0 0 100 30" preserveAspectRatio="none" class="vit-trend" aria-hidden="true">'+(band?'<rect x="0" y="'+yy(band[1])+'" width="100" height="'+(30*(band[1]-band[0])/((hi-lo)||1)).toFixed(1)+'" fill="rgba(63,174,107,.18)"/>':'')+'<polyline fill="none" stroke="#9cc4f0" stroke-width="1.5" points="'+vals.map((v,i)=>(vals.length===1?50:100*i/(vals.length-1)).toFixed(1)+','+yy(v)).join(' ')+'"/></svg>';
       return '<details class="vit-row"><summary><span>'+esc(m.label)+'</span><span class="vit-band">'+(band?'<em style="left:'+pos(band[0]).toFixed(1)+'%;width:'+(pos(band[1])-pos(band[0])).toFixed(1)+'%"></em>':'')+'<b style="left:'+pos(latest).toFixed(1)+'%;background:'+tone+'"></b></span><span class="vit-val">'+esc(latest.toFixed(m.digits))+(unit?' <small>'+esc(unit)+'</small>':'')+'</span></summary>'+trend+'<p class="hint">'+(band?(personal?'Band: your middle half over '+vals.length+' readings in 30 days.':'Band: a reputable typical range until you have a week of readings.'):'Building your range: '+vals.length+' reading'+(vals.length===1?'':'s')+'.')+' Latest '+esc(medDate(dates[dates.length-1]))+'.</p></details>';
     }).join('');
@@ -2848,7 +3035,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       const title = k === 'laundry' ? 'Laundry' : k === 'trash-day' ? 'Trash Day' : k.slice(9), groupId = goals[0].groupId;
       const done = goals.reduce((n, g) => n + Math.min(Number(g.qualifying) || 0, Number(g.target) || 0), 0), total = goals.reduce((n, g) => n + (Number(g.target) || 0), 0);
       const rows = goals.map(g => { const t = Number(g.target) || 0, q = Number(g.qualifying) || 0; return '<span class="hc-row"><span>' + esc(String(g.title || '').split(' · ')[0]) + '</span><span class="tboxes">' + Array.from({length:Math.max(1, t)}, (_, i) => '<i class="' + (i < q ? 'full' : '') + '"></i>').join('') + '</span></span>'; }).join('');
-      return '<button class="gcard hc-card' + (total && done >= total ? ' complete' : '') + '" style="--category:' + categoryColor(groupId) + ';border-top:3px solid var(--category)" data-act="wsOpenGoal" data-goal="' + esc(goals[0].id) + '" data-series="' + esc((goals[0].seriesIds || [])[0] || '') + '" data-date="' + esc(day) + '" aria-label="' + esc(title + ': ' + done + ' of ' + total + ' this week') + '"><span class="gt">' + esc(title) + '</span><span class="cnt">' + done + ' <small>of ' + total + '</small></span>' + rows + '</button>';
+      return '<button class="gcard hc-card' + (total && done >= total ? ' complete' : '') + '" style="--category:' + categoryColor(groupId) + ';border-top:3px solid var(--category)" data-act="wsOpenGoal" data-goal="' + esc(goals[0].id) + '" data-series="' + esc((goals[0].seriesIds || [])[0] || '') + '" data-date="' + esc(day) + '" aria-label="' + esc(title + ': ' + done + ' of ' + total + ' this week') + '"><span class="gt">' + esc(title) + '</span><span class="cnt">' + done + ' <small>of ' + total + '</small></span><span class="hc-rows' + (goals.length > 4 ? ' two' : '') + '">' + rows + '</span></button>';
     });
   }
   function goalRailSection(date, options){
@@ -2916,8 +3103,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const pid = parent ? (parent.id || parent.seriesId || '') : '';
     if (composer && composer.parentId === pid && composer.kind !== 'item') return composerHTML();
     const gid = (parent && (parent.group || parent.groupId)) || '';
-    let out = '<button class="ws-addbtn" data-act="wsAdd" data-kind="subitem" data-parent="' + esc(pid) + '" data-group="' + esc(gid) + '">+ Add sub-item</button>';
-    if (childDepth <= 1) out += '<button class="ws-addbtn" data-act="wsAdd" data-kind="subgroup" data-parent="' + esc(pid) + '" data-group="' + esc(gid) + '">+ Add sub-group</button>';
+    let out = '<button class="ws-addbtn" data-act="wsAdd" data-kind="subitem" data-parent="' + esc(pid) + '" data-group="' + esc(gid) + '">+ Add</button>';
+    if (childDepth <= 1) out += '<button class="link ws-addsub" data-act="wsAdd" data-kind="subgroup" data-parent="' + esc(pid) + '" data-group="' + esc(gid) + '">sub-group</button>';
     return out;
   }
   function wsHierarchyCapture(){
@@ -3017,13 +3204,14 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const minutes = !container && n.occurrence && Number.isFinite(n.occurrence.actualMinutes) && n.occurrence.actualMinutes > 0 ? Math.round(n.occurrence.actualMinutes) + ' min' : '';
     const share = Number.isFinite(n.shareDisplay) ? n.shareDisplay : (n.allocation && Number.isFinite(n.allocation.displayAmount)) ? n.allocation.displayAmount : null;
     const word = container ? doneCount + ' of ' + totalCount : st === 'partial' ? 'Partial' : st === 'skipped' ? 'Skipped' : n.occurrence?.disposition === 'excused' ? (n.occurrence.excuse === 'exempt' ? 'Exempt' : 'Not today') : '';
-    const summary = [word, minutes, share !== null ? share + ' pts' : ''].filter(Boolean).join(' · ');
+    const summary = [word, minutes].filter(Boolean).join(' · '), ptsWord = share !== null ? share + ' pts' : '';
     const future = (n.date || day) > todayYmd();
     const tone = container ? '' : confirmed ? ' done' : runningOut(n) ? ' urgent' : '';
     const who = sourced ? 'Confirmed by your data' : confirmed ? 'Confirmed by you' : st === 'tentative' ? 'Checked off, not confirmed' : 'Not done yet';
     const menu = [
       '<button class="link" data-act="openRow">Details</button>',
       '<button class="link" data-act="saveTemplate">Save as template</button>',
+      onceStreak(n) ? '<button class="link" data-act="wsMakeDaily">Make it daily</button>' : '',
       !container && n.matching ? '<button class="link" data-act="wsEvidence">Review source evidence</button>' : '',
       auto ? '<button class="link" data-act="wsDeclineAuto">Not this — unlink</button>' : '',
       !container && n.recurrence?.kind === 'target' && !n.occurrence?.committed && !future ? '<button class="link" data-act="wsCommit">Plan for this day</button>' : ''
@@ -3038,7 +3226,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
             return '<button class="cb' + (sourced ? ' src' : '') + mark + '" role="checkbox" aria-checked="' + (confirmed ? 'true' : st === 'tentative' || mark === ' part' ? 'mixed' : 'false') + '" data-act="toggleDone" aria-label="' + (confirmed ? 'Review ' : 'Done: ') + esc(label) + ' · ' + said + '"' + (future ? ' disabled' : '') + ' title="' + said + '">' + (confirmed ? '✓' : mark === ' skip' ? '✕' : mark === ' part' ? '◐' : mark === ' exempt' ? '—' : '') + '</button>' +
               (!confirmed && !mark && !future && st !== 'tentative' ? '<button class="skip-x" data-act="log" data-s="skipped" aria-label="Skipped: ' + esc(label) + '" title="Skipped — didn’t do it">✕</button>' : '');
           })()) +
-      '<button class="nm" data-act="openRow">' + esc(label) + '</button>' + (selfReported ? '<span class="self-mark keep" title="Self-reported: your entry wins over Apple Health and still earns points" aria-label="Self-reported">✎</span>' : '') + (v5Share !== null ? '<span class="pct keep" title="Share of the target that counts under Scoring V2">' + v5Share + '%</span>' : '') + (summary ? '<span class="meta">' + esc(summary) + '</span>' : '') +
+      '<button class="nm" data-act="openRow">' + esc(label) + '</button>' + (selfReported ? '<span class="self-mark keep" title="Self-reported: your entry wins over Apple Health and still earns points" aria-label="Self-reported">✎</span>' : '') + (v5Share !== null ? '<span class="pct keep" title="Share of the target that counts under Scoring V2">' + v5Share + '%</span>' : '') + (summary || ptsWord ? '<span class="meta">' + esc(summary) + (ptsWord ? '<span class="pts">' + (summary ? ' · ' : '') + esc(ptsWord) + '</span>' : '') + '</span>' : '') +
       (claimable ? '<button class="save claim-one" data-act="claimOne" data-claim="' + esc(claimable.id) + '">Claim ' + pointAmount(claimable, claimable.amount) + ' ✦</button>' : '') +
       '<button class="link row-edit" data-act="wsHierarchyEdit" aria-label="Edit ' + esc(label) + '">Edit</button>' +
       '<details class="more"><summary aria-label="More for ' + esc(label) + '">⋯</summary><div class="more-menu">' + menu + '</div></details>' +
@@ -3061,7 +3249,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       '<button class="link" data-act="goPlanGroup" data-group="' + esc(g.id) + '">Plan</button></div>' +
       (collapsed ? '' : '<div class="gbody"><div class="ws-tree">' +
         (nodes.length ? nodes.map(n => wsNode(n, 0)).join('') : '<p class="hint">Nothing planned in this category today.</p>') + '</div>' +
-        (here ? composerHTML() : '<button class="ws-addbtn" data-act="wsAdd" data-kind="item" data-group="' + esc(g.id) + '">+ Add item</button><button class="ws-addbtn" data-act="wsAdd" data-kind="subgroup" data-group="' + esc(g.id) + '">+ Add sub-group</button>') + '</div>') + '</section>';
+        (here ? composerHTML() : '<button class="ws-addbtn" data-act="wsAdd" data-kind="item" data-group="' + esc(g.id) + '">+ Add</button><button class="link ws-addsub" data-act="wsAdd" data-kind="subgroup" data-group="' + esc(g.id) + '">sub-group</button>') + '</div>') + '</section>';
   }
   let wsClaimable=[];   // this render's claimable actions, so each activity row can offer its own Claim
   function wsActivities(options){
@@ -3120,7 +3308,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if(event.target.closest('[data-mw-card]'))mwReadForms();
   });
   const mwNumber = value => String(value).trim()==='' ? NaN : Number(value);
-  const mwShow = value => Number.isFinite(value) ? Number(value.toPrecision(12)).toLocaleString(undefined,{maximumFractionDigits:6}) : 'Unknown';
+  // Plain human numbers (Mintay, Sept 24): one decimal at most, and "fl oz" rather than "US fl oz" once the unit is chosen.
+  const mwShow = value => Number.isFinite(value) ? (Math.round(value * 10) / 10).toLocaleString() : 'Unknown';
+  const mwUnit = u => u === 'US fl oz' ? 'fl oz' : u === 'ml' ? 'mL' : u === 'l' ? 'L' : u;
   function mwError(scope){
     const ui=mwDrafts();
     return '<p id="mw-status-'+scope+'" role="'+(ui.errorScope===scope?'alert':'status')+'" class="'+(ui.errorScope===scope?'err':'hint')+'">'+(ui.errorScope===scope?esc(ui.error):'')+'</p>';
@@ -3156,27 +3346,37 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function waterTotalHTML(summary){
     const imp=typeof importedNutrition==='function'?importedNutrition(S(),day).dietary_water:null,importedOz=imp?imp.value/29.5735295625:0,manualOz=summary.manual.usFlOz||0;
     const counted=manualOz>0?manualOz:importedOz,target=Math.max(60,Number(S().prefs.waterTargetOz)||100),pct=Math.min(100,100*counted/target);
-    const note=manualOz>0?(importedOz?'Logged here ('+mwShow(summary.manual.volumeMl)+' mL); Apple Health also has '+r1(importedOz)+' fl oz.':mwShow(summary.manual.volumeMl)+' mL logged here.'):importedOz?'From '+esc(imp.source||'Apple Health')+'.':'Nothing logged or imported yet.';
+    // r1 must come first: a logged drink beside imported water used it before its declaration and the whole Today page failed to redraw (V2.0).
     const r1=v=>(Math.round(v*10)/10).toLocaleString();
-    return '<p class="big">'+r1(counted)+' <small>of '+target+' fl oz</small></p><div class="deficit-bar" role="img" aria-label="'+esc(r1(counted)+' of '+target+' fluid ounces')+'"><i style="width:'+pct.toFixed(1)+'%"></i><em style="left:'+(100*60/target).toFixed(1)+'%" title="60 fl oz floor"></em></div><p class="hint">'+note+'</p>';
+    const note=manualOz>0?(importedOz?'Logged here ('+mwShow(summary.manual.volumeMl)+' mL); Apple Health also has '+r1(importedOz)+' fl oz.':mwShow(summary.manual.volumeMl)+' mL logged here.'):importedOz?'From '+esc(imp.source||'Apple Health')+'.':'Nothing logged or imported yet.';
+    return '<div class="water-row">'+waterGlassHTML(counted,target)+'<div class="water-num"><p class="big">'+r1(counted)+' <small>of '+target+' fl oz</small></p><p class="hint keep">'+note+'</p></div></div>';
+  }
+  /* Not everything a ring (Mintay, Sept 25): water is a brass-capped lantern glass that fills as he drinks and
+     ripples; the dotted line is the 60 fl oz floor. */
+  function waterGlassHTML(counted,target){
+    const pct=Math.max(0,Math.min(1,counted/target)),top=17,bottom=80,y=v=>bottom-(bottom-top)*v,floor=y(60/target);
+    return '<svg class="water-glass" viewBox="0 0 60 84" width="60" height="84" role="img" aria-label="'+esc((Math.round(counted*10)/10)+' of '+target+' fluid ounces')+'"><defs><clipPath id="wg-clip"><path d="M13 16h34l-3 58a8 8 0 0 1-8 7H24a8 8 0 0 1-8-7Z"/></clipPath><linearGradient id="wg-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a9d6f7"/><stop offset="1" stop-color="#4d8fd0"/></linearGradient></defs>'+
+      '<path d="M19 12v-5h22v5M23 7c0-4 3-6 7-6s7 2 7 6" fill="none" stroke="var(--brass)" stroke-width="2"/>'+
+      '<g clip-path="url(#wg-clip)"><rect width="60" height="84" fill="rgba(255,255,255,.05)"/><g class="wg-water" style="transform:translateY('+(y(pct)-16).toFixed(1)+'px)"><path d="M-60 16c8-3 12 3 20 0s12-3 20 0 12 3 20 0 12-3 20 0 12 3 20 0 12-3 20 0 12 3 20 0V120H-60Z" fill="url(#wg-w)" opacity=".92"/></g></g>'+
+      '<path d="M13 16h34l-3 58a8 8 0 0 1-8 7H24a8 8 0 0 1-8-7Z" fill="none" stroke="var(--brass)" stroke-width="2.2"/><path d="M16 '+floor.toFixed(1)+'h28" stroke="rgba(255,255,255,.4)" stroke-width="1" stroke-dasharray="2 3"/></svg>';
   }
   function waterCard(){
     const m=MWmod(),ui=mwDrafts();
     if(!m)return '<section class="panelcard"><h2>Water</h2><p class="hint">Water entry is unavailable in this preview. Existing records are unchanged.</p></section>';
     const summary=m.waterSummary(S(),day),events=summary.manual.events,held=summary.heldCandidates,w=ui.water;
     const form=w?'<div id="mw-water-form" class="panelcard" style="margin-top:12px"><h3>'+(w.edit?'Correct a drink':'Record a drink')+'</h3>'+
-      '<div class="ws-ing"><div><label for="mw-water-value">Amount</label><input id="mw-water-value" type="number" min="0.000001" step="any" value="'+esc(w.value)+'"></div>'+
+      '<div class="ws-ing"><div><label for="mw-water-value">Amount</label><div class="stepper"><button type="button" data-act="waterStep" data-d="-1" aria-label="Less">−</button><input id="mw-water-value" type="number" min="0.000001" step="any" value="'+esc(w.value)+'"><button type="button" data-act="waterStep" data-d="1" aria-label="More">+</button></div></div>'+
       '<div><label for="mw-water-unit">Volume unit</label><select id="mw-water-unit">'+mwUnitOptions(w.unit)+'</select></div>'+
       '<div><label for="mw-water-date">Date</label><input id="mw-water-date" type="date" value="'+esc(w.date)+'"></div>'+
       '<div><label for="mw-water-time">Time (optional)</label><input id="mw-water-time" type="time" value="'+esc(w.time)+'"></div></div>'+
       '<div class="acts"><button id="mw-water-save" data-act="waterSave">'+(w.edit?'Save correction':'Save drink')+'</button><button class="ghost" data-act="waterCancel">Cancel</button></div></div>':'';
     return '<section class="panelcard ws-water" data-mw-card="water" data-feedback-id="water" data-feedback-label="Water"><div class="ph"><h2>Water</h2><span class="hint">'+esc(medDate(day))+'</span></div>'+
       waterTotalHTML(summary)+
-      '<div class="presets">'+WATER_PRESETS.map(amount=>'<button data-act="waterAdd" data-v="'+amount+'"'+(w?' disabled':'')+'>'+amount+' US fl oz</button>').join('')+
+      '<div class="presets">'+WATER_PRESETS.map(amount=>'<button data-act="waterAdd" data-v="'+amount+'"'+(w?' disabled':'')+'>+ '+amount+' fl oz</button>').join('')+
       '<button id="mw-water-custom" data-act="waterCustom"'+(w?' disabled':'')+'>Custom amount</button></div>'+form+mwError('water')+
-      (events.length?events.map(record=>'<div class="evrow" data-water="'+esc(record.id)+'"><span class="amt">'+mwShow(record.value)+' '+esc(record.unit)+'</span><span class="src">'+esc(record.time||'Time not specified')+' · self-reported</span><button class="ghost small" data-act="waterEdit"'+(w?' disabled':'')+'>Edit</button><button class="ghost small" data-act="waterDelete"'+(w?' disabled':'')+'>Delete</button></div>').join(''):'<p class="hint">No measured drinks recorded for this day.</p>')+
+      (events.length?events.map(record=>'<div class="evrow" data-water="'+esc(record.id)+'"><span class="amt">'+mwShow(record.value)+' '+esc(mwUnit(record.unit))+'</span><span class="src">'+esc(record.time||'Time not specified')+' · self-reported</span><button class="ghost small" data-act="waterEdit"'+(w?' disabled':'')+'>Edit</button><button class="ghost small" data-act="waterDelete"'+(w?' disabled':'')+'>Delete</button></div>').join(''):'<p class="hint">No measured drinks recorded for this day.</p>')+
       (summary.legacy.count?'<p class="hint">'+esc(pl(summary.legacy.count,'earlier glass'))+' with <strong>unknown volume</strong>. These counts are preserved separately.</p>':'')+
-      (held.length?'<details><summary>'+esc(pl(held.length,'imported drink'))+' awaiting review</summary><p class="hint">These are not included in the manual total.</p>'+held.map(r=>'<p class="hint">'+mwShow(r.value)+' '+esc(r.unit)+' · '+esc(r.time||'Time not specified')+'</p>').join('')+'</details>':'')+
+      (held.length?'<details><summary>'+esc(pl(held.length,'imported drink'))+' awaiting review</summary><p class="hint">These are not included in the manual total.</p>'+held.map(r=>'<p class="hint">'+mwShow(r.value)+' '+esc(mwUnit(r.unit))+' · '+esc(r.time||'Time not specified')+'</p>').join('')+'</details>':'')+
       (summary.possibleDuplicates.length?'<p class="notice">'+esc(pl(summary.possibleDuplicates.length,'possible overlap'))+' between imported and manual records. Review their identity before combining them.</p>':'')+
       '<p class="hint">Drink records do not confirm an activity or add points. A saved change can be undone in the persistent workspace.</p></section>';
   }
@@ -3262,8 +3462,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function catchUpOpen(st,date){const rows=wsTry('tree',st,date,{});if(!Array.isArray(rows))return 0;let n=0;const walk=x=>{for(const r of x){if(Array.isArray(r.children)&&r.children.length)walk(r.children);else if(!['done','skipped'].includes(r.status)&&!(r.occurrence&&['rest','excused'].includes(r.occurrence.disposition))&&!r.optional)n++;}};walk(rows);return n;}
   function scoringV2Step(st){
     const monday=addDays(todayYmd(),-((new Date(todayYmd()+'T12:00:00').getDay()+6)%7)),from=st.rewards?.progression?.effectiveFrom&&st.rewards.progression.effectiveFrom<monday?st.rewards.progression.effectiveFrom:monday;
-    if(!st.rewards?.ruleStep5)return '<section class="panelcard v2-structure" data-feedback-id="scoring-v2" data-feedback-label="Scoring V2"><div class="ph"><h2>Scoring V2</h2><span class="ws-badge">Step 3</span></div>'+
-      '<p>From '+esc(medDate(from))+': sleep pays hours ÷ 7 h, steps their share of 12,000, water its share of 100 fl oz, and Nutrition the deficit percentage (825 kcal = 100%). Items you mark yourself without data pay in full. Points you have already claimed never change.</p>'+
+    if(!st.rewards?.ruleStep5)return '<section class="panelcard v2-structure" data-feedback-id="scoring-v2" data-feedback-label="Scoring V2"><div class="ph"><h2>Scoring V2</h2><button type="button" class="info" data-act="info" aria-expanded="false" aria-controls="info-v5" aria-label="About Scoring V2">i</button><span class="ws-badge">Step 3</span></div>'+
+      '<p class="hint keep">Sleep, steps, water and nutrition pay their share of the target from '+esc(medDate(from))+'.</p><div class="info-pop" id="info-v5" hidden><p class="hint">Sleep pays hours ÷ 7 h, steps their share of 12,000, water its share of 100 fl oz, and Nutrition the deficit percentage (825 kcal = 100%). Items you mark yourself without data pay in full. Points you have already claimed never change.</p></div>'+
       '<div class="acts"><button class="save" data-act="v5Adopt" data-date="'+esc(from)+'">Turn on Scoring V2 from '+esc(medDate(from))+'</button></div></section>';
     if(st.prefs.v2CatchUpDone)return '';
     const days=catchUpDays(st).map(d=>({d,n:catchUpOpen(st,d)})).filter(x=>x.n>0);if(!days.length)return '';
@@ -3288,7 +3488,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       }
       review+='<div class="acts">'+(p.ok&&wsPreview.kind==='migration'?'<button class="save" data-act="wsAdopt">Adopt this reviewed proposal</button>':p.ok&&wsPreview.kind==='rollback'?'<button class="save" data-act="wsRollback">Restore previous rule and structure</button>':'')+'<button data-act="wsCancelPreview">Cancel, change nothing</button></div></div>';
     }
-    return '<section class="panelcard" data-feedback-id="points-rule-review" data-feedback-label="Points rule review"><div class="ph"><h2>'+(activitiesAdopted(S())?'Updates to your activities':'Set up your agreed activities')+'</h2><span class="ws-badge">Review first</span></div><p>Installs the activities you agreed on — morning and night care, prayer, church, cardio, strength, 12,000 steps, meals, journaling and the weekly home tasks — matched to what is already here, with quarter-point scoring. Once set up, Apple Health workouts, steps and brushing check off their activities automatically and their points wait for you to claim. </p><p>'+ (rw.activeEpoch?'This candidate record uses quarter-point scoring from '+esc(rw.activeEpoch.effectiveFrom)+'.':'This record still uses its original scoring rule.')+' Level '+rw.level+' · '+rw.orbs+' points in its active scoring period.</p><p class="hint">Adoption changes only the open record. Existing claim rules and history remain intact; no past action is re-awarded.</p><label for="wsProposalDate">Proposal effective date</label><input id="wsProposalDate" type="date" value="'+esc(day)+'"><div class="acts"><button data-act="wsProposal">Show proposed activities</button><button data-act="wsMigrationPreview">Review what will change</button>'+(active?'<button data-act="wsRollbackPreview" data-migration="'+esc(active.id)+'">Review rollback</button>':'')+'</div>'+review+policyReviewHTML()+'<p class="hint">Calorie-deficit scoring remains pending. Body composition and category grades remain Unassessed.</p></section>';
+    return '<section class="panelcard" data-feedback-id="points-rule-review" data-feedback-label="Points rule review"><div class="ph"><h2>'+(activitiesAdopted(S())?'Updates to your activities':'Set up your agreed activities')+'</h2><span class="ws-badge">Review first</span></div><p class="hint">Installs the activities you agreed on — morning and night care, prayer, church, cardio, strength, 12,000 steps, meals, journaling and the weekly home tasks — matched to what is already here, with quarter-point scoring. Once set up, Apple Health workouts, steps and brushing check off their activities automatically and their points wait for you to claim. </p><p class="hint">'+ (rw.activeEpoch?'This candidate record uses quarter-point scoring from '+esc(rw.activeEpoch.effectiveFrom)+'.':'This record still uses its original scoring rule.')+' Level '+rw.level+' · '+rw.orbs+' points in its active scoring period.</p><p class="hint">Adoption changes only the open record. Existing claim rules and history remain intact; no past action is re-awarded.</p><label for="wsProposalDate">Proposal effective date</label><input id="wsProposalDate" type="date" value="'+esc(day)+'"><div class="acts"><button data-act="wsProposal">Show proposed activities</button><button data-act="wsMigrationPreview">Review what will change</button>'+(active?'<button data-act="wsRollbackPreview" data-migration="'+esc(active.id)+'">Review rollback</button>':'')+'</div>'+review+policyReviewHTML()+'<p class="hint">Calorie-deficit scoring remains pending. Body composition and category grades remain Unassessed.</p></section>';
   }
 
   /* Church Calendar (V2.0 Phase 7): dates computed from the rules on ethiopianorthodox.org (Bahire Hasab for
@@ -3390,15 +3590,15 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const steps=relayedRecords(st,'steps').filter(r=>sourceLocalDay(r.start)===t&&r.unmapped?.healthAutoExport?.representation==='derived daily view').map(r=>r.value).filter(Number.isFinite),s=steps.length?Math.max(...steps):0;
     rows.push(['Steps',s>=12000?'Done':n(12000-s)+' to go',s/12000]);
     const cls=r=>Workspace.workoutClass?Workspace.workoutClass(st,r.reference):null,cardio=workoutSessions(st,workoutHistory(st,t,t).filter(w=>w.origin==='relayed')).filter(w=>cls(w)==='cardio').reduce((a,w)=>a+(w.minutes||0),0);
-    rows.push(['Cardio',cardio>=45?'Done':n(45-cardio)+' min to go',cardio/45]);
+    rows.push(['Cardio',cardio>=45?'Done':n(45-cardio)+' min to go',cardio/45,true]);
     const g=goalsV2(st),eb=wsTry('energyBalance',st,t);
-    if(eb&&eb.available){const d=-eb.balance;rows.push(['Deficit',d>=g.deficit.daily?'On target':n(g.deficit.daily-d)+' kcal to go',d/g.deficit.daily]);}else rows.push(['Deficit','Waiting for food and energy',0]);
+    if(eb&&eb.available){const d=-eb.balance;rows.push(['Deficit',d>=g.deficit.daily?'On target':n(g.deficit.daily-d)+' kcal to go',d/g.deficit.daily,true]);}else rows.push(['Deficit','Waiting for food and energy',0]);
     const imp=typeof importedNutrition==='function'?importedNutrition(st,t).dietary_water:null,m=typeof MWmod==='function'?MWmod():null,man=m?m.waterSummary(st,t).manual.usFlOz||0:0,oz=man>0?man:imp?imp.value/29.5735295625:0,target=Math.max(60,Number(st.prefs.waterTargetOz)||100);
     rows.push(['Water',oz>=target?'Done':n(target-oz)+' fl oz to go',oz/target]);
     // Sleep Credit, one line: the week's balance so far (the chart lives in Sleep & Recovery).
     if(typeof ScoringV5!=='undefined'){const table=(typeof v5Rule==='function'&&v5Rule(st,t))||ScoringV5.table(null),nights=sleepNights(st),list=[];for(let d=weekStartOf(t,1);d<=t;d=addDays(d,1))list.push({date:d,minutes:nights.get(d)?Math.round(nights.get(d).minutes):null});const sc=ScoringV5.sleepCredit(list,table);
       rows.push(['Sleep',sc.balanceMin===null?'A night is missing':(sc.balanceMin>=0?'+':'−')+hm(Math.abs(sc.balanceMin))+' · '+ScoringV5.percent(sc.credit)+'%',sc.credit?sc.credit.n/sc.credit.d:0]);}
-    return '<section class="panelcard rail-card" data-feedback-id="rail-targets" data-feedback-label="Left today"><h2>Left Today</h2>'+rows.map(([k,v,r])=>'<div class="rt"><span>'+k+'</span><b>'+esc(v)+'</b><i class="rt-bar"><i style="width:'+Math.round(100*Math.max(0,Math.min(1,r||0)))+'%;background:'+perfColor(r,{today:true})+'"></i></i></div>').join('')+'</section>';
+    return '<section class="panelcard rail-card" data-feedback-id="rail-targets" data-feedback-label="Left today"><h2>Left Today</h2>'+rows.map(([k,v,r,h])=>'<div class="rt"><span>'+k+'</span><b>'+esc(v)+'</b><i class="rt-bar"><i style="width:'+Math.round(100*Math.max(0,Math.min(1,r||0)))+'%;background:'+(h?heatColor(r):perfColor(r,{today:true}))+'"></i></i></div>').join('')+'</section>';
   }
   function railClaims(st){
     let rw=null;try{rw=rewardReport(st,todayYmd());}catch(_){rw=null;}if(!rw)return '';
@@ -3431,6 +3631,33 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     el.innerHTML='<div class="rail-head"><button class="ghostbtn" data-act="toggleRail" aria-expanded="true" aria-controls="ctxRail">Hide</button></div>'+railStrip(st)+body;
     tidyCards(el);
   }
+  /* Profile keeps its <ht-body-view> element across redraws (V2.1 b): the page is rebuilt around it, so an element
+     full screen and the loaded model survive a render, including the intake redraw every ten seconds. */
+  function setMain(html){
+    const main = $('#main'), keep = area === 'profile' ? main.querySelector('ht-body-view') : null;
+    if (!keep){ main.innerHTML = html; return; }
+    const tpl = document.createElement('template'); tpl.innerHTML = html;
+    const slot = tpl.content.querySelector('ht-body-view');
+    if (!slot || slot.parentNode !== tpl.content){ main.innerHTML = html; return; }
+    const nodes = [...tpl.content.childNodes], at = nodes.indexOf(slot);
+    for (const n of [...main.childNodes]) if (n !== keep) n.remove();
+    keep.before(...nodes.slice(0, at)); keep.after(...nodes.slice(at + 1));
+  }
+  /* Activities pack into their two columns with no gaps (V2.1, Mintay: "no dead gaps"): every group sets
+     its own row span from its height on a 1 px row grid, and dense placement fills the shorter column.
+     The grid, its two equal columns and the cards as direct children stay as the layout suite measures. */
+  function packActivities(){
+    const grid = document.querySelector('#main .ws-groups'); if (!grid) return;
+    const items = [...grid.children].filter(el => el.matches('section'));
+    const cols = getComputedStyle(grid).gridTemplateColumns.trim().split(/\s+/).length;
+    if (cols < 2){ grid.classList.remove('packed'); items.forEach(el => { el.style.gridRowEnd = ''; }); return; }
+    grid.classList.add('packed');
+    items.forEach(el => { el.style.gridRowEnd = 'span ' + (el.offsetHeight + 12); });
+    if (window.ResizeObserver){
+      if (!packActivities.ro) packActivities.ro = new ResizeObserver(() => { if (packActivities.wait) return; packActivities.wait = true; requestAnimationFrame(() => { packActivities.wait = false; if (document.querySelector('#main .ws-groups') === grid) packActivities(); }); });
+      packActivities.ro.disconnect(); items.forEach(el => packActivities.ro.observe(el)); packActivities.ro.observe(grid);
+    }
+  }
   function render(){
     if(manualSaving){renderNotices();return;}
     if(preserveManualDraft&&unsavedForm){if($('#newNote'))feedbackText=noteDraft.text=$('#newNote').value;if($('#relayIn'))relayDraft=$('#relayIn').value;renderNotices();return;}
@@ -3447,7 +3674,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const draw=f=>typeof withDrawMemo==='function'?withDrawMemo(S(),f):f();
     draw(()=>{renderHeader(); renderNotices();
     const sourceBadges=document.getElementById('conn');if(sourceBadges)document.getElementById('sidebarSources').append(sourceBadges);
-    $('#main').innerHTML = area === 'home' ? renderHome() : area === 'faith' ? renderFaith() : area === 'profile' ? profileCard() : area === 'fitness' ? renderData() : area === 'data' ? coverageCard()+renderData()+'<div class="cols2 data-pair">'+evidenceTasksCard()+energyBalanceCard()+'</div>'+'<details class="plan-fold all-entries"><summary><h2 style="display:inline">All Entries</h2> <span class="hint">Everything you logged, in one list (Log has left the sidebar)</span></summary>'+renderLog()+actionLogCard()+'</details>' : area === 'plan' ? renderPlan() : area === 'log' ? renderLog()+logLinksCard()+actionLogCard()+duplicateActionCard()+waterCard()+mealLibraryCard() : area === 'progress' ? renderProgress()+learningCard(progStart) : area === 'collection' ? renderCollection()+scoringProposalCard() : area === 'lessons' ? renderLessons() : renderSettings();
+    const html = area === 'home' ? renderHome() : area === 'faith' ? renderFaith() : area === 'profile' ? profileCard() : area === 'fitness' ? renderData() : area === 'data' ? coverageCard()+renderData()+'<div class="cols2 data-pair">'+evidenceTasksCard()+energyBalanceCard()+'</div>'+'<details class="plan-fold all-entries"><summary><h2 style="display:inline">All Entries</h2> <span class="hint">Everything you logged, in one list (Log has left the sidebar)</span></summary>'+renderLog()+actionLogCard()+'</details>' : area === 'plan' ? renderPlan() : area === 'log' ? renderLog()+logLinksCard()+actionLogCard()+duplicateActionCard()+waterCard()+mealLibraryCard() : area === 'progress' ? renderProgress()+learningCard(progStart) : area === 'collection' ? renderCollection()+scoringProposalCard() : area === 'lessons' ? renderLessons() : renderSettings();
+    setMain(html);
     });
     draw(renderRail);
     $('#main').dataset.area = area;
@@ -3456,6 +3684,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     document.getElementById('viewNav').innerHTML='<button data-act="viewBack" '+(viewIndex<=0?'disabled':'')+'>Back</button><button data-act="viewForward" '+(viewIndex>=viewHistory.length-1?'disabled':'')+'>Forward</button>';
     decorateFeedbackCards();
     tidyCards($('#main'));
+    packActivities();
     if (keepTop !== null && scroller.scrollTop !== keepTop) scroller.scrollTop = keepTop;
     if ($('#relayIn')) $('#relayIn').value = relayDraft;
     if ($('#rl-from') && relayDates){ $('#rl-from').value = relayDates.from; $('#rl-to').value = relayDates.to; if ($('#relayExact')) $('#relayExact').textContent = relayPacket(S(),relayDates.from,relayDates.to); }
@@ -3475,7 +3704,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       // Only explanations move: an intro right after the title, or a footnote closing the card or a
       // block inside it. A status line in the middle of a card (a skipped file, a held import) stays.
       const skip=el=>el&&(el.classList.contains('card-feedback')||el.tagName==='DETAILS'&&false);
-      const intro=p=>{let e=p.previousElementSibling;while(e&&e.matches('p.hint'))e=e.previousElementSibling;return p.parentElement===card&&(!e||e===h||e.matches('.ph'));};
+      const intro=p=>{let e=p.previousElementSibling;while(e&&e.matches('p.hint,.seg,.subtabs'))e=e.previousElementSibling;return p.parentElement===card&&(!e||e===h||e.matches('.ph'));};
       const footnote=p=>{let e=p.nextElementSibling;while(e&&(e.matches('p.hint')||e.classList.contains('card-feedback')))e=e.nextElementSibling;return !e&&(p.parentElement===card||p.textContent.trim().length>=90&&!p.closest('.dashboard-next,article,.nrow'));};
       const notes=[...card.querySelectorAll('p.hint')].filter(p=>p.closest('.panelcard')===card&&!p.closest('details,li,table,form,.acts,.row,article,.info-pop,.glance-tile,.notice')&&(intro(p)||footnote(p))&&p.textContent.trim().length>=70&&!p.querySelector('button,a,input,select,textarea')&&p.getAttribute('role')!=='status'&&!p.classList.contains('intake-outcome')&&!p.classList.contains('keep'));
       if(!notes.length)return;
@@ -3847,11 +4076,17 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       case 'shelfSetDefault': { if (!confirm('Make these ' + templatesOf(st).length + ' templates your default?\n\nReset to default will return to exactly this set.')) return; stage(st, 'pref'); st.prefs.templateDefaults = tplCopy(templatesOf(st)); commit('pref', 'Saved as your default templates.'); return; }
       case 'shelfReset': { if (!confirm('Reset templates to your default set?\n\nChanges since you last set a default are replaced. Items already added to days stay.')) return; saveTemplates(st, tplCopy(templateDefaults(st)), 'Templates reset to your default.'); return; }
       case 'shelfAdd': { if (!shelfPicked.size || preview && false) return; const {result, list} = await addTemplatesToday(st, shelfPicked); if (!result.ok){ toast('Not added. ' + result.error); render(); return; } const streak = list.find(t => { const u = (S().prefs.templateUse || {})[t.id] || []; return [0,1,2].every(n => u.includes(addDays(day, -n))); }); shelfPicked.clear(); render(); toast('Added ' + list.map(t => t.name).join(', ') + ' to ' + medDate(day) + '.' + (streak ? ' ' + streak.name + ' three days running: make it daily from its Edit.' : '')); return; }
+      case 'shelfDaily': { const t = templatesOf(st).find(x => x.id === btn.dataset.tpl); if (!t) return; const r = await makeDaily(st, t.name, t.group, t.items || []); if (!r.ok){ toast('Not made daily. ' + r.error); render(); return; } toast(t.name + ' is now daily from ' + medDate(day) + '.'); return; }
+      case 'wsMakeDaily': { const row = findPlanRow(st, seriesId, date); if (!row){ toast('This item is not on this day.'); return; } const tree = x => ({name:x.name, items:(x.children || []).map(tree)}); const r = await makeDaily(st, row.name, row.group || row.category, (row.children || []).map(tree)); if (!r.ok){ toast('Not made daily. ' + r.error); render(); return; } toast(row.name + ' is now daily from ' + medDate(day) + '.'); return; }
+      case 'waterStep': { const inp = $('#mw-water-value'); if (!inp) return; const unit = ($('#mw-water-unit') || {}).value || 'US fl oz', step = unit === 'ml' ? 50 : unit === 'l' ? 0.1 : 4, v = Math.max(0, (Number(inp.value) || 0) + step * Number(btn.dataset.d)); inp.value = unit === 'l' ? v.toFixed(1) : String(Math.round(v)); inp.dispatchEvent(new Event('input', {bubbles:true})); return; }
+      case 'mfWindow': mfWindow = btn.dataset.w; render(); return;
       case 'saveTemplate': { const r = findPlanRow(st, seriesId, date); if (!r){ toast('This item is not on this day.'); return; } const tree = x => ({name:x.name, items:(x.children || []).map(tree)}); const t = {id:'tpl-' + newDraftId(), group: r.group || r.category, ...tree(r)}; saveTemplates(st, [...tplCopy(templatesOf(st)), t], 'Saved ' + r.name + ' as a template.'); return; }
       case 'faithSeasonAdd': { if (preview || readOnly) return; const season = {name:$('#fs-name').value, from:$('#fs-from').value, to:$('#fs-to').value}; const r = Workspace.addFastingSeason(st, season); if (!r.ok) { toast(r.error); return; } commit('auto', 'Added ' + season.name.trim() + ': one fast a day, ' + medDate(season.from) + ' – ' + medDate(season.to) + '.'); return; }
+      case 'marbleToggle': stage(st, 'pref'); st.prefs.theme = st.prefs.theme === 'black' ? 'verde' : 'black'; commit('pref', (st.prefs.theme === 'black' ? 'Black' : 'Verde') + ' marble.'); return;
       case 'info': { const pop=document.getElementById(btn.getAttribute('aria-controls')); if(pop){ pop.hidden=!pop.hidden; btn.setAttribute('aria-expanded',String(!pop.hidden)); } return; }
       case 'attentionGo': attentionOpen = false; if (btn.dataset.tab) todayTab = btn.dataset.tab; go(btn.dataset.area); return;
-      case 'quickLog': quickTab = quickTab === btn.dataset.tab ? null : btn.dataset.tab; panel = null; render(); return;
+      case 'quickLog': quickTab = quickTab === btn.dataset.tab ? null : btn.dataset.tab; quickOpen = true; panel = null; render(); return;
+      case 'quickMenu': quickOpen = !(quickOpen || quickTab); if (!quickOpen) quickTab = null; panel = null; render(); return;
       case 'editRecurring': area = 'plan'; openRow(seriesId,date); return;
       case 'dayTarget': { if (date < todayYmd()){ toast('Past targets are preserved. Correct the entry or edit future occurrences.'); return; } const r = (typeof findPlanRow === 'function' ? findPlanRow(st,seriesId,date) : planFor(st,date).find(x=>x.seriesId===seriesId)); if (!r) return; const label = $('#day-target').value.trim(); if (!label){ toast('Describe the target.'); return; } stage(st,'dayTarget'); const targets = JSON.parse(JSON.stringify(r.targets)); targets[r.selected].label = label; overrideOcc(st,seriesId,date,{window:$('#day-time').value,normal:targets.normal,minimum:targets.minimum}); commit('dayTarget','Adjusted this day only.'); return; }
       case 'goData': go('data'); return;
@@ -4069,7 +4304,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (el.dataset.act === 'shelfPick'){ if (el.checked) shelfPicked.add(el.dataset.tpl); else shelfPicked.delete(el.dataset.tpl); render(); return; }
     if (el.dataset.act === 'fasting'){ el.closest('label').classList.toggle('on', el.checked); stage(st, 'pref'); st.prefs.fastingDays = [...document.querySelectorAll('input[name="fast-day"]:checked')].map(i => +i.value).sort(); commit('fasting','Fasting days saved. Shown on Log, never enforced.'); return; }
     if (el.dataset.act === 'weekStart'){ stage(st, 'pref'); st.prefs.weekStart = +el.value; progStart = wkStart(todayYmd()); commit('pref', 'Week now starts on ' + (st.prefs.weekStart === 1 ? 'Monday' : 'Sunday') + '.'); return; }
-    if (el.dataset.act === 'theme'){ stage(st, 'pref'); st.prefs.theme = el.value === 'light' ? 'light' : 'dark'; commit('pref', 'Appearance saved.'); return; }
+    if (el.dataset.act === 'theme'){ stage(st, 'pref'); st.prefs.theme = el.value === 'light' ? 'light' : el.value === 'black' ? 'black' : 'verde'; commit('pref', 'Appearance saved.'); return; }
+    if (el.dataset.act === 'faithStone'){ stage(st, 'pref'); st.prefs.faithStone = el.value === 'wash' ? 'wash' : 'porphyry'; commit('pref', 'Faith stone saved.'); return; }
+    if (el.dataset.act === 'faithCross'){ stage(st, 'pref'); st.prefs.faithCross = el.value === 'soft' ? 'soft' : 'strong'; commit('pref', 'Faith cross saved.'); return; }
     if (el.dataset.act === 'weight'){ stage(st, 'weight'); setGroupWeight(st, el.dataset.group, +el.value); commit('weight', 'Weight saved.'); return; }
     if (el.dataset.act === 'photoFile'){
       const file = el.files && el.files[0]; if (!file) return;
@@ -4128,7 +4365,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   window.addEventListener('storage', e => { if (preview || e.key !== STORE_KEY) return; readOnly = true; saveError = 'The saved workspace changed in another view. Refresh to load it before saving here; export first if this tab has unsaved changes.'; renderNotices(); });
 
   /* ---------- boot ---------- */
-  { const v = window.HealthDelivery && window.HealthDelivery.version; if (v){ document.title = 'Temple Keep ' + v; const b = document.querySelector('.logo b'); if (b) b.insertAdjacentHTML('beforeend', ' <span class="logo-version">' + esc(v) + '</span>'); } }
+  { const v = window.HealthDelivery && window.HealthDelivery.version; if (v){ document.title = 'Glow ' + v; const b = document.getElementById('brandVersion'); if (b) b.textContent = v; } }
   // The stamped build, read when drawn (delivery.js loads after health-domain.js's placeholder BUILD).
   const stampedBuild = () => (window.HealthDelivery && window.HealthDelivery.build) || BUILD;
   $('#build').textContent = stampedBuild()+(personalReview?' · personal review':syntheticTest?' · persistent invented-data test':'');

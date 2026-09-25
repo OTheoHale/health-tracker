@@ -106,7 +106,7 @@ const NIGHT_EATING = [
 ];
 const ENERGY = [ { id:'low', label:'Low' }, { id:'okay', label:'Okay' }, { id:'good', label:'Good' } ];
 const MEAL_TAGS = [ { id:'first', label:'First meal' }, { id:'main', label:'Main meal' }, { id:'dinner', label:'Dinner' }, { id:'snack', label:'Snack' }, { id:'drink', label:'Drink' }, { id:'other', label:'Other' } ];
-const THEMES = ['dark','light','system'];
+const THEMES = ['dark','light','system','verde','black'];   // Glow V2.1: verde = Verde Marble (default; dark means the same), black = Black Marble
 const anchorOrder = id => { const i = ANCHORS.findIndex(a => a.id === id); return i < 0 ? 99 : i; };
 
 /* ---- local calendar days. Never round-trip through UTC: a date here
@@ -2657,7 +2657,7 @@ function freshState(){
     createdAt: nowIso(),
     seeded: false,
     demo: false,
-    prefs: { weekStart:1, units:'lb', timezone: tzName(), checkpoint:'2027-01-07', fastingDays: [], theme:'dark', textSize:'normal', quietHours:null },
+    prefs: { weekStart:1, units:'lb', timezone: tzName(), checkpoint:'2027-01-07', fastingDays: [], theme:'verde', textSize:'normal', quietHours:null },
     series: [],
     occurrences: {},
     workouts: [],

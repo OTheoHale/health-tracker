@@ -1,15 +1,28 @@
 {
-  "name": "Temple Keep",
-  "short_name": "Temple Keep",
+  "name": "Glow",
+  "short_name": "Glow",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
-  "background_color": "#0f2a21",
-  "theme_color": "#0f2a21",
-  "description": "Tend the Temple, Keep the Day. Private daily health and whole-life guidance; records stay on this device.",
+  "background_color": "#0e2219",
+  "theme_color": "#0e2219",
+  "description": "Keep the light. Private daily health and whole-life guidance; records stay on this device.",
   "icons": [
-    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
-    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
-    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }
