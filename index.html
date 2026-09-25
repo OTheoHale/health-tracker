@@ -3,7 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Health Tracker</title>
+<title>Temple Keep</title>
+<meta name="apple-mobile-web-app-title" content="Temple Keep">
+<meta name="application-name" content="Temple Keep">
 <style>
 :root, :root[data-theme="dark"]{
   --bg:#0f2a21; --panel:rgba(8,32,25,.78); --panel-2:rgba(14,44,35,.9); --sunk:rgba(255,255,255,.06); --line:rgba(243,239,227,.13); --line-strong:rgba(243,239,227,.28);
@@ -49,6 +51,7 @@ h4{font:600 12.5px/1.3 var(--sans); color:var(--faint); margin:12px 0 6px}
 .side{position:sticky; top:0; height:100vh; padding:26px 18px 18px; border-right:1px solid var(--line); background:rgba(0,0,0,.14); display:flex; flex-direction:column; gap:6px}
 @media(min-width:901px){.side{overflow-y:auto}.side>*{flex-shrink:0}}
 .logo{display:flex; align-items:center; gap:10px; margin:0 0 22px}
+.logo-mark{flex:0 0 40px;width:40px;height:40px;display:block}.logo-mark svg{display:block}.logo-mark .lm-sm{display:none}
 .logo i{width:38px; height:38px; border-radius:50%; border:1.5px solid var(--brass); display:grid; place-items:center; color:var(--brass); font-style:normal; font-size:18px}
 .logo b{font:600 20px/1.05 var(--serif)}
 .nav button{display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:0; background:transparent; color:var(--muted); border-radius:12px; padding:0 12px; min-height:44px; font-size:14.5px; font-weight:600}
@@ -211,6 +214,87 @@ footer{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font
 .fresh-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle;background:#8a8f8c}.f-live{background:#3fae6a}.f-recent{background:#d9b938}.f-today{background:#e08a3c}.f-stale{background:#d0564b}
 .pct{margin-left:6px;font-size:.8em;font-variant-numeric:tabular-nums;opacity:.75}
 .nut-inputs{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.85em;margin:4px 0}.nut-inputs b{display:inline-block;min-width:1.2em;text-align:center}
+
+/* V2.0 shell (Mintay, Sept 25): resizable sidebar, Hide beside the build line, a pop-out tab when hidden. */
+.app{grid-template-columns:var(--side-w,232px) 1fr}
+.side{position:sticky}
+.side-foot{display:flex;gap:6px}.side-foot .ghostbtn{flex:1;margin-top:6px;min-height:32px;font-size:12px}
+.side-resize{position:absolute;top:0;right:-4px;width:8px;height:100%;cursor:col-resize;z-index:5}
+.side-resize:hover,.side-resize:focus-visible{background:linear-gradient(90deg,transparent 3px,var(--brass) 3px,var(--brass) 5px,transparent 5px);outline:none}
+.side-peek{display:none;position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:30;width:22px;height:64px;border:1px solid var(--line);border-left:0;border-radius:0 12px 12px 0;background:var(--card,rgba(20,40,32,.95));color:var(--brass);font-size:16px;cursor:pointer}
+.app.sidehidden ~ .side-peek,.app.sidehidden .side-peek{display:block}
+.app.sidehidden.peeking{grid-template-columns:minmax(0,1fr)}
+.app.sidehidden.peeking .side{display:flex;position:fixed;left:0;top:0;z-index:29;width:var(--side-w,232px);background:var(--bg,#10241c);box-shadow:8px 0 30px rgba(0,0,0,.45)}
+#topbarHidePlaceholder{display:none}
+.topbar #sideToggle{display:none}
+.app.sidehidden .topbar #sideToggle{display:none}
+#sideFresh .freshness{margin:6px 0 2px}
+#sideFresh .fresh-btn{width:100%;justify-content:flex-start}
+#sidebarSources #conn{gap:6px}#sidebarSources #conn .conn{font-size:11px;padding:2px 8px;min-height:24px}
+.ck #ckLeft{margin:2px 0 0}
+#topStats{display:flex;gap:14px;align-items:center;margin-left:auto;font-size:12.5px;color:var(--muted)}
+#topStats b{color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* Goals (V2.0 Phase 5) */
+.goal-row{margin:10px 0}.goal-row .gr-h{display:flex;justify-content:space-between;gap:8px}.goal-row .gr-f{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);margin-top:4px}
+.goal-bar{position:relative;height:10px;border-radius:5px;background:rgba(127,127,127,.2);margin-top:6px}.goal-bar i{display:block;height:100%;border-radius:5px;background:#3fae6a}
+.goal-bar em,.goal-bar u{position:absolute;top:-4px;bottom:-4px;width:2px}.goal-bar em{background:var(--ink);opacity:.7}.goal-bar u{background:var(--brass)}
+.goal-row.small{padding-top:8px;border-top:1px solid var(--line)}.goal-setup{margin-top:12px}.goal-setup summary{cursor:pointer;color:var(--brass)}
+.ck-list{list-style:none;padding:0;margin:0}.ck-list li{display:grid;grid-template-columns:1.2fr 1fr .7fr 1.4fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}.ck-name{font-weight:600}
+
+/* Faith (V2.0 Phase 7): one large Ethiopian cross, gold outline, behind the cards. */
+body[data-area="faith"] .content{position:relative}
+body[data-area="faith"] .content::before{content:'';position:fixed;z-index:0;pointer-events:none;right:6vw;top:14vh;width:min(46vw,560px);height:min(62vh,760px);opacity:.16;background:no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 280' fill='none' stroke='%23d9b35a' stroke-width='3' stroke-linejoin='round'%3E%3Cpath d='M92 10h16v38c10-12 26-16 36-8 8 7 6 20-4 26l-32 18v36l32 18c10 6 12 19 4 26-10 8-26 4-36-8v38h-16v-38c-10 12-26 16-36 8-8-7-6-20 4-26l32-18V84L60 66c-10-6-12-19-4-26 10-8 26-4 36 8z'/%3E%3Ccircle cx='100' cy='102' r='14'/%3E%3Cpath d='M100 88l14 14-14 14-14-14z'/%3E%3Cpath d='M92 186h16v70c0 8-4 14-8 14s-8-6-8-14z'/%3E%3Cpath d='M72 230h56M78 244h44'/%3E%3Ccircle cx='100' cy='20' r='6'/%3E%3Ccircle cx='44' cy='52' r='5'/%3E%3Ccircle cx='156' cy='52' r='5'/%3E%3Ccircle cx='44' cy='152' r='5'/%3E%3Ccircle cx='156' cy='152' r='5'/%3E%3C/svg%3E")}
+body[data-area="faith"] #main{position:relative;z-index:1}
+body[data-area="faith"] .app:not(.railhidden) .content::before{right:calc(300px + 4vw)}@media(max-width:1230px){body[data-area="faith"] .app:not(.railhidden) .content::before{right:6vw}}
+.church-cal .season-now{font-size:1.1em;margin:4px 0 6px}.church-cal .season-now.feast b{color:var(--brass)}.church-cal .season-now.quiet{color:var(--muted)}
+.cal-next{list-style:none;padding:0;margin:8px 0}.cal-next li{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line);font-size:13px}
+.faith-journal .prompts{margin:6px 0 10px;padding-left:18px;color:var(--muted);font-size:13px}.faith-journal textarea{width:100%;border-radius:10px;border:1px solid var(--line);background:var(--sunk);color:var(--ink);padding:10px}
+
+/* Today (V2.0 Phase 8) */
+.daynav .day-sub{margin:0 6px}.daynav .daypick{width:auto;flex:0 0 auto;margin-left:8px;background:transparent;border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:2px 6px;font-size:12px}
+.upnext-cycle{display:inline-flex;align-items:center;gap:4px;margin-left:6px}.upnext-cycle small{color:var(--muted)}
+.gcard .tboxes{display:flex;gap:3px;margin:6px 0 2px}.gcard .tboxes i{width:14px;height:14px;border-radius:4px;border:1.5px solid var(--category);display:block}.gcard .tboxes i.full{background:var(--category)}
+.gcard .boxes.strip i,.gcard .boxes.sundays i{position:relative}.gcard .boxes i.today{outline:1.5px solid var(--ink);outline-offset:1px}
+.gcard .boxes i small{position:absolute;left:0;right:0;top:100%;font-size:8.5px;line-height:1.3;text-align:center;color:var(--muted)}.gcard .boxes{margin-bottom:10px}
+.hc-card .hc-row{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11.5px;margin:3px 0}.hc-card .hc-row .tboxes{margin:0}
+
+/* Fitness (V2.0 Phase 10): cards in a row end level; Activity carries Workouts; Sleep & Recovery; Energy & Weight. */
+.fit-cards{align-items:stretch}
+.fit-workouts{margin-top:16px;border-top:1px solid var(--line);padding-top:10px}.fit-workouts h3{margin:0;font-size:15px}
+.fit-workouts .glance-list li{grid-template-columns:max-content minmax(0,1fr) max-content max-content}.glance-list .when{white-space:nowrap;color:var(--muted);font-size:12.5px}
+.sleep-week small.pct{font-size:10px;color:var(--faint);margin-top:-3px}.sleep-week.dense{gap:2px}
+.recov{position:relative;display:flex;gap:12px;align-items:center;margin:2px 0 10px}.recov p{margin:0}.recov .info{margin-left:auto}.recov-none{margin:0 0 8px}
+.credit{margin-top:14px}.credit .cap{margin:0 0 4px}.credit-svg{width:100%;max-width:420px;height:auto;display:block}
+.def-chart .bar.prov{opacity:.5}.def-chart em.ontrack{border-top-style:dotted;border-top-color:var(--muted)}.fit-sum span small+small{margin-top:1px}
+.wt-svg{width:100%;height:auto;display:block;max-height:180px}
+
+/* Right rail (V2.0 Phase 6) */
+.with-rail{display:grid;grid-template-columns:minmax(0,1fr) 288px;gap:18px;align-items:start}
+.app.railhidden .with-rail{grid-template-columns:minmax(0,1fr)}.app.railhidden #ctxRail{display:none}
+#ctxRail{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto;display:flex;flex-direction:column;gap:12px;padding-bottom:12px;scrollbar-width:thin}
+#ctxRail .panelcard{margin:0;padding:14px}#ctxRail h2{font-size:17px}
+.rail-head{display:flex;justify-content:flex-end;margin-bottom:-4px}.rail-head .ghostbtn{font-size:12px;padding:3px 10px}
+.rail-strip{display:grid;grid-template-columns:1fr 1fr;gap:8px}.rail-strip .rs{border:1px solid var(--line);border-radius:12px;padding:8px 10px;background:var(--panel);display:flex;flex-direction:column;gap:1px}
+.rail-strip small{color:var(--faint);font-size:11px}.rail-strip b{font:600 20px/1.15 var(--serif);font-variant-numeric:tabular-nums}.rail-strip b small{font:500 12px var(--sans)}.rail-strip span{font-size:11.5px;color:var(--muted)}
+.rt{display:grid;grid-template-columns:62px 1fr;gap:2px 8px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--line)}.rt:last-child{border:0}.rt span{color:var(--muted);font-size:12.5px}.rt b{font-size:13.5px;text-align:right}
+.rt-bar{grid-column:1/-1;display:block;height:4px;border-radius:2px;background:var(--line);overflow:hidden}.rt-bar>i{display:block;height:100%}.rt-bar.big{height:6px;margin:6px 0 4px}
+.rail-list{list-style:none;margin:6px 0 0;padding:0}.rail-list li{display:flex;gap:8px;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--line);font-size:12.5px}.rail-list li span:first-child{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rail-peek{display:none;position:fixed;right:0;top:40%;z-index:30;border:1px solid var(--line);border-right:0;border-radius:10px 0 0 10px;background:var(--panel);color:var(--muted);padding:12px 5px;cursor:pointer}
+.app.railhidden~.rail-peek,.app.railhidden .rail-peek{display:block}
+#ctxRail .credit-svg{max-width:100%}
+.side .ck{display:none}.app.railhidden .side .ck{display:block}
+/* Folds below when the content area (not the window) is narrow, so page zoom folds it too. */
+@container (max-width:900px){.with-rail{grid-template-columns:minmax(0,1fr)}#ctxRail{position:static;max-height:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}.rail-head{grid-column:1/-1}}
+
+/* Plan & Quests and Progress (V2.0 Phase 11) */
+.plan-fams.wide .plan-fam-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+.umb-flow{display:flex;flex-wrap:wrap;gap:12px 16px;margin-top:8px}.umb-band{flex:var(--n,1) 1 calc(var(--n,1) * 180px);min-width:0;max-width:100%;border-left:3px solid var(--category,var(--line));padding:2px 0 2px 12px}.umb-band .plan-fam-grid{grid-template-columns:repeat(auto-fill,minmax(165px,1fr))}.umb-h{margin:0 0 6px;font:600 13px var(--sans);color:var(--category,var(--muted))}
+.sc-weeks{display:grid;gap:10px}.scw{display:grid;grid-template-columns:70px 1fr 44px;gap:2px 10px;align-items:center}.scw .rt-bar{margin:0}.scw b{text-align:right}.scw .hint{grid-column:2/-1;margin:0;font-size:11.5px}
+.rank-hist{display:grid;gap:6px 8px;align-items:center}.rank-hist .cap{margin:0;text-align:center}.rank-hist .rk,.rank-hist .dim{text-align:center;font:600 15px var(--serif)}.rank-hist .rk.big{font-size:19px}.rank-hist>span:first-child{min-height:1px}
+.on-plan .nut-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+/* Visual pass (V2.0 Phase 11) */
+.stack{display:flex;flex-direction:column;gap:16px;min-width:0}.stack>.panelcard{margin:0}.data-pair{margin:16px 0}
 /* Instant answer to a tap (V1.12): the control fills left to right while its save runs, with no size change. */
 .is-pending{position:relative;overflow:hidden}
 .is-pending::after{content:'';position:absolute;inset:0;background:currentColor;opacity:.18;transform-origin:left;animation:tapfill .45s ease-out forwards;pointer-events:none}
@@ -556,7 +640,7 @@ addEventListener('load', () => {
 
 <div class="app">
   <aside class="side" id="appSide">
-    <div class="logo"><i aria-hidden="true">&#10047;</i><b>Health<br>Tracker</b></div>
+    <div class="logo" title="Temple Keep · Tend the Temple, Keep the Day"><span class="logo-mark"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="40" height="40" aria-hidden="true" focusable="false">  <defs> <linearGradient id="tkBr" x1="0" y1="4" x2="0" y2="60" gradientUnits="userSpaceOnUse"> <stop offset="0" stop-color="#e8cf95"/><stop offset=".5" stop-color="#c9a45c"/><stop offset="1" stop-color="#9f7c3b"/> </linearGradient> <radialGradient id="tkOrb" cx=".36" cy=".3" r=".78"> <stop offset="0" stop-color="#f4fff9"/><stop offset=".13" stop-color="#bfe9d6"/><stop offset=".42" stop-color="#56a88a"/><stop offset=".72" stop-color="#1d5a45"/><stop offset="1" stop-color="#062019"/> </radialGradient> <radialGradient id="tkGlow"> <stop offset=".45" stop-color="#8fd3bd" stop-opacity=".38"/><stop offset="1" stop-color="#8fd3bd" stop-opacity="0"/> </radialGradient> </defs> <path d="M14 20a6 6 0 0 1 6-6h24a6 6 0 0 1 6 6v24a6 6 0 0 1-6 6H20a6 6 0 0 1-6-6Z" fill="#03120d" fill-opacity=".35"/> <rect x="21.5" y="21.5" width="21" height="21" rx="3.5" fill="#8fd3bd" fill-opacity=".1"/> <g fill="none" stroke="url(#tkBr)" stroke-linejoin="round"> <path class="lm-fine" d="M8.2 8.2 21.9 21.9M55.8 8.2 42.1 21.9M8.2 55.8 21.9 42.1M55.8 55.8 42.1 42.1" stroke-width="1.3" opacity=".7"/> <path class="lm-fine" d="M24 7.5v5M32 7.5v5M40 7.5v5M24 51.5v5M32 51.5v5M40 51.5v5M7.5 24h5M7.5 32h5M7.5 40h5M51.5 24h5M51.5 32h5M51.5 40h5" stroke-width="1.2" opacity=".5"/> <rect x="5" y="5" width="54" height="54" rx="9" stroke-width="3.2"/> <rect x="14" y="14" width="36" height="36" rx="6" stroke-width="2.6"/> <rect class="lm-lg" x="21.5" y="21.5" width="21" height="21" rx="3.5" stroke-width="2"/> </g> <circle cx="32" cy="32" r="12" fill="url(#tkGlow)"/> <circle class="lm-lg" cx="32" cy="32" r="7" fill="url(#tkOrb)"/> <circle class="lm-sm" cx="32" cy="32" r="10" fill="url(#tkOrb)"/> </svg></span><b>Temple<br>Keep</b></div>
     <div class="brandnav" id="viewNav" role="group" aria-label="View history"></div>
     <nav class="nav" aria-label="Areas">
       <button data-area="faith"><i aria-hidden="true" style="--ic:#b69cf0">&#10016;</i>Faith</button>
@@ -564,7 +648,7 @@ addEventListener('load', () => {
       <button data-area="profile"><i aria-hidden="true" style="--ic:#7fc8c0"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.5" r="4"/><path d="M4 21.5c.7-4.6 4-7.5 8-7.5s7.3 2.9 8 7.5z"/></svg></i>Profile</button>
       <button data-area="fitness"><i aria-hidden="true" style="--ic:#e8a15c">&#9889;</i>Fitness</button>
       <button data-area="plan"><i aria-hidden="true" style="--ic:#e8a06a"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22V3"/><path d="M5 4h12l-2.5 4L17 12H5z" fill="currentColor"/></svg></i>Plan &amp; Quests</button>
-      <button data-area="log"><i aria-hidden="true" style="--ic:#9fd2a0"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="14" height="18" rx="2"/><path d="M8 8h6M8 12h6M8 16h3"/></svg></i>Log</button>
+      <button data-area="log" hidden><i aria-hidden="true" style="--ic:#9fd2a0"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="14" height="18" rx="2"/><path d="M8 8h6M8 12h6M8 16h3"/></svg></i>Log</button>
       <button data-area="progress"><i aria-hidden="true" style="--ic:#6fd0a0"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M4 16l5-5 4 3 7-8"/><path d="M15 6h5v5"/></svg></i>Progress</button>
       <button data-area="collection"><i aria-hidden="true" class="nav-orb"></i>Collection</button>
       <button data-area="lessons"><i aria-hidden="true" style="--ic:#f0d070"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.3 1 2.1h5c0-.8.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg></i>Lessons &amp; Updates</button>
@@ -574,16 +658,20 @@ addEventListener('load', () => {
     </nav>
     <a class="gena-link" href="https://skabone.github.io/gena/" target="_blank" rel="noopener">Open Gena ↗</a>
     <div class="spacer"></div>
-    <div class="ck"><p class="cap">Your checkpoint</p><b id="ckDate">—</b><p class="hint">A review point, not a promised result.</p></div>
-    <div class="buildid" id="buildIdentity"></div>
+    <div id="sideFresh"><div id="fresh"></div></div>
     <div id="sidebarSources"></div>
-    <button class="ghostbtn" id="previewToggle" aria-pressed="false">Preview workspace</button>
+    <div class="ck"><p class="cap">Next checkpoint</p><b id="ckDate">—</b><p class="hint" id="ckLeft"></p></div>
+    <div class="buildid" id="buildIdentity"></div>
+    <div class="side-foot"><button class="ghostbtn" id="sideHide" data-act="toggleSidebar" aria-controls="appSide" aria-expanded="true">Hide</button><button class="ghostbtn" id="previewToggle" aria-pressed="false">Preview workspace</button></div>
+    <div class="side-resize" id="sideResize" role="separator" aria-orientation="vertical" aria-label="Resize the sidebar" tabindex="0" title="Drag to resize · double-click to reset"></div>
   </aside>
+  <button class="side-peek" id="sidePeek" data-act="toggleSidebar" aria-controls="appSide" aria-label="Show the sidebar" title="Show the sidebar">›</button>
   <div class="content">
-    <header class="topbar"><button class="sidetoggle" id="sideToggle" data-act="toggleSidebar" aria-expanded="true" aria-controls="appSide">Hide</button><div class="t"><h1 id="areaTitle" tabindex="-1">Today</h1><p id="areaSub"></p></div><span id="previewBadge" hidden>LOCAL PREVIEW · SYNTHETIC</span><div id="fresh"></div><div id="levelOrb"></div><div id="conn"></div></header>
+    <header class="topbar"><button class="sidetoggle" id="sideToggle" data-act="toggleSidebar" aria-expanded="true" aria-controls="appSide">Hide</button><div class="t"><h1 id="areaTitle" tabindex="-1">Today</h1><p id="areaSub"></p></div><span id="previewBadge" hidden>LOCAL PREVIEW · SYNTHETIC</span><div id="topStats"></div><div id="levelOrb"></div><div id="conn"></div></header>
     <div id="notices"></div>
-    <main id="main"></main>
-    <footer><p id="storeNote"></p><p>Health Tracker &middot; build <span id="build"></span></p></footer>
+    <div class="with-rail"><main id="main"></main><aside id="ctxRail" aria-label="In context"></aside></div>
+    <button class="rail-peek" id="railPeek" data-act="toggleRail" aria-label="Show the side panel" title="Show the side panel">‹</button>
+    <footer><p id="storeNote"></p><p>Temple Keep &middot; build <span id="build"></span></p></footer>
   </div>
 </div>
 <div id="toast" hidden role="status" aria-live="polite"><span id="toastMsg"></span><button id="undoBtn">Undo</button></div>
@@ -602,6 +690,7 @@ addEventListener('load', () => {
 <script src="hae-adapter.js"></script>
 <script src="quarter-points.js"></script>
 <script src="scoring-v5.js"></script>
+<script src="eotc-calendar.js"></script>
 <script src="meal-water.js"></script>
 <script src="workspace-proposal.js"></script>
 <script src="health-domain.js"></script>
@@ -759,7 +848,7 @@ addEventListener('load', () => {
     const next = String(event.detail || ''), label = (/-(V\d+(?:\.\d+)*)$/.exec(next) || [])[1] || next;
     let bar = document.getElementById('updateBar');
     if (!bar) { bar = document.createElement('div'); bar.id = 'updateBar'; bar.setAttribute('role', 'status'); document.body.appendChild(bar); }
-    bar.innerHTML = '<span>Health Tracker ' + esc(label) + ' is ready.</span><button class="save" data-act="applyUpdate">Update now</button>';
+    bar.innerHTML = '<span>Temple Keep ' + esc(label) + ' is ready.</span><button class="save" data-act="applyUpdate">Update now</button>';
   });
   // Rows imported under a folder connection that has since been replaced. reconcile() refuses to
   // write anything at all while the store holds one, which is a dead end until they are retired.
@@ -1190,14 +1279,18 @@ addEventListener('load', () => {
     const env = typeof window.__healthTrackerDocumentToken === 'string' ? 'Mac app' : 'Browser';
     const storeKind = preview ? 'synthetic preview · nothing saved' : personalReview ? 'personal review store' : syntheticTest ? 'persistent invented-data store' : 'your saved local store';
     $('#storeNote').textContent += ' Body records are saved separately on this Mac; use Profile → Export model + four images for their backup.';
-    $('#buildIdentity').innerHTML = '<b>Build</b>' + esc(((window.HealthDelivery && window.HealthDelivery.build) || (typeof BUILD === 'string' ? BUILD : 'unknown')).replace(/-(V\d+(?:\.\d+)*)$/,' · $1')) + ' · ' + esc((window.HealthDelivery && window.HealthDelivery.mode) || 'local') + '<br>' + esc(env + ' · ' + storeKind) +
-      '<p class="hint" style="margin:5px 0 0;font-size:11px">'+(preview?'Invented records for review. Nothing is saved.':'Private records on this device.')+'</p>';
+    const mode = String((window.HealthDelivery && window.HealthDelivery.mode) || 'local').replace(/^mac$/i, 'Mac').replace(/^web$/i, 'Web');
+    $('#buildIdentity').innerHTML = '<b>Build</b>' + esc(((window.HealthDelivery && window.HealthDelivery.build) || (typeof BUILD === 'string' ? BUILD : 'unknown')).replace(/-(V\d+(?:\.\d+)*)$/,' · $1')) + ' · ' + esc(mode) + ' <button type="button" class="info" data-act="info" aria-expanded="false" aria-controls="info-build" aria-label="About this build">i</button><div class="info-pop" id="info-build" hidden><p class="hint" style="font-size:11px">' + esc(env + ' · ' + storeKind) + '. ' + (preview ? 'Invented records for review. Nothing is saved.' : 'Private records on this device.') + '</p></div>';
     $('#fresh').innerHTML = freshnessHTML();
     $('#levelOrb').innerHTML = levelOrbHTML();
+    $('#topStats').innerHTML = topStatsHTML();
     $('#sideToggle').textContent = document.querySelector('.app').classList.contains('sidehidden') ? 'Show menu' : 'Hide';
+    $('#sideHide').setAttribute('aria-expanded', String(!document.querySelector('.app').classList.contains('sidehidden')));
     $('#sideToggle').setAttribute('aria-expanded', String(!document.querySelector('.app').classList.contains('sidehidden')));
     document.querySelectorAll('.nav button[data-area]').forEach(b => { if (b.dataset.area === area) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-    $('#ckDate').textContent = st.prefs.checkpoint ? parseYmd(st.prefs.checkpoint).toLocaleDateString(undefined, { day:'numeric', month:'long', year:'numeric' }) : '—';
+    const nextCk = typeof nextCheckpoint === 'function' ? nextCheckpoint(st) : (st.prefs.checkpoint ? {name:'Checkpoint', date:st.prefs.checkpoint} : null);
+    $('#ckDate').textContent = nextCk ? (nextCk.name && nextCk.name !== 'Checkpoint' ? nextCk.name + ' · ' : '') + parseYmd(nextCk.date).toLocaleDateString(undefined, { day:'numeric', month:'long', year:'numeric' }) : '—';
+    $('#ckLeft').textContent = nextCk ? calendarDistance(todayYmd(), nextCk.date) + ' days left' : '';
     $('#previewToggle').setAttribute('aria-pressed', preview);
     $('#previewToggle').textContent = preview ? 'Leave preview workspace' : 'Preview workspace';
   }
@@ -1284,13 +1377,13 @@ addEventListener('load', () => {
   }
   function profileCard(){
     const st = S(), rw = rewardReport(st, todayYmd());
-    return '<ht-body-view></ht-body-view><div class="cols2 profile-cards">' + measuredFitnessCard(st) + overallRankCard(st) +
+    return '<div class="cols2 profile-cards">' + measuredFitnessCard(st) + overallRankCard(st) + '</div><ht-body-view></ht-body-view><div class="cols2 profile-cards">' +
       '<section class="panelcard" data-feedback-id="your-collection" data-feedback-label="Your collection"><h2>Collection</h2><div class="collect-row"><span class="orb" aria-hidden="true"></span><div><b class="big">Level ' + rw.level + '</b><p class="hint" style="margin:0">' + rw.orbs + ' points · ' + rw.toNext + ' to the next level</p></div></div><button class="link" data-act="go" data-area="collection">Open collection</button></section></div>';
   }
   function dailyRow(r){
     const children=r.children||[], future=r.date>todayYmd(), confirmed=r.status==='done';
     const who=confirmed?'Confirmed':r.status==='tentative'?'Checked off, not confirmed':'Not done yet';
-    return '<article class="daily-row" data-series="'+r.seriesId+'" data-date="'+r.date+'" data-key="'+r.key+'"><div class="rowhead">'+(children.length?'<span class="chip quiet">'+r.family.done+'/'+r.family.total+'</span>':'<button class="cb" role="checkbox" aria-checked="'+(confirmed?'true':r.status==='tentative'?'mixed':'false')+'" data-act="toggleDone" aria-label="'+(confirmed?'Review ':'Done: ')+esc(r.name)+' · '+who+'" title="'+who+'" '+(future?'disabled':'')+'>'+(confirmed?'✓':'')+'</button>')+'<div class="daily-label"><button class="an" data-act="openRow">'+esc(r.name)+'</button><p class="hint">'+esc(r.window||anchorLabel(r.anchor))+'</p></div><details class="more"><summary aria-label="More for '+esc(r.name)+'">⋯</summary><div class="more-menu"><button class="link" data-act="'+(children.length?'openRow':'reviewAction')+'" '+(future&&!children.length?'disabled':'')+'>Details</button></div></details></div>'+(children.length?'<details class="children"><summary>'+children.length+' activities</summary>'+children.map(dailyRow).join('')+'</details>':'')+'</article>';
+    return '<article class="daily-row" data-series="'+r.seriesId+'" data-date="'+r.date+'" data-key="'+r.key+'"><div class="rowhead">'+(children.length?'<span class="chip quiet">'+r.family.done+'/'+r.family.total+'</span>':'<button class="cb" role="checkbox" aria-checked="'+(confirmed?'true':r.status==='tentative'?'mixed':'false')+'" data-act="toggleDone" aria-label="'+(confirmed?'Review ':'Done: ')+esc(r.name)+' · '+who+'" title="'+who+'" '+(future?'disabled':'')+'>'+(confirmed?'✓':r.status==='skipped'?'✕':r.status==='partial'?'◐':'')+'</button>')+'<div class="daily-label"><button class="an" data-act="openRow">'+esc(r.name)+'</button><p class="hint">'+esc(r.window||anchorLabel(r.anchor))+'</p></div><details class="more"><summary aria-label="More for '+esc(r.name)+'">⋯</summary><div class="more-menu"><button class="link" data-act="'+(children.length?'openRow':'reviewAction')+'" '+(future&&!children.length?'disabled':'')+'>Details</button></div></details></div>'+(children.length?'<details class="children"><summary>'+children.length+' activities</summary>'+children.map(dailyRow).join('')+'</details>':'')+'</article>';
   }
 
   function activitiesCard(){
@@ -1338,16 +1431,21 @@ addEventListener('load', () => {
   }
   function renderHome(){
     const st = S(), rows = typeof flatPlanFor === 'function' ? flatPlanFor(st,day).filter(r => !groupById(st,r.group)?.hidden) : agendaFor(st,day);
-    const n = nextAction(rows), removed = removedFor(st,day);
-    const nav = '<div class="daynav"><button class="nav-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b>' + esc(longDate(day)) + '</b><button class="nav-btn" data-act="step" data-n="1" aria-label="Next day">›</button>' + (day !== todayYmd() ? '<button class="link" data-act="jumpToday">Back to today</button>' : '') + '' + '</div><div class="subtabs" role="tablist" aria-label="Today views">' + [['overview','Overview'],['activities','Activities'],['agenda','Agenda']].map(t => '<button role="tab" aria-selected="' + (todayTab === t[0]) + '" data-act="todayTab" data-tab="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>';
-    const next = '<section class="panelcard next-action" data-feedback-id="next-action" data-feedback-label="Next useful action"><p class="cap">'+(n&&n.status==='tentative'?'Review your check-off':'Up Next')+'</p>' + (n ? '<h2>' + esc(n.name) + '</h2>' + (n.target.label && n.target.label.trim().toLowerCase() !== String(n.name).trim().toLowerCase() ? '<p>' + esc(n.target.label) + '</p>' : '') + '<div class="acts" data-series="' + n.seriesId + '" data-date="' + n.date + '" data-key="' + n.key + '">' + actionButtons(n,true) + '</div>' : '<h2>Room to pause.</h2><p class="hint">' + (rows.length ? 'Every planned task has an entry.' : 'No activities planned today. Add one in Plan when you are ready.') + '</p>') + '</section>';
+    // Up Next (V2.0): the suggested item first, then the day's other open items; Skip for now sends one to
+    // the back of the queue for today, and ‹ › cycle through what is left.
+    const first = nextAction(rows), open = rows.filter(r => (!r.status || r.status === 'tentative') && !r.optional), queue = first ? [first, ...open.filter(r => r.key !== first.key)] : open;
+    const later = k => upNextLater.has(day + '|' + k), ordered = queue.filter(r => !later(r.key)).concat(queue.filter(r => later(r.key)));
+    const n = ordered.length ? ordered[((upNextIndex % ordered.length) + ordered.length) % ordered.length] : null, removed = removedFor(st,day);
+    const dayWord = day === todayYmd() ? 'Today' : day === addDays(todayYmd(), -1) ? 'Yesterday' : longDate(day);
+    const nav = '<div class="daynav"><button class="nav-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b>' + esc(dayWord) + '</b>' + (dayWord !== longDate(day) ? '<span class="hint day-sub">' + esc(longDate(day)) + '</span>' : '') + '<button class="nav-btn" data-act="step" data-n="1" aria-label="Next day">›</button><input type="date" class="daypick" value="' + esc(day) + '" aria-label="Pick a day">' + (day !== todayYmd() ? '<button class="link" data-act="jumpToday">Back to today</button>' : '') + '</div><div class="subtabs" role="tablist" aria-label="Today views">' + [['overview','Overview'],['activities','Activities'],['agenda','Agenda']].map(t => '<button role="tab" aria-selected="' + (todayTab === t[0]) + '" data-act="todayTab" data-tab="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>';
+    const next = '<section class="panelcard next-action" data-feedback-id="next-action" data-feedback-label="Next useful action"><p class="cap">'+(n&&n.status==='tentative'?'Review your check-off':'Up Next')+'</p>' + (n ? '<h2>' + esc(n.name) + '</h2>' + (n.target.label && n.target.label.trim().toLowerCase() !== String(n.name).trim().toLowerCase() ? '<p>' + esc(n.target.label) + '</p>' : '') + '<div class="acts" data-series="' + n.seriesId + '" data-date="' + n.date + '" data-key="' + n.key + '">' + actionButtons(n,true) + (ordered.length > 1 ? '<button class="link" data-act="upNextLater" data-key="' + esc(n.key) + '">Skip for now</button><span class="upnext-cycle"><button class="link" data-act="upNextCycle" data-n="-1" aria-label="Previous open item">‹</button><small>' + (ordered.indexOf(n) + 1) + ' of ' + ordered.length + '</small><button class="link" data-act="upNextCycle" data-n="1" aria-label="Next open item">›</button></span>' : '') + '</div>' : '<h2>Room to pause.</h2><p class="hint">' + (rows.length ? 'Every planned task has an entry.' : 'No activities planned today. Add one in Plan when you are ready.') + '</p>') + '</section>';
     const undoRemoved = removed.length ? '<details class="panelcard" data-feedback-id="removed-activities" data-feedback-label="Removed activities"><summary>Taken off this day (' + removed.length + ')</summary>' + removed.map(r => '<div class="acts" data-series="' + r.seriesId + '" data-date="' + day + '"><span>' + esc(r.name) + '</span><button data-act="restore">Put back</button></div>').join('') + '</details>' : '';
-    const overview = '<div class="acts"><button class="save" data-act="todayTab" data-tab="activities">Edit Today</button></div>' + goalRailSection(day) + '<div class="today-layout"><div>' + next + quickLog() + nutritionCard(day) + checkpointCard() + '</div><div>' + ringsSection(day) + sleepCard(day) +
+    const overview = '<div class="acts"><button class="save" data-act="todayTab" data-tab="activities">Edit Today</button></div>' + goalRailSection(day) + '<div class="today-layout"><div>' + next + quickLog() + nutritionCard(day) + '</div><div>' + ringsSection(day) + sleepCard(day) +
       '<section class="panelcard" data-feedback-id="day-narration" data-feedback-label="Your day in words"><p class="hint" style="margin:0">' + esc(narrateDay(st,day,todayYmd()).text) + '</p></section>' +
       '<section class="panelcard" data-feedback-id="coming-up" data-feedback-label="Coming up"><h2>Later Today</h2>' + rows.filter(r=>r.status===null).slice(0,3).map(dailyRow).join('') + '</section></div></div>';
     // No reminder panels on the page (Mintay, 2026-09-24): the feed's state is the header badge and
     // "not set up yet" is an item behind its ⚠ count; the setup itself stays at the top of Activities.
-    return nav + dayEditor() + (todayTab === 'activities' ? (activitiesPending(st) ? scoringProposalCard() : '') + templateShelf() + unsortedWorkoutsCard() + wsActivities({includeClaims:true}) : claimsCard() + (todayTab === 'agenda' ? agendaCard() : overview)) + undoRemoved;
+    return nav + dayEditor() + (todayTab === 'activities' ? (activitiesPending(st) && !(typeof structureV2Adopted === 'function' && structureV2Adopted(st)) ? scoringProposalCard() : '') + unsortedWorkoutsCard() + wsActivities({includeClaims:true}) : claimsCard() + (todayTab === 'agenda' ? agendaCard() : overview)) + undoRemoved;
   }
 
   function starterFilePanel(){
@@ -1398,7 +1496,7 @@ out += '<div class="notice"><strong>Review before import.</strong> ' + c.measure
     return out+'</svg>';
   }
   function fitnessControls(){
-    if(fitnessRange==='week')return '<div class="acts"><button data-act="fitnessWeek" data-n="-1">Previous week</button><button data-act="fitnessWeek" data-n="0">This week</button><button data-act="fitnessWeek" data-n="1">Next week</button></div>';
+    if(fitnessRange==='week')return '<div class="acts"><button data-act="fitnessWeek" data-n="-1">Previous week</button><button data-act="fitnessWeek" data-n="0">This week</button></div>';
     if(fitnessRange==='custom')return '<div class="form"><div><label for="fitness-from">From</label><input type="date" id="fitness-from" value="'+fitnessFrom+'"></div><div><label for="fitness-to">To</label><input type="date" id="fitness-to" value="'+fitnessTo+'"></div><button data-act="fitnessCustom">Apply dates</button></div>';
     return '';
   }
@@ -1546,7 +1644,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       if (s.versions.some(v => v.effectiveFrom > from)) body += '<p class="hint">Already scheduled later revisions still apply on their own dates. This editor starts with the version active on ' + esc(medDate(from)) + '.</p>';
       body += familyEditor(r,from);
     }
-    return '<article class="row compact' + (r.status !== null ? ' settled' : '') + '" data-key="' + r.key + '" data-series="' + r.seriesId + '" data-date="' + date + '" id="row-' + r.key.replace(/[^a-z0-9]/gi, '_') + '"><div class="rowhead"><h3>' + esc(r.name) + '</h3>' + (r.window ? '<span class="win">' + esc(r.window) + '</span>' : '') + (r.status ? '<span class="chip ' + r.status + '">' + (r.status === 'done' ? 'Done' : r.status === 'partial' ? 'Partial' : r.status === 'tentative' ? 'Tentative' : 'Not done') + '</span>' : r.selected === 'minimum' ? '<span class="chip quiet">Minimum</span>' : '') + rowChips(r) + '<span class="chip quiet">' + esc(groupName(r.group)) + '</span>' +
+    return '<article class="row compact' + (r.status !== null ? ' settled' : '') + '" data-key="' + r.key + '" data-series="' + r.seriesId + '" data-date="' + date + '" id="row-' + r.key.replace(/[^a-z0-9]/gi, '_') + '"><div class="rowhead"><h3>' + esc(r.name) + '</h3>' + (r.window ? '<span class="win">' + esc(r.window) + '</span>' : '') + (r.status ? '<span class="chip ' + r.status + '">' + (r.status === 'done' ? '✓ Done' : r.status === 'partial' ? '◐ Partial' : r.status === 'tentative' ? 'Tentative' : '✕ Not done') + '</span>' : r.selected === 'minimum' ? '<span class="chip quiet">Minimum</span>' : '') + rowChips(r) + '<span class="chip quiet">' + esc(groupName(r.group)) + '</span>' +
       '<button class="link" data-act="wsHierarchyEdit">Edit routine structure</button><button class="ghost small" data-act="edit" aria-expanded="' + open + '">' + (open ? 'Close' : 'Edit') + '</button></div>' +
       '<div class="state" style="margin-top:4px"><span>' + esc(anchorLabel(r.anchor)) + (r.session ? ' · ' + esc(r.session) : '') + ' · ' + esc(r.target.label) + (r.variant ? ' · ' + esc(r.variant) : '') + (r.addedFrom ? ' · moved from ' + esc(shortDay(r.addedFrom)) : r.added ? ' · this day only' : '') + '</span></div>' + (r.targetProgress ? '<p class="hint">' + r.targetProgress.count + '/' + r.targetProgress.target + ' completions · ' + r.targetProgress.mode + ' window ' + esc(medDate(r.targetProgress.from)) + '–' + esc(medDate(r.targetProgress.to)) + '</p>' : '') + body + wsHierarchyEditor(r,date) + (r.children ? '<div class="family-children">' + r.children.map(child => planRow(child,date)).join('') + '</div>' : '') + '</article>';
   }
@@ -1574,17 +1672,27 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const families = planFamiliesCard(st, untouched);
     const dayList = '<details class="plan-fold plan-day-list" data-fold="list"' + (planFold.list || panel ? ' open' : '') + '><summary><b>' + esc(dayRows.length ? dayRows.length + ' item' + (dayRows.length === 1 ? '' : 's') : 'Nothing planned') + '</b><span class="hint">' + dayRows.filter(r => r.status === 'done').length + ' done · tap to ' + (planFold.list ? 'fold' : 'open') + ' the routines</span></summary>' + list + removedHtml + stoppedHtml + '</details>';
     const more = '<details class="plan-fold" data-fold="more"' + (planFold.more ? ' open' : '') + '><summary><b>Catalog, Future Ideas &amp; Notes</b><span class="hint">Add from suggestions or park an idea</span></summary>' + catalog + futureIdeasCard() + notes + '</details>';
-    return '<div class="plan-week-layout">' + weekBlock + planQuestCard(rewardReport(st,todayYmd())) + '</div><div class="cols2 plan-cards">' + families + claimHistoryCard(st, start, Object.fromEntries(days.filter(d => d <= todayYmd()).map(d => [d, perfectDay(st, d)]))) + '</div>' + dayBlock + dayList + more;
+    return '<div class="plan-week-layout">' + weekBlock + planQuestCard(rewardReport(st,todayYmd())) + '</div><div class="plan-cards">' + families + '</div>' + dayBlock + dayList + more;
   }
 
   /* ---------- family dashboards: read-only views of the existing records ---------- */
   let planCanvas = 'overview';
   const planFold = {list:false, more:false};
-  function planFamiliesCard(st, untouched){ return '<section class="panelcard plan-fams" data-feedback-id="plan-families" data-feedback-label="Families"><div class="ph"><h2>Families</h2><span class="hint">This week · done of planned</span></div><div class="plan-fam-grid">' + planFamilies(st).map(f => planFamilyTile(f.id,f.label,untouched || planUntouchedExamples(st),true)).join('') + '</div></section>'; }
+  /* Families by umbrella (V2.0 Phase 11): once groups carry an umbrella, each umbrella is a labelled band
+     in its colour with its families as tiles; before that, one grid as before. */
+  const UMBRELLAS = [['faith','Faith','faith'],['health','Health','fitness'],['home-care','Home Care','home'],['relationship','Relationship','care'],['career','Career','work'],['hobbies','Hobbies','interests']];
+  function planFamiliesCard(st, untouched){
+    const fams = planFamilies(st), ux = untouched || planUntouchedExamples(st), tile = f => planFamilyTile(f.id,f.label,ux,true), umb = id => (groupById(st,id) || {}).umbrella;
+    const banded = typeof structureV2Adopted === 'function' && structureV2Adopted(st) && fams.some(f => umb(f.id));
+    const body = banded ? UMBRELLAS.map(([key,label,tone]) => { const list = fams.filter(f => umb(f.id) === key); return list.length ? '<div class="umb-band" style="--category:' + categoryColor(tone) + ';--n:' + list.length + '"><p class="umb-h">' + esc(label) + '</p><div class="plan-fam-grid">' + list.map(tile).join('') + '</div></div>' : ''; }).join('') + (fams.some(f => !umb(f.id)) ? '<div class="umb-band" style="--n:' + fams.filter(f => !umb(f.id)).length + '"><p class="umb-h">Other</p><div class="plan-fam-grid">' + fams.filter(f => !umb(f.id)).map(tile).join('') + '</div></div>' : '')
+      : '<div class="plan-fam-grid">' + fams.map(tile).join('') + '</div>';
+    const wrapped = banded ? '<div class="umb-flow">' + body + '</div>' : body;
+    return '<section class="panelcard plan-fams wide" data-feedback-id="plan-families" data-feedback-label="Families"><div class="ph"><h2>Families</h2><span class="hint">This week · done of planned</span></div>' + wrapped + '</section>';
+  }
   /* Points claimed each day of the shown week, by the day the action happened. */
   function claimHistoryCard(st, start, perfect){
     const days = weekDays(start), by = new Map(days.map(d => [d, {pts:0, n:0}]));
-    for (const c of Object.values(st.rewards && st.rewards.claims || {})){ const b = by.get(c.date); if (b && !c.syntheticPreview){ b.pts += Number(c.amount) || 0; b.n++; } }
+    for (const c of Object.values(st.rewards && st.rewards.claims || {})){ const b = by.get(c.date); if (b && !c.syntheticPreview){ const bal = typeof claimBalance === 'function' ? claimBalance(c) : Number(c.amount) || 0; b.pts += c.unit === 'quarter-point' ? bal / 4 : bal; b.n++; } }
     const total = [...by.values()].reduce((a, b) => a + b.pts, 0), max = Math.max(1, ...[...by.values()].map(b => b.pts)), fmt = n => (Math.round(n * 10) / 10).toLocaleString();
     return '<section class="panelcard plan-claims" data-feedback-id="claim-history" data-feedback-label="Claims this week"><div class="ph"><h2>Claims This Week</h2><span class="hint">' + fmt(total) + ' pts</span></div><div class="claim-bars">' + days.map(d => { const b = by.get(d); return '<span class="claim-day' + (d === todayYmd() ? ' today' : '') + '" title="' + esc(medDate(d) + ': ' + fmt(b.pts) + ' pts from ' + b.n + ' action' + (b.n === 1 ? '' : 's')) + '"><i style="height:' + (b.pts ? Math.max(6, 100 * b.pts / max) : 0).toFixed(0) + '%"></i><small>' + esc(shortDay(d).slice(0, 3)) + (perfect && perfect[d] ? ' ✦' : '') + '</small><b>' + (b.pts ? fmt(b.pts) : '—') + '</b></span>'; }).join('') + '</div>' + (perfect ? perfectNote(perfect, days) : '') + '</section>';
   }
@@ -1896,7 +2004,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const rv = reviewFor(st, progStart);
     const review = '<section class="panelcard review" data-feedback-id="weekly-review" data-feedback-label="Weekly review"><h2>Weekly review</h2><label for="rv-worked">What worked?</label><textarea id="rv-worked" maxlength="600">' + esc(rv ? rv.worked : '') + '</textarea><label for="rv-harder">What made the routine harder?</label><textarea id="rv-harder" maxlength="600">' + esc(rv ? rv.harder : '') + '</textarea><label for="rv-adj">One adjustment for next week</label><textarea id="rv-adj" maxlength="300">' + esc(rv ? rv.adjustment : '') + '</textarea><div class="acts"><button class="save" data-act="saveReview" data-start="' + progStart + '" data-end="' + days[6] + '">Save review</button></div>' + (rv ? '<p class="hint">Saved ' + esc(new Date(rv.updatedAt).toLocaleString(undefined, { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' })) + '</p>' : '') + '</section>';
     const evidence = '<section class="panelcard" data-feedback-id="what-is-behind-each-chart" data-feedback-label="What is behind each chart"><h2>What is behind each chart</h2><p class="hint">Routine practice, comparisons and group consistency come from your entries on planned activities (hidden groups and untouched examples left out). Sleep timing and weight are your check-in values, as typed. The narrative names its inputs. Routine consistency uses the adopted rule shown above. It is separate from measured fitness and overall category grades. Imported observations are shown in Data.</p></section>';
-    return head + '<div class="cols2">' + practice + compare + '</div><div class="cols2">' + longer + cmpDays + '</div><div class="cols2">' + rankHtml + perGroup + '</div>' + words + '<div class="cols2">' + sleep + weight + '</div>' + review + evidence;
+    const extras = (nights.length ? sleep : '') + (weights.length ? weight : '');
+    return head + goalSuggestionCard() + '<div class="cols2">' + goalMarkersCard() + onPlanCard(st) + '</div><div class="cols2">' + rankHistoryCard(st) + sleepCreditWeeksCard(st) + '</div><div class="cols2">' + practice + compare + '</div><div class="cols2">' + longer + cmpDays + '</div><div class="cols2">' + (rk.rule ? rankHtml : '') + perGroup + '</div>' + words + (extras ? '<div class="cols2">' + extras + '</div>' : '') + review + evidence;
   }
 
   /* ---------- Collection ---------- */
@@ -1927,7 +2036,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const p=Workspace.energyBalance(S(),day),n=v=>Number.isFinite(v)?v.toLocaleString(undefined,{maximumFractionDigits:2})+' kcal':'Unavailable';
     return '<section class="panelcard" data-feedback-id="energy-balance" data-feedback-label="Energy balance"><div class="ph"><h2>Energy balance · '+esc(medDate(day))+'</h2><span class="chip quiet">'+(p.complete?'Coverage reviewed':'Provisional')+'</span></div><div class="byseries"><span>Food intake</span><span>'+n(p.food)+'</span><span>Resting energy</span><span>'+n(p.resting)+'</span><span>Active energy</span><span>'+n(p.active)+'</span><span>Intake − resting − active</span><span>'+n(p.balance)+'</span></div><p class="hint">'+esc(p.note)+' Workouts are already part of active energy and are not added again. This display earns no points. Automatic nutrition import and a calorie-deficit award remain pending.</p></section>';
   }
-  document.addEventListener('change',event=>{if(event.target.matches('#workspaceReview [data-evidence-id]')&&workspaceReview?.kind==='evidence'){workspaceReview.sourceIds=null;document.getElementById('workspaceReviewPreview').textContent='Selection changed. Review the selected evidence before confirming.';}});
+  document.addEventListener('change',event=>{if(event.target.matches('.daypick')&&/^\d{4}-\d{2}-\d{2}$/.test(event.target.value)){day=event.target.value;panel=null;upNextIndex=0;render();return;}if(event.target.matches('#workspaceReview [data-evidence-id]')&&workspaceReview?.kind==='evidence'){workspaceReview.sourceIds=null;document.getElementById('workspaceReviewPreview').textContent='Selection changed. Review the selected evidence before confirming.';}});
   function openClaimReview(id){
     const p=correctionPreview(S(),id);if(!p){toast('This claim is unavailable.');return;}
     const draft=cloneLocal(S()),r=p.unit==='quarter-point'?Workspace.applyCorrectionBatch(draft,p,'Reviewed correction batch'):{ok:!!reconcileRewardClaim(draft,id)};
@@ -2000,9 +2109,47 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       (pts ? '<p class="hint">Would earn <b>' + pts + ' pts</b> (preview; not scored yet)' + (eb.provisional ? ' · today is still provisional' : '') + '</p>' : eb.provisional ? '<p class="hint">Today is still provisional.</p>' : '') + '</div>';
   }
   // Checkpoint countdown (P8): Jan 7 2027 by default, counted to midnight Seattle time.
+  // Goals and checkpoints (V2.0 Phase 5). His numbers live in his settings; the form below sets them.
+  function goalsSetupHTML(st){
+    const g=goalsV2(st),v=x=>x===null||x===undefined?'':esc(String(x));
+    return '<details class="goal-setup"'+(g.startWeightLb?'':' open')+'><summary>'+(g.startWeightLb?'Edit goals':'Set your goals')+'</summary><div class="form">'+
+      '<div><label for="gStartW">Start weight (lb)</label><input id="gStartW" type="number" step="0.1" value="'+v(g.startWeightLb)+'"></div><div><label for="gStartD">Start date</label><input id="gStartD" type="date" value="'+v(g.startDate)+'"></div>'+
+      '<div><label for="gGoalW">Goal weight (lb)</label><input id="gGoalW" type="number" step="0.1" value="'+v(g.weightLb.jan7)+'"></div><div><label for="gGoalD">Goal date</label><input id="gGoalD" type="date" value="'+v(st.prefs.checkpoint||g.goalDate)+'"></div>'+
+      '<div><label for="gLongW">Long-term weight (lb)</label><input id="gLongW" type="number" step="0.1" value="'+v(g.weightLb.longTerm)+'"></div><div><label for="gHeight">Height (in)</label><input id="gHeight" type="number" step="0.5" value="'+v(g.heightIn)+'"></div>'+
+      '<div><label for="gDeficit">Daily deficit (kcal)</label><input id="gDeficit" type="number" step="25" value="'+v(g.deficit.daily)+'"></div><div><label for="gOnTrack">On track from (kcal)</label><input id="gOnTrack" type="number" step="25" value="'+v(g.deficit.onTrack)+'"></div>'+
+      '<div class="full acts"><button class="save" data-act="goalsSave">Save goals</button></div></div></details>';
+  }
+  function goalMarkersCard(){
+    const st=S(),g=goalsV2(st),tr=weightTrend(st),n=x=>Number.isFinite(x)?(Math.round(x*10)/10).toLocaleString():'—';
+    const weightRow=g.startWeightLb&&g.weightLb.jan7?(()=>{const lo=Math.min(g.weightLb.jan7,g.weightLb.longTerm||g.weightLb.jan7),hi=g.startWeightLb,now=tr?tr.latest:hi,pct=v=>Math.max(0,Math.min(100,100*(hi-v)/(hi-lo||1)));
+      return '<div class="goal-row"><div class="gr-h"><b>Weight</b><span>'+n(now)+' lb'+(tr?' <small class="dim">'+esc(medDate(tr.date))+'</small>':'')+'</span></div><div class="goal-bar" role="img" aria-label="'+esc('Weight '+n(now)+' lb; plan '+n(tr&&tr.pace)+'; goal '+g.weightLb.jan7)+'"><i style="width:'+pct(now).toFixed(1)+'%"></i>'+(tr?'<em title="Where the plan puts you today" style="left:'+pct(tr.pace).toFixed(1)+'%"></em>':'')+'<u title="Goal" style="left:'+pct(g.weightLb.jan7).toFixed(1)+'%"></u></div><div class="gr-f"><span>Start '+n(g.startWeightLb)+'</span><span>Goal · '+n(g.weightLb.jan7)+'</span><span>Long term · '+n(g.weightLb.longTerm)+'</span></div></div>';})():'';
+    const rows=goalTargets(st).map(t=>'<div class="goal-row small"><div class="gr-h"><b>'+esc(t.label)+'</b><span>'+(t.latest?n(t.latest.value)+' '+esc(t.unit)+' <small class="dim">'+esc(medDate(t.latest.date))+'</small>':'<span class="dim">No reading yet</span>')+'</span></div><div class="gr-f"><span>Goal date · '+(t.jan7===null?'after a first reading':n(t.jan7)+' '+esc(t.unit))+'</span><span>Long term · '+(t.longTerm===null?'—':n(t.longTerm)+' '+esc(t.unit))+'</span>'+(t.flag?'<span class="dim">'+esc(t.flag)+'</span>':'')+'</div></div>').join('');
+    return '<section class="panelcard goals-card" data-feedback-id="goals-v2" data-feedback-label="Goals"><div class="ph"><h2>Goals</h2><button type="button" class="info" data-act="info" aria-expanded="false" aria-controls="info-goals" aria-label="About goals">i</button></div><div class="info-pop" id="info-goals" hidden><p class="hint">Targets beyond weight and deficit come from research for your age, sex and height: '+GOAL_RULES_V2.map(r=>esc(r.label+' — '+r.source)).join('; ')+'. A baseline is your first reading after the start date.</p></div>'+weightRow+rows+goalsSetupHTML(st)+'</section>';
+  }
+  function checkpointsCard(){
+    const st=S(),today=todayYmd(),tr=weightTrend(st),g=goalsV2(st),n=x=>Number.isFinite(x)?(Math.round(x*10)/10).toLocaleString():'—';
+    const rows=checkpointsOf(st).map(c=>{const left=calendarDistance(today,c.date),pace=g.startWeightLb&&g.weightLb.jan7?weightPaceLb(st,c.date):null;
+      return '<li><span class="ck-name">'+esc(c.main?'Goal date':c.name)+'</span><span>'+esc(medDate(c.date))+'</span><span class="dim">'+(left>0?left+' days':left===0?'Today':'Passed')+'</span><span>'+(pace!==null?'Plan: '+n(pace)+' lb'+(tr&&left>=0?' · now '+n(tr.latest):''):'')+'</span>'+(c.main?'':'<button class="link" data-act="ckRemove" data-id="'+esc(c.id)+'" aria-label="Remove '+esc(c.name)+'">Remove</button>')+'</li>';}).join('');
+    return '<section class="panelcard" data-feedback-id="checkpoints" data-feedback-label="Checkpoints"><div class="ph"><h2>Checkpoints</h2></div><ul class="ck-list">'+rows+'</ul><div class="acts"><input id="ckName" placeholder="Thanksgiving, a party…" aria-label="Checkpoint name"><input id="ckNewDate" type="date" aria-label="Checkpoint date"><button data-act="ckAdd">Add</button></div></section>';
+  }
+  function goalSuggestionCard(){
+    const st=S(),sg=deficitSuggestion(st);if(!sg)return '';
+    return '<section class="panelcard suggest-card" data-feedback-id="goal-suggestion" data-feedback-label="Suggested target"><div class="ph"><h2>Suggested Target</h2><span class="hint">This week</span></div><p>You are '+Math.abs(Math.round(sg.vsPace*10)/10)+' lb '+(sg.reason==='behind'?'above':'below')+' the plan line. Daily deficit '+sg.from+' → <b>'+sg.to+' kcal</b>?</p><div class="acts"><button class="save" data-act="goalAccept" data-to="'+sg.to+'" data-week="'+esc(sg.week)+'">Accept</button><button data-act="goalDismiss" data-week="'+esc(sg.week)+'">Dismiss</button></div></section>';
+  }
+  function topStatsHTML(){
+    const st=S(),tr=weightTrend(st),g=goalsV2(st),today=todayYmd(),eb=wsTry('energyBalance',st,today),steps=relayedRecords(st,'steps').filter(r=>sourceLocalDay(r.start)===today&&r.unmapped?.healthAutoExport?.representation==='derived daily view').map(r=>r.value).filter(Number.isFinite);
+    const n=x=>(Math.round(x*10)/10).toLocaleString(),arrow=d=>d===null?'':d<-0.05?' ↓':d>0.05?' ↑':' →';
+    const parts=[];
+    if(tr)parts.push('<span title="Latest weight, change since your start and over the last week"><b>'+n(tr.latest)+' lb</b>'+(g.startWeightLb?' <span class="dim">'+(tr.latest-g.startWeightLb<=0?'−':'+')+n(Math.abs(tr.latest-g.startWeightLb))+'</span>':'')+arrow(tr.week)+'</span>');
+    if(steps.length)parts.push('<span title="Steps today"><b>'+Math.max(...steps).toLocaleString()+'</b> steps</span>');
+    if(eb&&eb.available)parts.push('<span title="Food − resting − active today"><b>'+Math.round(-eb.balance).toLocaleString()+'</b> kcal '+(eb.balance<=0?'deficit':'surplus')+'</span>');
+    return parts.join('');
+  }
   function checkpointCard(){
-    const cp = S().prefs.checkpoint || '2027-01-07', left = calendarDistance(todayYmd(), cp);
-    return '<section class="panelcard" data-feedback-id="checkpoint" data-feedback-label="Checkpoint"><div class="ph"><h2>Checkpoint</h2><span class="hint">' + esc(medDate(cp)) + '</span></div><p class="big">' + (left > 0 ? left + ' <small class="dim">days to go</small>' : left === 0 ? 'Today' : 'Passed') + '</p><p class="hint">A review point, not a promised result.</p></section>';
+    const st = S(), cp = nextCheckpoint(st), g = goalsV2(st), tr = weightTrend(st);
+    if (!cp) return '';
+    const left = calendarDistance(todayYmd(), cp.date), pace = weightPaceLb(st, cp.date), n = x => (Math.round(x * 10) / 10).toLocaleString();
+    return '<section class="panelcard" data-feedback-id="checkpoint" data-feedback-label="Checkpoint"><div class="ph"><h2>' + esc(cp.main ? 'Checkpoint' : cp.name) + '</h2><span class="hint">' + esc(medDate(cp.date)) + '</span></div><p class="big">' + (left > 0 ? left + ' <small class="dim">days to go</small>' : 'Today') + '</p>' + (pace !== null ? '<p class="hint">Plan for that day: ' + n(pace) + ' lb' + (tr ? ' · now ' + n(tr.latest) + ' lb' : '') + (g.weightLb.jan7 ? ' · goal ' + n(g.weightLb.jan7) + ' lb' : '') + '</p>' : '<p class="hint">Set your goals in Profile to see the plan for this date.</p>') + '</section>';
   }
   function templateShelf(){
     const st = S(), list = templatesOf(st), groups = visibleGroups(st), gname = id => (groups.find(g => g.id === id) || {}).name || 'Category';
@@ -2039,7 +2186,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
 
   function futureIdeasCard(){return '<section class="panelcard"><h2>Future ideas</h2><p class="hint">Keep a possibility here until you choose its schedule. Ideas earn no action points.</p><label for="future-idea">An activity to consider</label><input id="future-idea" maxlength="300"><button data-act="saveIdea">Save idea</button>'+S().planIdeas.filter(i=>i.status==='idea').map(i=>'<div class="crow"><span>'+esc(i.text)+'</span><button data-act="planIdea" data-idea="'+esc(i.id)+'">Shape a routine</button></div>').join('')+'</section>';}
   function learningCard(start){const report=weeklyLearning(S(),start),saved=S().learning.find(x=>x.start===start);return '<section class="panelcard"><h2>Weekly reflection and next step</h2><p>'+esc(report.text)+'</p><p class="hint">'+esc(medDate(start))+' – '+esc(medDate(addDays(start,6)))+'. Descriptive record coverage; no health prediction.</p><details><summary>Contributing confirmed actions</summary><p class="hint">'+esc(report.ids.join(', ')||'None yet')+'</p></details><label for="learning-text">One optional adjustment or reflection</label><textarea id="learning-text" maxlength="500">'+esc(saved&&saved.text||'')+'</textarea><label for="learning-date">Review again in the app (optional)</label><input id="learning-date" type="date" value="'+esc(saved&&saved.followUp||'')+'"><div class="acts">'+[['accepted','Save next step'],['modified','Save modification'],['declined','Decline'],['undone','Undo decision'],['followed-up','Record follow-up']].map(x=>'<button data-act="learningDecision" data-decision="'+x[0]+'" data-start="'+start+'">'+x[1]+'</button>').join('')+'</div>'+(saved?'<p class="hint">'+esc(saved.decision)+' · '+esc(new Date(saved.at).toLocaleString())+(saved.followUp?' · Review '+esc(saved.followUp):'')+'. Saved in this app; no reminder was scheduled.</p>':'')+'</section>';}
-  function coverageCard(){const from=addDays(todayYmd(),-29),to=todayYmd();return '<section class="panelcard"><h2>Source coverage</h2><p class="hint">Past 30 days. A recent import is not proof of a complete day. Source labels are supplied metadata; no account is verified as connected.</p><p class="hint">Days and rows count what these views can display, not what arrived: one day of minute buckets becomes one derived daily row, so a day of accepted buckets reads as 1 / 1. Held rows are counted separately and are excluded from every statistic until their hold is resolved.</p><table class="tbl"><thead><tr><th>Kind</th><th>Display days / rows</th><th>Newest sample / reported day</th><th>State</th></tr></thead><tbody>'+['steps','activeEnergy','restingHeartRate','workout','sleep','weight'].map(kind=>{const c=sourceCoverage(S(),kind,from,to);return '<tr><td>'+kind+'</td><td>'+c.days+' / '+c.count+'</td><td>'+esc(c.latest||'Unknown')+'</td><td>'+esc(c.conflicts?'Conflict · review required':!c.count?(c.held?pl(c.held,'imported row')+' held; see the feed panel':'No accessible records'):c.latest&&sourceLocalDay(c.latest)<to?'Snapshot through '+sourceLocalDay(c.latest)+(c.held?' · '+c.held+' held':''):'Records today · completeness unknown'+(c.held?' · '+c.held+' held':''))+'</td></tr>';}).join('')+'</tbody></table><p class="hint">Local starter JSON supports steps, active energy, resting heart rate and workouts. Relay JSON additionally supports weight and sleep. Health Auto Export daily-summary and workout CSV files are supported through local-file review. Daily sleep quantities appear under additional exported measurements; they are not sleep intervals. Direct account access remains unavailable.</p></section>';}
+  function coverageCard(){const from=addDays(todayYmd(),-29),to=todayYmd();return '<section class="panelcard" data-feedback-id="source-coverage" data-feedback-label="Source coverage"><h2>Source coverage</h2><p class="hint">Past 30 days. A recent import is not proof of a complete day. Source labels are supplied metadata; no account is verified as connected.</p><p class="hint">Days and rows count what these views can display, not what arrived: one day of minute buckets becomes one derived daily row, so a day of accepted buckets reads as 1 / 1. Held rows are counted separately and are excluded from every statistic until their hold is resolved.</p><table class="tbl"><thead><tr><th>Kind</th><th>Display days / rows</th><th>Newest sample / reported day</th><th>State</th></tr></thead><tbody>'+['steps','activeEnergy','restingHeartRate','workout','sleep','weight'].map(kind=>{const c=sourceCoverage(S(),kind,from,to);const kindName={steps:'Steps',activeEnergy:'Active Energy',restingHeartRate:'Resting Heart Rate',workout:'Workouts',sleep:'Sleep',weight:'Weight'}[kind]||kind,newest=!c.latest?'Unknown':/T00:00:00/.test(c.latest)?medDate(sourceLocalDay(c.latest)):dataWhen(c.latest);return '<tr><td>'+kindName+'</td><td>'+c.days+' / '+c.count+'</td><td title="'+esc(c.latest||'')+'">'+esc(newest)+'</td><td>'+esc(c.conflicts?'Conflict · review required':!c.count?(c.held?pl(c.held,'imported row')+' held; see the feed panel':'No accessible records'):c.latest&&sourceLocalDay(c.latest)<to?'Snapshot through '+medDate(sourceLocalDay(c.latest))+(c.held?' · '+c.held+' held':''):'Records today · completeness unknown'+(c.held?' · '+c.held+' held':''))+'</td></tr>';}).join('')+'</tbody></table><p class="hint">Local starter JSON supports steps, active energy, resting heart rate and workouts. Relay JSON additionally supports weight and sleep. Health Auto Export daily-summary and workout CSV files are supported through local-file review. Daily sleep quantities appear under additional exported measurements; they are not sleep intervals. Direct account access remains unavailable.</p></section>';}
   function mealLocationFields(f,id){return '<div><label for="fplace-'+id+'">Where</label><select id="fplace-'+id+'">'+['unknown','home','away'].map(v=>'<option value="'+v+'" '+(f&&f.location===v?'selected':'')+'>'+v+'</option>').join('')+'</select></div><label><input id="fapprox-'+id+'" type="checkbox" '+(f&&f.timePrecision==='approximate'?'checked':'')+'> Approximate time</label>';}
   function logLinksCard(){const st=S(),rows=flatPlanFor(st,day).filter(r=>!r.demo);return '<section class="panelcard"><h2>Link details to an action</h2><p class="hint">One meal or workout can describe one action. Linking detail never confirms it or adds points.</p>'+[['food',foodsOn(st,day)],['movement',workoutsOn(st,day)]].map(([kind,list])=>list.map(record=>'<div class="row compact"><label for="link-'+record.id+'">'+esc(record.label||record.type)+'</label><select id="link-'+record.id+'"><option value="">No linked action</option>'+rows.filter(r=>r.group===(kind==='food'?'food':'fitness')).map(r=>'<option value="'+r.key+'" '+(record.actionId===r.key?'selected':'')+'>'+esc(r.name)+'</option>').join('')+'</select><button data-act="linkLog" data-kind="'+kind+'" data-record="'+record.id+'">Save link</button>'+(kind==='food'?'<p class="hint">'+esc(record.location||'unknown')+' · '+esc(record.timePrecision||'exact')+' time; no nutritional inference.</p>':'<label for="strength-'+record.id+'">Sets, reps, load or other detail (optional)</label><textarea id="strength-'+record.id+'" maxlength="600">'+esc(record.strengthDetail||'')+'</textarea><button data-act="strengthDetail" data-record="'+record.id+'">Save movement detail</button>')+'</div>').join('')).join('')+'</section>';}
   function duplicateActionCard(){
@@ -2136,6 +2283,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       card.dataset.feedbackLabel = 'Activity card';
     });
     document.querySelectorAll('#main [data-feedback-id]').forEach(card => {
+      if (card.querySelector(':scope > .card-feedback')) return; // once per card, however often it runs
       const draft = (S().feedbackDrafts || []).find(d => d.cardId === card.dataset.feedbackId && d.status === 'draft');
       const footer = document.createElement('div'); footer.className = 'card-feedback';
       const button = document.createElement('button'); button.className = 'ghost'; button.dataset.act = 'openFeedback';
@@ -2194,13 +2342,23 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const brief = '<section class="panelcard"><h2>Take your ideas to the next update</h2><p class="hint">Review the exact text below, then copy it into a Codex or Claude conversation yourself. It includes your open suggestion text and app areas. Journal entries, health readings and food logs are not added. Nothing is sent automatically.</p><label for="briefOut">Review the improvement brief</label><textarea id="briefOut" readonly rows="10">' + esc(buildBrief(st,todayYmd())) + '</textarea><div class="acts"><button class="save" data-act="copyBrief">Copy improvement brief</button></div><p class="hint">After an update, check the result here and mark the suggestion resolved yourself.</p></section>';
     const drafts = (st.feedbackDrafts || []).filter(d => d.status === 'draft');
     const privateDrafts = '<section class="panelcard"><h2>Private card drafts</h2><p class="hint">These are not approved suggestions and are not included in the brief. Review a draft and choose Add to Lessons when it is ready.</p>' + (drafts.length ? drafts.map(d => '<div class="row compact"><h3>' + esc(d.cardLabel) + '</h3><p class="hint">' + esc(d.area) + '</p><p class="lesson-text">' + esc(d.text || '(Empty draft)') + '</p><button class="ghost" data-act="reviewFeedback" data-draft="' + esc(d.id) + '">Review draft</button></div>').join('') : '<p class="hint">Use Add a note on any main card to start a draft.</p>') + '</section>';
-    return (preview ? '<div class="notice">Synthetic preview: suggestions and drafts here reset on refresh.</div>' : '') + '<div class="cols2">' + compose + history + '</div>' + privateDrafts + brief;
+    return (preview ? '<div class="notice">Synthetic preview: suggestions and drafts here reset on refresh.</div>' : '') + '<div class="cols2">' + compose + '<div class="stack">' + history + privateDrafts + '</div></div>' + brief;
   }
 
   /* ---------- Settings ---------- */
   // Number keys follow the sidebar, so reordering it can never leave the keyboard map behind. Lessons has no number.
   function keyAreas(){ return [...document.querySelectorAll('.nav button[data-area]')].map(b => b.dataset.area).filter(a => a !== 'lessons'); }
 
+  // Points table (V2.0): every value Mintay may change, one form; a save starts a new table from a date.
+  const POINT_FIELDS=[['sleepTargetMin','Sleep target (hours)',60],['stepsTarget','Steps target',1],['waterTargetOz','Water target (fl oz)',1],['deficitFullKcal','Deficit for full credit (kcal)',1],['deficitOnTrackKcal','Deficit on track (kcal)',1],['sodaPct','Soda (points off each)',1],['sodaCapPct','Soda (most off)',1],['alcoholPct','Alcohol (points off each)',1],['alcoholCapPct','Alcohol (most off)',1],['perfectDayPct','Perfect day bonus (%)',1],['perfectWeekPct','Perfect week bonus (%)',1],['dailyCapPct','Daily cap (% of item points)',1]];
+  function pointsTableCard(){
+    const st=S();if(!st.rewards?.ruleStep5||typeof v5Rule!=='function')return '';
+    const t=v5Rule(st,todayYmd()),keep=t.ateOutKeepPct||[100,75,50,30];
+    return '<section class="panelcard points-card" data-feedback-id="points-table" data-feedback-label="Points"><div class="ph"><h2>Points</h2><span class="hint">Scoring V2 · table from '+esc(medDate(t.effectiveFrom||st.rewards.ruleStep5.effectiveFrom))+'</span></div><div class="form">'+
+      POINT_FIELDS.map(([k,l,unit])=>'<div><label for="pt-'+k+'">'+esc(l)+'</label><input id="pt-'+k+'" type="number" step="any" value="'+esc(String(unit===60?t[k]/60:t[k]))+'"></div>').join('')+
+      '<div class="full"><label for="pt-ateOut">Eating out keeps (% for 1, 2, 3 or more times)</label><input id="pt-ateOut" value="'+esc(keep.slice(1).join(', '))+'"></div>'+
+      '<div><label for="pt-from">Starts</label><input id="pt-from" type="date" value="'+esc(todayYmd())+'"></div><div class="acts"><button class="save" data-act="pointsSave">Save points table</button></div></div><p class="hint">Claimed points never change. The new table scores unclaimed days from its start date.</p></section>';
+  }
   function renderSettings(){
     const st = S();
     const dl = dayLabels();
@@ -2248,7 +2406,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
         '<p class="hint">Inbox folder on this Mac: <code>' + esc(nativeInfo.relay.path || '…/Application Support/HealthTracker/inbox') + '</code>. ' + nativeInfo.relay.inbox.length + ' waiting.</p>'
       : '<p class="hint">A Mac-app feature. In a browser there is no door and nothing listens; use the paste route in Data.</p>') + '</section>';
     const keys = '<section class="panelcard" data-feedback-id="keyboard" data-feedback-label="Keyboard" data-tidy="keep"><h2>Keyboard</h2><p class="hint">' + keyAreas().map((a,i) => '<b>' + (i === 9 ? 0 : i + 1) + '</b> ' + esc(TITLES[a][0])).join(' · ') + '</p><p class="hint"><b>D</b> marks the next action done · <b>/</b> writes a suggestion in Lessons · <b>Esc</b> closes a panel. Shortcuts pause while you type.</p></section>';
-    return (preview ? '<div class="notice"><strong>Preview workspace.</strong> Settings here change the demo only.</div>' : '') + '<div class="cols2">' + cats + goals + '</div><div class="cols2">' + sources + prefs + '</div><div class="cols2">' + notif + start + '</div><div class="cols2">' + rank + photo + '</div><div class="cols2">' + log + keys + '</div>' + gradeSettings() + ((!preview && store.quarantinedClaims()) ? '<section class="panelcard" data-feedback-id="set-aside-reward-ledger" data-feedback-label="Set-aside reward ledger"><h2>Set-aside reward ledger</h2><p class="hint">An unreadable reward ledger was preserved during recovery. Export it for private inspection; it is never restored automatically.</p><div class="acts"><button data-act="exportClaimQuarantine">Export set-aside reward ledger</button></div></section>' : '') + gpt + data;
+    return (typeof pointsTableCard === 'function' ? pointsTableCard() : '') + (preview ? '<div class="notice"><strong>Preview workspace.</strong> Settings here change the demo only.</div>' : '') + '<div class="cols2">' + cats + goals + '</div><div class="cols2">' + sources + prefs + '</div><div class="cols2">' + notif + start + '</div><div class="cols2">' + rank + photo + '</div><div class="cols2">' + log + keys + '</div>' + gradeSettings() + ((!preview && store.quarantinedClaims()) ? '<section class="panelcard" data-feedback-id="set-aside-reward-ledger" data-feedback-label="Set-aside reward ledger"><h2>Set-aside reward ledger</h2><p class="hint">An unreadable reward ledger was preserved during recovery. Export it for private inspection; it is never restored automatically.</p><div class="acts"><button data-act="exportClaimQuarantine">Export set-aside reward ledger</button></div></section>' : '') + gpt + data;
   }
 
   /* ---------- Daily Workspace candidate · projection contract v1 ---------- */
@@ -2317,12 +2475,13 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   }
   function ringQty(r){
     if (!r) return '—';
-    if (r.unit === 'minutes' && Number.isFinite(r.target)) return (Number(r.value) || 0) + '/' + r.target + ' min';
+    // A value short of the target never reads as the target: 44.9 of 45 shows 44.9, not 45.
+    if (r.unit === 'minutes' && Number.isFinite(r.target)){ const v = Number(r.value) || 0, shown = v < r.target && Math.round(v) >= r.target ? Math.floor(v * 10) / 10 : Math.round(v); return shown + '/' + r.target + ' min'; }
     if (r.unit === 'leaves' && Number.isFinite(r.target)) return (Number(r.value) || 0) + ' of ' + r.target + ' leaves';
     return '—';
   }
   /* ---------- Sleep (Mintay, 2026-09-23): one night per wake day, ring toward 8 hours asleep ---------- */
-  const SLEEP_GOAL_MIN=480;
+  const SLEEP_GOAL_MIN=480,SLEEP_POINTS_MIN=420;
   function sleepNights(st){
     const out=new Map();
     for(const r of relayedRecords(st,'sleep')){const m=r.unmapped&&r.unmapped.healthAutoExport;if(!m||m.representation!=='derived daily view'||!Number.isFinite(r.durationSec))continue;if(!out.has(m.day))out.set(m.day,{day:m.day,minutes:r.durationSec/60,start:r.start,end:r.end,stats:m.stats||{},source:r.sourceApp});}
@@ -2332,20 +2491,21 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function hm(min){const h=Math.floor(min/60),m=Math.round(min%60);return h+' h'+(m?' '+m+' min':'');}
   function sleepCard(date,opts={}){
     const st=S(),feed=st.autoFeed,off=feed&&feed.contract&&feed.contract.sleepMode!=='include';
-    const head='<section class="panelcard sleep-card" data-feedback-id="sleep" data-feedback-label="Sleep"><div class="ph"><h2>Sleep</h2><span class="hint">Night ending '+esc(medDate(date))+'</span></div>';
+    const head='<section class="panelcard sleep-card" data-feedback-id="sleep" data-feedback-label="'+(opts.fitness?'Sleep &amp; Recovery':'Sleep')+'"><div class="ph"><h2>'+(opts.fitness?'Sleep &amp; Recovery':'Sleep')+'</h2><span class="hint">Night ending '+esc(medDate(date))+'</span></div>';
     if(!feed)return head+'<p class="hint">Sleep appears here once Health Auto Export is connected.</p></section>';
     if(off)return head+'<p>Sleep has been left out of your feed so far. Bring it in to see your nights, stages and an 8-hour ring. Files already in your folder are read again; nothing else changes.</p><div class="acts"><button class="save" data-act="intakeIncludeSleep">Bring in sleep</button></div></section>';
-    const nights=sleepNights(st),n=nights.get(date),week=[];
-    for(let i=6;i>=0;i--){const d=addDays(date,-i);week.push({d,night:nights.get(d)});}
+    const nights=sleepNights(st),n=nights.get(date),week=[],span=opts.days&&opts.days.length>1?opts.days:null;
+    if(span)for(const d of span)week.push({d,night:nights.get(d)});else for(let i=6;i>=0;i--){const d=addDays(date,-i);week.push({d,night:nights.get(d)});}
     const pct=n?Math.min(1,n.minutes/SLEEP_GOAL_MIN):0,C=2*Math.PI*42;
     const ring='<svg viewBox="0 0 100 100" width="112" height="112" role="img" aria-label="'+(n?esc(hm(n.minutes))+' asleep of 8 hours':'No night recorded')+'"><circle cx="50" cy="50" r="42" fill="none" stroke="var(--line)" stroke-width="10"/><circle cx="50" cy="50" r="42" fill="none" stroke="#5b8fd6" stroke-width="10" stroke-linecap="round" stroke-dasharray="'+(C*pct).toFixed(1)+' '+C.toFixed(1)+'" transform="rotate(-90 50 50)"/><text x="50" y="50" text-anchor="middle" font-size="16" fill="var(--ink)">'+(n?(n.minutes/60).toFixed(1):'—')+'</text><text x="50" y="65" text-anchor="middle" font-size="9" fill="var(--muted)">of 8 h</text></svg>';
     const stages=n?['deep','core','rem','awake'].filter(k=>Number.isFinite(n.stats[k])&&n.stats[k]>0).map(k=>({k,h:n.stats[k]})):[];
     const tint={deep:'#2f4f9e',core:'#5b8fd6',rem:'#9cc4f0',awake:'#d9a066'},label=k=>k==='rem'?'REM':k[0].toUpperCase()+k.slice(1);
     const bar=stages.length?'<div class="sleep-stages" role="img" aria-label="Stages: '+esc(stages.map(x=>label(x.k)+' '+hm(x.h*60)).join(', '))+'">'+stages.map(x=>'<i style="flex:'+x.h+';background:'+tint[x.k]+'"></i>').join('')+'</div><p class="hint">'+stages.map(x=>'<span style="color:'+tint[x.k]+'">■</span> '+esc(label(x.k))+' '+esc(hm(x.h*60))).join(' · ')+'</p>':'';
     const max=Math.max(SLEEP_GOAL_MIN,...week.map(w=>w.night?w.night.minutes:0));
-    const bars='<div class="sleep-week" aria-label="Last seven nights">'+week.map(w=>'<div><span style="height:'+(w.night?Math.round(60*w.night.minutes/max):0)+'px'+(w.night&&w.night.minutes>=SLEEP_GOAL_MIN?';background:#5b8fd6':'')+'" title="'+esc(medDate(w.d)+': '+(w.night?hm(w.night.minutes):'no record'))+'"></span><small>'+esc(['✠','M','T','W','Th','F','S'][new Date(w.d+'T12:00:00').getDay()])+'</small></div>').join('')+'<em style="bottom:'+Math.round(60*SLEEP_GOAL_MIN/max)+'px"></em></div>';
+    const pts=m=>Math.min(100,Math.round(100*m/SLEEP_POINTS_MIN)),few=week.length<=14;
+    const bars='<div class="sleep-week'+(few?'':' dense')+'" aria-label="'+(span?'Nights in this range':'Last seven nights')+'">'+week.map(w=>'<div><span style="height:'+(w.night?Math.round(60*w.night.minutes/max):0)+'px'+(w.night&&w.night.minutes>=SLEEP_GOAL_MIN?';background:#5b8fd6':'')+'" title="'+esc(medDate(w.d)+': '+(w.night?hm(w.night.minutes)+' · '+pts(w.night.minutes)+'% of the 7-hour points target':'no record'))+'"></span>'+(few?'<small>'+esc(['✠','M','T','W','Th','F','S'][new Date(w.d+'T12:00:00').getDay()])+'</small>'+(opts.fitness&&week.length<=8?'<small class="pct">'+(w.night?pts(w.night.minutes)+'%':'—')+'</small>':''):'')+'</div>').join('')+'<em style="bottom:'+Math.round(60*SLEEP_GOAL_MIN/max)+'px"></em></div>';
     const recorded=week.filter(w=>w.night),avg=recorded.length?recorded.reduce((a,w)=>a+w.night.minutes,0)/recorded.length:null;
-    return head+'<div class="sleep-grid"><div>'+ring+'</div><div>'+(n?'<p><b>'+esc(hm(n.minutes))+'</b> asleep · '+esc(clockOf(n.start))+' → '+esc(clockOf(n.end))+'</p><p class="hint">'+esc(n.source||'Health Auto Export')+'. A night counts on the day you woke up.</p>':'<p class="hint">No night recorded for this day yet. A missing night is unknown, not zero.</p>')+bar+'</div></div>'+bars+'<p class="hint">'+(avg!==null?'Average '+esc(hm(avg))+' over '+recorded.length+' recorded night'+(recorded.length===1?'':'s')+' this week.':'No nights recorded this week yet.')+'</p>'+(opts.fitness?sleepMore(st,date,n,week):'')+'</section>';
+    return head+(opts.fitness?recoveryBlock(st,date,nights):'')+'<div class="sleep-grid"><div>'+ring+'</div><div>'+(n?'<p><b>'+esc(hm(n.minutes))+'</b> asleep · '+esc(clockOf(n.start))+' → '+esc(clockOf(n.end))+(opts.fitness?' · '+pts(n.minutes)+'% of 7 h':'')+'</p><p class="hint">'+esc(n.source||'Health Auto Export')+'. A night counts on the day you woke up.</p>':'<p class="hint">No night recorded for this day yet. A missing night is unknown, not zero.</p>')+bar+'</div></div>'+bars+'<p class="hint">'+(avg!==null?'Average '+esc(hm(avg))+' over '+recorded.length+' recorded night'+(recorded.length===1?'':'s')+(span?' in this range':' this week')+'.':'No nights recorded '+(span?'in this range':'this week')+' yet.')+'</p>'+(opts.fitness?sleepCreditBlock(st,date,nights)+sleepMore(st,date,n,week.slice(-7)):'')+'</section>';
   }
   // Fitness keeps more of the night in view, in the spirit of Apple's sleep view: time in bed, the
   // times, breathing rate when the export has it, and the last seven nights as bedtime → wake bars.
@@ -2442,6 +2602,108 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const max=Math.max(goal||0,...values.map(v=>v||0),1),today=todayYmd();
     return '<div class="fit-chart" role="img" aria-label="'+esc(opts.label||'Chart')+'">'+(goal?'<em style="bottom:'+(100*goal/max).toFixed(1)+'%" title="Goal"></em>':'')+values.map((v,i)=>{const d=opts.days&&opts.days[i],t=esc(labels[i]+': '+(v?Math.round(v).toLocaleString():'no record'));return (d?'<button class="bar" data-act="fitDay" data-date="'+d+'" aria-label="'+t+'"':'<span class="bar"')+' style="height:'+(v?Math.max(3,100*v/max):2).toFixed(1)+'%;background:'+(v?(goal?perfColor(v/goal,{today:d===today||opts.today}):'#5b8fd6'):'var(--line)')+'" title="'+t+'">'+(d?'</button>':'</span>');}).join('')+'</div><div class="fit-axis">'+labels.map((l,i)=>'<span>'+(opts.every&&i%opts.every?'':esc(l))+'</span>').join('')+'</div>';
   }
+  /* Sleep Credit (V2.0 Fitness): the week's running balance against 7 h a night, night by night from
+     Monday, with the two lines that set the week bonus — full credit within 4.9 h of debt, none at 14 h.
+     The same ScoringV5.sleepCredit the week bonus pays from; a missing night leaves the rest unknown. */
+  function sleepCreditBlock(st,date,nights){
+    if(typeof ScoringV5==='undefined')return '';
+    const table=(typeof v5Rule==='function'&&v5Rule(st,date))||ScoringV5.table(null),sc=table.sleepCredit,mon=weekStartOf(date,1),list=[];
+    for(let d=mon;d<=addDays(mon,6);d=addDays(d,1))list.push({date:d,minutes:d<=date&&nights.get(d)?Math.round(nights.get(d).minutes):null,future:d>date});
+    const bal=[];for(let i=0;i<7;i++){if(list[i].future){bal.push(null);continue;}const r=ScoringV5.sleepCredit(list.slice(0,i+1),table);bal.push(r.balanceMin);}
+    const upTo=list.filter(x=>!x.future),now=ScoringV5.sleepCredit(upTo,table),pct=now.credit?ScoringV5.percent(now.credit):null;
+    const W=280,y0=30,k=50/sc.zeroDebtMin,y=b=>Math.max(4,Math.min(84,y0-b*k)),cw=W/7;
+    let svg='<svg viewBox="0 0 '+W+' 100" class="credit-svg" role="img" aria-label="Sleep Credit balance by night this week">';
+    svg+='<line x1="0" x2="'+W+'" y1="'+y0+'" y2="'+y0+'" stroke="var(--line-strong)"/><line x1="0" x2="'+W+'" y1="'+y(-sc.fullDebtMin)+'" y2="'+y(-sc.fullDebtMin)+'" stroke="#3fae6b" stroke-dasharray="3 3"/><line x1="0" x2="'+W+'" y1="'+y(-sc.zeroDebtMin)+'" y2="'+y(-sc.zeroDebtMin)+'" stroke="#c0392b" stroke-dasharray="3 3"/>';
+    bal.forEach((b,i)=>{const x=i*cw+cw*.2,w=cw*.6;if(b===null){svg+='<rect x="'+x+'" y="'+(y0-1)+'" width="'+w+'" height="2" fill="var(--line)"/>';}else{const top=Math.min(y0,y(b)),h=Math.max(2,Math.abs(y(b)-y0));svg+='<rect x="'+x+'" y="'+top+'" width="'+w+'" height="'+h+'" rx="2" fill="'+(b>=0?'#5b8fd6':perfColor(1-Math.max(0,-b-sc.fullDebtMin)/(sc.zeroDebtMin-sc.fullDebtMin)))+'"><title>'+esc(medDate(list[i].date)+': '+(b>=0?'+':'−')+hm(Math.abs(b)))+'</title></rect>';}
+      svg+='<text x="'+(i*cw+cw/2)+'" y="97" text-anchor="middle" font-size="9" fill="var(--muted)">'+['M','T','W','Th','F','S','✠'][i]+'</text>';});
+    svg+='</svg>';
+    const b=now.balanceMin,line=b===null?'A night is missing this week, so the credit is unknown until it arrives.':(b>=0?'Banked '+hm(b):'Behind '+hm(-b))+' against 7 h a night'+(pct!==null?' · credit '+pct+'%'+(upTo.length<7?' so far':''):'');
+    return '<div class="credit"><p class="cap">Sleep Credit · week of '+esc(medDate(mon))+'</p>'+svg+'<p class="hint">'+esc(line)+'. <span style="color:#3fae6b">- -</span> full credit · <span style="color:#c0392b">- -</span> none.</p></div>';
+  }
+  /* Recovery (V2.0 Fitness), an estimate for the eye only — it never scores. Each input is read against
+     your own typical value from the 28 days before: HRV above it and resting heart rate below it help,
+     a full night helps, and breathing well above typical pulls it down. 70 is an ordinary day. */
+  function recoveryEstimate(st,date,nights){
+    const from=addDays(date,-28),before=addDays(date,-1),med=a=>{const v=a.slice().sort((x,y)=>x-y),m=v.length>>1;return v.length%2?v[m]:(v[m-1]+v[m])/2;};
+    const read=(metrics,kinds)=>{const now=metricDaily(st,metrics,kinds,before,date),base=[...metricDaily(st,metrics,kinds,from,before).entries()].filter(([d])=>d<date).map(([,v])=>v);const v=now.get(date)??now.get(before);return Number.isFinite(v)&&base.length>=5?{v,base:med(base)}:null;};
+    const clamp=x=>Math.max(0,Math.min(100,x)),parts=[];
+    const hrv=read(['heart_rate_variability'],['other']);if(hrv)parts.push({label:'HRV',w:35,score:clamp(70+30*(hrv.v/hrv.base-1)/0.2),text:Math.round(hrv.v)+' ms · typical '+Math.round(hrv.base)});
+    const rhr=read(['resting_heart_rate'],['restingHeartRate']);if(rhr)parts.push({label:'Resting HR',w:25,score:clamp(70+30*(rhr.base-rhr.v)/(0.1*rhr.base)),text:Math.round(rhr.v)+' bpm · typical '+Math.round(rhr.base)});
+    const night=nights.get(date);if(night)parts.push({label:'Sleep',w:30,score:clamp(100*night.minutes/SLEEP_GOAL_MIN),text:hm(night.minutes)});
+    const rr=read(['respiratory_rate'],['other']);if(rr)parts.push({label:'Breathing',w:10,score:clamp(80-20*Math.max(0,rr.v-rr.base-0.5)),text:rr.v.toFixed(1)+' /min · typical '+rr.base.toFixed(1)});
+    if(parts.length<2)return null;
+    return {score:Math.round(parts.reduce((n,p)=>n+p.w*p.score,0)/parts.reduce((n,p)=>n+p.w,0)),parts};
+  }
+  function recoveryBlock(st,date,nights){
+    let r=null;try{r=recoveryEstimate(st,date,nights);}catch(_){return '';}
+    if(!r)return '<p class="hint recov-none">Recovery appears once HRV or resting heart rate has a few weeks of readings beside your sleep.</p>';
+    const tone=perfColor(r.score/80),C=2*Math.PI*20;
+    return '<div class="recov"><svg viewBox="0 0 50 50" width="54" height="54" aria-hidden="true"><circle cx="25" cy="25" r="20" fill="none" stroke="var(--line)" stroke-width="5"/><circle cx="25" cy="25" r="20" fill="none" stroke="'+tone+'" stroke-width="5" stroke-linecap="round" stroke-dasharray="'+(C*r.score/100).toFixed(1)+' '+C.toFixed(1)+'" transform="rotate(-90 25 25)"/><text x="25" y="29" text-anchor="middle" font-size="13" fill="var(--ink)">'+r.score+'</text></svg><div><p><b>Recovery ≈ '+r.score+'</b> <span class="hint">estimate</span></p><p class="hint">'+r.parts.map(p=>esc(p.label+' '+p.text)).join(' · ')+'</p></div>'+
+      '<button type="button" class="info" data-act="info" aria-expanded="false" aria-controls="info-recov" aria-label="About Recovery">i</button><div class="info-pop" id="info-recov" hidden><p class="hint">An estimate for the eye, not a medical reading, and it never earns points. Each input is compared with your own typical value from the 28 days before: HRV above typical and resting heart rate below it raise the score, a full 8-hour night raises it, and breathing well above typical lowers it. 70 is an ordinary day. Inputs without enough history are left out.</p></div></div>';
+  }
+  /* Energy & Weight (V2.0 Fitness): each day's deficit against the daily target and the on-track line,
+     the week's total against target × 7, and body weight against the plan's line to the goal date. */
+  /* Weight against the plan line (V2.0): readings in the display unit, the dashed line from start weight
+     to the goal on the goal date. Shared by Fitness (Energy & Weight) and Progress (On the Plan). */
+  function weightPlanBlock(st,wFrom,last){
+    const u=st.prefs.units==='kg'?'kg':'lb',cv=lb=>u==='kg'?lb*0.45359237:lb;
+    const pts=weightHistory(st,wFrom,last,u).filter(w=>Number.isFinite(w.weight)),pace=[wFrom,last].map(d=>weightPaceLb(st,d)),tr=weightTrend(st,last);
+    let weight='<p class="hint">No body weight in this range.</p>';const g=goalsV2(st);
+    if(pts.length){
+      const ys=pts.map(p=>p.weight).concat(pace.filter(Number.isFinite).map(cv)),lo=Math.min(...ys)-1,hi=Math.max(...ys)+1,span=Math.max(1,calendarDistance(wFrom,last)),W=300,H=110;
+      const X=d=>8+(W-16)*calendarDistance(wFrom,d)/span,Y=v=>8+(H-24)*(hi-v)/((hi-lo)||1);
+      let svg='<svg viewBox="0 0 '+W+' '+H+'" class="wt-svg" role="img" aria-label="Weight against the plan line">';
+      if(pace.every(Number.isFinite))svg+='<line x1="'+X(wFrom)+'" y1="'+Y(cv(pace[0]))+'" x2="'+X(last)+'" y2="'+Y(cv(pace[1]))+'" stroke="#3fae6b" stroke-width="1.5" stroke-dasharray="5 4"/>';
+      svg+='<polyline fill="none" stroke="var(--ink)" stroke-width="1.5" points="'+pts.map(p=>X(p.date).toFixed(1)+','+Y(p.weight).toFixed(1)).join(' ')+'"/>'+pts.map(p=>'<circle cx="'+X(p.date).toFixed(1)+'" cy="'+Y(p.weight).toFixed(1)+'" r="2.5" fill="var(--ink)"><title>'+esc(medDate(p.date)+': '+p.weight.toFixed(1)+' '+u)+'</title></circle>').join('');
+      svg+='<text x="8" y="'+(H-4)+'" font-size="9" fill="var(--faint)">'+esc(medDate(wFrom))+'</text><text x="'+(W-8)+'" y="'+(H-4)+'" font-size="9" text-anchor="end" fill="var(--faint)">'+esc(medDate(last))+'</text></svg>';
+      const n=x=>(Math.round(x*10)/10).toFixed(1);
+      weight=svg+'<p class="hint">'+(tr?'<b>'+n(cv(tr.latest))+' '+u+'</b> '+esc(medDate(tr.date)):'')+(tr&&tr.vsPace!==null?' · <span style="color:'+(tr.vsPace<=0?'#3fae6b':'#e0873a')+'">'+(tr.vsPace>0?'+':'')+n(cv(tr.vsPace))+' '+u+' '+(tr.vsPace>0?'above':'at or below')+' the plan</span>':'')+(pace[1]!==null?' · plan today '+n(cv(pace[1]))+' '+u+(g.weightLb.jan7?' → '+n(cv(g.weightLb.jan7))+' by '+esc(medDate(g.goalDate)):''):' · set your goals in Profile to draw the plan line')+'</p>';
+    }
+    return weight;
+  }
+  /* Progress (V2.0 Phase 11): weight against the plan since the start, deficit streaks, four weeks of
+     Sleep Credit and the section grades week by week. */
+  function deficitStreaks(st,to){
+    const g=goalsV2(st),from=g.startDate&&g.startDate<=to&&calendarDistance(g.startDate,to)<=180?g.startDate:addDays(to,-89),bal=Workspace.energyBalances?Workspace.energyBalances(st,from,to):new Map();
+    let run=0,best=0,current=null,hit=0,known=0;
+    for(let d=from;d<=to;d=addDays(d,1)){const e=bal.get(d);if(!e||!e.available){run=0;continue;}known++;if(-e.balance>=g.deficit.onTrack){run++;hit++;best=Math.max(best,run);}else run=0;}
+    current=run;return {from,current,best,hit,known,onTrack:g.deficit.onTrack};
+  }
+  function onPlanCard(st){
+    const t=todayYmd(),g=goalsV2(st),from=g.startDate&&g.startDate<t?(calendarDistance(g.startDate,t)>=14?g.startDate:addDays(t,-29)):addDays(t,-29),sk=deficitStreaks(st,addDays(t,-1));
+    const tile=(label,big,sub)=>'<div class="nut"><small>'+label+'</small><b>'+big+'</b><small>'+sub+'</small></div>';
+    return '<section class="panelcard on-plan" data-feedback-id="on-the-plan" data-feedback-label="On the plan"><div class="ph"><h2>On the Plan</h2><span class="hint">since '+esc(medDate(from))+'</span></div>'+weightPlanBlock(st,from,t)+
+      '<p class="cap" style="margin-top:12px">Deficit streaks · '+sk.onTrack+'+ kcal a day</p><div class="nut-grid">'+tile('Current',sk.current+' <small>days</small>','through yesterday')+tile('Best',sk.best+' <small>days</small>','since '+esc(medDate(sk.from)))+tile('On-track days',sk.hit+' <small>of '+sk.known+'</small>','days with food and energy')+'</div></section>';
+  }
+  function sleepCreditWeeksCard(st){
+    if(typeof ScoringV5==='undefined')return '';
+    const t=todayYmd(),nights=sleepNights(st),weeks=[];
+    for(let i=3;i>=0;i--){const mon=addDays(weekStartOf(t,1),-7*i),end=addDays(mon,6)<t?addDays(mon,6):t,list=[];for(let d=mon;d<=end;d=addDays(d,1))list.push({date:d,minutes:nights.get(d)?Math.round(nights.get(d).minutes):null});const table=(typeof v5Rule==='function'&&v5Rule(st,mon))||ScoringV5.table(null),sc=ScoringV5.sleepCredit(list,table),missing=list.filter(x=>x.minutes===null).length;weeks.push({mon,sc,missing,n:list.length});}
+    return '<section class="panelcard" data-feedback-id="sleep-credit-weeks" data-feedback-label="Sleep Credit by week"><div class="ph"><h2>Sleep Credit</h2><span class="hint">four weeks</span></div><div class="sc-weeks">'+weeks.map(w=>{const pct=w.sc.credit?ScoringV5.percent(w.sc.credit):null,b=w.sc.balanceMin;return '<div class="scw"><small>'+esc(monthDay(w.mon))+'</small><i class="rt-bar big"><i style="width:'+(pct===null?0:pct)+'%;background:'+(pct===null?'var(--line)':perfColor(pct/100))+'"></i></i><b>'+(pct===null?'—':pct+'%')+'</b><span class="hint">'+(b===null?w.missing+' night'+(w.missing===1?'':'s')+' missing':(b>=0?'banked ':'behind ')+hm(Math.abs(b)))+'</span></div>';}).join('')+'</div></section>';
+  }
+  function rankHistoryCard(st){
+    const t=todayYmd(),names={fitness:'Fitness',food:'Food & Hydration',care:'Personal Care',faith:'Faith',work:'Work & Learning',health:'Health',hygiene:'Hygiene',relationship:'Relationship',career:'Career'},weeks=[];
+    for(let i=3;i>=0;i--){const mon=addDays(weekStartOf(t,1),-7*i),to=i===0?addDays(t,-1):addDays(mon,6);const ps=st.rewards&&st.rewards.progression&&st.rewards.progression.effectiveFrom;if(to<mon||(ps&&to<ps)){weeks.push({mon,r:null});continue;}let r=null;try{r=overallRankReport(st,t,'range',{from:mon,to});}catch(_){r=null;}weeks.push({mon,r});}
+    const gids=(weeks.find(w=>w.r)||{r:{slots:[]}}).r.slots.map(x=>x.gid),cell=(r,gid)=>{const x=r&&r.slots.find(y=>y.gid===gid);return x&&x.letter?'<span class="rk" style="color:'+perfColor(x.pct/85)+'" title="'+Math.round(x.pct)+'%">'+x.letter+'</span>':'<span class="dim">—</span>';};
+    return '<section class="panelcard" data-feedback-id="rank-history" data-feedback-label="Rank history"><div class="ph"><h2>Rank History</h2><span class="hint">by section, week by week</span></div><div class="rank-hist" style="grid-template-columns:minmax(0,1.4fr) repeat('+weeks.length+',minmax(0,1fr))"><span></span>'+weeks.map(w=>'<span class="cap">'+esc(monthDay(w.mon))+'</span>').join('')+
+      '<b>Overall</b>'+weeks.map(w=>w.r&&w.r.letter?'<span class="rk big" style="color:'+perfColor(w.r.overall/85)+'">'+w.r.letter+'</span>':'<span class="dim">—</span>').join('')+
+      gids.map(g=>'<span>'+esc(names[g]||g)+'</span>'+weeks.map(w=>cell(w.r,g)).join('')).join('')+'</div></section>';
+  }
+  function energyWeightCard(st,first,last,days){
+    const g=goalsV2(st),target=g.deficit.daily,onTrack=g.deficit.onTrack,bal=Workspace.energyBalances?Workspace.energyBalances(st,first,last):new Map(),today=todayYmd();
+    const def=d=>{const e=bal.get(d);return e&&e.available?{v:Math.round(-e.balance),complete:e.complete}:null;};
+    const vals=days.map(def),max=Math.max(target*1.3,...vals.map(x=>x?x.v:0));
+    const chart='<div class="fit-chart def-chart" role="img" aria-label="Daily deficit against '+target+' kcal"><em style="bottom:'+(100*target/max).toFixed(1)+'%" title="Target"></em><em class="ontrack" style="bottom:'+(100*onTrack/max).toFixed(1)+'%" title="On track"></em>'+
+      vals.map((x,i)=>{const t=esc(medDate(days[i])+': '+(x?(x.v>=0?x.v.toLocaleString()+' kcal deficit':(-x.v).toLocaleString()+' kcal over')+(x.complete?'':' · provisional'):'no complete record'));return '<button class="bar'+(x&&!x.complete?' prov':'')+'" data-act="fitDay" data-date="'+days[i]+'" aria-label="'+t+'" title="'+t+'" style="height:'+(x?Math.max(3,100*Math.max(0,x.v)/max):2).toFixed(1)+'%;background:'+(!x?'var(--line)':x.v<0?'#c0392b':perfColor(x.v/target,{today:days[i]===today}))+'"></button>';}).join('')+
+      '</div>'+(days.length>1?'<div class="fit-axis">'+days.map((d,i)=>'<span>'+(days.length>14&&i%7?'':esc(new Date(d+'T12:00:00').toLocaleDateString(undefined,{weekday:'short'})))+'</span>').join('')+'</div>':'');
+    const mon=weekStartOf(last,1),wk=[];for(let d=mon;d<=last&&d<=addDays(mon,6);d=addDays(d,1))wk.push(d);
+    const wkBal=first<=mon?bal:(Workspace.energyBalances?Workspace.energyBalances(st,mon,last):new Map()),wkVals=wk.map(d=>{const e=wkBal.get(d);return e&&e.available?-e.balance:null;}).filter(v=>v!==null),wkSum=Math.round(wkVals.reduce((a,b)=>a+b,0));
+    const known=vals.filter(Boolean),avg=known.length?Math.round(known.reduce((a,x)=>a+x.v,0)/known.length):null;
+    const sum='<div class="fit-sum"><span><small>This week</small><b>'+(wkVals.length?wkSum.toLocaleString():'—')+'</b><small>of '+(target*7).toLocaleString()+' kcal</small></span><span><small>Daily average</small><b>'+(avg===null?'—':avg.toLocaleString())+'</b><small>target '+target+'</small></span><span><small>On-track days</small><b>'+known.filter(x=>x.v>=onTrack).length+' of '+days.length+'</b><small>'+onTrack+'+ kcal</small></span></div>';
+    const weight=weightPlanBlock(st,calendarDistance(first,last)>=29?first:addDays(last,-29),last);
+    return '<section class="panelcard fit-energy" data-feedback-id="fitness-energy" data-feedback-label="Energy &amp; Weight"><div class="ph"><h2>Energy &amp; Weight</h2></div><p class="cap">Deficit · target '+target+' kcal, on track '+onTrack+'</p>'+chart+sum+'<p class="cap" style="margin-top:14px">Weight · plan line to the goal</p>'+weight+
+      '<button type="button" class="info" data-act="info" aria-expanded="false" aria-controls="info-energy" aria-label="About Energy and Weight">i</button><div class="info-pop" id="info-energy" hidden><p class="hint">Deficit is resting plus active energy minus food, the same figure Nutrition scores. Faded bars are provisional: the day is not over or its coverage is not yet confirmed. Red means you ate more than you burned. The green dashed line runs from your start weight to your goal on the goal date; it is the plan, not a prediction.</p></div></section>';
+  }
   function fitnessCards(st,from,end){
     const today=todayYmd(),last=end>today?today:end,first=from>last?last:from,days=[];for(let d=first;d<=last;d=addDays(d,1))days.push(d);
     const thisWeek=weekStartOf(fitnessAnchor,(S().prefs.weekStart===0?0:1))===weekStartOf(today,(S().prefs.weekStart===0?0:1));
@@ -2465,14 +2727,14 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       chart=hours?barChart(hl,hours,null,{label:(fitMetric==='energy'?'Active energy':'Steps')+' by hour',every:6}):'<p class="hint">'+(fitMetric==='exercise'?'Workouts for this day are listed under Workouts.':'No minute-by-minute record for this day.')+'</p>';}
     else{const src=fitMetric==='energy'?energy:fitMetric==='exercise'?exercise:steps,vals=days.map(d=>src.get(d)),goal=FIT_GOALS[fitMetric],have=vals.filter(v=>v!==undefined&&v>0);
       chart=barChart(days.map(short),vals,goal,{label:fitMetric+' by day',days,every:days.length>14?7:0})+'<div class="fit-sum"><span><small>Average</small><b>'+(have.length?Math.round(have.reduce((a,b)=>a+b,0)/have.length).toLocaleString():'—')+'</b></span><span><small>Best</small><b>'+(have.length?Math.round(Math.max(...have)).toLocaleString():'—')+'</b></span><span><small>Goal days</small><b>'+vals.filter(v=>v>=goal).length+' of '+days.length+'</b></span></div>';}
-    const activity='<section class="panelcard fit-activity" data-feedback-id="fitness-activity" data-feedback-label="Activity"><div class="ph"><h2>Activity</h2></div><p class="hint">Tap a tile for its timeline: hours on a single day, days across a range. Bars are coloured against the goal — 12,000 steps, 1,000 kcal, 45 minutes — and a day’s bar opens that day.</p>'+tiles+chart+gradientKey()+'</section>';
-    const sleep=sleepCard(last,{fitness:true});
+    const activity='<section class="panelcard fit-activity" data-feedback-id="fitness-activity" data-feedback-label="Activity"><div class="ph"><h2>Activity</h2></div><p class="hint">Tap a tile for its timeline: hours on a single day, days across a range. Bars are coloured against the goal — 12,000 steps, 1,000 kcal, 45 minutes — and a day’s bar opens that day.</p>'+tiles+chart+gradientKey()+'@@WORKOUTS@@</section>';
+    const sleep=sleepCard(last,{fitness:true,days});
     const tag=w=>{const c=cls(w);return '<span class="glance-tag" style="--t:'+(c==='cardio'?'#6fb6e0':c==='strength'?'#c98fd8':'var(--muted)')+'">'+(c==='cardio'?'Cardio':c==='strength'?'Strength':c==='other'?'Other':'Choose in Activities')+'</span>';};
     const dots=(n,of,color)=>'<span class="glance-dots">'+Array.from({length:of},(_,i)=>'<i style="background:'+(i<n?color:'var(--line)')+'"></i>').join('')+'</span>';
-    const workouts='<section class="panelcard" data-feedback-id="fitness-workouts" data-feedback-label="Workouts"><div class="ph"><h2>Workouts</h2><span class="hint">'+Math.round(minutesBy('cardio')+minutesBy('strength'))+' min</span></div>'+
+    const workouts='<div class="fit-workouts" data-feedback-id="fitness-workouts" data-feedback-label="Workouts"><div class="ph"><h3>Workouts</h3><span class="hint">'+Math.round(minutesBy('cardio')+minutesBy('strength'))+' min</span></div>'+
       '<p class="fit-kpi">'+(weekly?'Cardio '+dots(cardioDays,4,'#6fb6e0')+' '+cardioDays+'/4 days · Strength '+dots(strengthDays,4,'#c98fd8')+' '+strengthDays+'/4':'Cardio '+cardioDays+' day'+(cardioDays===1?'':'s')+' · Strength '+strengthDays+' day'+(strengthDays===1?'':'s'))+'</p>'+
-      (wk.length?'<ul class="glance-list">'+wk.slice(0,12).map(w=>'<li><span>'+esc(short(w.date)+(()=>{const t=w.start&&!/^\d{1,2}:\d{2}$/.test(w.start)?new Date(w.start):null;return t&&!isNaN(t)?' '+t.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):w.start?' '+w.start:'';})())+'</span><b>'+esc(w.type)+'</b><span>'+(w.minutes===null?'—':Math.round(w.minutes)+' min')+'</span><span class="hint">'+esc(w.source||'')+(w.also?' · also '+esc(w.also.join(', ')):'')+'</span>'+tag(w)+'</li>').join('')+'</ul>':'<p class="hint">No workouts recorded '+(single?'this day':'in this range')+'.</p>')+'</section>';
-    return '<div class="cols2 fit-cards" data-feedback-id="fitness-glance" data-feedback-label="Fitness at a glance"><div class="fit-title wide"><h2>'+esc(label)+'</h2>'+(fitnessRange==='custom'&&first===last?'':'<span class="hint">'+esc(first===last?medDate(first):medDate(first)+' – '+medDate(last))+'</span>')+'</div>'+activity+sleep+workouts+vitalsCard(st,last)+'</div>';
+      (wk.length?'<ul class="glance-list">'+wk.slice(0,12).map(w=>'<li><span class="when">'+esc(short(w.date)+(()=>{const t=w.start&&!/^\d{1,2}:\d{2}$/.test(w.start)?new Date(w.start):null;return t&&!isNaN(t)?' '+t.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):w.start?' '+w.start:'';})())+'</span><b title="'+esc(w.source||'')+'">'+esc(w.type)+(w.also?' <small class="hint">· also '+esc(w.also.join(', '))+'</small>':'')+'</b><span>'+(w.minutes===null?'—':Math.round(w.minutes)+' min')+'</span>'+tag(w)+'</li>').join('')+'</ul>':'<p class="hint">No workouts recorded '+(single?'this day':'in this range')+'.</p>')+'</div>';
+    return '<div class="cols2 fit-cards" data-feedback-id="fitness-glance" data-feedback-label="Fitness at a glance"><div class="fit-title wide"><h2>'+esc(label)+'</h2>'+(fitnessRange==='custom'&&first===last?'':'<span class="hint">'+esc(first===last?medDate(first):medDate(first)+' – '+medDate(last))+'</span>')+'</div>'+activity.replace('@@WORKOUTS@@',workouts)+sleep+energyWeightCard(st,first,last,days)+vitalsCard(st,last)+'</div>';
   }
   const VITALS=[
     {label:'Resting heart rate',metrics:['resting_heart_rate'],kinds:['restingHeartRate'],unit:'bpm',digits:0,band:[50,70]},
@@ -2536,16 +2798,17 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
 
   function goalWindowLabel(w){ return !w ? 'No window' : (w.label || ((w.from || '?') + ' – ' + (w.to || '?'))); }
   function goalBoxes(g){
-    const days = Array.isArray(g.days) ? g.days : [];
+    const days = Array.isArray(g.days) ? g.days : [], today = todayYmd(), letter = d => ['✠','M','T','W','Th','F','S'][new Date(d + 'T12:00:00').getDay()];
     if (g.window && g.window.kind === 'rolling28' && g.window.from){
-      return '<span class="boxes" aria-hidden="true">' + [0,1,2,3].map(i => {
-        const s = addDays(g.window.from, i * 7), e = addDays(g.window.from, i * 7 + 6);
-        return '<i class="' + (days.some(d => d.date >= s && d.date <= e && (d.full || d.qualifying)) ? 'full' : '') + '" title="' + esc(s + ' – ' + e) + '"></i>';
-      }).join('') + '</span>';
+      // Church (V2.0): one box per Sunday in the window, with its date small.
+      const sundays = []; for (let d = g.window.from; d <= g.window.to; d = addDays(d, 1)) if (new Date(d + 'T12:00:00').getDay() === 0) sundays.push(d);
+      return '<span class="boxes sundays" aria-hidden="true">' + sundays.map(d => '<i class="' + (days.some(x => x.date === d && (x.full || x.qualifying)) ? 'full' : '') + (d === today ? ' today' : '') + '" title="' + esc(medDate(d)) + '"><small>' + (+d.slice(8)) + '</small></i>').join('') + '</span>';
     }
-    if (!days.length) return '';
-    return '<span class="boxes" aria-hidden="true">' + days.slice(0, 7).map(d =>
-      '<i class="' + (d.full ? 'full' : d.qualifying ? 'qual' : d.pending ? 'pend' : '') + '" title="' + esc(d.date) + '"></i>').join('') + '</span>';
+    const target = Number(g.kind === 'prayer' ? g.pairedTarget : g.target) || 0, done = Number(g.kind === 'prayer' ? g.full : g.qualifying) || 0;
+    const tboxes = target > 1 && target <= 10 ? '<span class="tboxes" aria-hidden="true">' + Array.from({length:target}, (_, i) => '<i class="' + (i < done ? 'full' : '') + '"></i>').join('') + '</span>' : '';
+    if (!days.length) return tboxes;
+    return tboxes + '<span class="boxes strip" aria-hidden="true">' + days.slice(0, 7).map(d =>
+      '<i class="' + (d.full ? 'full' : d.qualifying ? 'qual' : d.pending ? 'pend' : '') + (d.date === today ? ' today' : '') + '" title="' + esc(d.date) + '"><small>' + letter(d.date) + '</small></i>').join('') + '</span>';
   }
   function goalCard(g){
     const qual = Number(g.qualifying) || 0, full = Number(g.full) || 0, target = Number(g.target) || 0, pend = Number(g.pending) || 0;
@@ -2569,6 +2832,25 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     }
     workspaceDialog('<h2 id="workspaceReviewTitle" tabindex="-1">'+esc(g.title)+'</h2><p>'+esc(goalWindowLabel(g.window))+' · '+g.qualifying+'/'+g.target+' qualifying days · '+g.full+' at full target'+(g.kind==='prayer'?' · '+g.full+'/'+g.pairedTarget+' paired, '+g.additional+'/'+g.additionalTarget+' additional days':'')+'</p><p class="hint">These are the existing dated actions behind this goal. Opening one does not record or award it.</p><table class="tbl"><thead><tr><th>Date</th><th>Activities and recorded outcomes</th></tr></thead><tbody>'+entries.join('')+'</tbody></table><button data-act="wsReviewCancel">Close</button>');
   }
+  // Home Care in This Week (V2.0): Laundry, Trash Day and each room are one card with a box per item
+  // (Laundry: one box per load), instead of a card per chore.
+  function homeCareKey(g, date){
+    const st = S(), group = g.groupId;
+    if (!['laundry','cleaning','trash-day'].includes(group)) return null;
+    if (group !== 'cleaning') return group;
+    const s = st.series.find(x => x.id === (g.seriesIds || [])[0]), v = s && versionFor(s, date), parent = v && v.parentId && st.series.find(x => x.id === v.parentId), pv = parent && versionFor(parent, date);
+    return 'cleaning:' + (pv ? pv.name : 'Cleaning');
+  }
+  function homeCareCards(list, date){
+    const byKey = new Map();
+    for (const g of list){ const k = homeCareKey(g, date); if (!k) continue; if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(g); }
+    return [...byKey].map(([k, goals]) => {
+      const title = k === 'laundry' ? 'Laundry' : k === 'trash-day' ? 'Trash Day' : k.slice(9), groupId = goals[0].groupId;
+      const done = goals.reduce((n, g) => n + Math.min(Number(g.qualifying) || 0, Number(g.target) || 0), 0), total = goals.reduce((n, g) => n + (Number(g.target) || 0), 0);
+      const rows = goals.map(g => { const t = Number(g.target) || 0, q = Number(g.qualifying) || 0; return '<span class="hc-row"><span>' + esc(String(g.title || '').split(' · ')[0]) + '</span><span class="tboxes">' + Array.from({length:Math.max(1, t)}, (_, i) => '<i class="' + (i < q ? 'full' : '') + '"></i>').join('') + '</span></span>'; }).join('');
+      return '<button class="gcard hc-card' + (total && done >= total ? ' complete' : '') + '" style="--category:' + categoryColor(groupId) + ';border-top:3px solid var(--category)" data-act="wsOpenGoal" data-goal="' + esc(goals[0].id) + '" data-series="' + esc((goals[0].seriesIds || [])[0] || '') + '" data-date="' + esc(day) + '" aria-label="' + esc(title + ': ' + done + ' of ' + total + ' this week') + '"><span class="gt">' + esc(title) + '</span><span class="cnt">' + done + ' <small>of ' + total + '</small></span>' + rows + '</button>';
+    });
+  }
   function goalRailSection(date, options){
     if (!wsHas('goals')) return depCard('Workspace','goals','This week');
     const list = wsTry('goals', S(), date, options || {});
@@ -2576,7 +2858,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (!list.length) return '<section class="panelcard"><h2>This week</h2><p class="hint">No goal window covers ' + esc(medDate(date)) + ' yet. Flexible work appears here once its own window includes this day.</p></section>';
     return '<section class="panelcard ws-railwrap" data-feedback-id="weekly-goal-rail" data-feedback-label="This week goal rail">' +
       '<div class="ph"><h2>This week</h2><div class="railnav"><button data-act="railScroll" data-dir="-1" aria-label="Scroll goal cards left">‹</button><button data-act="railScroll" data-dir="1" aria-label="Scroll goal cards right">›</button></div></div>' +
-      '<div class="ws-rail" id="wsRail" role="group" aria-label="Goals covering this day">' + list.map(goalCard).join('') + '</div>' +
+      '<div class="ws-rail" id="wsRail" role="group" aria-label="Goals covering this day">' + homeCareCards(list, date).concat(list.filter(g => !homeCareKey(g, date)).map(goalCard)).join('') + '</div>' +
       '<p class="hint">Each card states its own window. Qualifying days and full-target days are counted separately, and reaching a card is recognition, not a claim.</p></section>';
   }
 
@@ -2789,7 +3071,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     let rows = wsTry('tree', st, day, options || {});
     if (!Array.isArray(rows)) return depCard('Workspace','tree','Direct entry and nested routines') + activitiesCard();
     const catching = typeof catchUpDate !== 'undefined' && catchUpDate === day && (!options || !options.groupId);
-    if (catching){ const open = r => { if (Array.isArray(r.children) && r.children.length){ r.children = r.children.filter(open); return r.children.length > 0; } return !['done','skipped'].includes(r.status) && !(r.occurrence && ['rest','excused'].includes(r.occurrence.disposition)) && !r.optional; }; rows = rows.filter(open); }
+    if (catching){ const open = r => { if (Array.isArray(r.children) && r.children.length){ r.children = r.children.filter(open); return r.children.length > 0; } return !['done','skipped'].includes(r.status) && !(r.occurrence && ['rest','excused'].includes(r.occurrence.disposition)); }; rows = rows.filter(open); }
     // Groups by the V2 card order; a retired group still shows on a day that has its items (V2.0).
     const v2 = typeof structureV2Adopted === 'function' && structureV2Adopted(st), order = id => { const i = typeof V2_CARD_ORDER !== 'undefined' ? V2_CARD_ORDER.indexOf(id) : -1; return i < 0 ? 99 : i; };
     const groups = groupsOf(st).filter(g => !g.hidden && (!options || !options.groupId || g.id === options.groupId) && (!g.retiredFrom || day < g.retiredFrom || rows.some(r => (r.group || r.groupId) === g.id))).sort((x, y) => (v2 ? order(x.id) - order(y.id) : 0));
@@ -2946,7 +3228,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     return '<details class="ws-policy"><summary>Continuity policy and recorded alternatives</summary><p><b>Candidate policy:</b> confirmed care leaves keep their exact shares; a partial instance restarts the full-instance chain. Pending evidence holds the continuity bonus until that instance is resolved.</p><p><b>Alternatives for your review:</b> partial work could hold the chain; a later confirmation could resume the pending bonus. Neither alternative is applied by this candidate. In the same invented mixed 90-day reference, totals are 4,740 under the candidate, 4,761 with partial holds, 4,758.25 with pending resumes, and 4,852.25 with both. These are sensitivity checks, not predictions.</p></details>';
   }
   const V2_CARD_ORDER=['faith','personal-health','fitness','food','health-mental','wellbeing','trash-day','laundry','cleaning','relationship','work','interests'];
-  let v2Draft={date:null,preview:null},catchUpDate=null;
+  let v2Draft={date:null,preview:null},catchUpDate=null,upNextIndex=0;
+  const upNextLater=new Set();
   // V2.0 structure (Phase 3): reviewed before anything changes, adopted from a chosen date, undoable.
   function structureV2Adopted(st){return (st.workspace?.migrations||[]).some(m=>m.status==='active'&&m.structureV2);}
   function structureV2Card(){
@@ -3008,11 +3291,38 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     return '<section class="panelcard" data-feedback-id="points-rule-review" data-feedback-label="Points rule review"><div class="ph"><h2>'+(activitiesAdopted(S())?'Updates to your activities':'Set up your agreed activities')+'</h2><span class="ws-badge">Review first</span></div><p>Installs the activities you agreed on — morning and night care, prayer, church, cardio, strength, 12,000 steps, meals, journaling and the weekly home tasks — matched to what is already here, with quarter-point scoring. Once set up, Apple Health workouts, steps and brushing check off their activities automatically and their points wait for you to claim. </p><p>'+ (rw.activeEpoch?'This candidate record uses quarter-point scoring from '+esc(rw.activeEpoch.effectiveFrom)+'.':'This record still uses its original scoring rule.')+' Level '+rw.level+' · '+rw.orbs+' points in its active scoring period.</p><p class="hint">Adoption changes only the open record. Existing claim rules and history remain intact; no past action is re-awarded.</p><label for="wsProposalDate">Proposal effective date</label><input id="wsProposalDate" type="date" value="'+esc(day)+'"><div class="acts"><button data-act="wsProposal">Show proposed activities</button><button data-act="wsMigrationPreview">Review what will change</button>'+(active?'<button data-act="wsRollbackPreview" data-migration="'+esc(active.id)+'">Review rollback</button>':'')+'</div>'+review+policyReviewHTML()+'<p class="hint">Calorie-deficit scoring remains pending. Body composition and category grades remain Unassessed.</p></section>';
   }
 
+  /* Church Calendar (V2.0 Phase 7): dates computed from the rules on ethiopianorthodox.org (Bahire Hasab for
+     Easter and the movable feasts); readings link to that month's table on the same site. The page stays
+     in season: the current fast or feast leads. */
+  function faithCalendarCard(date){
+    if (typeof EotcCalendar === 'undefined') return '';
+    const E = EotcCalendar, info = E.dayInfo(date), y = +date.slice(0,4), seasons = E.seasonsFor(y).concat(E.seasonsFor(y+1)), feasts = E.feastsFor(y).concat(E.feastsFor(y+1));
+    const now = seasons.filter(x => x.from <= date && x.to >= date), major = info.feasts.filter(f => f.kind !== 'monthly'), monthly = info.feasts.filter(f => f.kind === 'monthly');
+    const next = seasons.filter(x => x.from > date && x.to !== x.from).slice(0,1).concat(feasts.filter(f => f.date > date && f.kind === 'major').slice(0,3)).sort((a,b) => (a.from||a.date).localeCompare(b.from||b.date)).slice(0,4);
+    const eth = info.ethiopian.monthName + ' ' + info.ethiopian.day + ', ' + info.ethiopian.year + ' E.C.';
+    const lead = now.length ? '<p class="season-now"><b>' + esc(now[0].name) + '</b> · until ' + esc(medDate(now[0].to)) + '</p>' : major.length ? '<p class="season-now feast"><b>' + esc(major.map(f => f.name).join(' · ')) + '</b></p>' : '<p class="season-now quiet">' + (info.noFast ? 'No fasting (the fifty days after Easter)' : info.wedFriFast ? (info.weekday === 3 ? 'Wednesday fast' : 'Friday fast') : 'Ordinary time') + '</p>';
+    const plan = (typeof Workspace !== 'undefined' && Workspace.fastingSeasons) ? Workspace.fastingSeasons(S()) : [], missing = seasons.filter(x => x.required && x.from > date && x.from <= addDays(date, 365) && x.to !== x.from && !plan.some(p => p.from === x.from));
+    return '<section class="panelcard church-cal" data-feedback-id="church-calendar" data-feedback-label="Church Calendar"><div class="ph"><h2>Church Calendar</h2><span class="hint">' + esc(eth) + '</span></div>' + lead +
+      (monthly.length ? '<p class="hint">' + esc(monthly.map(f => f.name).join(' · ')) + '</p>' : '') +
+      '<p class="readings">Today’s readings: <a href="' + esc(info.readings.url) + '" target="_blank" rel="noopener">' + esc(info.readings.month) + ' readings</a>' + (info.readings.gitsaweUrl ? ' · <a href="' + esc(info.readings.gitsaweUrl) + '" target="_blank" rel="noopener">Gitsawe</a>' : '') + '</p>' +
+      (next.length ? '<ul class="cal-next">' + next.map(x => '<li><span>' + esc(x.name) + '</span><span class="dim">' + esc(medDate(x.from || x.date)) + '</span></li>').join('') + '</ul>' : '') +
+      (missing.length ? '<div class="acts"><button data-act="faithAddChurchFasts">Add the church’s fasts (' + missing.length + ') to Fasting</button></div>' : '') +
+      '<button type="button" class="info" data-act="info" aria-expanded="false" aria-controls="info-church" aria-label="About the calendar">i</button><div class="info-pop" id="info-church" hidden><p class="hint">Computed from the rules on ' + esc(E.SOURCE.title) + ' (' + esc(E.SOURCE.url) + ', retrieved ' + esc(E.SOURCE.retrieved) + '). Fasts required of all are added to your Fasting item as named seasons; Wednesday and Friday return after each.</p></div></section>';
+  }
+  /* Journal in Faith (V2.0): the day's readings, a general prompt, and prompts from his plan and day. */
+  function faithJournalCard(date){
+    const st = S(), info = typeof EotcCalendar !== 'undefined' ? EotcCalendar.dayInfo(date) : null, j = journalFor(st, date);
+    const general = ['What am I grateful for today?','Where did I see God’s help today?','What do I want to bring to prayer tonight?','What am I carrying that I can put down?','Who can I serve or thank tomorrow?'][new Date(date + 'T12:00:00').getDay() % 5];
+    const open = leafRows(planFor(st, date)).filter(r => !r.status && !r.optional).slice(0, 1)[0], fast = info && (info.fasts.length || info.wedFriFast);
+    const prompts = [general, fast ? 'How did the fast go, and what did it teach me?' : null, open ? 'What would help me with “' + open.name + '” tomorrow?' : null, info ? 'One line from today’s ' + info.readings.month + ' readings that stays with me.' : null].filter(Boolean);
+    return '<section class="panelcard faith-journal" data-feedback-id="faith-journal" data-feedback-label="Journal"><div class="ph"><h2>Journal</h2><span class="hint">' + esc(medDate(date)) + '</span></div><ul class="prompts">' + prompts.map(t => '<li>' + esc(t) + '</li>').join('') + '</ul>' +
+      '<label for="fj-reflection" class="sr-only">Reflection</label><textarea id="fj-reflection" rows="4" placeholder="Write freely. Private to this device.">' + esc(j.reflection || '') + '</textarea><div class="acts"><button class="save" data-act="faithJournalSave" data-date="' + esc(date) + '">Save entry</button></div></section>';
+  }
   function renderFaith(){
     const opts = { groupId:'faith' };
     const nav = '<div class="daynav"><button class="nav-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b>' + esc(longDate(day)) + '</b><button class="nav-btn" data-act="step" data-n="1" aria-label="Next day">›</button>' +
       (day !== todayYmd() ? '<button class="link" data-act="jumpToday">Back to today</button>' : '') + '</div>';
-    return nav + '<div class="cols2 faith-cols">' + faithWeekCard(day) + '<div>' + wsActivities(opts) + '</div></div>';
+    return nav + '<div class="cols2 faith-cols">' + faithWeekCard(day) + faithJournalCard(day) + '</div>' + wsActivities(opts);
   }
   /* Faith This Week (Mintay, 2026-09-24, Option A): one card instead of rings built for cardio and a
      rail of wordy goal cards. A 3 × 7 grid — morning prayer, night prayer, fast — then three small
@@ -3060,6 +3370,67 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   }
 
   /* ---------- render ---------- */
+  /* Right rail (V2.0 Phase 6): a constant strip — the next checkpoint and today's points — then what
+     belongs beside this page. Cards that used to sit at the top of a page move here, so the page leads
+     with its own work. Hidden with its button (remembered); below the content on a narrow window. */
+  function railHidden(){try{return localStorage.getItem('ht-rail-hidden')==='1';}catch(_){return false;}}
+  function todayPointsHTML(st){
+    let rw=null;try{rw=rewardReport(st,todayYmd());}catch(_){rw=null;}
+    if(!rw)return '';
+    const t=todayYmd(),pts=c=>(c.unit==='quarter-point'?(typeof claimBalance==='function'?claimBalance(c):c.amount)/4:(typeof claimBalance==='function'?claimBalance(c):c.amount));
+    const claimed=(rw.claims||[]).filter(c=>c.date===t).reduce((n,c)=>n+pts(c),0),waiting=(rw.pending||[]).filter(e=>e.date===t).reduce((n,e)=>n+pts(e),0),f=x=>(Math.round(x*100)/100).toLocaleString();
+    return '<div class="rs"><small>Today</small><b>'+f(claimed)+' <small>pts</small></b><span>'+(waiting?f(waiting)+' ready to claim':'nothing waiting')+'</span></div>';
+  }
+  function railStrip(st){
+    const cp=typeof nextCheckpoint==='function'?nextCheckpoint(st):null,left=cp?calendarDistance(todayYmd(),cp.date):null;
+    return '<div class="rail-strip">'+(cp?'<div class="rs"><small>'+esc(cp.main?'Goal date':cp.name)+'</small><b>'+(left>0?left+' <small>days</small>':'Today')+'</b><span>'+esc(medDate(cp.date))+'</span></div>':'')+todayPointsHTML(st)+'</div>';
+  }
+  function railTargets(st){
+    const t=todayYmd(),n=x=>Math.round(x).toLocaleString(),rows=[];
+    const steps=relayedRecords(st,'steps').filter(r=>sourceLocalDay(r.start)===t&&r.unmapped?.healthAutoExport?.representation==='derived daily view').map(r=>r.value).filter(Number.isFinite),s=steps.length?Math.max(...steps):0;
+    rows.push(['Steps',s>=12000?'Done':n(12000-s)+' to go',s/12000]);
+    const cls=r=>Workspace.workoutClass?Workspace.workoutClass(st,r.reference):null,cardio=workoutSessions(st,workoutHistory(st,t,t).filter(w=>w.origin==='relayed')).filter(w=>cls(w)==='cardio').reduce((a,w)=>a+(w.minutes||0),0);
+    rows.push(['Cardio',cardio>=45?'Done':n(45-cardio)+' min to go',cardio/45]);
+    const g=goalsV2(st),eb=wsTry('energyBalance',st,t);
+    if(eb&&eb.available){const d=-eb.balance;rows.push(['Deficit',d>=g.deficit.daily?'On target':n(g.deficit.daily-d)+' kcal to go',d/g.deficit.daily]);}else rows.push(['Deficit','Waiting for food and energy',0]);
+    const imp=typeof importedNutrition==='function'?importedNutrition(st,t).dietary_water:null,m=typeof MWmod==='function'?MWmod():null,man=m?m.waterSummary(st,t).manual.usFlOz||0:0,oz=man>0?man:imp?imp.value/29.5735295625:0,target=Math.max(60,Number(st.prefs.waterTargetOz)||100);
+    rows.push(['Water',oz>=target?'Done':n(target-oz)+' fl oz to go',oz/target]);
+    // Sleep Credit, one line: the week's balance so far (the chart lives in Sleep & Recovery).
+    if(typeof ScoringV5!=='undefined'){const table=(typeof v5Rule==='function'&&v5Rule(st,t))||ScoringV5.table(null),nights=sleepNights(st),list=[];for(let d=weekStartOf(t,1);d<=t;d=addDays(d,1))list.push({date:d,minutes:nights.get(d)?Math.round(nights.get(d).minutes):null});const sc=ScoringV5.sleepCredit(list,table);
+      rows.push(['Sleep',sc.balanceMin===null?'A night is missing':(sc.balanceMin>=0?'+':'−')+hm(Math.abs(sc.balanceMin))+' · '+ScoringV5.percent(sc.credit)+'%',sc.credit?sc.credit.n/sc.credit.d:0]);}
+    return '<section class="panelcard rail-card" data-feedback-id="rail-targets" data-feedback-label="Left today"><h2>Left Today</h2>'+rows.map(([k,v,r])=>'<div class="rt"><span>'+k+'</span><b>'+esc(v)+'</b><i class="rt-bar"><i style="width:'+Math.round(100*Math.max(0,Math.min(1,r||0)))+'%;background:'+perfColor(r,{today:true})+'"></i></i></div>').join('')+'</section>';
+  }
+  function railClaims(st){
+    let rw=null;try{rw=rewardReport(st,todayYmd());}catch(_){rw=null;}if(!rw)return '';
+    const pts=c=>(c.unit==='quarter-point'?claimBalance(c)/4:claimBalance(c)),recent=(rw.claims||[]).slice().sort((a,b)=>String(b.claimedAt||'').localeCompare(String(a.claimedAt||''))||b.date.localeCompare(a.date)).slice(0,6);
+    const within=Number.isFinite(rw.within)?rw.within:null,cost=Number.isFinite(rw.cost)?rw.cost:null;
+    return '<section class="panelcard rail-card" data-feedback-id="rail-level" data-feedback-label="Level"><h2>Level '+esc(String(rw.level))+'</h2>'+(within!==null&&cost?'<i class="rt-bar big"><i style="width:'+Math.round(100*within/cost)+'%;background:var(--brass)"></i></i><p class="hint">'+within+' of '+cost+' toward level '+(rw.level+1)+'</p>':'')+
+      (recent.length?'<p class="cap">Recent claims</p><ul class="rail-list">'+recent.map(c=>'<li><span>'+esc(c.name||c.seriesId||'Claim')+'</span><span class="dim">'+esc(medDate(c.date))+'</span><b>'+(Math.round(pts(c)*100)/100)+'</b></li>').join('')+'</ul>':'<p class="hint">No claims yet.</p>')+'</section>';
+  }
+  function railSources(st){
+    const rows=SOURCES.map(src=>{const x=sourceEvidenceSummary(st,src.id);return '<li><span>'+esc(src.name)+'</span><span class="dim">'+esc(x.lastSample?dataWhen(x.lastSample):'no data yet')+'</span></li>';}).join('');
+    const last=(st.importReceipts||[]).slice(-1)[0];
+    return '<section class="panelcard rail-card" data-feedback-id="rail-sources" data-feedback-label="Freshness"><h2>Freshness</h2><ul class="rail-list">'+rows+'</ul>'+(last?'<p class="cap">Last import</p><p class="hint keep">'+esc(dataWhen(last.at))+' · '+esc(last.transport||'')+(last.counts&&Number.isFinite(last.counts.added)?' · '+last.counts.added.toLocaleString()+' new':'')+'</p>':'')+'</section>';
+  }
+  function railBody(st){
+    if(area==='home')return templateShelf()+checkpointCard();
+    if(area==='faith')return faithCalendarCard(day);
+    if(area==='profile')return goalMarkersCard();
+    if(area==='fitness')return railTargets(st);
+    if(area==='progress')return checkpointsCard();
+    if(area==='plan'){const start=wkStart(weekSel),days=weekDays(start);return claimHistoryCard(st,start,Object.fromEntries(days.filter(d=>d<=todayYmd()).map(d=>[d,perfectDay(st,d)])));}
+    if(area==='collection'||area==='lessons')return railClaims(st);
+    if(area==='data'||area==='settings')return railSources(st);
+    return '';
+  }
+  function renderRail(){
+    const el=document.getElementById('ctxRail');if(!el)return;
+    const hidden=railHidden(),app=document.querySelector('.app');app.classList.toggle('railhidden',hidden);
+    if(hidden){el.innerHTML='';return;}
+    const st=S();let body='';try{body=railBody(st);}catch(e){body='';}
+    el.innerHTML='<div class="rail-head"><button class="ghostbtn" data-act="toggleRail" aria-expanded="true" aria-controls="ctxRail">Hide</button></div>'+railStrip(st)+body;
+    tidyCards(el);
+  }
   function render(){
     if(manualSaving){renderNotices();return;}
     if(preserveManualDraft&&unsavedForm){if($('#newNote'))feedbackText=noteDraft.text=$('#newNote').value;if($('#relayIn'))relayDraft=$('#relayIn').value;renderNotices();return;}
@@ -3069,19 +3440,23 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if ($('#relayIn')) relayDraft = $('#relayIn').value;
     if ($('#rl-from') && $('#rl-to')) relayDates = {from:$('#rl-from').value,to:$('#rl-to').value};
     recordViewHistory();
+    // Safari/WKWebView has no CSS scroll anchoring, so a tap on a long day jumped back to the top (V2.0).
+    const scroller = document.scrollingElement || document.documentElement, sameView = render.last && render.last.area === area && render.last.day === day, keepTop = sameView ? scroller.scrollTop : null; render.last = {area, day};
     applyTheme(); applyWallpaper();
     // One read-only index per draw: per-row scans of every occurrence happen once (V1.12 speed).
     const draw=f=>typeof withDrawMemo==='function'?withDrawMemo(S(),f):f();
     draw(()=>{renderHeader(); renderNotices();
     const sourceBadges=document.getElementById('conn');if(sourceBadges)document.getElementById('sidebarSources').append(sourceBadges);
-    $('#main').innerHTML = area === 'home' ? renderHome() : area === 'faith' ? renderFaith() : area === 'profile' ? profileCard() : area === 'fitness' ? renderData() : area === 'data' ? coverageCard()+renderData()+evidenceTasksCard()+energyBalanceCard() : area === 'plan' ? renderPlan() : area === 'log' ? renderLog()+logLinksCard()+actionLogCard()+duplicateActionCard()+waterCard()+mealLibraryCard() : area === 'progress' ? renderProgress()+learningCard(progStart) : area === 'collection' ? renderCollection()+scoringProposalCard() : area === 'lessons' ? renderLessons() : renderSettings();
+    $('#main').innerHTML = area === 'home' ? renderHome() : area === 'faith' ? renderFaith() : area === 'profile' ? profileCard() : area === 'fitness' ? renderData() : area === 'data' ? coverageCard()+renderData()+'<div class="cols2 data-pair">'+evidenceTasksCard()+energyBalanceCard()+'</div>'+'<details class="plan-fold all-entries"><summary><h2 style="display:inline">All Entries</h2> <span class="hint">Everything you logged, in one list (Log has left the sidebar)</span></summary>'+renderLog()+actionLogCard()+'</details>' : area === 'plan' ? renderPlan() : area === 'log' ? renderLog()+logLinksCard()+actionLogCard()+duplicateActionCard()+waterCard()+mealLibraryCard() : area === 'progress' ? renderProgress()+learningCard(progStart) : area === 'collection' ? renderCollection()+scoringProposalCard() : area === 'lessons' ? renderLessons() : renderSettings();
     });
+    draw(renderRail);
     $('#main').dataset.area = area;
     wsHierarchyRestore();
     if(!document.getElementById('viewNav')){const nav=document.createElement('div');nav.id='viewNav';nav.className='acts';document.querySelector('.topbar').append(nav);}
     document.getElementById('viewNav').innerHTML='<button data-act="viewBack" '+(viewIndex<=0?'disabled':'')+'>Back</button><button data-act="viewForward" '+(viewIndex>=viewHistory.length-1?'disabled':'')+'>Forward</button>';
     decorateFeedbackCards();
     tidyCards($('#main'));
+    if (keepTop !== null && scroller.scrollTop !== keepTop) scroller.scrollTop = keepTop;
     if ($('#relayIn')) $('#relayIn').value = relayDraft;
     if ($('#rl-from') && relayDates){ $('#rl-from').value = relayDates.from; $('#rl-to').value = relayDates.to; if ($('#relayExact')) $('#relayExact').textContent = relayPacket(S(),relayDates.from,relayDates.to); }
   }
@@ -3141,7 +3516,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function openRow(seriesId, date){if(!resolveDraftNavigation())return; planCanvas = 'overview'; if (area === 'home'){ day = date; panel = {kind:'day',key:occKey(seriesId,date)}; render(); focusFirst('.day-editor h2'); return; } area = 'plan'; weekSel = date; planGroup = 'all'; panel = { kind:'edit', key: occKey(seriesId, date) }; render(); const el = document.getElementById('row-' + occKey(seriesId, date).replace(/[^a-z0-9]/gi, '_')); if (el) el.scrollIntoView({ block:'start', behavior:'auto' }); }
 
   /* ---------- events ---------- */
-  const PENDING_ACTS=new Set(['toggleDone','done','log','notToday','exempt','unexcuse','claimOne','claimAll','claimDay','v5Adopt','reviewAction','saveDetail','applyUpdate','export']);
+  const PENDING_ACTS=new Set(['toggleDone','done','log','notToday','exempt','unexcuse','claimOne','claimAll','claimDay','v5Adopt','intakeScan','applyUpdate','catchUpStart','wsAdopt','v2Adopt','reviewAction','saveDetail','applyUpdate','export']);
   document.addEventListener('click', async e => {
     const btn = e.target.closest('button[data-act], button[data-area]');
     if (!btn) return;
@@ -3256,11 +3631,11 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if(act==='wsHierarchySave'){await wsHierarchySave();return;}
     if(act==='wsHierarchyCancel'){wsHierarchyClose(panel);return;}
     if (act === 'toggleSidebar'){
-      const app = document.querySelector('.app'), hidden = app.classList.toggle('sidehidden');
+      const app = document.querySelector('.app'), hidden = app.classList.toggle('sidehidden'); app.classList.remove('peeking');
       try { localStorage.setItem('ht-sidebar-hidden', hidden ? '1' : '0'); } catch(err){}
-      btn.textContent = hidden ? 'Show menu' : 'Hide menu';
-      btn.setAttribute('aria-expanded', String(!hidden));
-      btn.focus();
+      for (const id of ['sideToggle','sideHide','sidePeek']){ const b = document.getElementById(id); if (b) b.setAttribute('aria-expanded', String(!hidden)); }
+      $('#sideToggle').textContent = hidden ? 'Show menu' : 'Hide menu';
+      (hidden ? document.getElementById('sidePeek') : document.getElementById('sideHide')).focus();
       return;
     }
     if (act === 'wsToggleGroup'){
@@ -3362,6 +3737,28 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       toast((result.displayAmount ?? result.amount) + ' orb' + ((result.displayAmount ?? result.amount) === 1 ? '' : 's') + ' claimed for ' + medDate(d) + '.'); if (result.amount) orbFlight(launch); return;
     }
     if (act === 'nutInput'){ const d = btn.dataset.date, k = btn.dataset.k, cur = ((S().occurrences[occKey('v2-deficit', d)] || {}).measure || {}); const next = {ateOut:cur.ateOut||0, soda:cur.soda||0, alcohol:cur.alcohol||0}; next[k] = Math.max(0, (next[k] || 0) + Number(btn.dataset.d)); const r = await manualActionTransaction(st, dr => Workspace.setNutritionInputs(dr, d, next)); render(); if (!r.ok) toast('Not saved. ' + (r.error || '')); return; }
+    if (act === 'goalsSave'){ const num = id => { const v = document.getElementById(id)?.value; return v === '' || v == null ? null : Number(v); }, date = id => { const v = document.getElementById(id)?.value; return /^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : null; };
+      stage(st, 'pref'); const cur = st.prefs.goalsV2 || {}; st.prefs.goalsV2 = {...cur, startWeightLb:num('gStartW'), startDate:date('gStartD'), weightLb:{jan7:num('gGoalW'), longTerm:num('gLongW')}, heightIn:num('gHeight'), deficit:{daily:num('gDeficit') || 825, onTrack:num('gOnTrack') || 750}};
+      if (date('gGoalD')) st.prefs.checkpoint = date('gGoalD'); commit('pref', 'Goals saved.'); return; }
+    if (act === 'ckAdd'){ const name = (document.getElementById('ckName')?.value || '').trim().slice(0, 60), d = document.getElementById('ckNewDate')?.value; if (!name || !/^\d{4}-\d{2}-\d{2}$/.test(d || '')){ toast('Give the checkpoint a name and a date.'); return; }
+      stage(st, 'pref'); st.prefs.checkpoints = (Array.isArray(st.prefs.checkpoints) ? st.prefs.checkpoints : []).concat({id:'ck-' + Date.now().toString(36), name, date:d}); commit('pref', name + ' added.'); return; }
+    if (act === 'ckRemove'){ stage(st, 'pref'); st.prefs.checkpoints = (st.prefs.checkpoints || []).filter(c => c.id !== btn.dataset.id); commit('pref', 'Checkpoint removed.'); return; }
+    if (act === 'goalAccept'){ stage(st, 'pref'); const cur = st.prefs.goalsV2 || {}; st.prefs.goalsV2 = {...cur, deficit:{...(cur.deficit || {}), daily:Number(btn.dataset.to)}}; st.prefs.goalSuggestion = {...(st.prefs.goalSuggestion || {}), [btn.dataset.week]:'accepted'}; commit('pref', 'Daily deficit target is now ' + btn.dataset.to + ' kcal.'); return; }
+    if (act === 'goalDismiss'){ stage(st, 'pref'); st.prefs.goalSuggestion = {...(st.prefs.goalSuggestion || {}), [btn.dataset.week]:'dismissed'}; commit('pref', 'Kept your current target.'); return; }
+    if (act === 'faithAddChurchFasts'){ if (preview || readOnly) return; const E = EotcCalendar, today = todayYmd(), y = +today.slice(0,4), plan = Workspace.fastingSeasons(st), list = E.seasonsFor(y).concat(E.seasonsFor(y+1)).filter((x,i,a) => a.findIndex(z => z.id === x.id && z.from === x.from) === i && x.required && x.from > today && x.from <= addDays(today,365) && x.to !== x.from && !plan.some(p => p.from === x.from)).sort((a,b) => a.from.localeCompare(b.from));
+      if (!list.length){ toast('The church’s fasts are already in your Fasting plan.'); return; }
+      if (!confirm('Add ' + list.length + ' fasting season' + (list.length === 1 ? '' : 's') + ' to Fasting?\n\n' + list.map(x => x.name + ': ' + x.from + ' to ' + x.to).join('\n') + '\n\nWednesday and Friday return after each.')) return;
+      const r = await manualActionTransaction(st, d => { for (const x of list){ const out = Workspace.addFastingSeason(d, {name:x.name.replace(/\s*\(.*\)\s*$/,''), from:x.from, to:x.to}); if (out && out.ok === false) return out; } return {ok:true}; });
+      render(); toast(r.ok ? list.length + ' church fasting season' + (list.length === 1 ? '' : 's') + ' added.' : 'Not added. ' + (r.error || '')); return; }
+    if (act === 'faithJournalSave'){ const d = btn.dataset.date, text = document.getElementById('fj-reflection')?.value || ''; stage(st, 'journal'); saveJournal(st, d, {reflection:text}); commit('journal', 'Journal saved for ' + medDate(d) + '.'); return; }
+    if (act === 'pointsSave'){ const from = document.getElementById('pt-from')?.value, next = {};
+      for (const [k,, unit] of POINT_FIELDS){ const v = Number(document.getElementById('pt-' + k)?.value); if (!Number.isFinite(v) || v < 0){ toast('Check ' + k + '.'); return; } next[k] = unit === 60 ? Math.round(v * 60) : v; }
+      const keep = (document.getElementById('pt-ateOut')?.value || '').split(',').map(x => Number(x.trim())).filter(Number.isFinite); if (keep.length !== 3){ toast('Give three eating-out percentages.'); return; } next.ateOutKeepPct = [100, ...keep];
+      if (!confirm('Save a new points table from ' + from + '?\n\nClaimed points stay exactly as they are.')) return;
+      const r = await manualActionTransaction(st, d => Workspace.setPointsTable(d, next, from)); render(); toast(r.ok ? 'Points table saved from ' + medDate(from) + '.' : 'Not saved. ' + (r.error || '')); return; }
+    if (act === 'upNextLater'){ upNextLater.add(day + '|' + btn.dataset.key); upNextIndex = 0; render(); return; }
+    if (act === 'upNextCycle'){ upNextIndex += Number(btn.dataset.n) || 1; render(); return; }
+    if (act === 'toggleRail'){ try{ localStorage.setItem('ht-rail-hidden', railHidden() ? '0' : '1'); }catch(_){} renderRail(); return; }
     if (act === 'v2Cancel'){ v2Draft = {date:null, preview:null}; render(); toast('Nothing was changed.'); return; }
     if (act === 'v2Adopt'){
       const payload = v2Draft.preview; if (!payload || !payload.ok){ toast('Review the change first.'); return; }
@@ -3463,7 +3860,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       case 'openRow': openRow(seriesId, date); return;
       case 'preview': preview = !preview; if (preview) demo = buildDemo(); panel = null; pendingImport = null; render(); toast(preview ? 'Preview workspace: everything shown is invented and nothing is saved.' : 'Back to your data.'); return;
       case 'noop': toast(btn.dataset.msg); return;
-      case 'step': day = addDays(day, +btn.dataset.n); panel = null; dropUndo(); render(); return;
+      case 'step': day = addDays(day, +btn.dataset.n); panel = null; upNextIndex = 0; dropUndo(); render(); return;
       case 'jumpToday': day = todayYmd(); panel = null; render(); return;
       case 'stepWeek': weekSel = addDays(weekSel, 7 * +btn.dataset.n); panel = null; dropUndo(); render(); return;
       case 'jumpWeek': weekSel = todayYmd(); panel = null; render(); return;
@@ -3731,9 +4128,26 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   window.addEventListener('storage', e => { if (preview || e.key !== STORE_KEY) return; readOnly = true; saveError = 'The saved workspace changed in another view. Refresh to load it before saving here; export first if this tab has unsaved changes.'; renderNotices(); });
 
   /* ---------- boot ---------- */
-  { const v = window.HealthDelivery && window.HealthDelivery.version; if (v){ document.title = 'Health Tracker ' + v; const b = document.querySelector('.logo b'); if (b) b.insertAdjacentHTML('beforeend', ' <span class="logo-version">' + esc(v) + '</span>'); } }
-  $('#build').textContent = BUILD+(personalReview?' · personal review':syntheticTest?' · persistent invented-data test':'');
+  { const v = window.HealthDelivery && window.HealthDelivery.version; if (v){ document.title = 'Temple Keep ' + v; const b = document.querySelector('.logo b'); if (b) b.insertAdjacentHTML('beforeend', ' <span class="logo-version">' + esc(v) + '</span>'); } }
+  // The stamped build, read when drawn (delivery.js loads after health-domain.js's placeholder BUILD).
+  const stampedBuild = () => (window.HealthDelivery && window.HealthDelivery.build) || BUILD;
+  $('#build').textContent = stampedBuild()+(personalReview?' · personal review':syntheticTest?' · persistent invented-data test':'');
+  window.addEventListener('load', () => { $('#build').textContent = stampedBuild()+(personalReview?' · personal review':syntheticTest?' · persistent invented-data test':''); });
   try { if (localStorage.getItem('ht-sidebar-hidden') === '1') document.querySelector('.app').classList.add('sidehidden'); } catch(err){}
+  // Resizable sidebar (V2.0): drag the edge, arrows from the keyboard, double-click resets; the width is
+  // remembered on this device only. Hidden, it peeks when the pointer reaches the left edge.
+  (function sidebarShell(){
+    const app = document.querySelector('.app'), side = document.getElementById('appSide'), grip = document.getElementById('sideResize'), MIN = 184, MAX = 380, DEF = 232;
+    const setW = w => { const v = Math.max(MIN, Math.min(MAX, Math.round(w))); app.style.setProperty('--side-w', v + 'px'); return v; };
+    try { const saved = +localStorage.getItem('ht-sidebar-width'); if (saved) setW(saved); } catch(_){}
+    const save = w => { try { localStorage.setItem('ht-sidebar-width', String(w)); } catch(_){} };
+    if (grip){
+      grip.addEventListener('pointerdown', e => { e.preventDefault(); grip.setPointerCapture(e.pointerId); const move = ev => setW(ev.clientX); const up = ev => { save(setW(ev.clientX)); grip.removeEventListener('pointermove', move); grip.removeEventListener('pointerup', up); }; grip.addEventListener('pointermove', move); grip.addEventListener('pointerup', up); });
+      grip.addEventListener('dblclick', () => { save(setW(DEF)); });
+      grip.addEventListener('keydown', e => { if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return; e.preventDefault(); const cur = side.getBoundingClientRect().width; save(setW(cur + (e.key === 'ArrowRight' ? 16 : -16))); });
+    }
+    document.addEventListener('mousemove', e => { if (!app.classList.contains('sidehidden')) return; if (e.clientX <= 6) app.classList.add('peeking'); else if (app.classList.contains('peeking') && e.clientX > side.getBoundingClientRect().width + 24) app.classList.remove('peeking'); });
+  })();
   document.addEventListener('keydown', e => {
     if (!composer || !e.target || e.target.id !== 'wsComposerTitle') return;
     if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); e.stopImmediatePropagation(); composerSave(); }

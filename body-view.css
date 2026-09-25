@@ -10,3 +10,7 @@ ht-body-view{display:block;min-width:0}.body-record-card{padding:24px}.body-reco
 .body-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
 .body-pane{min-width:0}.body-pane.body-photos .cap{margin:0 0 6px}
 @container (max-width:760px){.body-pair{grid-template-columns:1fr}}
+
+/* Full screen (V2.0 Phase 9): the card fills the screen, model and image side by side, inspector in view. */
+.body-record-card:fullscreen,.body-record-card.body-full{position:fixed;inset:0;z-index:100;overflow:auto;border-radius:0;margin:0;background:var(--bg,#0d1f1a)}.body-record-card:-webkit-full-screen{overflow:auto;background:var(--bg,#0d1f1a)}
+.body-record-card:fullscreen .body-model,.body-record-card.body-full .body-model{height:calc(100vh - 260px)}.body-record-card:fullscreen .body-reference,.body-record-card.body-full .body-reference{height:calc(100vh - 300px)}

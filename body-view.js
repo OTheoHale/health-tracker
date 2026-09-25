@@ -42,6 +42,11 @@ const FITDAYS_GROUPS = {
   'left-leg': {label: 'Left leg', color: '#c4a6e4', parts: ['left-thigh', 'left-calf', 'left-foot']},
   'right-leg': {label: 'Right leg', color: '#efa38f', parts: ['right-thigh', 'right-calf', 'right-foot']}
 };
+/* Segment estimates (V2.0; Mintay accepts labelled estimates, overriding the old whole-region-only rule):
+   a limb's Fitdays fat and muscle split by segment mass fractions, de Leva 1996, male — upper arm 2.71%,
+   forearm + hand 2.23% of body mass; thigh 14.16%, shank 4.33%, foot 1.37%. Always labelled "est.". */
+const SEGMENT_SHARE = {'upper-arm': 0.549, forearm: 0.451, thigh: 0.713, calf: 0.218, foot: 0.069};
+const segmentShare = region => { const key = Object.keys(SEGMENT_SHARE).find(k => region.endsWith(k)); return key ? SEGMENT_SHARE[key] : null; };
 const fitdaysGroup = region => Object.keys(FITDAYS_GROUPS).find(key => key === region || FITDAYS_GROUPS[key].parts.includes(region));
 class HealthBodyView extends HTMLElement {
   connectedCallback() {
@@ -117,6 +122,7 @@ class HealthBodyView extends HTMLElement {
 
   disconnectedCallback() {
     if (this.stage) this.request('cancel', {stageId: this.stage.stageId}).catch(() => {});
+    if (this.fullListener) { document.removeEventListener('fullscreenchange', this.fullListener); document.removeEventListener('webkitfullscreenchange', this.fullListener); document.removeEventListener('keydown', this.keyListener); this.fullListener = null; }
   }
 
   async request(action, data) {
@@ -263,6 +269,7 @@ class HealthBodyView extends HTMLElement {
       if (this.fitdays) {
         const row = this.fitdays.segments.find(item => item.id === groupKey);
         if (key === 'all') detail.textContent = 'Five colored regions · select a region to inspect its fat and muscle totals.';
+        else if (row && key !== groupKey && segmentShare(key) !== null) { const f = segmentShare(key); detail.textContent = 'est. ' + (row.fatMassLb * f).toFixed(1) + ' lb fat · est. ' + (row.muscleBalanceMassLb * f).toFixed(1) + ' lb muscle · ' + Math.round(f * 100) + '% of the ' + row.label.toLowerCase() + ' (' + row.fatMassLb.toFixed(1) + ' / ' + row.muscleBalanceMassLb.toFixed(1) + ' lb), by typical segment mass'; }
         else if (row) detail.textContent = (key === groupKey ? 'Whole region' : row.label + ' total — not a separate ' + this.regions[key].toLowerCase() + ' measurement') + ': ' + row.fatMassLb.toFixed(1) + ' lb fat · ' + row.muscleBalanceMassLb.toFixed(1) + ' lb muscle';
         else detail.textContent = 'No separate head / neck composition data in this report.';
         overlay.append(detail);
@@ -332,7 +339,7 @@ class HealthBodyView extends HTMLElement {
         // Model and reference image side by side (Mintay, 2026-09-24); the image follows the model's angle.
         '<div class="body-pair"><div class="body-pane">' +
         '<div class="body-model-stage"><model-viewer class="body-model" src="' + this.asset(!this.stage && Object.keys(this.regions).length ? 'regions.glb' : 'model.glb') + '" alt="Approximate body model. Drag to rotate; scroll to zoom." camera-controls camera-orbit="0deg 85deg 115%" field-of-view="30deg" min-camera-orbit="auto auto 20%" max-camera-orbit="auto auto 250%" interaction-prompt="none" shadow-intensity="0.4" exposure="1"></model-viewer><span class="body-load" role="status">Loading 3D view…</span>'+(!this.stage ? '<div class="body-region-overlay" aria-live="polite"></div>' : '')+'</div>' +
-        '<div class="body-angle-controls" aria-label="Model viewing angle">' + ['Front','Back','Left','Right','Reset view'].map(name => '<button data-body="angle" data-angle="' + name + '">' + name + '</button>').join('') + '</div><p class="hint">Drag to rotate · scroll to zoom. The photo follows the nearest angle; Reset returns both to Front. Solid-color model; skin is shown in the reference images.</p></div>' +
+        '<div class="body-angle-controls" aria-label="Model viewing angle">' + ['Front','Back','Left','Right','Reset view'].map(name => '<button data-body="angle" data-angle="' + name + '">' + name + '</button>').join('') + '<button data-body="fullscreen" aria-pressed="false">Full screen</button></div><p class="hint">Drag to rotate · scroll to zoom. The photo follows the nearest angle; Reset returns both to Front. Solid-color model; skin is shown in the reference images.</p></div>' +
         '<div class="body-pane body-photos"><p class="cap">Reference image</p><div class="body-photo-tabs" role="group" aria-label="Reference image">' + ['Front','Back','Left','Right'].map(name => '<button data-body="photo" data-photo="' + name + '" aria-pressed="' + (name === this.photo) + '">' + name + '</button>').join('') + '</div><a class="body-photo-link" href="' + this.asset(this.photo + '.png') + '" target="_blank" rel="noopener"><img class="body-reference" src="' + this.asset(this.photo + '.png') + '" alt="' + this.photo + ' reference image"><span>Open full-size image ↗</span></a></div></div>' +
         (!this.stage ? this.regionHTML() : '') +
         (!this.stage ? this.compositionHTML() : '') +
@@ -408,6 +415,14 @@ class HealthBodyView extends HTMLElement {
     const action = button.dataset.body;
     if (action === 'photo' || action === 'angle') {
       this.showAngle(action === 'photo' ? button.dataset.photo : button.dataset.angle);
+    } else if (action === 'fullscreen') {
+      const card = this.querySelector('.body-record-card'), doc = document, active = doc.fullscreenElement || doc.webkitFullscreenElement;
+      if (active) { (doc.exitFullscreen || doc.webkitExitFullscreen).call(doc); return; }
+      const viewer = this.querySelector('model-viewer'); this.savedOrbit = viewer && viewer.getCameraOrbit ? viewer.getCameraOrbit().toString() : null;
+      const go = card.requestFullscreen || card.webkitRequestFullscreen;
+      if (go) { try { await go.call(card); } catch (_) { card.classList.add('body-full'); } } else card.classList.add('body-full');
+      if (!this.fullListener) { this.fullListener = () => { const on = !!(document.fullscreenElement || document.webkitFullscreenElement) || card.classList.contains('body-full'); const b = this.querySelector('[data-body="fullscreen"]'); if (b) { b.setAttribute('aria-pressed', String(on)); b.textContent = on ? 'Exit full screen' : 'Full screen'; } if (!on) { const v = this.querySelector('model-viewer'); if (v && this.savedOrbit) v.cameraOrbit = this.savedOrbit; this.highlight(this.region); } }; document.addEventListener('fullscreenchange', this.fullListener); document.addEventListener('webkitfullscreenchange', this.fullListener); this.keyListener = e => { if (e.key === 'Escape' && card.classList.contains('body-full')) { card.classList.remove('body-full'); this.fullListener(); } }; document.addEventListener('keydown', this.keyListener); }
+      this.fullListener();
     } else if (action === 'composition-region') {
       this.highlight(button.dataset.region);
     } else if (action === 'cancel' || action === 'save') {

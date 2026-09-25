@@ -954,10 +954,11 @@ const RANK_SECTIONS_V2=['faith','health','hygiene','relationship','career'];
 const RANK_SLOTS_V2={faith:['faith'],health:['personal-health','fitness','food','health-mental','wellbeing','health-physical','personal-care','hygiene','care'],hygiene:['trash-day','laundry','cleaning','home'],relationship:['relationship'],career:['work']};
 const RANK_WEIGHTS_V2={faith:10,health:9,hygiene:9,relationship:9,career:9};
 function rankLetter(pct){return Number.isFinite(pct)?RANK_CUTOFFS.find(([c])=>pct>=c)[1]:null;}
-function overallRankReport(state,today,windowKind){
+function overallRankReport(state,today,windowKind,range){
   // Window (Mintay, Sept 24 evening): the last 28 complete days by default, or this week so far.
   // V2.0 adds Day (today so far) and weeks that start Monday unless he chose Sunday.
   const start=state.rewards&&state.rewards.progression&&state.rewards.progression.effectiveFrom;let to=windowKind==='day'?today:addDays(today,-1),from=windowKind==='day'?today:windowKind==='week'?weekStartOf(today,state.prefs&&state.prefs.weekStart===0?0:1):addDays(to,-27);
+  if(windowKind==='range'&&range&&validCalendarDate(range.from)&&validCalendarDate(range.to)){from=range.from;to=range.to;}
   if(start&&start>from)from=start;if(to<from){from=today;to=today;}
   // A weekly goal (prayer 3 days a week, church once in four weeks) counts against its goal, pro-rated
   // to the days counted and capped there, so meeting the goal is 100 % rather than 3 of 7.
@@ -1634,6 +1635,64 @@ function sourceIsActive(state,id,record){
   sourceProjection(state);return sourceProjectionCache.get(state).active.has(id);
 }
 function sourceEvidenceEligible(state,record){return (state.syntheticWorkspace===true||!syntheticPreviewData(record))&&sourceIsActive(state,record.id,record)&&record.unmapped?.healthAutoExport?.representation!=='minute aggregate';}
+/* V2.0 goals and checkpoints (Mintay, Sept 25). His numbers (start weight, goal weight, height, dates) live
+   only in his own saved settings — this file is published, so it carries the generic, sourced rules and
+   never a personal value. A suggested change applies only when he accepts it. Weight rules work in lb. */
+const GOAL_DEFAULTS_V2={startDate:null,startWeightLb:null,goalDate:'2027-01-07',weightLb:{jan7:null,longTerm:null},deficit:{daily:825,onTrack:750},heightIn:null,ageBand:'30-39',sex:'male'};
+/* Research-based targets (sources: goal-research.json in the repo, retrieved 2026-09-24). A baseline is his
+   first reading on or after the start date, frozen once found, so a target does not move each time he measures. */
+const GOAL_RULES_V2=[
+  {id:'bodyFat',label:'Body fat',unit:'%',metrics:['body_fat_percentage'],down:true,jan7:'fatAtGoal',longTerm:{value:17},source:'ACE body-fat categories (fitness 14–17% for men)'},
+  {id:'leanMass',label:'Lean mass',unit:'lb',metrics:['lean_body_mass'],down:false,jan7:{baselineMinus:2},longTerm:{baselineMinus:0},source:'Sardeli 2018: resistance training preserves most lean mass in a deficit'},
+  {id:'waist',label:'Waist',unit:'in',metrics:['waist_circumference'],down:true,jan7:{baselineMinus:4},longTerm:{heightRatio:0.5},source:'NICE NG246: waist under half your height'},
+  {id:'vo2max',label:'VO₂ max',unit:'ml/kg·min',metrics:['vo2_max'],down:false,jan7:{baselinePlus:4},longTerm:{byAgeBand:{'30-39':45,'40-49':42,'20-29':48}},source:'FRIEND registry: “good” for men 30–39 ≈ 45'},
+  {id:'bmi',label:'BMI',unit:'',derived:'bmi',down:true,flag:'Weak for muscular builds',source:'CDC BMI categories'}
+];
+function goalsV2(state){const g=state.prefs?.goalsV2||{};return {...GOAL_DEFAULTS_V2,...g,weightLb:{...GOAL_DEFAULTS_V2.weightLb,...(g.weightLb||{})},deficit:{...GOAL_DEFAULTS_V2.deficit,...(g.deficit||{})},other:Array.isArray(g.other)?g.other:GOAL_DEFAULTS_V2.other};}
+/* A reading for goals, in display units: mass in lb, everything else canonical. */
+function goalReading(state,metrics,pick){
+  const H=globalThis.HealthAutoExport,g=goalsV2(state),rows=[];
+  for(const r of state.sourceRecords||[]){const m=r.unmapped?.healthAutoExport;if(!m||!metrics.includes(m.metric)||!Number.isFinite(r.value)||(r.clashes||[]).length)continue;const def=H&&H.metric?H.metric(m.metric):null,f=def&&def.units[r.unit];if(!Number.isFinite(f))continue;let v=r.value*f;if(def.unit==='kg')v=v/0.45359237;rows.push({date:sourceLocalDay(r.start),start:r.start,value:v});}
+  rows.sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));if(!rows.length)return null;
+  if(pick==='baseline'&&g.startDate){const after=rows.find(x=>x.date>=g.startDate);return after||rows[rows.length-1];}
+  return rows[rows.length-1];
+}
+function goalTargets(state){
+  const g=goalsV2(state),goalW=g.weightLb.jan7,longW=g.weightLb.longTerm,out=[];
+  const r1=v=>Number.isFinite(v)?Math.round(v*10)/10:null;
+  for(const rule of GOAL_RULES_V2){
+    if(rule.derived==='bmi'){const w=latestWeightLb(state);const bmi=lb=>g.heightIn&&Number.isFinite(lb)?703*lb/(g.heightIn*g.heightIn):null;out.push({...rule,latest:w?{value:r1(bmi(w.lb)),date:w.date}:null,jan7:r1(bmi(goalW)),longTerm:r1(bmi(longW))});continue;}
+    const latest=goalReading(state,rule.metrics),base=goalReading(state,rule.metrics,'baseline');
+    const val=spec=>{if(!spec)return null;if(spec==='fatAtGoal'){const bw=base?latestWeightLb(state,base.date):null;return base&&bw&&goalW?r1((base.value/100*bw.lb-0.85*(bw.lb-goalW))/goalW*100):null;}
+      if(Number.isFinite(spec.value))return spec.value;if(spec.baselineMinus!==undefined)return base?r1(base.value-spec.baselineMinus):null;if(spec.baselinePlus!==undefined)return base?r1(base.value+spec.baselinePlus):null;
+      if(spec.heightRatio)return g.heightIn?r1(g.heightIn*spec.heightRatio):null;if(spec.byAgeBand)return spec.byAgeBand[g.ageBand]??null;return null;};
+    out.push({...rule,latest:latest?{value:r1(latest.value),date:latest.date}:null,baseline:base?{value:r1(base.value),date:base.date}:null,jan7:val(rule.jan7),longTerm:val(rule.longTerm)});
+  }
+  return out;
+}
+function checkpointsOf(state){const g=goalsV2(state),main={id:'main',name:'Goal date',date:state.prefs?.checkpoint||g.goalDate,main:true};return [main,...(Array.isArray(state.prefs?.checkpoints)?state.prefs.checkpoints:[])].filter(c=>c&&validCalendarDate(c.date)).sort((a,b)=>a.date.localeCompare(b.date));}
+function nextCheckpoint(state,today){const t=today||todayYmd();return checkpointsOf(state).find(c=>c.date>=t)||null;}
+/* Where the plan says his weight should be on a date: a straight line from the start to the goal. */
+function weightPaceLb(state,date){const g=goalsV2(state);if(!g.startDate||!Number.isFinite(g.startWeightLb)||!Number.isFinite(g.weightLb.jan7)||!validCalendarDate(g.goalDate))return null;const span=calendarDistance(g.startDate,g.goalDate),at=Math.max(0,Math.min(span,calendarDistance(g.startDate,date)));return span>0?g.startWeightLb+(g.weightLb.jan7-g.startWeightLb)*at/span:g.weightLb.jan7;}
+function latestWeightLb(state,before){
+  const rows=[];for(const r of state.sourceRecords||[]){const m=r.unmapped?.healthAutoExport;if(!m||!['weight_body_mass','weight_&_body_mass'].includes(m.metric)||!Number.isFinite(r.value)||(r.clashes||[]).length)continue;const lb=r.unit==='kg'?r.value/0.45359237:r.unit==='lb'||r.unit==='lbs'?r.value:null;if(lb===null)continue;const d=sourceLocalDay(r.start);if(!before||d<=before)rows.push({date:d,lb});}
+  for(const [d,o] of Object.entries(state.observations||{}))if(o&&Number.isFinite(o.weight)&&(!before||d<=before))rows.push({date:d,lb:(o.weightUnit||state.prefs?.units)==='kg'?o.weight/0.45359237:o.weight});
+  rows.sort((a,b)=>a.date.localeCompare(b.date));return rows.length?rows[rows.length-1]:null;
+}
+function weightTrend(state,today){
+  const t=today||todayYmd(),g=goalsV2(state),now=latestWeightLb(state,t);if(!now)return null;
+  const week=latestWeightLb(state,addDays(now.date,-7));
+  const pace=weightPaceLb(state,now.date);
+  return {latest:now.lb,date:now.date,sinceStart:Number.isFinite(g.startWeightLb)?now.lb-g.startWeightLb:null,week:week&&week.date<now.date?now.lb-week.lb:null,pace,vsPace:pace===null?null:now.lb-pace};
+}
+/* Weekly suggestion: behind the line by over a pound → a 100 kcal larger daily deficit; ahead by over two
+   → 100 smaller. Bounded 500–1,100 kcal, offered once a week, applied only on acceptance. */
+function deficitSuggestion(state,today){
+  const t=today||todayYmd(),tr=weightTrend(state,t),g=goalsV2(state),week=weekStartOf(t,1);
+  if(!tr||tr.vsPace===null||calendarDistance(tr.date,t)>7||(state.prefs?.goalSuggestion||{})[week])return null;
+  const daily=g.deficit.daily,next=tr.vsPace>1?Math.min(1100,daily+100):tr.vsPace<-2?Math.max(500,daily-100):daily;
+  return next===daily?null:{week,from:daily,to:next,vsPace:tr.vsPace,reason:tr.vsPace>1?'behind':'ahead'};
+}
 /* The newest reading per metric from every imported row, in the metric's canonical unit, with its
    own date. Rows dated before the feed's start are shadowed for scoring, not for "what is my latest
    weight": Whole Body, Measured Fitness and Vitals read this (V1.12). Rows with an open clash are
@@ -2121,7 +2180,7 @@ function validateState(x){
       if (!c || c.id !== id || c.eventId !== id || (c.ruleVersion===3 ? (!Number.isInteger(c.amount)||c.amount<1||c.amount>54) : c.amount!==1) || typeof c.claimedAt !== 'string' || typeof c.date !== 'string' || typeof c.seriesId !== 'string' || ![1,2,3].includes(c.ruleVersion)) return 'A reward claim is malformed.';
       if(c.adjustments && (!Array.isArray(c.adjustments)||c.adjustments.some(a=>!a||!Number.isInteger(a.delta)||typeof a.id!=='string'||typeof a.at!=='string')||claimBalance(c)<0||claimBalance(c)>54))return 'A reward correction is malformed.';
     }
-    if(r.ruleStep5!==undefined&&(!map(r.ruleStep5)||r.ruleStep5.step!==5||!validCalendarDate(r.ruleStep5.effectiveFrom)||!map(r.ruleStep5.table)||typeof r.ruleStep5.table.id!=='string'))return 'The Scoring V2 rule is malformed.';
+    if(r.ruleStep5!==undefined&&(!map(r.ruleStep5)||r.ruleStep5.step!==5||!validCalendarDate(r.ruleStep5.effectiveFrom)||!map(r.ruleStep5.table)||typeof r.ruleStep5.table.id!=='string'||(r.ruleStep5.tables!==undefined&&(!Array.isArray(r.ruleStep5.tables)||r.ruleStep5.tables.some(t=>!map(t)||typeof t.id!=='string'||!validCalendarDate(t.effectiveFrom))))))return 'The Scoring V2 rule is malformed.';
     if(r.progression.rule==='quarter-v1'&&(!Array.isArray(r.epochs)||!r.epochs.some(e=>e.id===r.progression.epochId&&e.ruleVersion===4&&validCalendarDate(e.effectiveFrom))))return 'The quarter-point epoch is malformed.';
     for (const [id,e] of Object.entries(r.evidence)) if (!e || e.sourceId !== id || typeof e.eventId !== 'string' || typeof e.fingerprint !== 'string' || typeof e.updatedAt !== 'string') return 'A reward evidence association is malformed.';
   }
@@ -3189,7 +3248,8 @@ function wsPriorChain(state,rootId,date,epoch){
 /* Scoring V2 (rule step 5; Mintay Sept 25). From its date, a measurable item pays the share of its target
    that his data shows — sleep ÷ 7 h, steps ÷ 12,000, water ÷ 100 fl oz, the nutrition percentage — and a
    day he marks done himself with no data pays in full (his entry wins). Binary items are unchanged. */
-function v5Rule(state,date){const r=state.rewards?.ruleStep5;return r&&typeof ScoringV5!=='undefined'&&date>=r.effectiveFrom?ScoringV5.table(r.table):null;}
+// A table he edits applies from its own date; the one in force on a date scores that date.
+function v5Rule(state,date){const r=state.rewards?.ruleStep5;if(!r||typeof ScoringV5==='undefined'||date<r.effectiveFrom)return null;const later=(Array.isArray(r.tables)?r.tables:[]).filter(t=>t&&t.effectiveFrom<=date).sort((a,b)=>a.effectiveFrom.localeCompare(b.effectiveFrom)).slice(-1)[0];return ScoringV5.table(later||r.table);}
 function v5Kind(v){const k=v?.matching?.kind;return k==='sleep'?'sleep':k==='steps'?'steps':k==='water'?'water':k==='deficit'?'nutrition':null;}
 function v5Inputs(state,series,o,table){
   const v=versionFor(series,o.date),kind=v5Kind(v);if(!kind)return null;
@@ -3243,9 +3303,73 @@ function wsQuarterEntitlement(state,o,epochOverride){
   const amount=baseQ+bonusQ;if(!Number.isSafeInteger(amount)||amount<=0)return null;
   return {id,eventId:id,seriesId:o.seriesId,date:o.date,name:v.name,amount,amountQ:amount,displayAmount:amount/4,ruleVersion:4,unit:'quarter-point',epochId:epoch.id,origin:o.confirmation?.kind==='source'?'import':'manual',evidenceIds:Object.values(state.rewards.evidence).filter(e=>e.eventId===id&&!e.retractedAt).map(e=>e.sourceId),calculation:{baseQ,bonusQ,priorFull:chain.priorFull,pending:chain.pending,recurring:p.recurring,kind:p.kind,rule:wsClone(rule),budgetQ:p.budgetQ,allocation,minutes:p.kind==='cardio'?wsEvidenceQuantity(state,o.seriesId,o.date).minutes:null,...(v5?{ruleStep:5,credit:wsClone(v5.credit),creditKind:v5.kind,measure:{value:v5.value,target:v5.target,source:v5.source,inputs:v5.inputs},tableId:v5.tableId}:{})},disputed:false};
 }
+/* Scoring V2 day and week lines (V2.0; Mintay Sept 24–25). One claim per day ('v5day|date', series '@day'):
+   a perfect day (three rings closed and every required item done) adds 5% of that day's item points; steps
+   add 1 point per 3,000 over 12,000 (at most 4); a complete day's deficit adds the curve points (500 → 8,
+   800 → 10, 1,000 → 12); the day never passes 150% of its item points. One claim per finished week
+   ('v5week|monday', series '@week'): a perfect week (every day with required items perfect) adds 10% of
+   the week's item points, and Sleep Credit pays an ordinary item's points times its credit. */
+function wsPerfectDay(state,date){
+  let rings=null;try{rings=Workspace.rings(state,date,{});}catch(_){rings=null;}
+  if(!rings||typeof rings!=='object'||rings.noTargets)return null;
+  const req=flatPlanFor(state,date).filter(r=>!r.optional&&!r.demo&&r.status!=='skipped');
+  if(!req.length)return null;
+  return rings.closed===3&&req.every(r=>r.status==='done');
+}
+function v5StepsDay(state,date){const v=relayedRecords(state,'steps').filter(r=>sourceLocalDay(r.start)===date&&r.unmapped?.healthAutoExport?.representation==='derived daily view').map(r=>r.value).filter(Number.isFinite);return v.length?Math.max(...v):null;}
+function wsDayLine(state,date,itemsQ,epoch){
+  const table=v5Rule(state,date);if(!table||!(itemsQ>0))return null;
+  const perfect=wsPerfectDay(state,date)===true,perfectQ=perfect?Math.floor(itemsQ*table.perfectDayPct/100):0;
+  const steps=v5StepsDay(state,date),stepsQ=steps&&steps>table.stepsTarget?Math.min(4,Math.floor((steps-table.stepsTarget)/3000))*4:0;
+  const eb=Workspace.energyBalance(state,date),deficitQ=eb&&eb.complete&&eb.available?ScoringV5.deficitPoints(-eb.balance,table)*4:0;
+  const capQ=ScoringV5.dailyCapQ(itemsQ,table),room=Math.max(0,capQ-itemsQ),raw=perfectQ+stepsQ+deficitQ,amount=Math.min(raw,room);
+  if(amount<=0)return null;
+  const id='v5day|'+date;
+  return {id,eventId:id,seriesId:'@day',date,name:'Day bonus'+(perfect?' · perfect day':''),amount,amountQ:amount,displayAmount:amount/4,ruleVersion:4,unit:'quarter-point',epochId:epoch.id,origin:'import',evidenceIds:[],
+    calculation:{dayLine:5,tableId:table.id,itemsQ,perfect,perfectQ,stepsQ,deficitQ,capQ,trimQ:raw-amount,steps,stepsTarget:table.stepsTarget,deficitCurve:table.deficitCurve,deficit:eb&&eb.available?Math.round(-eb.balance):null,baseQ:amount,bonusQ:0,priorFull:0,pending:false,recurring:false},disputed:false};
+}
+function wsWeekLine(state,monday,itemsByDate,epoch,today){
+  const table=v5Rule(state,monday),sunday=addDays(monday,6);if(!table||sunday>=today)return null;
+  const days=Array.from({length:7},(_,i)=>addDays(monday,i)).filter(d=>d>=epoch.effectiveFrom&&d>=state.rewards.ruleStep5.effectiveFrom);if(days.length<7)return null;
+  const weekQ=days.reduce((n,d)=>n+(itemsByDate.get(d)||0),0),states=days.map(d=>wsPerfectDay(state,d)),perfect=states.every(x=>x!==false)&&states.some(x=>x===true);
+  const perfectQ=perfect?Math.floor(weekQ*table.perfectWeekPct/100):0;
+  const nights=days.map(d=>{const night=relayedRecords(state,'sleep').find(r=>r.unmapped?.healthAutoExport?.day===d&&Number.isFinite(r.durationSec));return {date:d,minutes:night?Math.round(night.durationSec/60):null};});
+  const sc=ScoringV5.sleepCredit(nights,table),creditQ=sc.credit&&sc.credit.n?QuarterPoints.baseQ({importance:3,difficulty:2,sizeNumerator:sc.credit.n,sizeDenominator:sc.credit.d}):0;
+  const amount=perfectQ+creditQ;if(amount<=0)return null;
+  const id='v5week|'+monday;
+  return {id,eventId:id,seriesId:'@week',date:sunday,name:'Week bonus'+(perfect?' · perfect week':'')+(creditQ?' · Sleep Credit':''),amount,amountQ:amount,displayAmount:amount/4,ruleVersion:4,unit:'quarter-point',epochId:epoch.id,origin:'import',evidenceIds:[],
+    calculation:{weekLine:5,tableId:table.id,weekQ,perfect,perfectQ,sleepBalanceMin:sc.balanceMin,credit:sc.credit,creditQ,baseQ:amount,bonusQ:0,priorFull:0,pending:false,recurring:false},disputed:false};
+}
+function wsBonusLines(state,eligible,today,epoch){
+  if(!state.rewards?.ruleStep5||typeof ScoringV5==='undefined')return [];
+  // Several reports run per screen draw; the lines are computed once per draw for the same inputs.
+  const memoKey=drawMemo&&drawMemo.state===state?JSON.stringify([today,epoch.id,eligible.length,eligible.reduce((n,e)=>n+e.amount,0)]):null;
+  if(memoKey&&drawMemo.bonusKey===memoKey)return drawMemo.bonus;
+  const from=state.rewards.ruleStep5.effectiveFrom>epoch.effectiveFrom?state.rewards.ruleStep5.effectiveFrom:epoch.effectiveFrom,byDate=new Map();
+  for(const e of eligible)if(e.seriesId&&e.seriesId[0]!=='@')byDate.set(e.date,(byDate.get(e.date)||0)+e.amount);
+  for(const c of Object.values(state.rewards.claims))if(c.ruleVersion===4&&c.epochId===epoch.id&&c.seriesId&&c.seriesId[0]!=='@'&&!eligible.some(e=>e.id===c.id))byDate.set(c.date,(byDate.get(c.date)||0)+claimBalance(c));
+  const out=[];
+  for(let d=from;d<=today;d=addDays(d,1)){const line=wsDayLine(state,d,byDate.get(d)||0,epoch);if(line)out.push(line);}
+  for(let m=weekStartOf(from,1);addDays(m,6)<today;m=addDays(m,7)){const line=wsWeekLine(state,m,byDate,epoch,today);if(line)out.push(line);}
+  if(memoKey){drawMemo.bonusKey=memoKey;drawMemo.bonus=out;}
+  return out;
+}
+function validateLineClaim(c,id){
+  const calc=c.calculation,int=v=>Number.isSafeInteger(v)&&v>=0;
+  if(calc.baseQ!==c.amount||calc.bonusQ!==0||typeof calc.tableId!=='string')return 'A bonus line is malformed.';
+  if(calc.dayLine===5){if(c.seriesId!=='@day'||id!=='v5day|'+c.date||![calc.itemsQ,calc.perfectQ,calc.stepsQ,calc.deficitQ,calc.capQ,calc.trimQ].every(int)||calc.stepsQ>16||calc.stepsQ%4||![0,32,40,48].includes(calc.deficitQ)||(!calc.perfect&&calc.perfectQ)||calc.perfectQ*20>calc.itemsQ||calc.perfectQ+calc.stepsQ+calc.deficitQ-calc.trimQ!==c.amount||c.amount+calc.itemsQ>calc.capQ)return 'A day bonus differs from its calculation.';
+    // The extras are recomputed from the recorded steps and deficit, so an altered amount cannot pass.
+    const target=Number.isSafeInteger(calc.stepsTarget)?calc.stepsTarget:12000,stepsQ=Number.isFinite(calc.steps)&&calc.steps>target?Math.min(4,Math.floor((calc.steps-target)/3000))*4:0;
+    const deficitQ=calc.deficit===null||calc.deficit===undefined?0:ScoringV5.deficitPoints(calc.deficit,{deficitCurve:Array.isArray(calc.deficitCurve)?calc.deficitCurve:ScoringV5.DEFAULT_TABLE.deficitCurve})*4;
+    if(calc.stepsQ!==stepsQ||(calc.deficitQ&&calc.deficitQ!==deficitQ))return 'A day bonus differs from its calculation.';return null;}
+  if(calc.weekLine===5){if(c.seriesId!=='@week'||!id.startsWith('v5week|')||![calc.weekQ,calc.perfectQ,calc.creditQ].every(int)||(!calc.perfect&&calc.perfectQ)||calc.perfectQ*10>calc.weekQ||calc.perfectQ+calc.creditQ!==c.amount)return 'A week bonus differs from its calculation.';
+    if(calc.creditQ){const cr=calc.credit;if(!cr||!Number.isSafeInteger(cr.n)||!Number.isSafeInteger(cr.d)||cr.n<1||cr.n>cr.d||QuarterPoints.baseQ({importance:3,difficulty:2,sizeNumerator:cr.n,sizeDenominator:cr.d})!==calc.creditQ)return 'A Sleep Credit award differs from its calculation.';}return null;}
+  return 'A bonus line is unsupported.';
+}
 function validateQuarterClaim(c,id,rewards){
   if(c.id!==id||c.eventId!==id||c.unit!=='quarter-point'||typeof c.epochId!=='string'||!(rewards.epochs||[]).some(e=>e.id===c.epochId)||!Number.isSafeInteger(c.amount)||c.amount<1||!validCalendarDate(c.date)||typeof c.seriesId!=='string'||typeof c.claimedAt!=='string')return 'A quarter-point claim is malformed.';
   const calc=c.calculation;if(!calc||!Number.isSafeInteger(calc.baseQ)||calc.baseQ<0||!Number.isSafeInteger(calc.bonusQ)||calc.bonusQ<0||calc.baseQ+calc.bonusQ!==c.amount)return 'A quarter-point calculation is malformed.';
+  if(calc.dayLine!==undefined||calc.weekLine!==undefined){const bad=validateLineClaim(c,id);if(bad)return bad;const adj=c.adjustments||[];if(adj.some((a,i)=>!a||!Number.isSafeInteger(a.delta)||a.delta<1||a.unit!=='quarter-point'||a.epochId!==c.epochId||a.ruleVersion!==4||a.revision!==i+1||!a.calculation||validateLineClaim({...c,amount:c.amount+adj.slice(0,i+1).reduce((n,x)=>n+x.delta,0),calculation:a.calculation},id)))return 'A bonus top-up is malformed.';return null;}
   if(!Number.isSafeInteger(calc.priorFull)||calc.priorFull<0||typeof calc.pending!=='boolean'||typeof calc.recurring!=='boolean')return 'A quarter-point chain is malformed.';
   try{
     const maxBonus=QuarterPoints.bonusQ(calc.baseQ,{priorFull:calc.priorFull,pending:calc.pending,recurring:calc.recurring});
@@ -3295,10 +3419,10 @@ rewardReport=function(state,today){
     const filtered={...state,rewards:{...state.rewards,claims:Object.fromEntries(Object.entries(state.rewards.claims).filter(([,c])=>c.ruleVersion!==4))}};
     const report=wsLegacyReport(filtered,today);report.pending=report.pending.filter(e=>!state.rewards.claims[e.id]);return {...report,historyClaims};
   }
-  const rewards=state.rewards,epoch=wsEpoch(state),eligible=confirmedEligibility(state,today).filter(e=>e.epochId===epoch.id),byId=new Map(eligible.map(e=>[e.id,e]));
+  const rewards=state.rewards,epoch=wsEpoch(state),items=confirmedEligibility(state,today).filter(e=>e.epochId===epoch.id),eligible=items.concat(wsBonusLines(state,items,today,epoch)),byId=new Map(eligible.map(e=>[e.id,e]));
   // A Scoring V2 claim whose day has since grown (steps climbing to 12,000) is topped up by the
   // difference, once; only a drop needs the reviewed correction (V2.0).
-  const grown=c=>c.calculation?.ruleStep===5&&(byId.get(c.id)?.amount||0)>claimBalance(c);
+  const grown=c=>(c.calculation?.ruleStep===5||c.calculation?.dayLine===5||c.calculation?.weekLine===5)&&(byId.get(c.id)?.amount||0)>claimBalance(c);
   const claims=Object.values(rewards.claims).filter(c=>c.ruleVersion===4&&c.epochId===epoch.id).map(c=>({...c,balance:claimBalance(c),displayAmount:c.amount/4,displayBalance:claimBalance(c)/4,needsReview:(byId.get(c.id)?.amount||0)!==claimBalance(c)&&!grown(c)}));
   const topUps=Object.values(rewards.claims).filter(c=>c.ruleVersion===4&&c.epochId===epoch.id&&grown(c)).map(c=>{const e=byId.get(c.id),delta=e.amount-claimBalance(c);return {...e,topUp:true,delta,amount:delta,amountQ:delta,displayAmount:delta/4,previousAmount:claimBalance(c)};});
   const pending=eligible.filter(e=>!rewards.claims[e.id]).concat(topUps),totalQ=claims.reduce((n,c)=>n+claimBalance(c),0),orbs=totalQ/4;
@@ -3307,7 +3431,7 @@ rewardReport=function(state,today){
 function wsCorrectionBatch(state,id){
   const selected=state.rewards.claims[id];if(!selected)return null;
   if(selected.ruleVersion!==4)return wsLegacyCorrection(state,id);
-  const claims=Object.values(state.rewards.claims).filter(c=>c.ruleVersion===4&&c.epochId===selected.epochId),changes=[];
+  const claims=Object.values(state.rewards.claims).filter(c=>c.ruleVersion===4&&c.epochId===selected.epochId&&!(c.seriesId&&c.seriesId[0]==='@')),changes=[];
   for(const claim of claims){const entitlement=Object.values(state.occurrences).filter(o=>rewardIdentity(state,o)===claim.id).map(o=>wsQuarterEntitlement(state,o,claim.epochId)).find(Boolean),before=claimBalance(claim),after=entitlement?.amount||0;if(before!==after)changes.push({id:claim.id,date:claim.date,ruleVersion:4,epochId:claim.epochId,before,after,delta:after-before,calculation:entitlement?.calculation||null});}
   const totalQ=claims.reduce((n,c)=>n+claimBalance(c),0),afterQ=totalQ+changes.reduce((n,c)=>n+c.delta,0),own=changes.find(c=>c.id===id);
   return {id,before:claimBalance(selected),after:own?.after??claimBalance(selected),delta:own?.delta||0,changes,total:afterQ/4,totalQ:afterQ,level:QuarterPoints.levelFor(afterQ).level,signature:wsSignature({claims,changes}),unit:'quarter-point',epochId:selected.epochId};
@@ -3562,6 +3686,8 @@ const Workspace={
   classifyWorkout(state,key,cls){return wsTransaction(state,draft=>{const r=wsClassifyWorkout(draft,key,cls);if(!r.ok)return r;if(wsEnabled(draft))wsAutoEvidence(draft);return r;});},
   // Eating out, soda and alcohol for one day, kept on that day's Deficit item (Scoring V2 nutrition inputs).
   setNutritionInputs(state,date,inputs){return wsTransaction(state,draft=>{const series=draft.series.find(x=>x.id==='v2-deficit');if(!series||!versionFor(series,date))return {ok:false,error:'Adopt the new structure to record nutrition inputs.'};const o=ensureOcc(draft,'v2-deficit',date),clean=k=>Math.max(0,Math.min(9,Math.floor(+inputs[k]||0)));o.measure={...(o.measure||{}),ateOut:clean('ateOut'),soda:clean('soda'),alcohol:clean('alcohol')};o.updatedAt=nowIso();return {ok:true,record:o.measure};});},
+  // A new points table from a date (V2.0): later days score with it; claimed points never change.
+  setPointsTable(state,table,from){return wsTransaction(state,draft=>{const r=draft.rewards.ruleStep5;if(!r)return {ok:false,error:'Turn on Scoring V2 first.'};if(!validCalendarDate(from)||from<r.effectiveFrom)return {ok:false,error:'Choose a date on or after Scoring V2 started.'};const base=v5Rule(draft,from)||ScoringV5.DEFAULT_TABLE,next={...base,...table,id:'points-'+from+'-'+Date.now().toString(36),effectiveFrom:from};if(next.waterTargetOz<next.waterFloorOz)return {ok:false,error:'Water target cannot be below '+next.waterFloorOz+' fl oz.'};r.tables=(r.tables||[]).filter(t=>t.effectiveFrom!==from).concat(next);return {ok:true,record:next};});},
   proposal:wsProposal,structureV2:wsStructureV2,adoptScoringV5(state,from){return wsTransaction(state,draft=>wsAdoptScoringV5(draft,from));},migrationPreview:wsMigrationPreview,adopt:wsAdopt,rollbackPreview:wsRollbackPreview,rollback:wsRollback,
   backdateCheck:wsBackdateCheck,backdate(state,date,options={}){return wsTransaction(state,draft=>wsBackdate(draft,date,options));},
   correctionBatch:wsCorrectionBatch,applyCorrectionBatch(state,preview,note){return wsTransaction(state,draft=>wsApplyCorrectionBatch(draft,preview,note));},
@@ -3613,15 +3739,25 @@ Workspace.confirmHealthyMeal=function(state,id,date,tags,options={}){return wsTr
    claims still use the adopted rule; paying these needs a new rule version so earlier claims keep their amounts. */
 const DEFICIT_STEPS=[[1000,12],[800,10],[500,8]];
 function energyDeficitPoints(deficit){if(!Number.isFinite(deficit))return 0;for(const [kcal,points] of DEFICIT_STEPS)if(deficit>=kcal)return points;return 0;}
-Workspace.energyBalance=function(state,date){
+/* One day's energy records in projection order; the range reader (V2.0 Fitness) buckets them in one pass. */
+const WS_ENERGY_KINDS=['dietaryEnergy','restingEnergy','activeEnergy'],WS_ENERGY_METRICS=['dietary_energy','basal_energy_burned'];
+function wsEnergyRecord(r){return WS_ENERGY_KINDS.includes(r.kind)||WS_ENERGY_METRICS.includes(r.unmapped?.healthAutoExport?.metric);}
+Workspace.energyBalances=function(state,from,to){
+  const byDay=new Map(),out=new Map();
+  for(const r of relayedRecords(state)){if(!wsEnergyRecord(r))continue;const d=sourceLocalDay(r.start);if(d<from||d>to)continue;if(!byDay.has(d))byDay.set(d,[]);byDay.get(d).push(r);}
+  for(let d=from;d<=to;d=addDays(d,1))out.set(d,Workspace.energyBalance(state,d,byDay.get(d)||[]));
+  return out;
+};
+Workspace.energyBalance=function(state,date,dayRecords){
+  const day=dayRecords||relayedRecords(state).filter(r=>sourceLocalDay(r.start)===date&&wsEnergyRecord(r));
   // Imported food and resting energy arrive as kind 'other' named by metric (V1.12), so each side
   // reads its own kind and its metric; the day's projected total is one record.
-  const source=(kind,metric)=>{const records=relayedRecords(state,kind).concat(metric?relayedRecords(state,'other').filter(r=>r.unmapped?.healthAutoExport?.metric===metric):[]).filter(r=>sourceLocalDay(r.start)===date&&!r.clashes?.length&&r.unit==='kcal'&&Number.isFinite(r.value)&&r.value>=0);const signatures=new Map();for(const record of records){const key=JSON.stringify([record.sourceRecordId||null,record.sourceApp,record.start,record.end,record.value]);if(!signatures.has(key))signatures.set(key,record);}const distinct=[...signatures.values()];if(new Set(distinct.map(r=>r.sourceApp)).size>1)return null;if(distinct.some((r,i)=>distinct.slice(0,i).some(other=>evidenceOverlaps(r,other))))return null;return distinct.length?distinct.reduce((n,r)=>n+r.value,0):null;};
+  const source=(kind,metric)=>{const records=day.filter(r=>r.kind===kind||(metric&&r.kind==='other'&&r.unmapped?.healthAutoExport?.metric===metric)).filter(r=>!r.clashes?.length&&r.unit==='kcal'&&Number.isFinite(r.value)&&r.value>=0);const signatures=new Map();for(const record of records){const key=JSON.stringify([record.sourceRecordId||null,record.sourceApp,record.start,record.end,record.value]);if(!signatures.has(key))signatures.set(key,record);}const distinct=[...signatures.values()];if(new Set(distinct.map(r=>r.sourceApp)).size>1)return null;if(distinct.some((r,i)=>distinct.slice(0,i).some(other=>evidenceOverlaps(r,other))))return null;return distinct.length?distinct.reduce((n,r)=>n+r.value,0):null;};
   const foods=(state.foods||[]).filter(f=>f.date===date),manualFood=foods.length&&foods.every(f=>Number.isFinite(f.nutrition?.calories))?foods.reduce((n,f)=>n+f.nutrition.calories,0):null;
   // Food logged here adds on top of the imported total by default (Mintay, Sept 24 late); a day he
   // marks "Replace Apple Health" counts only what he logged. An entry without calories blanks the day.
   const importedFood=source('dietaryEnergy','dietary_energy'),replaceDay=!!state.prefs?.foodReplacesImported?.[date],overridden=replaceDay&&foods.length>0&&manualFood!==null,mixedFood=foods.length>0&&manualFood===null,food=mixedFood?null:foods.length?(replaceDay||importedFood===null?manualFood:manualFood+importedFood):importedFood,resting=source('restingEnergy','basal_energy_burned'),active=source('activeEnergy');
-  const available=[food,resting,active].every(Number.isFinite),coverage=state.energyCoverage?.[date]||{},signature=wsSignature([date,foods,relayedRecords(state).filter(r=>sourceLocalDay(r.start)===date&&(['dietaryEnergy','restingEnergy','activeEnergy'].includes(r.kind)||['dietary_energy','basal_energy_burned'].includes(r.unmapped?.healthAutoExport?.metric)))]),complete=date<todayYmd()&&available&&coverage.signature===signature&&coverage.food===true&&coverage.resting===true&&coverage.active===true;
+  const available=[food,resting,active].every(Number.isFinite),coverage=state.energyCoverage?.[date]||{},signature=wsSignature([date,foods,day]),complete=date<todayYmd()&&available&&coverage.signature===signature&&coverage.food===true&&coverage.resting===true&&coverage.active===true;
   return {date,food,resting,active,signature,balance:available?food-resting-active:null,available,provisional:!complete,complete,scoring:false,unit:'kcal',foodSource:food===null?null:!foods.length?'imported':replaceDay||importedFood===null?'logged':'logged+imported',note:mixedFood?'A logged food has no calories, so the day\'s food is unknown.':overridden?'Your logged food replaces the imported total for this day.':complete?'Explicitly reviewed coverage; workouts are already included in active energy.':'Coverage is incomplete or unverified. Missing values stay unavailable; no deficit award.'};
 };
 Workspace.syntheticPreview=function(date,prefs){
