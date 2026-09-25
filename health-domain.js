@@ -822,7 +822,8 @@ function observationsBetween(state, from, to){
 /* ---- groups: configurable categories over the legacy enum ---- */
 function groupOf(series){ const c = series.category; return LEGACY_GROUP[c] || c || 'care'; }
 function groupsOf(state){ return state.groups.slice().sort((a, b) => a.order - b.order || a.name.localeCompare(b.name)); }
-function visibleGroups(state){ return groupsOf(state).filter(g => !g.hidden); }
+// A group the V2 structure retired stays for earlier days but leaves today's lists once it is empty.
+function visibleGroups(state, date){ const d = date || todayYmd(); return groupsOf(state).filter(g => !g.hidden && !(g.retiredFrom && d >= g.retiredFrom)); }
 function groupById(state, id){ return state.groups.find(g => g.id === id) || null; }
 function setGroupHidden(state, id, hidden){ const g = groupById(state, id); if (!g) return null; g.hidden = !!hidden; g.updatedAt = nowIso(); return g; }
 function addGroup(state, name){
@@ -947,27 +948,36 @@ function setGradeIncluded(state, gid, included){
    than blocking it. Arcade-style ladder: A is excellent; S, SS and SSS are the elite 15 %. */
 const RANK_SLOTS={fitness:['fitness','health-physical'],food:['food'],care:['care','personal-care','hygiene','home','health-mental'],faith:['faith'],work:['work']};
 const RANK_CUTOFFS=[[95,'SSS'],[90,'SS'],[85,'S'],[80,'A'],[70,'B'],[55,'C'],[40,'D'],[0,'F']];
+/* V2.0 rank sections (Mintay, Sept 25), used once the V2 structure is adopted: grades by umbrella;
+   Hobbies is not graded. Weights default to Faith 10, others 9; a weight he sets is kept. */
+const RANK_SECTIONS_V2=['faith','health','hygiene','relationship','career'];
+const RANK_SLOTS_V2={faith:['faith'],health:['personal-health','fitness','food','health-mental','wellbeing','health-physical','personal-care','hygiene','care'],hygiene:['trash-day','laundry','cleaning','home'],relationship:['relationship'],career:['work']};
+const RANK_WEIGHTS_V2={faith:10,health:9,hygiene:9,relationship:9,career:9};
 function rankLetter(pct){return Number.isFinite(pct)?RANK_CUTOFFS.find(([c])=>pct>=c)[1]:null;}
 function overallRankReport(state,today,windowKind){
   // Window (Mintay, Sept 24 evening): the last 28 complete days by default, or this week so far.
-  const start=state.rewards&&state.rewards.progression&&state.rewards.progression.effectiveFrom;let to=addDays(today,-1),from=windowKind==='week'?weekStartOf(today,state.prefs&&state.prefs.weekStart||0):addDays(to,-27);
+  // V2.0 adds Day (today so far) and weeks that start Monday unless he chose Sunday.
+  const start=state.rewards&&state.rewards.progression&&state.rewards.progression.effectiveFrom;let to=windowKind==='day'?today:addDays(today,-1),from=windowKind==='day'?today:windowKind==='week'?weekStartOf(today,state.prefs&&state.prefs.weekStart===0?0:1):addDays(to,-27);
   if(start&&start>from)from=start;if(to<from){from=today;to=today;}
   // A weekly goal (prayer 3 days a week, church once in four weeks) counts against its goal, pro-rated
   // to the days counted and capped there, so meeting the goal is 100 % rather than 3 of 7.
-  const tally={},goals={},slotOf=c=>Object.keys(RANK_SLOTS).find(k=>RANK_SLOTS[k].includes(c)),span=calendarDistance(from,to)+1;
+  const v2=(state.workspace?.migrations||[]).some(m=>m.status==='active'&&m.structureV2),SLOTS=v2?RANK_SLOTS_V2:RANK_SLOTS;
+  const tally={},goals={},slotOf=c=>Object.keys(SLOTS).find(k=>SLOTS[k].includes(c)),span=calendarDistance(from,to)+1;
+  // Scoring V2: a measured item counts by its share of the target, not all or nothing.
+  const share=(r,d)=>{if(r.status!=='done'||typeof v5Rule!=='function')return r.status==='done'?1:0;const t=v5Rule(state,d),series=t&&state.series.find(x=>x.id===r.seriesId);if(!series||!v5Kind(versionFor(series,d)))return 1;const m=v5Inputs(state,series,state.occurrences[occKey(r.seriesId,d)]||{seriesId:r.seriesId,date:d},t);return m?m.credit.n/m.credit.d:1;};
   for(let d=from;d<=to;d=addDays(d,1))for(const r of allRows(planFor(state,d))){
     if(r.children&&r.children.length)continue;
     const slot=slotOf(r.category);if(!slot)continue;
     const series=state.series.find(x=>x.id===r.seriesId),rec=series&&versionFor(series,d)?.recurrence;
     if(rec&&rec.kind==='target'&&rec.count>0){const g=goals[r.seriesId]=goals[r.seriesId]||{slot,count:rec.count,weeks:rec.weeks||1,done:0};if(r.status==='done')g.done++;continue;}
     if(r.optional)continue;
-    const t=tally[slot]=tally[slot]||{planned:0,done:0};t.planned++;if(r.status==='done')t.done++;
+    const t=tally[slot]=tally[slot]||{planned:0,done:0};t.planned++;t.done+=share(r,d);
   }
   for(const g of Object.values(goals)){const expected=g.count*span/(7*g.weeks),t=tally[g.slot]=tally[g.slot]||{planned:0,done:0};t.planned+=expected;t.done+=Math.min(g.done,expected);}
   const settings=state.grades||defaultGradeSettings();let weights=0,sum=0;
-  const slots=GRADE_CATEGORIES.map(gid=>{const t=tally[gid],pct=t&&t.planned?100*t.done/t.planned:null,w=settings.included[gid]?settings.weights[gid]:0;if(pct!==null&&w){weights+=w;sum+=pct*w;}return {gid,planned:t?t.planned:0,done:t?t.done:0,pct,letter:rankLetter(pct),weight:w,included:!!settings.included[gid]};});
+  const slots=(v2?RANK_SECTIONS_V2:GRADE_CATEGORIES).map(gid=>{const t=tally[gid],pct=t&&t.planned?100*t.done/t.planned:null,w=v2?(settings.included[gid]===false?0:settings.weights[gid]??RANK_WEIGHTS_V2[gid]):settings.included[gid]?settings.weights[gid]:0;if(pct!==null&&w){weights+=w;sum+=pct*w;}return {gid,planned:t?t.planned:0,done:t?t.done:0,pct,letter:rankLetter(pct),weight:w,included:v2?settings.included[gid]!==false:!!settings.included[gid]};});
   const overall=weights?sum/weights:null;
-  return {from,to,slots,overall,letter:rankLetter(overall)};
+  return {from,to,slots,overall,letter:rankLetter(overall),sections:v2?'v2':'v1'};
 }
 function gradeReport(state, exampleScores){
   const settings = state.grades || defaultGradeSettings();
@@ -1316,7 +1326,11 @@ async function claimRewards(state, ids, options){
     const wanted = ids == null ? null : new Set(Array.isArray(ids) ? ids : [ids]);
     const pending = rewardReport(draft,today).pending.filter(e => !wanted || wanted.has(e.id));
     const at = nowIso(), claimed = pending.map(e => Object.assign({},e,{claimedAt:at},draft.syntheticWorkspace===true?{syntheticPreview:true}:{}));
-    for (const c of claimed) draft.rewards.claims[c.id] = c;
+    for (const c of claimed){
+      if (c.topUp){ const prior = draft.rewards.claims[c.id]; if (!prior) continue; const adjustments = prior.adjustments || (prior.adjustments = []);
+        adjustments.push({ id:'top-up-' + (adjustments.length + 1), at, delta:c.delta, unit:'quarter-point', epochId:prior.epochId, ruleVersion:4, revision:adjustments.length + 1, kind:'top-up', calculation:wsClone(c.calculation) }); continue; }
+      draft.rewards.claims[c.id] = c;
+    }
     preserveRewardUnlocks(draft,today);
     if (opts.persist !== false && claimed.length){ const saved = await store.writeClaims(draft); if (!saved.ok) return Object.assign(saved,{claimed:[],amount:0}); }
     replaceState(state,draft);
@@ -2107,6 +2121,7 @@ function validateState(x){
       if (!c || c.id !== id || c.eventId !== id || (c.ruleVersion===3 ? (!Number.isInteger(c.amount)||c.amount<1||c.amount>54) : c.amount!==1) || typeof c.claimedAt !== 'string' || typeof c.date !== 'string' || typeof c.seriesId !== 'string' || ![1,2,3].includes(c.ruleVersion)) return 'A reward claim is malformed.';
       if(c.adjustments && (!Array.isArray(c.adjustments)||c.adjustments.some(a=>!a||!Number.isInteger(a.delta)||typeof a.id!=='string'||typeof a.at!=='string')||claimBalance(c)<0||claimBalance(c)>54))return 'A reward correction is malformed.';
     }
+    if(r.ruleStep5!==undefined&&(!map(r.ruleStep5)||r.ruleStep5.step!==5||!validCalendarDate(r.ruleStep5.effectiveFrom)||!map(r.ruleStep5.table)||typeof r.ruleStep5.table.id!=='string'))return 'The Scoring V2 rule is malformed.';
     if(r.progression.rule==='quarter-v1'&&(!Array.isArray(r.epochs)||!r.epochs.some(e=>e.id===r.progression.epochId&&e.ruleVersion===4&&validCalendarDate(e.effectiveFrom))))return 'The quarter-point epoch is malformed.';
     for (const [id,e] of Object.entries(r.evidence)) if (!e || e.sourceId !== id || typeof e.eventId !== 'string' || typeof e.fingerprint !== 'string' || typeof e.updatedAt !== 'string') return 'A reward evidence association is malformed.';
   }
@@ -2949,7 +2964,9 @@ function wsEvidenceProblem(state,record,series,date){
     if(!wsProjectedRecord(state,record.id))return 'This daily total is no longer current; review the source.';
     if(syntheticPreviewData(record)&&state.syntheticWorkspace!==true)return 'This source is held, shadowed or unsupported.';
     if(sourceLocalDay(record.start)!==date)return 'The source-local date differs from this action.';
-    if(!(policy.minimum>0)||!Number.isFinite(record.value)||record.value<policy.minimum)return 'The evidence does not establish the step target.';
+    // Scoring V2 pays the share of the target walked, so any steps count from its date.
+    if(v5Rule(state,date)){if(!Number.isFinite(record.value)||record.value<=0)return 'The evidence does not establish the step target.';}
+    else if(!(policy.minimum>0)||!Number.isFinite(record.value)||record.value<policy.minimum)return 'The evidence does not establish the step target.';
     return null;
   }
   if(policy?.kind==='sleep'&&record.kind==='sleep'&&hae?.representation==='derived daily view'){
@@ -2957,7 +2974,8 @@ function wsEvidenceProblem(state,record,series,date){
     if(syntheticPreviewData(record)&&state.syntheticWorkspace!==true)return 'This source is held, shadowed or unsupported.';
     if(hae.day!==date)return 'This night belongs to another wake day.';
     const need=Math.max(Number(policy.minimum)||0,v.normal?.minutes||0),got=Number.isFinite(record.durationSec)?record.durationSec/60:null;
-    if(got===null||got<need)return 'Recorded sleep is below the chosen target.';
+    // Scoring V2 pays hours ÷ 7 h, so any recorded night counts from its date.
+    if(got===null||(v5Rule(state,date)?got<=0:got<need))return 'Recorded sleep is below the chosen target.';
     return null;
   }
   if(policy?.kind==='toothbrushing'&&hae?.metric==='toothbrushing'&&hae.representation==='minute aggregate'){
@@ -3168,6 +3186,34 @@ function wsPriorChain(state,rootId,date,epoch){
   for(let day=start;day<date;day=addDays(day,1))chain=QuarterPoints.chainAdvance(chain,wsChainEvent(state,rootId,day));
   return chain;
 }
+/* Scoring V2 (rule step 5; Mintay Sept 25). From its date, a measurable item pays the share of its target
+   that his data shows — sleep ÷ 7 h, steps ÷ 12,000, water ÷ 100 fl oz, the nutrition percentage — and a
+   day he marks done himself with no data pays in full (his entry wins). Binary items are unchanged. */
+function v5Rule(state,date){const r=state.rewards?.ruleStep5;return r&&typeof ScoringV5!=='undefined'&&date>=r.effectiveFrom?ScoringV5.table(r.table):null;}
+function v5Kind(v){const k=v?.matching?.kind;return k==='sleep'?'sleep':k==='steps'?'steps':k==='water'?'water':k==='deficit'?'nutrition':null;}
+function v5Inputs(state,series,o,table){
+  const v=versionFor(series,o.date),kind=v5Kind(v);if(!kind)return null;
+  let value=null,target=null,inputs=null;
+  if(kind==='sleep'){const night=relayedRecords(state,'sleep').find(r=>r.unmapped?.healthAutoExport?.day===o.date&&Number.isFinite(r.durationSec));if(night){value=Math.round(night.durationSec/60);inputs={minutes:value};}target=table.sleepTargetMin;}
+  else if(kind==='steps'){const day=relayedRecords(state,'steps').filter(r=>sourceLocalDay(r.start)===o.date&&r.unmapped?.healthAutoExport?.representation==='derived daily view').map(r=>r.value).filter(Number.isFinite);target=Number(v.matching.minimum)||table.stepsTarget;if(day.length){value=Math.max(...day);inputs={steps:value,target};}}
+  else if(kind==='water'){const imported=importedNutrition(state,o.date).dietary_water,manual=typeof MealWater!=='undefined'?MealWater.waterSummary(state,o.date).manual.usFlOz:0,oz=(imported?imported.value/29.5735295625:0)+(manual||0);target=Math.max(table.waterFloorOz,Number(v.matching.targetOz)||table.waterTargetOz);if(imported||manual){value=Math.round(oz*10)/10;inputs={oz,targetOz:target};}}
+  else if(kind==='nutrition'){const eb=Workspace.energyBalance(state,o.date),m=o.measure||{};target=table.deficitFullKcal;if(eb.available){value=Math.round(-eb.balance);inputs={deficit:value,ateOut:m.ateOut||0,soda:m.soda||0,alcohol:m.alcohol||0};}}
+  if(inputs){const c=ScoringV5.credit(kind,inputs,table);if(c)return {kind,credit:c,value,target,source:'data',tableId:table.id,inputs:wsClone(inputs)};}
+  // No data for the day: his own check-off counts in full (data first, his final say).
+  return o.confirmation?.kind==='source'?null:{kind,credit:{n:1,d:1},value:null,target,source:'self',tableId:table.id,inputs:null};
+}
+/* Turns Scoring V2 on from `from` (Mon Sep 21 by Mintay's choice). If the scoring period starts later, the
+   existing one-time "start from Monday" move runs first in the same transaction. Claims never change. */
+function wsAdoptScoringV5(draft,from){
+  if(typeof ScoringV5==='undefined')return {ok:false,error:'The Scoring V2 module is unavailable.'};
+  if(!quarterProgression(draft))return {ok:false,error:'Adopt the agreed activities before Scoring V2.'};
+  if(!validCalendarDate(from))return {ok:false,error:'Choose a valid start date.'};
+  if(draft.rewards.ruleStep5)return {ok:false,error:'Scoring V2 is already on from '+draft.rewards.ruleStep5.effectiveFrom+'.'};
+  let moved=null;
+  if(draft.rewards.progression.effectiveFrom>from){const check=wsBackdateCheck(draft,from);if(!check.ok)return check;moved=wsBackdate(draft,from);if(!moved||moved.ok===false)return moved||{ok:false,error:'The scoring start could not move.'};}
+  draft.rewards.ruleStep5={step:5,effectiveFrom:from,table:{...ScoringV5.DEFAULT_TABLE,effectiveFrom:from},adoptedAt:nowIso()};
+  return {ok:true,record:{effectiveFrom:from,movedStart:!!moved}};
+}
 function wsQuarterEntitlement(state,o,epochOverride){
   if(typeof QuarterPoints==='undefined')return null;
   const series=state.series.find(s=>s.id===o.seriesId),v=series&&versionFor(series,o.date),epoch=wsEpoch(state,epochOverride||o.quarterRule?.epochId);
@@ -3176,7 +3222,7 @@ function wsQuarterEntitlement(state,o,epochOverride){
   const p=o.quarterRule;if(!p||p.epochId!==epoch.id)return null;
   const rule=scoringRule(p.scoring);if(!rule.eligible)return null;
   const chain=wsPriorChain(state,p.rootId||o.seriesId,o.goalPeriodStart||o.date,epoch);
-  let baseQ,bonusQ,allocation=null;
+  let baseQ,bonusQ,allocation=null,v5=null;
   if(p.budgetQ!==null&&p.budgetQ!==undefined){
     const leaves=(p.leafIds||[]).map(id=>({id}));if(!leaves.some(x=>x.id===o.seriesId)||!leaves.length)return null;
     allocation=QuarterPoints.allocateQ(p.budgetQ,leaves);baseQ=allocation.find(x=>x.id===o.seriesId).amountQ;
@@ -3186,11 +3232,16 @@ function wsQuarterEntitlement(state,o,epochOverride){
     const kind=p.kind;
     if(kind==='cardio'){const quantity=wsEvidenceQuantity(state,o.seriesId,o.date);if(quantity.pending||!quantity.sourceIds.length)return null;baseQ=QuarterPoints.baseQ({kind:'cardio',minutes:quantity.minutes});}
     else if(kind==='strength'){const quantity=wsEvidenceQuantity(state,o.seriesId,o.date);if(quantity.pending||quantity.minutes<(p.normal?.minutes||15)||!quantity.sourceIds.length)return null;baseQ=QuarterPoints.baseQ({importance:rule.importance,difficulty:rule.difficulty});}
-    else {if(o.completedVersion==='minimum'&&p.normal?.minutes&&Number(o.actualMinutes)<p.normal.minutes)return null;baseQ=QuarterPoints.baseQ({importance:rule.importance,difficulty:rule.difficulty,sizeNumerator:1,sizeDenominator:kind==='bathroom'?4:1});}
-    bonusQ=wsChainEvent(state,p.rootId||o.seriesId,o.date)==='full'?QuarterPoints.bonusQ(baseQ,{...chain,recurring:p.recurring}):0;
+    else {if(o.completedVersion==='minimum'&&p.normal?.minutes&&Number(o.actualMinutes)<p.normal.minutes)return null;
+      // An item already claimed under the earlier rule keeps that rule for good (claimed points never move).
+      const table=!old||old.calculation?.ruleStep===5?v5Rule(state,o.date):null,measured=table?v5Inputs(state,series,o,table):null;
+      if(table&&v5Kind(v)&&!measured)return null;   // measurable, no data yet and not self-reported: stays pending
+      if(measured){if(!measured.credit.n)return null;v5=measured;}
+      baseQ=QuarterPoints.baseQ({importance:rule.importance,difficulty:rule.difficulty,sizeNumerator:v5?v5.credit.n:1,sizeDenominator:(kind==='bathroom'?4:1)*(v5?v5.credit.d:1)});}
+    bonusQ=wsChainEvent(state,p.rootId||o.seriesId,o.date)==='full'&&(!v5||v5.credit.n===v5.credit.d)?QuarterPoints.bonusQ(baseQ,{...chain,recurring:p.recurring}):0;
   }
   const amount=baseQ+bonusQ;if(!Number.isSafeInteger(amount)||amount<=0)return null;
-  return {id,eventId:id,seriesId:o.seriesId,date:o.date,name:v.name,amount,amountQ:amount,displayAmount:amount/4,ruleVersion:4,unit:'quarter-point',epochId:epoch.id,origin:o.confirmation?.kind==='source'?'import':'manual',evidenceIds:Object.values(state.rewards.evidence).filter(e=>e.eventId===id&&!e.retractedAt).map(e=>e.sourceId),calculation:{baseQ,bonusQ,priorFull:chain.priorFull,pending:chain.pending,recurring:p.recurring,kind:p.kind,rule:wsClone(rule),budgetQ:p.budgetQ,allocation,minutes:p.kind==='cardio'?wsEvidenceQuantity(state,o.seriesId,o.date).minutes:null},disputed:false};
+  return {id,eventId:id,seriesId:o.seriesId,date:o.date,name:v.name,amount,amountQ:amount,displayAmount:amount/4,ruleVersion:4,unit:'quarter-point',epochId:epoch.id,origin:o.confirmation?.kind==='source'?'import':'manual',evidenceIds:Object.values(state.rewards.evidence).filter(e=>e.eventId===id&&!e.retractedAt).map(e=>e.sourceId),calculation:{baseQ,bonusQ,priorFull:chain.priorFull,pending:chain.pending,recurring:p.recurring,kind:p.kind,rule:wsClone(rule),budgetQ:p.budgetQ,allocation,minutes:p.kind==='cardio'?wsEvidenceQuantity(state,o.seriesId,o.date).minutes:null,...(v5?{ruleStep:5,credit:wsClone(v5.credit),creditKind:v5.kind,measure:{value:v5.value,target:v5.target,source:v5.source,inputs:v5.inputs},tableId:v5.tableId}:{})},disputed:false};
 }
 function validateQuarterClaim(c,id,rewards){
   if(c.id!==id||c.eventId!==id||c.unit!=='quarter-point'||typeof c.epochId!=='string'||!(rewards.epochs||[]).some(e=>e.id===c.epochId)||!Number.isSafeInteger(c.amount)||c.amount<1||!validCalendarDate(c.date)||typeof c.seriesId!=='string'||typeof c.claimedAt!=='string')return 'A quarter-point claim is malformed.';
@@ -3198,7 +3249,9 @@ function validateQuarterClaim(c,id,rewards){
   if(!Number.isSafeInteger(calc.priorFull)||calc.priorFull<0||typeof calc.pending!=='boolean'||typeof calc.recurring!=='boolean')return 'A quarter-point chain is malformed.';
   try{
     const maxBonus=QuarterPoints.bonusQ(calc.baseQ,{priorFull:calc.priorFull,pending:calc.pending,recurring:calc.recurring});
-    if(calc.budgetQ==null){const expected=calc.kind==='cardio'?QuarterPoints.baseQ({kind:'cardio',minutes:calc.minutes}):QuarterPoints.baseQ({importance:calc.rule.importance,difficulty:calc.rule.difficulty,sizeNumerator:1,sizeDenominator:calc.kind==='bathroom'?4:1});if(expected!==calc.baseQ||calc.bonusQ>maxBonus)return 'A quarter-point award differs from its calculation.';}
+    if(calc.ruleStep!==undefined&&(calc.ruleStep!==5||calc.budgetQ!=null||calc.kind==='cardio'||!calc.credit||!Number.isSafeInteger(calc.credit.n)||!Number.isSafeInteger(calc.credit.d)||calc.credit.n<1||calc.credit.d<1||calc.credit.n>calc.credit.d||typeof calc.tableId!=='string'||(calc.credit.n<calc.credit.d&&calc.bonusQ!==0)))return 'A Scoring V2 credit is malformed.';
+    const cn=calc.ruleStep===5?calc.credit.n:1,cd=calc.ruleStep===5?calc.credit.d:1;
+    if(calc.budgetQ==null){const expected=calc.kind==='cardio'?QuarterPoints.baseQ({kind:'cardio',minutes:calc.minutes}):QuarterPoints.baseQ({importance:calc.rule.importance,difficulty:calc.rule.difficulty,sizeNumerator:cn,sizeDenominator:(calc.kind==='bathroom'?4:1)*cd});if(expected!==calc.baseQ||calc.bonusQ>maxBonus)return 'A quarter-point award differs from its calculation.';}
     else {if(!Array.isArray(calc.allocation)||calc.allocation.reduce((n,x)=>n+x.amountQ,0)!==calc.budgetQ||calc.allocation.find(x=>x.id===c.seriesId)?.amountQ!==calc.baseQ)return 'A care budget allocation is malformed.';const expected=QuarterPoints.allocateQ(calc.budgetQ,calc.allocation.map(x=>({id:x.id})));if(JSON.stringify(expected)!==JSON.stringify(calc.allocation))return 'A care allocation differs from stable-ID shares.';const budgetBonus=QuarterPoints.bonusQ(calc.budgetQ,{priorFull:calc.priorFull,pending:calc.pending,recurring:calc.recurring});if(calc.bonusQ>QuarterPoints.allocateQ(budgetBonus,calc.allocation.map(x=>({id:x.id}))).find(x=>x.id===c.seriesId).amountQ)return 'A care bonus exceeds its conserved budget.';}
   }catch(error){return 'A quarter-point calculation is unsupported.';}
   const adjustments=c.adjustments||[];if(!Array.isArray(adjustments)||adjustments.some((a,i)=>!a||!Number.isSafeInteger(a.delta)||a.unit!=='quarter-point'||a.epochId!==c.epochId||a.ruleVersion!==4||typeof a.id!=='string'||typeof a.at!=='string'||a.revision!==i+1)||!Number.isSafeInteger(claimBalance(c))||claimBalance(c)<0)return 'A quarter-point correction is malformed.';
@@ -3243,8 +3296,12 @@ rewardReport=function(state,today){
     const report=wsLegacyReport(filtered,today);report.pending=report.pending.filter(e=>!state.rewards.claims[e.id]);return {...report,historyClaims};
   }
   const rewards=state.rewards,epoch=wsEpoch(state),eligible=confirmedEligibility(state,today).filter(e=>e.epochId===epoch.id),byId=new Map(eligible.map(e=>[e.id,e]));
-  const claims=Object.values(rewards.claims).filter(c=>c.ruleVersion===4&&c.epochId===epoch.id).map(c=>({...c,balance:claimBalance(c),displayAmount:c.amount/4,displayBalance:claimBalance(c)/4,needsReview:(byId.get(c.id)?.amount||0)!==claimBalance(c)}));
-  const pending=eligible.filter(e=>!rewards.claims[e.id]),totalQ=claims.reduce((n,c)=>n+claimBalance(c),0),orbs=totalQ/4;
+  // A Scoring V2 claim whose day has since grown (steps climbing to 12,000) is topped up by the
+  // difference, once; only a drop needs the reviewed correction (V2.0).
+  const grown=c=>c.calculation?.ruleStep===5&&(byId.get(c.id)?.amount||0)>claimBalance(c);
+  const claims=Object.values(rewards.claims).filter(c=>c.ruleVersion===4&&c.epochId===epoch.id).map(c=>({...c,balance:claimBalance(c),displayAmount:c.amount/4,displayBalance:claimBalance(c)/4,needsReview:(byId.get(c.id)?.amount||0)!==claimBalance(c)&&!grown(c)}));
+  const topUps=Object.values(rewards.claims).filter(c=>c.ruleVersion===4&&c.epochId===epoch.id&&grown(c)).map(c=>{const e=byId.get(c.id),delta=e.amount-claimBalance(c);return {...e,topUp:true,delta,amount:delta,amountQ:delta,displayAmount:delta/4,previousAmount:claimBalance(c)};});
+  const pending=eligible.filter(e=>!rewards.claims[e.id]).concat(topUps),totalQ=claims.reduce((n,c)=>n+claimBalance(c),0),orbs=totalQ/4;
   return {orbs,totalQ,pending,claims,historyClaims:Object.values(rewards.claims).filter(c=>!claims.some(a=>a.id===c.id)),activeEpoch:epoch,daysRecorded:new Set(claims.map(c=>c.date)).size,progression:rewards.progression,quest:{text:REWARD_RULES.questText,done:eligible.some(e=>e.date===today),reward:0},achievements:rewardAchievements(state,orbs,new Set(claims.map(c=>c.date)).size),...rewardLevel(state,orbs)};
 };
 function wsCorrectionBatch(state,id){
@@ -3314,6 +3371,8 @@ function wsAdopt(state,preview){
     for(const change of options.scheduleChanges||[]){wsRevise(draft,change.seriesId,change.changes,date);if(change.restore===true)draft.series.find(s=>s.id===change.seriesId).archivedAt=null;}
     for(const addition of options.additions||[])wsCreate(draft,addition,date,addition.parentId||null);
     for(const move of options.moves||[])wsMove(draft,move.seriesId,move.parentId,date);
+    for(const g of options.groupChanges||[]){const cur=draft.groups.find(x=>x.id===g.id);if(!cur)continue;for(const k of ['name','umbrella','order','retiredFrom'])if(g[k]!==undefined)cur[k]=g[k];cur.updatedAt=nowIso();}
+    for(const id of options.archive||[]){const s=draft.series.find(x=>x.id===id);if(s&&!(s.archivedAt&&s.archivedAt<=date))s.archivedAt=date;}
     let epochId=null;
     if(options.quarterPoints!==false){
       epochId='quarter-'+preview.id;draft.rewards.epochs=draft.rewards.epochs||[];
@@ -3321,7 +3380,7 @@ function wsAdopt(state,preview){
       draft.rewards.epochs.push({id:epochId,ruleVersion:4,unit:'quarter-point',effectiveFrom:date,adoptedAt:nowIso(),policy:'partial resets full chain; pending holds bonus',proposal:true});
       draft.rewards.progression={rule:'quarter-v1',version:1,ruleVersion:4,unit:'quarter-point',epochId,effectiveFrom:date,adoptedAt:nowIso()};
     }
-    const migration={id:preview.id,at:nowIso(),effectiveFrom:date,before,epochId,addedIds:(options.additions||[]).map(a=>a.id).filter(Boolean),status:'active'};draft.workspace.migrations.push(migration);
+    const migration={id:preview.id,at:nowIso(),effectiveFrom:date,before,epochId,addedIds:(options.additions||[]).map(a=>a.id).filter(Boolean),status:'active',structureV2:options.structureV2===true};draft.workspace.migrations.push(migration);
     return {ok:true,record:{id:migration.id,epochId,effectiveFrom:date,retainedClaims:Object.keys(draft.rewards.claims).length}};
   });
 }
@@ -3340,6 +3399,92 @@ function wsRollback(state,preview){
     draft.series=wsClone(migration.before.series).concat(retained);draft.groups=wsClone(migration.before.groups);draft.rewards.progression=wsClone(migration.before.progression);migration.status='rolled-back';migration.rolledBackAt=nowIso();
     return {ok:true,record:{id:migration.id,status:migration.status,preservedClaims:Object.keys(draft.rewards.claims).length}};
   });
+}
+/* V2.0 activity structure (Mintay, Sept 25; PLAN → V2.0 Phase 3). Umbrella → card → routine → item:
+   an umbrella is a group attribute, a card is a group, so the store's three levels still hold.
+   Existing series keep their IDs and history; they are renamed, re-parented or re-scheduled by a
+   dated version from `date`, new items are created, and replaced ones are archived from `date`.
+   Anything this map does not name is left exactly as it is. Adopted through the reviewed migration
+   (preview → adopt → rollback) and never starts a new scoring period. */
+const V2_GROUPS=[
+  {id:'faith',name:'Faith',umbrella:'faith'},
+  {id:'personal-health',name:'Personal Health',umbrella:'health'},
+  {id:'fitness',name:'Fitness',umbrella:'health'},
+  {id:'food',name:'Nutrition',umbrella:'health'},
+  {id:'health-mental',name:'Sleep & Recovery',umbrella:'health'},
+  {id:'wellbeing',name:'Wellbeing',umbrella:'health'},
+  {id:'trash-day',name:'Trash Day',umbrella:'home-care'},
+  {id:'laundry',name:'Laundry',umbrella:'home-care'},
+  {id:'cleaning',name:'Cleaning',umbrella:'home-care'},
+  {id:'relationship',name:'Relationship',umbrella:'relationship'},
+  {id:'work',name:'Work & Learning',umbrella:'career'},
+  {id:'interests',name:'Hobbies',umbrella:'hobbies'}
+];
+const V2_RETIRED_GROUPS=['health-physical','personal-care','hygiene','care','home'];
+function wsStructureV2(state,date){
+  if(!validCalendarDate(date))return {ok:false,error:'Choose a valid date for the new structure.'};
+  const has=id=>{const s=state.series.find(x=>x.id===id);return !!(s&&!(s.archivedAt&&s.archivedAt<=date)&&versionFor(s,date));};
+  const daily={kind:'weekly',days:[0,1,2,3,4,5,6]},on=days=>({kind:'weekly',days}),perWeek=(count,days=[0,1,2,3,4,5,6])=>({kind:'target',days,count,weeks:1,mode:'fixed',startDate:date}),perMonth=()=>({kind:'target',days:[0,1,2,3,4,5,6],count:1,weeks:4,mode:'fixed',startDate:date});
+  const item=(label)=>({label,minutes:null});
+  const groups=[],groupChanges=[],taxonomy=[],scheduleChanges=[],additions=[],moves=[],archive=[],kept=[];
+  for(const g of V2_GROUPS){const cur=state.groups.find(x=>x.id===g.id);if(!cur)groups.push({id:g.id,name:g.name,umbrella:g.umbrella,order:V2_GROUPS.indexOf(g)+1});else groupChanges.push({id:g.id,name:g.name,umbrella:g.umbrella,order:V2_GROUPS.indexOf(g)+1});}
+  for(const id of V2_RETIRED_GROUPS)if(state.groups.some(g=>g.id===id))groupChanges.push({id,retiredFrom:date});
+  const change=(id,changes,category)=>{if(!has(id))return false;if(category)taxonomy.push({seriesId:id,category});if(changes&&Object.keys(changes).length)scheduleChanges.push({seriesId:id,changes});return true;};
+  const move=(id,parentId)=>{if(has(id))moves.push({seriesId:id,parentId});};
+  const add=(id,name,fields)=>{if(state.series.some(s=>s.id===id))return;additions.push({id,name,anchor:'midday',recurrence:daily,normal:item(name),minimum:item('No lower full-credit target'),optional:false,scoring:{importance:3,difficulty:2,eligible:true},workspaceKind:'care',...fields});};
+  const container=(id,name,fields)=>add(id,name,{kind:'container',normal:item('Summary of the independent items'),minimum:item('Summary only'),scoring:{importance:3,difficulty:2,eligible:false},...fields});
+  const retire=id=>{if(has(id))archive.push(id);};
+  // A parent with a check-off recorded on or after the date cannot take new children from that date
+  // (wsCreate/wsMove refuse it); such a child is skipped and named instead of forcing it.
+  const skipped=[],busy=id=>Object.values(state.occurrences).some(o=>o.seriesId===id&&o.date>=date&&o.status);
+  const addUnder=(id,name,parentId,fields)=>{if(parentId&&!additions.some(a=>a.id===parentId)&&busy(parentId)){skipped.push({name,reason:'its card already has a check-off on or after this date'});return;}add(id,name,{...fields,parentId});};
+  // Faith: prayers, fasting and church stay; Journal moves in.
+  change('dw-journal',{name:'Journal'},'faith');
+  // Personal Health: Morning Oral Hygiene, Body, Night Oral Hygiene.
+  if(change('dw-oral-care',{name:'Morning Oral Hygiene',budgetQ:32},'personal-health'))move('dw-oral-care',null);
+  for(const id of ['dw-brush','dw-floss','dw-tongue','dw-rinse'])change(id,null,'personal-health');
+  change('dw-brush',{name:'Brush'});change('dw-tongue',{name:'Tongue'});change('dw-rinse',{name:'Rinse'});
+  // Body is a new card; Morning care retires once its items have moved out.
+  container('v2-body','Body',{category:'personal-health',anchor:'morning',budgetQ:32});
+  for(const id of ['dw-wash-face','dw-shower','dw-bathroom-1','dw-bathroom-2'])if(change(id,id==='dw-shower'?{name:'Shower/Bath'}:id==='dw-wash-face'?{name:'Wash Face'}:null,'personal-health'))move(id,'v2-body');
+  retire('dw-morning-care');
+  change('dw-night-care',{name:'Night Oral Hygiene',budgetQ:32},'personal-health');
+  for(const id of ['dw-night-brush','dw-night-floss','dw-night-rinse'])change(id,null,'personal-health');
+  change('dw-night-brush',{name:'Brush'});change('dw-night-rinse',{name:'Rinse'});
+  if(has('dw-night-care'))addUnder('v2-night-tongue','Tongue','dw-night-care',{category:'personal-health',anchor:'evening',workspaceKind:'care'});
+  retire('hygiene');
+  // Fitness: workouts, steps, daily movement.
+  for(const id of ['dw-workouts','dw-cardio','dw-strength','dw-steps','daylight','movement'])change(id,null,'fitness');
+  // Nutrition: deficit, hydration, weekly grocery shopping. The meal rows it replaces are archived.
+  add('v2-deficit','Deficit',{category:'food',workspaceKind:'nutrition',anchor:'evening',normal:item('825 kcal deficit (750 on track)'),matching:{kind:'deficit',target:825,onTrack:750}});
+  add('v2-hydration','Hydration',{category:'food',workspaceKind:'nutrition',normal:item('100 fl oz of water'),matching:{kind:'water',targetOz:100,floorOz:60}});
+  change('groceries',{name:'Grocery Shopping',recurrence:perWeek(1)},'food');
+  for(const id of ['meal','dinner','dw-healthy-meal','mealprep'])retire(id);
+  // Sleep & Recovery: nightly sleep on a 7 h target, and the wind-down.
+  change('dw-sleep',{name:'Sleep',normal:item('7 hours'),matching:{kind:'sleep',minimum:420}},'health-mental');
+  change('winddown',null,'health-mental');
+  // Wellbeing: the weekly SUD appointment and monthly therapy.
+  change('dw-weekly-appointment',{name:'SUD Appointment'},'wellbeing');
+  add('v2-therapy','Therapy',{category:'wellbeing',recurrence:perMonth(),normal:item('Monthly session')});
+  // Home Care → Trash Day (Thursday), Laundry (loads per week), Cleaning (rooms).
+  change('dw-trash',{name:'Trash',recurrence:on([4])},'trash-day');change('dw-recycling',{name:'Recycling',recurrence:on([4])},'trash-day');
+  add('v2-yard-waste','Yard Waste',{category:'trash-day',recurrence:on([4])});
+  for(const [id,count,name] of [['dw-laundry-whites',1,'Whites'],['dw-laundry-colors',2,'Colors'],['dw-laundry-towels',2,'Towels'],['dw-laundry-bedding',2,'Bedding']])if(change(id,{name,recurrence:perWeek(count)},'laundry'))move(id,null);
+  retire('dw-laundry');retire('laundry');
+  const rooms=[['dw-clean-bedroom','Bedroom',[['make-bed','Make Bed',5],['vacuum','Vacuum',1],['organize-bedroom','Organize',1],['clean-bedroom','Clean',1]]],
+    ['dw-clean-office','Office',[['organize-office','Organize',1],['clean-office','Clean',1]]],
+    ['dw-clean-bathroom','Bathroom',[['sink','Sink',1],['toilet','Toilet',1],['tub','Tub',1],['shower-clean','Shower',1],['shower-curtains','Shower Curtains Wash',0],['bath-floor','Floor',1],['bath-clean','Clean',1]]],
+    ['dw-clean-gym','Gym',[['organize-gym','Organize',1],['clean-gym','Clean',1],['gym-floor','Floor',1]]]];
+  // Each room is a new card; the old one-line room chore retires from the date with its history.
+  for(const [id,name,items] of rooms){
+    const room='v2-room-'+name.toLowerCase();container(room,name,{category:'cleaning'});retire(id);
+    for(const [key,label,count] of items)add('v2-'+key,label,{category:'cleaning',parentId:room,recurrence:count?perWeek(count):perMonth()});
+  }
+  // Relationship: monthly couples therapy; family tasks come from the template shelf.
+  add('v2-couples-therapy','Couples Therapy',{category:'relationship',recurrence:perMonth(),normal:item('Monthly session')});
+  const named=new Set([...taxonomy.map(t=>t.seriesId),...scheduleChanges.map(c=>c.seriesId),...archive,'dw-prayer-am','dw-prayer-pm','dw-fasting','dw-church']);
+  for(const s of state.series)if(!s.demo&&!named.has(s.id)&&has(s.id))kept.push({seriesId:s.id,name:versionFor(s,date).name});
+  return {ok:true,effectiveFrom:date,quarterPoints:false,structureV2:true,groups,groupChanges,taxonomy,scheduleChanges,additions,moves,archive,kept,skipped};
 }
 function wsProposal(state,date){
   if(typeof WorkspaceProposal==='undefined')return {ok:false,error:'The daily workspace proposal definitions are unavailable.'};
@@ -3415,7 +3560,9 @@ const Workspace={
   declineAuto(state,id,date){return wsTransaction(state,draft=>wsDeclineAuto(draft,id,date));},
   unsortedWorkouts:wsUnsortedWorkouts,workoutClass:wsWorkoutClass,
   classifyWorkout(state,key,cls){return wsTransaction(state,draft=>{const r=wsClassifyWorkout(draft,key,cls);if(!r.ok)return r;if(wsEnabled(draft))wsAutoEvidence(draft);return r;});},
-  proposal:wsProposal,migrationPreview:wsMigrationPreview,adopt:wsAdopt,rollbackPreview:wsRollbackPreview,rollback:wsRollback,
+  // Eating out, soda and alcohol for one day, kept on that day's Deficit item (Scoring V2 nutrition inputs).
+  setNutritionInputs(state,date,inputs){return wsTransaction(state,draft=>{const series=draft.series.find(x=>x.id==='v2-deficit');if(!series||!versionFor(series,date))return {ok:false,error:'Adopt the new structure to record nutrition inputs.'};const o=ensureOcc(draft,'v2-deficit',date),clean=k=>Math.max(0,Math.min(9,Math.floor(+inputs[k]||0)));o.measure={...(o.measure||{}),ateOut:clean('ateOut'),soda:clean('soda'),alcohol:clean('alcohol')};o.updatedAt=nowIso();return {ok:true,record:o.measure};});},
+  proposal:wsProposal,structureV2:wsStructureV2,adoptScoringV5(state,from){return wsTransaction(state,draft=>wsAdoptScoringV5(draft,from));},migrationPreview:wsMigrationPreview,adopt:wsAdopt,rollbackPreview:wsRollbackPreview,rollback:wsRollback,
   backdateCheck:wsBackdateCheck,backdate(state,date,options={}){return wsTransaction(state,draft=>wsBackdate(draft,date,options));},
   correctionBatch:wsCorrectionBatch,applyCorrectionBatch(state,preview,note){return wsTransaction(state,draft=>wsApplyCorrectionBatch(draft,preview,note));},
 };
@@ -3471,11 +3618,11 @@ Workspace.energyBalance=function(state,date){
   // reads its own kind and its metric; the day's projected total is one record.
   const source=(kind,metric)=>{const records=relayedRecords(state,kind).concat(metric?relayedRecords(state,'other').filter(r=>r.unmapped?.healthAutoExport?.metric===metric):[]).filter(r=>sourceLocalDay(r.start)===date&&!r.clashes?.length&&r.unit==='kcal'&&Number.isFinite(r.value)&&r.value>=0);const signatures=new Map();for(const record of records){const key=JSON.stringify([record.sourceRecordId||null,record.sourceApp,record.start,record.end,record.value]);if(!signatures.has(key))signatures.set(key,record);}const distinct=[...signatures.values()];if(new Set(distinct.map(r=>r.sourceApp)).size>1)return null;if(distinct.some((r,i)=>distinct.slice(0,i).some(other=>evidenceOverlaps(r,other))))return null;return distinct.length?distinct.reduce((n,r)=>n+r.value,0):null;};
   const foods=(state.foods||[]).filter(f=>f.date===date),manualFood=foods.length&&foods.every(f=>Number.isFinite(f.nutrition?.calories))?foods.reduce((n,f)=>n+f.nutrition.calories,0):null;
-  // His entry wins (Mintay, Sept 25): food logged here replaces the imported total for the day, so
-  // the two are never added together and the deficit still shows.
-  const importedFood=source('dietaryEnergy','dietary_energy'),overridden=foods.length>0&&importedFood!==null&&manualFood!==null,mixedFood=foods.length>0&&importedFood!==null&&manualFood===null,food=mixedFood?null:manualFood??importedFood,resting=source('restingEnergy','basal_energy_burned'),active=source('activeEnergy');
+  // Food logged here adds on top of the imported total by default (Mintay, Sept 24 late); a day he
+  // marks "Replace Apple Health" counts only what he logged. An entry without calories blanks the day.
+  const importedFood=source('dietaryEnergy','dietary_energy'),replaceDay=!!state.prefs?.foodReplacesImported?.[date],overridden=replaceDay&&foods.length>0&&manualFood!==null,mixedFood=foods.length>0&&manualFood===null,food=mixedFood?null:foods.length?(replaceDay||importedFood===null?manualFood:manualFood+importedFood):importedFood,resting=source('restingEnergy','basal_energy_burned'),active=source('activeEnergy');
   const available=[food,resting,active].every(Number.isFinite),coverage=state.energyCoverage?.[date]||{},signature=wsSignature([date,foods,relayedRecords(state).filter(r=>sourceLocalDay(r.start)===date&&(['dietaryEnergy','restingEnergy','activeEnergy'].includes(r.kind)||['dietary_energy','basal_energy_burned'].includes(r.unmapped?.healthAutoExport?.metric)))]),complete=date<todayYmd()&&available&&coverage.signature===signature&&coverage.food===true&&coverage.resting===true&&coverage.active===true;
-  return {date,food,resting,active,signature,balance:available?food-resting-active:null,available,provisional:!complete,complete,scoring:false,unit:'kcal',foodSource:food===null?null:manualFood!==null?'logged':'imported',note:mixedFood?'Possible imported/manual food duplication needs review.':overridden?'Your logged food replaces the imported total for this day.':complete?'Explicitly reviewed coverage; workouts are already included in active energy.':'Coverage is incomplete or unverified. Missing values stay unavailable; no deficit award.'};
+  return {date,food,resting,active,signature,balance:available?food-resting-active:null,available,provisional:!complete,complete,scoring:false,unit:'kcal',foodSource:food===null?null:!foods.length?'imported':replaceDay||importedFood===null?'logged':'logged+imported',note:mixedFood?'A logged food has no calories, so the day\'s food is unknown.':overridden?'Your logged food replaces the imported total for this day.':complete?'Explicitly reviewed coverage; workouts are already included in active energy.':'Coverage is incomplete or unverified. Missing values stay unavailable; no deficit award.'};
 };
 Workspace.syntheticPreview=function(date,prefs){
   const state=freshState();state.seeded=true;state.demo=false;state.syntheticWorkspace=true;if(prefs)state.prefs={...state.prefs,...wsClone(prefs)};

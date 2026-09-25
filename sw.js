@@ -8,7 +8,7 @@
  * Health Tracker publishes to its own host for the same family of reasons, so today it is alone
  * there — but a worker that only cleans up after itself stays correct if that ever changes.
  */
-const BUILD = '2026-09-24-V1.12';                      // ship.sh stamps this in step with delivery.js
+const BUILD = '2026-09-24-V1.13';                      // ship.sh stamps this in step with delivery.js
 const SHELL_PREFIX = 'health-tracker-shell-';
 const SHELL = SHELL_PREFIX + BUILD;
 
@@ -17,7 +17,7 @@ const SHELL = SHELL_PREFIX + BUILD;
 const SHELL_FILES = [
   './', 'index.html', 'delivery.js',
   'health-domain.js', 'health-store.js', 'hae-adapter.js', 'body-view.js',
-  'meal-water.js', 'quarter-points.js', 'workspace-proposal.js', 'convert-starter.js',
+  'meal-water.js', 'quarter-points.js', 'scoring-v5.js', 'workspace-proposal.js', 'convert-starter.js',
   'model-viewer.min.js', 'body-view.css', 'manifest.webmanifest', 'offline.html',
   'icon-192.png', 'icon-512.png'
 ];
