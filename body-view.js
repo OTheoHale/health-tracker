@@ -48,6 +48,40 @@ const FITDAYS_GROUPS = {
 const SEGMENT_SHARE = {'upper-arm': 0.549, forearm: 0.451, thigh: 0.713, calf: 0.218, foot: 0.069};
 const segmentShare = region => { const key = Object.keys(SEGMENT_SHARE).find(k => region.endsWith(k)); return key ? SEGMENT_SHARE[key] : null; };
 const fitdaysGroup = region => Object.keys(FITDAYS_GROUPS).find(key => key === region || FITDAYS_GROUPS[key].parts.includes(region));
+/* Regions from parts (V2.2, PLAN 2.1/2.3). A key is a segment, a Fitdays whole region, or a saved region
+   ('custom:<id>'). Figures: a whole limb is exact; a limb part is its de Leva share and reads "est.";
+   the trunk has no split, so a trunk part shows the trunk total standing in; head, neck, feet and anything
+   without a Fitdays row are "not available at this segmentation". Nothing here is invented. */
+function regionPartsOf(key, saved) {
+  if (!key || key === 'all') return [];
+  if (FITDAYS_GROUPS[key]) return FITDAYS_GROUPS[key].parts.slice();
+  if (key.startsWith('custom:')) { const c = (saved || []).find(r => 'custom:' + r.id === key); return c ? c.parts.slice() : []; }
+  return [key];
+}
+function regionFigures(parts, fitdays) {
+  const rows = new Map(((fitdays && fitdays.segments) || []).map(r => [r.id, r]));
+  const byGroup = new Map(); const missing = [];
+  for (const p of parts) { const g = fitdaysGroup(p); if (!g || !rows.has(g)) { missing.push(p); continue; } if (!byGroup.has(g)) byGroup.set(g, []); byGroup.get(g).push(p); }
+  let fat = 0, muscle = 0, est = false; const standIn = [], covered = [];
+  for (const [g, ps] of byGroup) {
+    const row = rows.get(g), all = FITDAYS_GROUPS[g].parts;
+    const whole = ps.includes(g) || all.every(a => ps.includes(a));
+    if (whole) { fat += row.fatMassLb; muscle += row.muscleBalanceMassLb; covered.push(...ps); continue; }
+    let share = 0, unsplit = false;
+    for (const p of ps) { const f = segmentShare(p); if (f === null) unsplit = true; else share += f; }
+    if (unsplit) { fat += row.fatMassLb; muscle += row.muscleBalanceMassLb; standIn.push(g); }
+    else { fat += row.fatMassLb * share; muscle += row.muscleBalanceMassLb * share; est = true; }
+    covered.push(...ps);
+  }
+  if (!covered.length) return {fat: null, muscle: null, est: false, standIn, covered, missing};
+  return {fat, muscle, est, standIn, covered, missing};
+}
+function regionAutoName(parts, regions) {
+  for (const [key, group] of Object.entries(FITDAYS_GROUPS)) if (group.parts.length === parts.length && group.parts.every(p => parts.includes(p))) return group.label;
+  if (parts.length === 1) return (regions && regions[parts[0]]) || parts[0];
+  return parts.length + ' segments';
+}
+window.HealthBodyRegionMath = {partsOf: regionPartsOf, figures: regionFigures, autoName: regionAutoName, share: segmentShare};
 class HealthBodyView extends HTMLElement {
   connectedCallback() {
     this.records = [];
@@ -59,6 +93,9 @@ class HealthBodyView extends HTMLElement {
     this.regions = {};
     this.measurements = {readings: []};
     this.fitdays = null;
+    this.mode = 'select'; this.linked = new Set(); this.compare = {a: null, b: null, next: 'a'};
+    this.saved = []; try { this.saved = JSON.parse(localStorage.getItem('glow-body-regions') || '[]'); } catch (_) { this.saved = []; }
+    if (!Array.isArray(this.saved)) this.saved = [];
     if (!BODY_AVAILABLE) { this.unavailable(); return; }
     this.innerHTML = '<p class="hint">Opening your body records…</p>';
     if (BODY_BRIDGE) this.bridgeAssets();
@@ -190,11 +227,94 @@ class HealthBodyView extends HTMLElement {
     this.dispatchEvent(new CustomEvent('bodysnapshot', {bubbles: true, detail: snapshot}));
   }
 
-  regionHTML() {
-    const groups = this.fitdays ? '<optgroup label="Fitdays whole regions">' + Object.entries(FITDAYS_GROUPS).map(([key,group]) => '<option value="'+key+'">'+group.label+'</option>').join('') + '</optgroup>' : '';
-    return '<div class="body-segments"><label>Highlight a region<select data-body="region" aria-label="Highlight a body region"><option value="all">Whole body</option>' + groups + '<optgroup label="Detailed viewing regions">' + Object.entries(this.regions).map(([key,name]) => '<option value="'+key+'">'+this.escape(name)+'</option>').join('') + '</optgroup></select></label><p class="hint">Click the model or choose a region. Boundaries are approximate viewing guides. Left and right refer to your body.</p></div>';
+  regionOptions(selected) {
+    const esc = v => this.escape(v);
+    const groups = this.fitdays ? '<optgroup label="Fitdays whole regions">' + Object.entries(FITDAYS_GROUPS).map(([key,group]) => '<option value="'+key+'"' + (selected === key ? ' selected' : '') + '>'+group.label+'</option>').join('') + '</optgroup>' : '';
+    const mine = this.saved.length ? '<optgroup label="Your regions">' + this.saved.map(r => '<option value="custom:' + esc(r.id) + '"' + (selected === 'custom:' + r.id ? ' selected' : '') + '>' + esc(r.name) + '</option>').join('') + '</optgroup>' : '';
+    return groups + mine + '<optgroup label="Segments">' + Object.entries(this.regions).map(([key,name]) => '<option value="'+key+'"' + (selected === key ? ' selected' : '') + '>'+esc(name)+'</option>').join('') + '</optgroup>';
   }
-
+  regionHTML() {
+    const modes = [['select','Inspect'],['link','Link'],['compare','Compare']];
+    return '<div class="body-segments"><div class="body-modes" role="group" aria-label="Region tool">' + modes.map(([m,l]) => '<button data-body="mode" data-mode="' + m + '" aria-pressed="' + (this.mode === m) + '">' + l + '</button>').join('') + '</div>' +
+      '<label>' + (this.mode === 'link' ? 'Add to the region' : this.mode === 'compare' ? 'Pick a region' : 'Highlight a region') + '<select data-body="region" aria-label="Choose a body region"><option value="all">Whole body</option>' + this.regionOptions(this.mode === 'select' ? this.region : null) + '</select></label>' +
+      '<div class="body-tools">' + this.toolsHTML() + '</div>' +
+      '<p class="hint">Click the model or choose a region. Boundaries are approximate viewing guides. Left and right refer to your body.</p></div>';
+  }
+  figuresLine(parts) {
+    const f = regionFigures(parts, this.fitdays), esc = v => this.escape(v), name = k => this.regions[k] || FITDAYS_GROUPS[k]?.label || k;
+    if (f.fat === null) return '<span class="body-na">Not available at this segmentation' + (f.missing.length ? ' (' + esc(f.missing.map(name).join(', ')) + ')' : '') + '</span>';
+    const est = f.est || f.standIn.length ? 'est. ' : '';
+    let out = '<b>' + est + f.fat.toFixed(1) + ' lb</b> fat · <b>' + est + f.muscle.toFixed(1) + ' lb</b> muscle';
+    const notes = [];
+    if (f.est) notes.push('limb parts split by typical segment mass');
+    if (f.standIn.length) notes.push(f.standIn.map(g => FITDAYS_GROUPS[g].label.toLowerCase() + ' total stands in').join(', ') + ' (no separate measurement)');
+    if (f.missing.length) notes.push('no reading for ' + f.missing.map(name).join(', '));
+    return out + (notes.length ? '<small>' + esc(notes.join(' · ')) + '</small>' : '');
+  }
+  toolsHTML() {
+    const esc = v => this.escape(v), name = k => this.regions[k] || FITDAYS_GROUPS[k]?.label || k;
+    if (this.mode === 'link') {
+      const parts = [...this.linked], auto = parts.length ? regionAutoName(parts, this.regions) : '';
+      const chips = parts.length ? parts.map(p => '<span class="body-chip">' + esc(name(p)) + '<button data-body="unlink" data-part="' + esc(p) + '" aria-label="Unlink ' + esc(name(p)) + '">✕</button></span>').join('') : '<span class="hint">Click segments on the model, or choose them above, to link them into one region.</span>';
+      const mine = this.saved.length ? '<p class="cap">Your regions</p><div class="body-chips">' + this.saved.map(r => '<span class="body-chip saved"><button data-body="loadRegion" data-id="' + esc(r.id) + '">' + esc(r.name) + '</button><button data-body="removeRegion" data-id="' + esc(r.id) + '" aria-label="Remove ' + esc(r.name) + '">✕</button></span>').join('') + '</div>' : '';
+      return '<div class="body-chips">' + chips + '</div>' + (parts.length ? '<p class="body-figures">' + this.figuresLine(parts) + '</p><div class="body-link-acts"><input type="text" data-body="regionName" maxlength="40" placeholder="' + esc(auto) + '" aria-label="Name for this region" value=""><button data-body="saveRegion">Save as region</button><button class="ghost" data-body="clearLink">Clear</button></div>' : '') + mine;
+    }
+    if (this.mode === 'compare') {
+      const a = this.compare.a, b = this.compare.b, pa = regionPartsOf(a, this.saved), pb = regionPartsOf(b, this.saved), label = k => k ? (FITDAYS_GROUPS[k]?.label || (k.startsWith('custom:') ? (this.saved.find(r => 'custom:' + r.id === k) || {}).name : this.regions[k]) || k) : '—';
+      const pick = (slot, val) => '<label class="body-cmp-pick"><span class="body-swatch ' + slot + '"></span>' + slot.toUpperCase() + '<select data-body="cmp" data-slot="' + slot + '" aria-label="Compare ' + slot.toUpperCase() + '"><option value="">Choose…</option>' + this.regionOptions(val) + '</select></label>';
+      let table = '';
+      if (a && b) {
+        const fa = regionFigures(pa, this.fitdays), fb = regionFigures(pb, this.fitdays), cell = (f, k) => f[k] === null ? '<span class="body-na">not available at this segmentation</span>' : '<b>' + ((f.est || f.standIn.length) ? 'est. ' : '') + f[k].toFixed(1) + ' lb</b>';
+        const size = pa.length !== pb.length ? '<p class="hint">Unequal regions: ' + esc(label(a)) + ' has ' + pa.length + ' segment' + (pa.length === 1 ? '' : 's') + ', ' + esc(label(b)) + ' has ' + pb.length + '. Shapes are comparable; the numbers cover different amounts of body.</p>' : '';
+        table = '<table class="body-cmp"><thead><tr><th></th><th><span class="body-swatch a"></span>' + esc(label(a)) + '</th><th><span class="body-swatch b"></span>' + esc(label(b)) + '</th></tr></thead><tbody>' +
+          '<tr><td>Fat</td><td>' + cell(fa, 'fat') + '</td><td>' + cell(fb, 'fat') + '</td></tr><tr><td>Muscle</td><td>' + cell(fa, 'muscle') + '</td><td>' + cell(fb, 'muscle') + '</td></tr><tr><td>Segments</td><td>' + pa.length + '</td><td>' + pb.length + '</td></tr></tbody></table>' + size +
+          ((fa.est || fb.est) ? '<p class="hint">est.: limb parts are split from the Fitdays limb total by typical segment mass (de Leva).</p>' : '') + ((fa.standIn.length || fb.standIn.length) ? '<p class="hint">A trunk part shows the trunk total standing in; Fitdays does not split the trunk.</p>' : '');
+      } else table = '<p class="hint">Click two regions on the model, or choose A and B. Compare stays separate from linking.</p>';
+      return '<div class="body-cmp-picks">' + pick('a', a) + pick('b', b) + '<button class="ghost" data-body="cmpSwap"' + (a && b ? '' : ' disabled') + '>Swap</button></div>' + table;
+    }
+    return '';
+  }
+  partsInView(key) { return regionPartsOf(key, this.saved); }
+  paintModel(key) {
+    const viewer = this.querySelector('model-viewer');
+    if (!(viewer && viewer.model) || this.stage) return;
+    const A = this.mode === 'compare' ? new Set(this.partsInView(this.compare.a)) : null, B = this.mode === 'compare' ? new Set(this.partsInView(this.compare.b)) : null;
+    for (const material of viewer.model.materials) {
+      const n = material.name; let color;
+      if (this.mode === 'link') color = this.linked.has(n) ? '#ddb864' : '#5e7472';
+      else if (this.mode === 'compare') color = A.has(n) ? (B.has(n) ? '#a3b79a' : '#ddb864') : B.has(n) ? '#6fa8dc' : '#5e7472';
+      else {
+        const custom = key && key.startsWith('custom:') ? new Set(this.partsInView(key)) : null;
+        color = key === 'all' ? '#72a2a3' : (custom ? custom.has(n) : n === key) ? '#ddb864' : '#667d7d';
+        if (this.fitdays && !custom) {
+          const group = fitdaysGroup(n);
+          const selected = key === 'all' || n === key || (FITDAYS_GROUPS[key] && group === key);
+          color = selected && group ? FITDAYS_GROUPS[group].color : '#667d7d';
+        }
+      }
+      material.pbrMetallicRoughness.setBaseColorFactor(color);
+    }
+  }
+  refreshTools() {
+    const tools = this.querySelector('.body-tools'); if (tools) tools.innerHTML = this.toolsHTML();
+    const label = this.querySelector('.body-segments > label'); if (label && label.firstChild && label.firstChild.nodeType === 3) label.firstChild.textContent = this.mode === 'link' ? 'Add to the region' : this.mode === 'compare' ? 'Pick a region' : 'Highlight a region';
+    this.querySelectorAll('[data-body="mode"]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === this.mode)));
+    if (this.mode === 'select') { this.highlight(this.region); return; }
+    this.paintModel(this.region);
+    const overlay = this.querySelector('.body-region-overlay');
+    if (overlay) {
+      const esc = v => this.escape(v);
+      if (this.mode === 'link') { const parts = [...this.linked]; overlay.innerHTML = parts.length ? '<strong>' + esc(regionAutoName(parts, this.regions)) + '</strong><span>' + this.figuresLine(parts) + '</span>' : '<strong>Link segments</strong><span>Click segments to build a region.</span>'; }
+      else { const a = this.compare.a, b = this.compare.b; overlay.innerHTML = '<strong>Compare</strong><span>' + (a && b ? 'A in gold, B in blue' : a ? 'A chosen · pick B' : 'Pick A, then B') + '</span>'; }
+    }
+  }
+  /* One entry for every way a region gets chosen: the model, the dropdown, a composition card. */
+  pick(key) {
+    if (this.mode === 'link') { if (key === 'all') return; for (const p of this.partsInView(key)) { if (this.linked.has(p) && this.partsInView(key).length === 1) this.linked.delete(p); else this.linked.add(p); } this.refreshTools(); return; }
+    if (this.mode === 'compare') { if (key === 'all') return; const slot = this.compare.next; this.compare[slot] = key; this.compare.next = slot === 'a' ? 'b' : 'a'; this.refreshTools(); return; }
+    this.highlight(key);
+  }
+  saveRegions() { try { localStorage.setItem('glow-body-regions', JSON.stringify(this.saved)); } catch (_) {} }
   /* A whole-body figure follows whichever source measured it most recently and shows that
      source's own date. The Fitdays report was the only source here, so a May scale reading stayed
      on screen while Apple Health already held a September one. Figures are never averaged across
@@ -250,21 +370,13 @@ class HealthBodyView extends HTMLElement {
     const viewer = this.querySelector('model-viewer');
     const groupKey = fitdaysGroup(key);
     this.querySelectorAll('[data-body="composition-region"]').forEach(el => el.setAttribute('aria-pressed', el.dataset.region === groupKey));
-    if (viewer?.model && !this.stage) {
-      for (const material of viewer.model.materials) {
-        let color = key === 'all' ? '#72a2a3' : material.name === key ? '#ddb864' : '#667d7d';
-        if (this.fitdays) {
-          const group = fitdaysGroup(material.name);
-          const selected = key === 'all' || material.name === key || (FITDAYS_GROUPS[key] && group === key);
-          color = selected && group ? FITDAYS_GROUPS[group].color : '#667d7d';
-        }
-        material.pbrMetallicRoughness.setBaseColorFactor(color);
-      }
-    }
+    this.paintModel(key);
     const overlay = this.querySelector('.body-region-overlay');
     if (overlay) {
       overlay.replaceChildren();
-      const title = document.createElement('strong'); title.textContent = this.regions[key] || FITDAYS_GROUPS[key]?.label || 'Whole body'; overlay.append(title);
+      const custom = key.startsWith('custom:') ? this.saved.find(r => 'custom:' + r.id === key) : null;
+      const title = document.createElement('strong'); title.textContent = custom ? custom.name : this.regions[key] || FITDAYS_GROUPS[key]?.label || 'Whole body'; overlay.append(title);
+      if (custom) { const d = document.createElement('span'); d.innerHTML = this.figuresLine(custom.parts); overlay.append(d); return; }
       const detail = document.createElement('span');
       if (this.fitdays) {
         const row = this.fitdays.segments.find(item => item.id === groupKey);
@@ -351,7 +463,7 @@ class HealthBodyView extends HTMLElement {
         this.compositionHeadingHTML() + '<div class="body-empty"><h3>Keep a dated view of your body</h3><p>Import a ZIP containing your 3D model, its details and four reference images.</p><p class="hint">You can review everything before saving. Your existing activity records are kept separate.</p></div>') + '</section>';
     const viewer = this.querySelector('model-viewer');
     if (viewer) {
-      viewer.addEventListener('load', () => { const label = this.querySelector('.body-load'); if (label) label.hidden = true; this.highlight(this.region); });
+      viewer.addEventListener('load', () => { const label = this.querySelector('.body-load'); if (label) label.hidden = true; if (this.mode === 'select') this.highlight(this.region); else this.refreshTools(); });
       viewer.addEventListener('camera-change', () => {
         const quarter = Math.round(viewer.getCameraOrbit().theta / (Math.PI / 2));
         const angle = ['Front', 'Right', 'Back', 'Left'][((quarter % 4) + 4) % 4];
@@ -363,7 +475,7 @@ class HealthBodyView extends HTMLElement {
       viewer.addEventListener('click', event => {
         if (!this.pointerStart || Math.hypot(event.clientX-this.pointerStart[0],event.clientY-this.pointerStart[1]) > 5) return;
         const material = viewer.materialFromPoint(event.clientX, event.clientY);
-        if (material && this.regions[material.name]) this.highlight(material.name);
+        if (material && this.regions[material.name]) this.pick(material.name);
       });
     }
   }
@@ -374,7 +486,8 @@ class HealthBodyView extends HTMLElement {
     if (control.dataset.body === 'record') {
       this.selected = this.records.find(record => record.id === control.value); this.photo = 'Front'; await this.loadRegionData(); this.render();
     }
-    if (control.dataset.body === 'region') this.highlight(control.value);
+    if (control.dataset.body === 'region') { this.pick(control.value); if (this.mode !== 'select') control.value = 'all'; }
+    if (control.dataset.body === 'cmp') { this.compare[control.dataset.slot] = control.value || null; this.compare.next = control.dataset.slot === 'a' ? 'b' : 'a'; this.refreshTools(); }
     if (control.dataset.body === 'fitdays' && control.files.length) {
       this.busy = true; this.disable(true); this.status('Checking the Fitdays report and original image…');
       try {
@@ -423,8 +536,20 @@ class HealthBodyView extends HTMLElement {
       if (go) { try { await go.call(card); } catch (_) { card.classList.add('body-full'); } } else card.classList.add('body-full');
       if (!this.fullListener) { this.fullListener = () => { const on = !!(document.fullscreenElement || document.webkitFullscreenElement) || card.classList.contains('body-full'); const b = this.querySelector('[data-body="fullscreen"]'); if (b) { b.setAttribute('aria-pressed', String(on)); b.textContent = on ? 'Exit full screen' : 'Full screen'; } if (!on) { const v = this.querySelector('model-viewer'); if (v && this.savedOrbit) v.cameraOrbit = this.savedOrbit; this.highlight(this.region); } }; document.addEventListener('fullscreenchange', this.fullListener); document.addEventListener('webkitfullscreenchange', this.fullListener); this.keyListener = e => { if (e.key === 'Escape' && card.classList.contains('body-full')) { card.classList.remove('body-full'); this.fullListener(); } }; document.addEventListener('keydown', this.keyListener); }
       this.fullListener();
+    } else if (action === 'mode') {
+      this.mode = button.dataset.mode; if (this.mode === 'select' && this.region.startsWith('custom:') && !this.saved.some(r => 'custom:' + r.id === this.region)) this.region = 'all'; this.refreshTools();
+    } else if (action === 'unlink') { this.linked.delete(button.dataset.part); this.refreshTools();
+    } else if (action === 'clearLink') { this.linked.clear(); this.refreshTools();
+    } else if (action === 'saveRegion') {
+      const parts = [...this.linked]; if (!parts.length) return;
+      const typed = (this.querySelector('[data-body="regionName"]')?.value || '').trim(), name = typed || regionAutoName(parts, this.regions);
+      this.saved = this.saved.filter(r => r.name !== name).concat({id: Date.now().toString(36), name, parts}); this.saveRegions();
+      this.linked.clear(); this.mode = 'select'; this.region = 'custom:' + this.saved[this.saved.length - 1].id; this.render(); this.status('Saved “' + name + '” as a region on this Mac.');
+    } else if (action === 'loadRegion') { const r = this.saved.find(x => x.id === button.dataset.id); if (r) { this.linked = new Set(r.parts); this.refreshTools(); }
+    } else if (action === 'removeRegion') { this.saved = this.saved.filter(x => x.id !== button.dataset.id); this.saveRegions(); if (this.region === 'custom:' + button.dataset.id) this.region = 'all'; this.refreshTools();
+    } else if (action === 'cmpSwap') { const t = this.compare.a; this.compare.a = this.compare.b; this.compare.b = t; this.refreshTools();
     } else if (action === 'composition-region') {
-      this.highlight(button.dataset.region);
+      this.pick(button.dataset.region);
     } else if (action === 'cancel' || action === 'save') {
       const variant = this.querySelector('[data-body="variant"]')?.value;
       this.busy = true; this.disable(true);

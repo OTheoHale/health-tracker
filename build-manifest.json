@@ -1,10 +1,10 @@
 {
-  "build": "2026-09-25-V2.1",
+  "build": "2026-09-25-V2.2",
   "files": {
-    "body-view.css": "230468476396248f4d03c54477d3b127c2bc055cd3ff16eb2b9384e607d76682",
-    "body-view.js": "7c06481b8c003ea7730188cc3c19fb16d41f97cc208249422f2ffba312ae9da9",
+    "body-view.css": "4af4ea0d956f44392761d9276d24a6dbbf1a5dd106b2653b186fb5762e454752",
+    "body-view.js": "795fe34b05bf9eea383347990c2f045f15df8ce4de7f6b6400e0230760e6c17b",
     "convert-starter.js": "40c333c133bdb5045fd7fe8660861c723ee1a940628a16d6f9bf05ff9cfa0fc4",
-    "delivery.js": "daaf3bb7e4ef0c528d4524de9597be25841cb87294eb3c2388aca1413db8d9c8",
+    "delivery.js": "5e4989f357c71a6a96f433fb4fa537084141e37e7c91bcc8d2f2a0ac0319688a",
     "eotc-calendar.js": "e166cfb503bb6a27bddec2393b81b38b9993397902d393a4442c3447900eded4",
     "hae-adapter.js": "fbaec6ec0e87624acc1028dd5781fd6db2a3ace96050acb9d46ab491061f8353",
     "health-domain.js": "18a0d21dcb5916caa3e87739436cfcbbe3bd12493336f681e748b44d5d7d67cc",
@@ -18,7 +18,7 @@
     "offline.html": "7f472596880496629a8dcbde453d2257e9815c088d609d013253a3469efe521d",
     "quarter-points.js": "7d8a7554b70172264ce5ee8f6897d02ed0a9c7e271a206f53957785cc258e58d",
     "scoring-v5.js": "2fd45ed76f1105ba8795e2f392162ed1045fda43385f1f70cdd7833c11afef48",
-    "sw.js": "56b73df948b23529d214b0520e5b1d410ab5ed55602f9b16b7d7c51fd3793bb9",
+    "sw.js": "c8a1ec9f13863d9c2ea355460117b96b95529fada8d5b66b3acf9b44805a8e83",
     "workspace-proposal.js": "4e8f5f8d5ee14e9ae40a74086335d372658ca1a7017de7b9311773b12a5d8090"
   }
 }
