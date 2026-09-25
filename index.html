@@ -202,6 +202,19 @@ textarea{padding:10px 11px; min-height:64px; resize:vertical; line-height:1.4}
 footer{margin-top:24px; padding-top:12px; border-top:1px solid var(--line); font-size:12px; color:var(--faint)} footer p{margin:0 0 4px}
 .ring{animation:pop .5s ease-out} @keyframes pop{from{transform:scale(.92);opacity:.6}}
 @media (prefers-reduced-motion:reduce){ .ring{animation:none} *{scroll-behavior:auto !important} }
+.deficit{margin:10px 0 4px}.deficit-head{margin:0 0 6px}.deficit-parts{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.85em;opacity:.85}
+.deficit-bar{position:relative;height:8px;border-radius:4px;background:rgba(127,127,127,.22);margin:4px 0 6px;overflow:visible}.deficit-bar i{display:block;height:100%;border-radius:4px;background:#3fae6a}
+.deficit.tone-close .deficit-bar i{background:#d9b938}.deficit.tone-behind .deficit-bar i{background:#e08a3c}.deficit.tone-far .deficit-bar i{background:#d0564b}
+.deficit-bar em{position:absolute;top:-3px;bottom:-3px;width:2px;background:currentColor;opacity:.6}
+.self-mark{margin-left:6px;font-size:.85em;opacity:.7}
+/* Source freshness (Sept 24 scale): green ≤ 10 min, amber ≤ 3 h, orange ≤ 1 day, red older, grey none. */
+.fresh-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle;background:#8a8f8c}.f-live{background:#3fae6a}.f-recent{background:#d9b938}.f-today{background:#e08a3c}.f-stale{background:#d0564b}
+/* Instant answer to a tap (V1.12): the control fills left to right while its save runs, with no size change. */
+.is-pending{position:relative;overflow:hidden}
+.is-pending::after{content:'';position:absolute;inset:0;background:currentColor;opacity:.18;transform-origin:left;animation:tapfill .45s ease-out forwards;pointer-events:none}
+.cb.is-pending{box-shadow:inset 0 0 0 .5em var(--accent,#7fc8a9)}
+@keyframes tapfill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@media (prefers-reduced-motion:reduce){ .is-pending::after{animation:none;transform:none} }
 @media (max-width:1180px){ .cols3{grid-template-columns:minmax(280px,1fr) minmax(320px,1.4fr)} .cols3 .col{grid-column:1/-1} }
 @media (max-width:900px){ .app{grid-template-columns:1fr} .side{position:fixed; top:auto; bottom:0; left:0; right:0; height:auto; padding:6px 8px calc(6px + env(safe-area-inset-bottom)); border-right:0; border-top:1px solid var(--line); background:var(--panel-2); flex-direction:row; align-items:center; z-index:5} .logo, .ck, .side .ghostbtn, .side .spacer{display:none} .nav{display:flex; width:100%; gap:2px} .nav button{flex-direction:column; gap:2px; font-size:11px; padding:0 2px; min-height:48px; justify-content:center} .content{padding:18px 16px 96px} .cols3, .cols2, .ggrid{grid-template-columns:1fr} .form{grid-template-columns:1fr} }
 
@@ -685,12 +698,12 @@ addEventListener('load', () => {
      a September watch reading are never blended into one undated number. */
   const WHOLE_BODY_METRICS={weight:['weight_body_mass','weight_&_body_mass'],bodyFat:['body_fat_percentage'],bmi:['body_mass_index'],leanMass:['lean_body_mass']};
   function wholeBodyFigures(){
-    const state=S(),rows=relayedRecords(state,'weight'),out={};
+    // V1.12: every imported reading counts, including those dated before the feed's scoring start,
+    // so the newest weight wins even when it was recorded before Sep 23 (it read May 11 before).
+    const state=S(),out={};
     for(const [figure,metrics] of Object.entries(WHOLE_BODY_METRICS)){
       let best=null;
-      for(const r of rows){
-        const meta=r.unmapped&&r.unmapped.healthAutoExport;
-        if(!meta||!metrics.includes(meta.metric)||!Number.isFinite(r.value))continue;
+      for(const r of [latestMeasurement(state,metrics)].filter(Boolean).map(x=>({value:x.value,unit:x.unit,start:x.start,sourceApp:x.source}))){
         const date=sourceLocalDay(r.start);
         // A projected row carries the adapter's canonical unit, which is kg. Showing a mass in the
         // unit this workspace is set to is the whole point of the preference; a percentage and an
@@ -889,7 +902,7 @@ addEventListener('load', () => {
       for(const file of reply.files||[]){
         if(intakeEditing()){intake.deferred=true;intakeLog('deferred at '+file.id+': an edit is open');break;}
         if(typeof file.text!=='string'||await digestText(file.text)!==file.sha256){fileError=file.id+' changed before its delivery could be verified. It will be retried.';continue;}
-        const token=await digestText(JSON.stringify([reply.feedId,file.id,file.sha256,file.fingerprint]));
+        let token=await digestText(JSON.stringify([reply.feedId,file.id,file.sha256,file.fingerprint]));
         const result=await navigator.locks.request(STORE_KEY+'.workspace',async()=>{
           if(intakeEditing())return {ok:false,deferred:true};
           intake.applying=true;
@@ -898,7 +911,16 @@ addEventListener('load', () => {
             // each file here costs a full read of the store. A file already delivered is answered
             // first, so it costs one full read instead of two; nothing is written on that path.
             const known=await durableStore.engine.readDelivery(token);if(!known.ok)return known;
-            if(known.delivery)return {ok:true,duplicate:true};
+            if(known.delivery){
+              // V1.12: one overlapping bucket used to hold a whole file, and the delivery was then never
+              // retried: his 2026 year export (Jan–May weight, VO₂ max, water) sat unread. A file held that
+              // way gets exactly one more reading under the per-bucket rule, under its own ledger entry.
+              if(!['stale','conflict'].includes(known.delivery.status))return {ok:true,duplicate:true};
+              const retry=await digestText(JSON.stringify([token,'v1.12-per-bucket-order']));
+              const again=await durableStore.engine.readDelivery(retry);if(!again.ok)return again;
+              if(again.delivery)return {ok:true,duplicate:true};
+              intakeLog(file.id+' was held whole by the old ordering rule; reading it again');token=retry;
+            }
             const current=await store.readFresh();if(!current.ok)return current;
             if(current.state.rewardGeneration!==real.rewardGeneration||current.state.revision!==real.revision)return {ok:false,error:'The workspace changed in another view. Reload before automatic intake continues.'};
             const draft=current.state,feed=draft.autoFeed,contract=feed.contract;
@@ -1160,7 +1182,7 @@ addEventListener('load', () => {
     $('#previewBadge').hidden = !preview&&!syntheticTest&&!personalReview;
     $('#previewBadge').textContent=preview?'LOCAL PREVIEW · SYNTHETIC':personalReview?'PERSONAL DATA · REVIEW BUILD':syntheticTest?'PERSISTENT TEST · INVENTED DATA':'LOCAL PREVIEW · SYNTHETIC';
     $('#storeNote').textContent = preview ? 'Synthetic preview. Changes stay in memory and reset on refresh. Your installed app and its records are untouched.' : personalReview ? 'Saved in this separate review app on this Mac. Export a private copy from Settings.' : 'Saved only in this browser, on this device, at this address. Export a private copy from Settings.';
-    $('#conn').innerHTML = '<span class="cap">Sources</span>' + SOURCES.map(s => { const x = sourceEvidenceSummary(st,s.id), d = sourceDisplay(s); return '<button class="conn" data-act="goData" aria-label="' + esc(d.full + ' — ' + sourceStateLabel(x) + '. ' + x.note) + '" title="' + esc(d.detail + ' — ' + x.note) + '"><b>' + esc(d.short) + '</b><small>' + esc(sourceStateLabel(x)) + '</small></button>'; }).join('') +
+    $('#conn').innerHTML = '<span class="cap">Sources</span>' + SOURCES.map(s => { const x = sourceEvidenceSummary(st,s.id), d = sourceDisplay(s); const age = x.lastSample ? Date.now() - Date.parse(x.lastSample) : null, tone = age === null || !Number.isFinite(age) ? 'none' : age <= 6e5 ? 'live' : age <= 108e5 ? 'recent' : age <= 864e5 ? 'today' : 'stale', ago = age === null || !Number.isFinite(age) ? 'no data yet' : age < 36e5 ? Math.max(1, Math.round(age / 6e4)) + ' min ago' : age < 864e5 ? Math.round(age / 36e5) + ' h ago' : Math.round(age / 864e5) + ' d ago'; return '<button class="conn" data-act="goData" aria-label="' + esc(d.full + ' — newest ' + ago + '. ' + x.note) + '" title="' + esc(d.detail + ' — newest ' + ago + ' — ' + x.note) + '"><i class="fresh-dot f-' + tone + '" aria-hidden="true"></i><b>' + esc(d.short) + '</b><small>' + esc(ago) + '</small></button>'; }).join('') +
       '<button type="button" class="info" data-act="info" aria-expanded="false" aria-controls="info-sources" aria-label="About sources">i</button><div class="info-pop" id="info-sources" hidden><p class="hint" style="font-size:11px">Each line describes that source’s own freshness for the kinds it actually supplies. A working metric does not mean workouts, meals or brushing are supported, and no indicator here means an activity is complete.</p></div>';
     const env = typeof window.__healthTrackerDocumentToken === 'string' ? 'Mac app' : 'Browser';
     const storeKind = preview ? 'synthetic preview · nothing saved' : personalReview ? 'personal review store' : syntheticTest ? 'persistent invented-data store' : 'your saved local store';
@@ -1232,6 +1254,7 @@ addEventListener('load', () => {
     {id:'hrv',label:'Recovery · HRV',metrics:['heart_rate_variability'],kinds:['other'],unit:'ms',digits:0,tone:null,word:()=>''}
   ];
   function latestMetric(state,metrics,kinds){
+    if(typeof latestMeasurement==='function'){const x=latestMeasurement(state,metrics);if(x)return {value:x.value,date:x.date,start:x.start,source:x.source};}
     let best=null;
     for(const kind of kinds)for(const r of relayedRecords(state,kind)){
       const meta=r.unmapped&&r.unmapped.healthAutoExport;if(!meta||!metrics.includes(meta.metric)||!Number.isFinite(r.value))continue;
@@ -1242,7 +1265,7 @@ addEventListener('load', () => {
   function measuredFitnessCard(st){
     const today=todayYmd(),cells=FITNESS_METRICS.map(m=>{
       const x=latestMetric(st,m.metrics,m.kinds);
-      if(!x)return '<div class="mf"><small>'+esc(m.label)+'</small><b>—</b><small>Not in your export yet</small></div>';
+      if(!x)return '<div class="mf"><small>'+esc(m.label)+'</small><b>—</b><small>No reading yet</small></div>';
       const tone=m.tone?m.tone(x.value):null,age=calendarDistance(x.date,today);
       return '<div class="mf"'+(tone!==null?' style="--tone:'+perfColor(tone)+'"':'')+'><small>'+esc(m.label)+'</small><b>'+esc(x.value.toFixed(m.digits))+' <small>'+esc(m.unit)+'</small></b><small>'+(m.word(x.value)?'<span class="mf-word">'+esc(m.word(x.value))+'</span> · ':'')+(age>7?'Last '+esc(medDate(x.date)):age<=0?'Today':esc(medDate(x.date)))+'</small></div>';
     }).join('');
@@ -1937,20 +1960,37 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function tplLines(items, depth=0){ return (items || []).map(i => '  '.repeat(depth) + i.name + (i.items && i.items.length ? '\n' + tplLines(i.items, depth + 1) : '')).join('\n'); }
   function tplParse(text){ const out = []; for (const raw of String(text || '').split('\n')){ const name = raw.replace(/^[\s\-•*]+/, '').trim(); if (!name) continue; if (/^\s{2,}|^\s*[-•*]/.test(raw) && out.length) (out[out.length - 1].items = out[out.length - 1].items || []).push({name}); else out.push({name, items:[]}); } return out; }
   function saveTemplates(st, list, message){ stage(st, 'pref'); st.prefs.templates = list; commit('pref', message); }
-  // Nutrition beside hydration (P8, Mintay 2026-09-24): today's logged meals and water, nothing inferred.
+  // Nutrition, data first (V1.12; Mintay Sept 25): what he logs here wins; otherwise the day's
+  // imported totals (Bevel, Grow, MyFitnessPal through Apple Health) fill the tiles, marked by source.
   function nutritionCard(date){
     const st = S(), foods = (st.foods || []).filter(f => f.date === date && f.nutrition), sum = k => foods.reduce((n, f) => n + (Number(f.nutrition[k]) || 0), 0);
-    const oz = typeof MealWater !== 'undefined' ? MealWater.waterSummary(st, date).manual.usFlOz : 0;
-    const cell = (label, value, unit) => '<div class="nut"><small>' + label + '</small><b>' + value + '</b>' + (unit ? ' <small>' + unit + '</small>' : '') + '</div>';
-    return '<section class="panelcard" data-feedback-id="nutrition" data-feedback-label="Nutrition"><div class="ph"><h2>Nutrition</h2></div><div class="nut-grid">' +
-      cell('Calories', foods.length ? Math.round(sum('calories')).toLocaleString() : '—', foods.length ? 'kcal' : '') + cell('Protein', foods.length ? Math.round(sum('proteinG')) : '—', foods.length ? 'g' : '') +
-      cell('Carbs', foods.length ? Math.round(sum('carbsG')) : '—', foods.length ? 'g' : '') + cell('Fat', foods.length ? Math.round(sum('fatG')) : '—', foods.length ? 'g' : '') + cell('Water', oz ? Math.round(oz) : '—', oz ? 'fl oz' : '') +
-      '</div>' + deficitLine(st, date) + '<p class="hint">From the meals and water you log here; a day with nothing logged shows dashes, not zeros. Imported nutrition is not added.</p></section>';
+    const imp = typeof importedNutrition === 'function' ? importedNutrition(st, date) : {}, manual = foods.length > 0;
+    const manualOz = typeof MealWater !== 'undefined' ? MealWater.waterSummary(st, date).manual.usFlOz : 0, importedOz = imp.dietary_water ? imp.dietary_water.value / 29.5735295625 : 0;
+    const oz = manualOz || importedOz, pick = (k, metric) => manual ? sum(k) : imp[metric] ? imp[metric].value : null;
+    const cell = (label, value, unit) => '<div class="nut"><small>' + label + '</small><b>' + (value === null ? '—' : Math.round(value).toLocaleString()) + '</b>' + (value !== null && unit ? ' <small>' + unit + '</small>' : '') + '</div>';
+    const from = manual ? 'Logged here' : Object.keys(imp).length ? 'From ' + [...new Set(Object.values(imp).map(x => x.source).filter(Boolean))].join(', ') : 'Nothing logged or imported yet';
+    return '<section class="panelcard" data-feedback-id="nutrition" data-feedback-label="Nutrition"><div class="ph"><h2>Nutrition</h2><span class="hint keep">' + esc(from) + '</span></div><div class="nut-grid">' +
+      cell('Calories', pick('calories', 'dietary_energy'), 'kcal') + cell('Protein', pick('proteinG', 'protein'), 'g') + cell('Carbs', pick('carbsG', 'carbohydrates'), 'g') + cell('Fat', pick('fatG', 'total_fat'), 'g') + cell('Water', oz || null, 'fl oz') +
+      '</div>' + deficitLine(st, date) + '<p class="hint">What you log here wins over imported totals for the same day. Water counts toward 100 fl oz.</p></section>';
   }
+  // The deficit always shows (V1.12): target 825 kcal a day, on track from 750. A missing part is
+  // named instead of hiding the panel. Points stay a preview until the scoring version that pays them.
   function deficitLine(st, date){
-    const eb = wsTry('energyBalance', st, date); if (!eb || !eb.available) return '';
-    const deficit = -eb.balance, pts = energyDeficitPoints(deficit);
-    return '<p class="deficit keep">' + (deficit > 0 ? 'Deficit <b>' + Math.round(deficit).toLocaleString() + ' kcal</b>' : 'Surplus <b>' + Math.round(-deficit).toLocaleString() + ' kcal</b>') + (pts ? ' · would earn <b>' + pts + ' pts</b> <span class="hint">(preview; not scored yet)</span>' : '') + '</p>';
+    const DEFICIT_TARGET = 825, DEFICIT_ON_TRACK = 750; // inside: dashboard tests run this function alone
+    const eb = wsTry('energyBalance', st, date);
+    if (!eb) return '';
+    const n = v => Number.isFinite(v) ? Math.round(v).toLocaleString() : '—';
+    const parts = '<div class="deficit-parts keep"><span>Food <b>' + n(eb.food) + '</b></span><span>− Resting <b>' + n(eb.resting) + '</b></span><span>− Active <b>' + n(eb.active) + '</b></span></div>';
+    if (!eb.available){
+      const missing = [['food', eb.food], ['resting energy', eb.resting], ['active energy', eb.active]].filter(([, v]) => !Number.isFinite(v)).map(([k]) => k);
+      return '<div class="deficit keep"><p class="deficit-head">Deficit <b>—</b> <span class="hint">target ' + DEFICIT_TARGET + ' kcal</span></p>' + parts + '<p class="hint">Waiting for ' + esc(missing.join(', ')) + (eb.note && /duplication/.test(eb.note) ? '. Logged and imported food disagree; one of them wins once reviewed' : '') + '.</p></div>';
+    }
+    const deficit = -eb.balance, pts = energyDeficitPoints(deficit), pct = Math.max(0, Math.min(100, 100 * deficit / DEFICIT_TARGET));
+    const tone = deficit >= DEFICIT_TARGET ? 'good' : deficit >= DEFICIT_ON_TRACK ? 'close' : deficit > 0 ? 'behind' : 'far';
+    const mark = {good:'●', close:'◐', behind:'▼', far:'▼▼'}[tone];
+    return '<div class="deficit keep tone-' + tone + '"><p class="deficit-head">' + (deficit > 0 ? 'Deficit <b>' + n(deficit) + ' kcal</b>' : 'Surplus <b>' + n(-deficit) + ' kcal</b>') + ' <span aria-hidden="true">' + mark + '</span> <span class="hint">target ' + DEFICIT_TARGET + ' · on track ' + DEFICIT_ON_TRACK + '</span></p>' +
+      '<div class="deficit-bar" role="img" aria-label="' + esc(n(Math.max(0, deficit)) + ' of ' + DEFICIT_TARGET + ' kcal deficit') + '"><i style="width:' + pct.toFixed(1) + '%"></i><em style="left:' + (100 * DEFICIT_ON_TRACK / DEFICIT_TARGET).toFixed(1) + '%" title="On track"></em></div>' + parts +
+      (pts ? '<p class="hint">Would earn <b>' + pts + ' pts</b> (preview; not scored yet)' + (eb.provisional ? ' · today is still provisional' : '') + '</p>' : eb.provisional ? '<p class="hint">Today is still provisional.</p>' : '') + '</div>';
   }
   // Checkpoint countdown (P8): Jan 7 2027 by default, counted to midnight Seattle time.
   function checkpointCard(){
@@ -2305,7 +2345,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function sleepMore(st,date,n,week){
     const rr=metricDaily(st,['respiratory_rate'],['other'],addDays(date,-1),date),resp=rr.get(date)??rr.get(addDays(date,-1));
     const tile=(label,value)=>'<div class="nut"><small>'+label+'</small><b>'+value+'</b></div>';
-    const tiles=n?'<div class="nut-grid sleep-tiles">'+tile('Time in bed',Number.isFinite(n.stats.inBed)?esc(hm(n.stats.inBed*60)):'—')+tile('Bedtime',esc(clockOf(n.start)))+tile('Woke',esc(clockOf(n.end)))+tile('Breathing',Number.isFinite(resp)?resp.toFixed(1)+' <small>/min</small>':'—')+'</div>':'';
+    const tiles=n?'<div class="nut-grid sleep-tiles">'+tile('Time in bed',Number.isFinite(n.stats.inBed)&&n.stats.inBed>0?esc(hm(n.stats.inBed*60)):'—')+tile('Bedtime',esc(clockOf(n.start)))+tile('Woke',esc(clockOf(n.end)))+tile('Breathing',Number.isFinite(resp)?resp.toFixed(1)+' <small>/min</small>':'—')+'</div>':'';
     const at=iso=>{const m=/T(\d{2}):(\d{2})/.exec(iso||'');if(!m)return null;let h=+m[1]+ +m[2]/60;if(h<12)h+=24;return Math.max(0,Math.min(100,100*(h-20)/16));};
     const rows=week.map(w=>{const s0=w.night&&at(w.night.start),e0=w.night&&at(w.night.end);return '<span class="sched-d">'+esc(new Date(w.d+'T12:00:00').toLocaleDateString(undefined,{weekday:'short'}))+'</span><span class="sched-t">'+(s0!==null&&e0!==null&&w.night?'<i style="left:'+s0.toFixed(1)+'%;width:'+Math.max(2,e0-s0).toFixed(1)+'%;background:'+perfColor(w.night.minutes/SLEEP_GOAL_MIN)+'" title="'+esc(clockOf(w.night.start)+' → '+clockOf(w.night.end))+'"></i>':'')+'</span>';}).join('');
     return tiles+'<p class="cap" style="margin-top:12px">Schedule · last 7 nights</p><div class="sched">'+rows+'</div><div class="sched-axis"><span>8 PM</span><span>12 AM</span><span>4 AM</span><span>8 AM</span><span>12 PM</span></div>';
@@ -2439,7 +2479,10 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const from=addDays(last,-29),q=(a,p)=>{const v=a.slice().sort((x,y)=>x-y),i=(v.length-1)*p,lo=Math.floor(i);return v[lo]+(v[Math.min(lo+1,v.length-1)]-v[lo])*(i-lo);};
     const rows=VITALS.map(m=>{
       const daily=metricDaily(st,m.metrics,m.kinds,from,last),dates=[...daily.keys()].sort(),vals=dates.map(d=>daily.get(d));
-      if(!vals.length)return '<div class="vit-row empty"><span>'+esc(m.label)+'</span><span class="hint">Not in your export yet</span><span></span></div>';
+      if(!vals.length){const last=typeof latestMeasurement==='function'?latestMeasurement(st,m.metrics):null;
+        if(!last)return '<div class="vit-row empty"><span>'+esc(m.label)+'</span><span class="hint">No reading yet</span><span></span></div>';
+        const v=m.weight&&st.prefs.units!=='kg'?last.value*2.2046226218487757:last.value,u=m.weight?(st.prefs.units==='kg'?'kg':'lb'):m.unit;
+        return '<div class="vit-row empty"><span>'+esc(m.label)+'</span><span class="hint">Last '+esc(medDate(last.date))+' · none in 30 days</span><span><b>'+v.toFixed(m.digits)+'</b> '+esc(u||'')+'</span></div>';}
       let unit=m.unit;
       if(m.weight){const u=st.prefs.units==='kg'?'kg':'lb';unit=u;for(let i=0;i<vals.length;i++)vals[i]=u==='lb'?vals[i]*2.2046226218487757:vals[i];}
       const latest=vals[vals.length-1],personal=vals.length>=7,band=personal?[q(vals,.25),q(vals,.75)]:m.band,lo=Math.min(...vals,band?band[0]:latest)*0.97,hi=Math.max(...vals,band?band[1]:latest)*1.03,pos=v=>Math.max(0,Math.min(100,100*(v-lo)/((hi-lo)||1)));
@@ -2674,6 +2717,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const totalCount = n.family && Number.isFinite(n.family.total) ? n.family.total : kids.length;
     const auto = !container && confirmed && n.occurrence && n.occurrence.confirmation && n.occurrence.confirmation.auto === true;
     const sourced = !container && confirmed && n.occurrence && n.occurrence.confirmation && n.occurrence.confirmation.kind === 'source';
+    // Data first, his final say (V1.12): an item Apple Health could fill that he marked himself shows ✎.
+    const selfReported = !container && confirmed && !sourced && (() => { const ser = S().series.find(x => x.id === n.seriesId), v = ser && typeof versionFor === 'function' ? versionFor(ser, n.date || day) : null; return !!(v && v.matching && v.matching.kind); })();
     const claimable = !container && confirmed ? (wsClaimable || []).find(c => c.id === key || (c.seriesId === n.seriesId && c.date === (n.date || day))) : null;
     // Gena-like rows (Mintay, 2026-09-24): the check sits on the left and says who confirmed it — filled
     // green by your data, filled in the category colour by you, dotted when only checked off. Words like
@@ -2702,7 +2747,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
             return '<button class="cb' + (sourced ? ' src' : '') + mark + '" role="checkbox" aria-checked="' + (confirmed ? 'true' : st === 'tentative' || mark === ' part' ? 'mixed' : 'false') + '" data-act="toggleDone" aria-label="' + (confirmed ? 'Review ' : 'Done: ') + esc(label) + ' · ' + said + '"' + (future ? ' disabled' : '') + ' title="' + said + '">' + (confirmed ? '✓' : mark === ' skip' ? '✕' : mark === ' part' ? '◐' : mark === ' exempt' ? '—' : '') + '</button>' +
               (!confirmed && !mark && !future && st !== 'tentative' ? '<button class="skip-x" data-act="log" data-s="skipped" aria-label="Skipped: ' + esc(label) + '" title="Skipped — didn’t do it">✕</button>' : '');
           })()) +
-      '<button class="nm" data-act="openRow">' + esc(label) + '</button>' + (summary ? '<span class="meta">' + esc(summary) + '</span>' : '') +
+      '<button class="nm" data-act="openRow">' + esc(label) + '</button>' + (selfReported ? '<span class="self-mark keep" title="Self-reported: your entry wins over Apple Health and still earns points" aria-label="Self-reported">✎</span>' : '') + (summary ? '<span class="meta">' + esc(summary) + '</span>' : '') +
       (claimable ? '<button class="save claim-one" data-act="claimOne" data-claim="' + esc(claimable.id) + '">Claim ' + pointAmount(claimable, claimable.amount) + ' ✦</button>' : '') +
       '<button class="link row-edit" data-act="wsHierarchyEdit" aria-label="Edit ' + esc(label) + '">Edit</button>' +
       '<details class="more"><summary aria-label="More for ' + esc(label) + '">⋯</summary><div class="more-menu">' + menu + '</div></details>' +
@@ -2811,6 +2856,15 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     toast(result.ok?message:ui.error);
     return result;
   }
+  // Water, data first (V1.12; Mintay Sept 25): drinks logged here win; otherwise the day's imported
+  // total (Grow or Bevel through Apple Health) counts. Target 100 fl oz, never below 60.
+  function waterTotalHTML(summary){
+    const imp=typeof importedNutrition==='function'?importedNutrition(S(),day).dietary_water:null,importedOz=imp?imp.value/29.5735295625:0,manualOz=summary.manual.usFlOz||0;
+    const counted=manualOz>0?manualOz:importedOz,target=Math.max(60,Number(S().prefs.waterTargetOz)||100),pct=Math.min(100,100*counted/target);
+    const note=manualOz>0?(importedOz?'Logged here ('+mwShow(summary.manual.volumeMl)+' mL); Apple Health also has '+r1(importedOz)+' fl oz.':mwShow(summary.manual.volumeMl)+' mL logged here.'):importedOz?'From '+esc(imp.source||'Apple Health')+'.':'Nothing logged or imported yet.';
+    const r1=v=>(Math.round(v*10)/10).toLocaleString();
+    return '<p class="big">'+r1(counted)+' <small>of '+target+' fl oz</small></p><div class="deficit-bar" role="img" aria-label="'+esc(r1(counted)+' of '+target+' fluid ounces')+'"><i style="width:'+pct.toFixed(1)+'%"></i><em style="left:'+(100*60/target).toFixed(1)+'%" title="60 fl oz floor"></em></div><p class="hint">'+note+'</p>';
+  }
   function waterCard(){
     const m=MWmod(),ui=mwDrafts();
     if(!m)return '<section class="panelcard"><h2>Water</h2><p class="hint">Water entry is unavailable in this preview. Existing records are unchanged.</p></section>';
@@ -2822,7 +2876,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       '<div><label for="mw-water-time">Time (optional)</label><input id="mw-water-time" type="time" value="'+esc(w.time)+'"></div></div>'+
       '<div class="acts"><button id="mw-water-save" data-act="waterSave">'+(w.edit?'Save correction':'Save drink')+'</button><button class="ghost" data-act="waterCancel">Cancel</button></div></div>':'';
     return '<section class="panelcard ws-water" data-mw-card="water" data-feedback-id="water" data-feedback-label="Water"><div class="ph"><h2>Water</h2><span class="hint">'+esc(medDate(day))+'</span></div>'+
-      '<p class="big">'+mwShow(summary.manual.usFlOz)+' US fl oz</p><p class="hint">'+mwShow(summary.manual.volumeMl)+' mL recorded manually. No daily target is assumed.</p>'+
+      waterTotalHTML(summary)+
       '<div class="presets">'+WATER_PRESETS.map(amount=>'<button data-act="waterAdd" data-v="'+amount+'"'+(w?' disabled':'')+'>'+amount+' US fl oz</button>').join('')+
       '<button id="mw-water-custom" data-act="waterCustom"'+(w?' disabled':'')+'>Custom amount</button></div>'+form+mwError('water')+
       (events.length?events.map(record=>'<div class="evrow" data-water="'+esc(record.id)+'"><span class="amt">'+mwShow(record.value)+' '+esc(record.unit)+'</span><span class="src">'+esc(record.time||'Time not specified')+' · self-reported</span><button class="ghost small" data-act="waterEdit"'+(w?' disabled':'')+'>Edit</button><button class="ghost small" data-act="waterDelete"'+(w?' disabled':'')+'>Delete</button></div>').join(''):'<p class="hint">No measured drinks recorded for this day.</p>')+
@@ -2957,9 +3011,12 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if ($('#rl-from') && $('#rl-to')) relayDates = {from:$('#rl-from').value,to:$('#rl-to').value};
     recordViewHistory();
     applyTheme(); applyWallpaper();
-    renderHeader(); renderNotices();
+    // One read-only index per draw: per-row scans of every occurrence happen once (V1.12 speed).
+    const draw=f=>typeof withDrawMemo==='function'?withDrawMemo(S(),f):f();
+    draw(()=>{renderHeader(); renderNotices();
     const sourceBadges=document.getElementById('conn');if(sourceBadges)document.getElementById('sidebarSources').append(sourceBadges);
     $('#main').innerHTML = area === 'home' ? renderHome() : area === 'faith' ? renderFaith() : area === 'profile' ? profileCard() : area === 'fitness' ? renderData() : area === 'data' ? coverageCard()+renderData()+evidenceTasksCard()+energyBalanceCard() : area === 'plan' ? renderPlan() : area === 'log' ? renderLog()+logLinksCard()+actionLogCard()+duplicateActionCard()+waterCard()+mealLibraryCard() : area === 'progress' ? renderProgress()+learningCard(progStart) : area === 'collection' ? renderCollection()+scoringProposalCard() : area === 'lessons' ? renderLessons() : renderSettings();
+    });
     $('#main').dataset.area = area;
     wsHierarchyRestore();
     if(!document.getElementById('viewNav')){const nav=document.createElement('div');nav.id='viewNav';nav.className='acts';document.querySelector('.topbar').append(nav);}
@@ -3025,11 +3082,16 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function openRow(seriesId, date){if(!resolveDraftNavigation())return; planCanvas = 'overview'; if (area === 'home'){ day = date; panel = {kind:'day',key:occKey(seriesId,date)}; render(); focusFirst('.day-editor h2'); return; } area = 'plan'; weekSel = date; planGroup = 'all'; panel = { kind:'edit', key: occKey(seriesId, date) }; render(); const el = document.getElementById('row-' + occKey(seriesId, date).replace(/[^a-z0-9]/gi, '_')); if (el) el.scrollIntoView({ block:'start', behavior:'auto' }); }
 
   /* ---------- events ---------- */
+  const PENDING_ACTS=new Set(['toggleDone','done','log','notToday','exempt','unexcuse','claimOne','claimAll','reviewAction','saveDetail','applyUpdate','export']);
   document.addEventListener('click', async e => {
     const btn = e.target.closest('button[data-act], button[data-area]');
     if (!btn) return;
     const st = S();
     const act = btn.dataset.act;
+    // Mark the tapped control at once; the redraw after the save replaces it (V1.12 speed).
+    if(PENDING_ACTS.has(act)&&!btn.disabled){btn.classList.add('is-pending');btn.setAttribute('aria-busy','true');setTimeout(()=>{btn.classList.remove('is-pending');btn.removeAttribute('aria-busy');},4000);
+      // Let that mark reach the screen before the save's work holds the main thread.
+      await new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)));}
     if(act==='intakeConnect'){await connectIntake();return;}
     if(act==='intakeDisconnect'){
       // The app could connect a feed but never let go of one. Once the page's feed identity and the

@@ -616,11 +616,20 @@ function recurrenceWindow(ver, date){
   const from = r.mode === 'rolling' ? (addDays(date, 1-span) < anchor ? anchor : addDays(date, 1-span)) : addDays(anchor, Math.floor(calendarDistance(anchor, date) / span) * span);
   return { from, to:r.mode === 'rolling' ? date : addDays(from, span-1), mode:r.mode, target:r.count };
 }
+/* A read-only index that lives for one synchronous screen draw. The UI opens it around render(),
+   when the record cannot change, so repeated per-row scans of every occurrence happen once. */
+let drawMemo=null;
+function withDrawMemo(state,fn){const outer=drawMemo;drawMemo={state,occBySeries:null};try{return fn();}finally{drawMemo=outer;}}
+function occurrencesOf(state,seriesId){
+  if(!drawMemo||drawMemo.state!==state)return Object.values(state.occurrences).filter(o=>o.seriesId===seriesId);
+  if(!drawMemo.occBySeries){drawMemo.occBySeries=new Map();for(const o of Object.values(state.occurrences)){const list=drawMemo.occBySeries.get(o.seriesId);if(list)list.push(o);else drawMemo.occBySeries.set(o.seriesId,[o]);}}
+  return drawMemo.occBySeries.get(seriesId)||[];
+}
 function targetProgress(state, seriesId, date){
   const s = state.series.find(x => x.id === seriesId), v = s && versionFor(s, date);
   const window = v && recurrenceWindow(v, date);
   if (!window) return null;
-  const events = new Set(Object.values(state.occurrences).filter(o => o.seriesId === seriesId && o.date >= window.from && o.date <= window.to && o.date <= date && o.status === 'done' && (!confirmedProgression(state)||actionConfirmation(state,o).confirmed)).map(o => o.rewardEventId || occKey(o.seriesId, o.date)));
+  const events = new Set(occurrencesOf(state,seriesId).filter(o => o.date >= window.from && o.date <= window.to && o.date <= date && o.status === 'done' && (!confirmedProgression(state)||actionConfirmation(state,o).confirmed)).map(o => o.rewardEventId || occKey(o.seriesId, o.date)));
   return Object.assign({}, window, { count:events.size, remaining:Math.max(0, window.target-events.size), complete:events.size >= window.target });
 }
 
@@ -1281,7 +1290,7 @@ function mergeRewardLedger(cur, inc){
 async function actionTransaction(state, change, options){
   const opts=options||{}, revision=state.revision||0;
   const run=async()=>{
-    const loaded=opts.persist===false?{ok:true,state}:await store.readFresh();
+    const loaded=opts.persist===false?{ok:true,state}:await store.readCommitted();
     if(!loaded.ok)return loaded;
     const current=loaded.state||state;
     if((current.revision||0)!==revision)return {ok:false,error:'This action changed in another window. Reload and review again.'};
@@ -1298,7 +1307,7 @@ async function actionTransaction(state, change, options){
 async function claimRewards(state, ids, options){
   const opts = options || {}, today = opts.today || todayYmd();
   const execute = async () => {
-    const loaded = opts.persist === false ? {ok:true,state} : await store.readFresh();
+    const loaded = opts.persist === false ? {ok:true,state} : await store.readCommitted();
     if (!loaded.ok) return {ok:false,error:loaded.error,claimed:[],amount:0};
     if (confirmedProgression(state) && loaded.state && (loaded.state.revision||0)!==(state.revision||0)){ replaceState(state,loaded.state); }
     if (opts.persist !== false && !loaded.state) return {ok:false,error:'Save the completed task before claiming its reward.',claimed:[],amount:0};
@@ -1611,6 +1620,30 @@ function sourceIsActive(state,id,record){
   sourceProjection(state);return sourceProjectionCache.get(state).active.has(id);
 }
 function sourceEvidenceEligible(state,record){return (state.syntheticWorkspace===true||!syntheticPreviewData(record))&&sourceIsActive(state,record.id,record)&&record.unmapped?.healthAutoExport?.representation!=='minute aggregate';}
+/* The newest reading per metric from every imported row, in the metric's canonical unit, with its
+   own date. Rows dated before the feed's start are shadowed for scoring, not for "what is my latest
+   weight": Whole Body, Measured Fitness and Vitals read this (V1.12). Rows with an open clash are
+   skipped. One pass per draw when the draw memo is open. */
+function latestMeasurements(state){
+  if(drawMemo&&drawMemo.state===state&&drawMemo.latest)return drawMemo.latest;
+  const H=globalThis.HealthAutoExport,defs=new Map(),out=new Map();
+  for(const r of state.sourceRecords||[]){
+    const m=r.unmapped&&r.unmapped.healthAutoExport;if(!m||typeof m.metric!=='string'||!Number.isFinite(r.value)||(r.clashes||[]).length)continue;
+    if(!defs.has(m.metric))defs.set(m.metric,H&&H.metric?H.metric(m.metric):null);
+    const def=defs.get(m.metric);if(!def||def.reduce!=='latest')continue;
+    const factor=def.units[r.unit];if(!Number.isFinite(factor))continue;
+    const date=sourceLocalDay(r.start),best=out.get(m.metric);
+    if(!best||date>best.date||(date===best.date&&r.start>best.start))out.set(m.metric,{value:r.value*factor,unit:def.unit,date,start:r.start,source:r.sourceApp||'Apple Health',metric:m.metric});
+  }
+  if(drawMemo&&drawMemo.state===state)drawMemo.latest=out;
+  return out;
+}
+function latestMeasurement(state,metrics){let best=null;const all=latestMeasurements(state);for(const name of metrics){const x=all.get(name);if(x&&(!best||x.date>best.date||(x.date===best.date&&x.start>best.start)))best=x;}return best;}
+/* One day's imported nutrition totals, by metric, in canonical units (kcal, g, mL). */
+function importedNutrition(state,date){
+  const out={};for(const r of relayedRecords(state,'other')){const metric=r.unmapped?.healthAutoExport?.metric;if(!metric||sourceLocalDay(r.start)!==date||!Number.isFinite(r.value)||(r.clashes||[]).length)continue;if(['dietary_energy','protein','carbohydrates','total_fat','dietary_water','dietary_sugar','alcohol_consumption','caffeine'].includes(metric))out[metric]={value:(out[metric]?.value||0)+r.value,unit:r.unit,source:r.sourceApp};}
+  return out;
+}
 function relayedRecords(state,kind){const projected=sourceProjection(state);return (projected?projected.records:(state.sourceRecords||[]).filter(r=>sourceIsActive(state,r.id,r))).filter(r=>!kind||r.kind===kind).sort((a,b)=>Date.parse(b.start)-Date.parse(a.start));}
 function relaySourceMatches(id, record){
   const app = String(record.sourceApp || '');
@@ -2291,6 +2324,13 @@ store.read = function(){
   if(durableStore.active)return {ok:true,state:JSON.parse(JSON.stringify(durableStore.cache))};
   return legacyRead();
 };
+// The committed record this tab last read or saved, without re-reading the whole store. A tap
+// starts from it; the engine's write still checks the stored revision and hash, so a change made
+// in another window is refused exactly as before (V1.12 speed). Callers must not mutate it.
+store.readCommitted = function(){
+  if(durableStore.active&&!durableStore.error&&durableStore.cache)return {ok:true,state:durableStore.cache};
+  return this.readFresh();
+};
 store.readFresh = async function(){
   if(!durableStore.active)return this.read();
   const result=await durableStore.engine.read();
@@ -2714,6 +2754,16 @@ function wsState(state,row,date,options={}){
   return 'open';
 }
 function planFor(state,date){
+  // Within one draw the same day's plan is asked for many times (433 calls on Plan & Quests).
+  // Each caller gets its own copy, so a caller that edits its rows cannot touch another's.
+  if(drawMemo&&drawMemo.state===state){
+    const plans=drawMemo.plans||(drawMemo.plans=new Map());
+    if(!plans.has(date))plans.set(date,planForUncached(state,date));
+    return structuredClone(plans.get(date));
+  }
+  return planForUncached(state,date);
+}
+function planForUncached(state,date){
   if(!wsEnabled(state))return legacyPlanFor(state,date);
   const rows=[];
   for(const series of state.series){
@@ -2734,9 +2784,12 @@ function planFor(state,date){
   };
   const projected=rows.filter(r=>!r.parentId||!rows.some(p=>p.seriesId===r.parentId)).map(r=>visit(r,0));
   for(const row of allRows(projected)){row.container=Array.isArray(row.children);row.targetProgress=targetProgress(state,row.seriesId,date);}
+  // The pinned rule per budget root, found once per call instead of a scan of every occurrence per
+  // row (the first match wins, as .find did).
+  let pinnedByRoot=null;const pinnedRule=rootId=>{if(!pinnedByRoot){pinnedByRoot=new Map();for(const o of Object.values(state.occurrences))if(o.date===date&&o.quarterRule?.rootId&&!pinnedByRoot.has(o.quarterRule.rootId))pinnedByRoot.set(o.quarterRule.rootId,o.quarterRule);}return pinnedByRoot.get(rootId);};
   if(typeof QuarterPoints!=='undefined')for(const row of leafRows(projected)){
     let ancestor=row,budget=null;while(ancestor){if(Number.isSafeInteger(ancestor.budgetQ))budget=ancestor;ancestor=rows.find(r=>r.seriesId===ancestor.parentId);}
-    if(budget){const pinned=Object.values(state.occurrences).find(o=>o.date===date&&o.quarterRule?.rootId===budget.seriesId)?.quarterRule,leafIds=pinned?.leafIds||leafRows(budget.children||[]).filter(r=>!r.optional).map(r=>r.seriesId),amount=leafIds.length?QuarterPoints.allocateQ(pinned?.budgetQ??budget.budgetQ,leafIds.map(id=>({id}))).find(a=>a.id===row.seriesId)?.amountQ||0:0;row.shareQ=amount;row.shareDisplay=amount/4;row.allocation={amountQ:amount,displayAmount:amount/4,pinned:!!pinned,rootId:budget.seriesId,budgetQ:pinned?.budgetQ??budget.budgetQ};}
+    if(budget){const pinned=pinnedRule(budget.seriesId),leafIds=pinned?.leafIds||leafRows(budget.children||[]).filter(r=>!r.optional).map(r=>r.seriesId),amount=leafIds.length?QuarterPoints.allocateQ(pinned?.budgetQ??budget.budgetQ,leafIds.map(id=>({id}))).find(a=>a.id===row.seriesId)?.amountQ||0:0;row.shareQ=amount;row.shareDisplay=amount/4;row.allocation={amountQ:amount,displayAmount:amount/4,pinned:!!pinned,rootId:budget.seriesId,budgetQ:pinned?.budgetQ??budget.budgetQ};}
   }
   return projected;
 }
@@ -3414,11 +3467,15 @@ Workspace.confirmHealthyMeal=function(state,id,date,tags,options={}){return wsTr
 const DEFICIT_STEPS=[[1000,12],[800,10],[500,8]];
 function energyDeficitPoints(deficit){if(!Number.isFinite(deficit))return 0;for(const [kcal,points] of DEFICIT_STEPS)if(deficit>=kcal)return points;return 0;}
 Workspace.energyBalance=function(state,date){
-  const source=(kind)=>{const records=relayedRecords(state,kind).filter(r=>sourceLocalDay(r.start)===date&&!r.clashes?.length&&r.unit==='kcal'&&Number.isFinite(r.value)&&r.value>=0);const signatures=new Map();for(const record of records){const key=JSON.stringify([record.sourceRecordId||null,record.sourceApp,record.start,record.end,record.value]);if(!signatures.has(key))signatures.set(key,record);}const distinct=[...signatures.values()];if(new Set(distinct.map(r=>r.sourceApp)).size>1)return null;if(distinct.some((r,i)=>distinct.slice(0,i).some(other=>evidenceOverlaps(r,other))))return null;return distinct.length?distinct.reduce((n,r)=>n+r.value,0):null;};
+  // Imported food and resting energy arrive as kind 'other' named by metric (V1.12), so each side
+  // reads its own kind and its metric; the day's projected total is one record.
+  const source=(kind,metric)=>{const records=relayedRecords(state,kind).concat(metric?relayedRecords(state,'other').filter(r=>r.unmapped?.healthAutoExport?.metric===metric):[]).filter(r=>sourceLocalDay(r.start)===date&&!r.clashes?.length&&r.unit==='kcal'&&Number.isFinite(r.value)&&r.value>=0);const signatures=new Map();for(const record of records){const key=JSON.stringify([record.sourceRecordId||null,record.sourceApp,record.start,record.end,record.value]);if(!signatures.has(key))signatures.set(key,record);}const distinct=[...signatures.values()];if(new Set(distinct.map(r=>r.sourceApp)).size>1)return null;if(distinct.some((r,i)=>distinct.slice(0,i).some(other=>evidenceOverlaps(r,other))))return null;return distinct.length?distinct.reduce((n,r)=>n+r.value,0):null;};
   const foods=(state.foods||[]).filter(f=>f.date===date),manualFood=foods.length&&foods.every(f=>Number.isFinite(f.nutrition?.calories))?foods.reduce((n,f)=>n+f.nutrition.calories,0):null;
-  const importedFood=source('dietaryEnergy'),mixedFood=foods.length>0&&importedFood!==null,food=mixedFood?null:manualFood??importedFood,resting=source('restingEnergy'),active=source('activeEnergy');
-  const available=[food,resting,active].every(Number.isFinite),coverage=state.energyCoverage?.[date]||{},signature=wsSignature([date,foods,relayedRecords(state).filter(r=>sourceLocalDay(r.start)===date&&['dietaryEnergy','restingEnergy','activeEnergy'].includes(r.kind))]),complete=date<todayYmd()&&available&&coverage.signature===signature&&coverage.food===true&&coverage.resting===true&&coverage.active===true;
-  return {date,food,resting,active,signature,balance:available?food-resting-active:null,available,provisional:!complete,complete,scoring:false,unit:'kcal',note:mixedFood?'Possible imported/manual food duplication needs review.':complete?'Explicitly reviewed coverage; workouts are already included in active energy.':'Coverage is incomplete or unverified. Missing values stay unavailable; no deficit award.'};
+  // His entry wins (Mintay, Sept 25): food logged here replaces the imported total for the day, so
+  // the two are never added together and the deficit still shows.
+  const importedFood=source('dietaryEnergy','dietary_energy'),overridden=foods.length>0&&importedFood!==null&&manualFood!==null,mixedFood=foods.length>0&&importedFood!==null&&manualFood===null,food=mixedFood?null:manualFood??importedFood,resting=source('restingEnergy','basal_energy_burned'),active=source('activeEnergy');
+  const available=[food,resting,active].every(Number.isFinite),coverage=state.energyCoverage?.[date]||{},signature=wsSignature([date,foods,relayedRecords(state).filter(r=>sourceLocalDay(r.start)===date&&(['dietaryEnergy','restingEnergy','activeEnergy'].includes(r.kind)||['dietary_energy','basal_energy_burned'].includes(r.unmapped?.healthAutoExport?.metric)))]),complete=date<todayYmd()&&available&&coverage.signature===signature&&coverage.food===true&&coverage.resting===true&&coverage.active===true;
+  return {date,food,resting,active,signature,balance:available?food-resting-active:null,available,provisional:!complete,complete,scoring:false,unit:'kcal',foodSource:food===null?null:manualFood!==null?'logged':'imported',note:mixedFood?'Possible imported/manual food duplication needs review.':overridden?'Your logged food replaces the imported total for this day.':complete?'Explicitly reviewed coverage; workouts are already included in active energy.':'Coverage is incomplete or unverified. Missing values stay unavailable; no deficit award.'};
 };
 Workspace.syntheticPreview=function(date,prefs){
   const state=freshState();state.seeded=true;state.demo=false;state.syntheticWorkspace=true;if(prefs)state.prefs={...state.prefs,...wsClone(prefs)};

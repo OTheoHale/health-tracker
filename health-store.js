@@ -67,6 +67,11 @@
         };
       }
     }
+    // The last record this tab verified or committed, kept privately so an ordinary save need not
+    // re-read and re-hash the whole store first (about a third of every tap, V1.12). It is only a
+    // starting point: the write transaction still compares the stored control hash, audit and
+    // revision, and a mismatch drops the cache and retries once from a full read.
+    let verified=null;
     async function snapshot(){
       const db=await connect();
       return transaction(db,TABLES,'readonly',(tx,set,abort)=>{
@@ -125,10 +130,12 @@
         if(!value.control)return mark?failed('CORRUPT',message.CORRUPT):value;
         if(!mark)return failed('STAGED',message.STAGED,{blockedMigration:true,needsMigration:true});
         if(mark.authorityId!==value.control.authorityId)return failed('CORRUPT',message.CORRUPT);
+        verified={state:clone(value.state),control:value.control,revisions:value.revisions,deliveries:value.deliveries};
         return Object.assign({ok:true,state:value.state,authority:'indexeddb',revision:value.state.revision,generation:value.state.rewardGeneration},includeAudit?{control:value.control,revisions:value.revisions,deliveries:value.deliveries}:{});
       }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
     }
     async function migrate(state,options){
+      verified=null;
       try{
         const supplied=clone(state),problem=validate(supplied),sha=await hashState(supplied),backup=options&&options.backup;
         if(problem||!backup||backup.verified!==true||typeof backup.id!=='string'||!backup.id||!/^[a-f0-9]{64}$/.test(backup.sha256||'')||backup.stateSHA256!==sha)return failed('MIGRATION',message.MIGRATION);
@@ -165,10 +172,19 @@
       }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
     }
     async function write(state,options){
+      const cached=verified;verified=null;
+      const result=await writeFrom(state,options,cached);
+      // A cached starting point that another tab has since overtaken fails its CAS check; the same
+      // save is then tried once from a full read, exactly as before the cache existed.
+      if(cached&&!result.ok&&result.code==='CAS'){verified=null;return writeFrom(state,options,null);}
+      return result;
+    }
+    async function writeFrom(state,options,cached){
       const config=options||{};
       if(config.delivery&&(config.replaceRewards||config.replayDeliveries))return failed('DELIVERY_RESTORE','An automatic delivery cannot also replace the workspace. Finish the reviewed restore before catching up on deliveries.');
       try{
-        const previous=await read(true);if(!previous.ok)return previous;
+        const previous=cached?{ok:true,authority:'indexeddb',state:cached.state,control:cached.control,revisions:cached.revisions,deliveries:cached.deliveries}:await read(true);if(!previous.ok)return previous;
+        verified=null;
         if(previous.authority!=='indexeddb')return failed('MIGRATION',message.MIGRATION);
         const expectedRevision=config.expectedRevision===undefined?(state.revision||0):config.expectedRevision;
         const expectedGeneration=config.expectedGeneration===undefined?state.rewardGeneration:config.expectedGeneration;
@@ -192,7 +208,7 @@
         const delivery=config.delivery?clone(config.delivery):null;
         if(delivery&&(typeof delivery.digest!=='string'||!delivery.digest))return failed('INVALID','A delivery needs its content digest before it can be saved.');
         const stateSHA256=await hashState(next),priorSHA256=previous.control.stateSHA256,db=await connect(),at=new Date().toISOString();
-        const newRevisions=[],changedSources=[];
+        const newRevisions=[],changedSources=[];let committedControl=null;
         function revision(sourceId,before,after){newRevisions.push({sequence:previous.revisions.length+newRevisions.length+1,entity:'source',sourceId,at,generation:next.rewardGeneration,revision:next.revision,deliveryDigest:delivery?delivery.digest:null,before,after});}
         for(const row of nextParts.sources){
           const before=oldSources.get(row.id),different=!before||JSON.stringify(before.value)!==JSON.stringify(row.value);
@@ -221,11 +237,13 @@
             for(const row of removedReceipts)tx.objectStore('receipts').delete(row.id);
             if(deliveryRow)tx.objectStore('deliveries').add(deliveryRow);
             tx.objectStore('meta').put(nextParts.app);
-            tx.objectStore('meta').put(Object.assign({},old.control,{stateSHA256,sourceCount:nextParts.sources.length,receiptCount:nextParts.receipts.length,audit,lastCommit:{at,revision:next.revision,deliveryDigest:delivery?delivery.digest:null}}));
+            committedControl=Object.assign({},old.control,{stateSHA256,sourceCount:nextParts.sources.length,receiptCount:nextParts.receipts.length,audit,lastCommit:{at,revision:next.revision,deliveryDigest:delivery?delivery.digest:null}});
+            tx.objectStore('meta').put(committedControl);
             set({ok:true,snapshotSafe:true,sourceRevisionCount:newRevisions.length,revision:next.revision,generation:next.rewardGeneration});
           },abort);
         });
-        if(saved.ok&&!saved.duplicateDelivery){state.revision=next.revision;state.rewardGeneration=next.rewardGeneration;}
+        if(saved.ok&&!saved.duplicateDelivery){state.revision=next.revision;state.rewardGeneration=next.rewardGeneration;verified={state:next,control:committedControl,revisions:newRevisions.length?previous.revisions.concat(newRevisions):previous.revisions,deliveries:nextDeliveries};}
+        else if(saved.ok&&saved.duplicateDelivery&&cached)verified=cached;
         return saved;
       }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
     }
@@ -234,9 +252,10 @@
         const ready=await read(true);if(!ready.ok)return ready;
         if(ready.authority!=='indexeddb')return {ok:true,items:[],delivery:null};
         const rows=ready[name];
-        if(id===undefined)return {ok:true,items:rows.filter(row=>name!=='deliveries'||row.generation===ready.state.rewardGeneration).map(row=>name==='deliveries'?row.value:row)};
+        // Copies: these rows are also the cached starting point for the next write.
+        if(id===undefined)return {ok:true,items:clone(rows.filter(row=>name!=='deliveries'||row.generation===ready.state.rewardGeneration).map(row=>name==='deliveries'?row.value:row))};
         const found=rows.find(row=>row.id===JSON.stringify([ready.state.rewardGeneration,id]));
-        return {ok:true,delivery:found?found.value:null};
+        return {ok:true,delivery:found?clone(found.value):null};
       }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
     }
     return {open:read,read,migrate,write,writeClaims:write,readDelivery:digest=>list('deliveries',digest),deliveries:()=>list('deliveries'),revisions:()=>list('revisions'),close(){if(database)database.close();database=null;opening=null;},markerKey,dbName};

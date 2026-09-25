@@ -55,6 +55,8 @@ const METRICS={
   // confirmed contract says sleepMode:'include'.
   sleep_analysis:{kind:'sleep',label:'Sleep',unit:'hr',units:{hr:1,min:1/60},reduce:'sleep'},
   lean_body_mass:{kind:'weight',label:'Lean body mass',unit:'kg',units:{kg:1,lb:0.45359237,lbs:0.45359237},reduce:'latest'},
+  waist_circumference:{kind:'other',label:'Waist',unit:'in',units:{in:1,cm:0.393700787},reduce:'latest'},
+  height:{kind:'other',label:'Height',unit:'in',units:{in:1,cm:0.393700787,ft:12,m:39.3700787},reduce:'latest'},
   // Nutrition. Bevel logs food to the Health app, so these arrive in the same export.
   // All of them accumulate across the bucket, so every one uses 'sum'.
   dietary_energy:{kind:'other',label:'Food energy',unit:'kcal',units:{kcal:1,kJ:1/4.184},reduce:'sum'},
@@ -139,6 +141,16 @@ function writer(source){
   if(typeof source!=='string'||source.length>4096||/[\u0000-\u001f\u007f]/.test(source))throw new Error('invalid_writer');
   return {label:source,status:!source.trim()||/^(unknown|unspecified)$/i.test(source.trim())?'unknown':source.includes('|')?'compound':'single'};
 }
+// Rows exactly whole weeks apart, each at midnight: the export grouped this metric by week.
+function weeklyGrouped(rows){
+  if(!Array.isArray(rows)||rows.length<2)return false;
+  const days=[];for(const row of rows){const t=object(row)&&typeof row.date==='string'?row.date:'';if(t.slice(11,19)!=='00:00:00')return false;const d=Date.UTC(+t.slice(0,4),+t.slice(5,7)-1,+t.slice(8,10));if(!Number.isFinite(d))return false;days.push(d/86400000);}
+  days.sort((a,b)=>a-b);
+  for(let i=1;i<days.length;i++){const gap=Math.round(days[i]-days[i-1]);if(gap<7||gap%7)return false;}
+  return true;
+}
+// Nutrition sums that apps such as Grow, Bevel and MyFitnessPal write together (V1.12, ASSUMED).
+const POOLED_SUMS=new Set(['dietary_energy','dietary_water','protein','carbohydrates','total_fat','dietary_sugar','caffeine','alcohol_consumption','fiber','saturated_fat','sodium','cholesterol']);
 function hae(r){const m=r&&r.unmapped&&r.unmapped.healthAutoExport;return m&&m.format==='JSON'&&m.adapterVersion===1?m:null;}
 function feedRecord(r){const m=r&&r.unmapped&&r.unmapped.healthAutoExport;return !!(m&&m.format==='JSON'||r&&typeof r.id==='string'&&r.id.startsWith('hae:'));}
 // One definition of "this row was imported under a different feed connection". reconcile() refuses
@@ -231,6 +243,7 @@ function parse(input,options){
     if(!object(metric)||typeof metric.name!=='string'||!Array.isArray(metric.data)){report.counts.invalid++;issue(mp,'invalid_metric_structure');continue;}
     const def=own(METRICS,metric.name)?METRICS[metric.name]:null;
     if(!def){report.counts.excluded+=metric.data.length;continue;}
+    if(def.reduce==='sum'&&weeklyGrouped(metric.data)){report.counts.excluded+=metric.data.length;report.excludedCollections.push({name:metric.name,count:metric.data.length,reason:'weekly_totals'});continue;}
     if(def.reduce==='sleep'&&c.sleepMode!=='include'){report.counts.excluded+=metric.data.length;report.excludedCollections.push({name:'sleep_analysis',count:metric.data.length});continue;}
     if(Object.keys(metric).some(k=>!['name','units','data'].includes(k))||typeof metric.units!=='string'||!own(def.units,metric.units)){report.counts.invalid++;issue(mp,'unsupported_metric_unit_or_schema');continue;}
     for(let ri=0;ri<metric.data.length;ri++){
@@ -296,6 +309,7 @@ function reconcile(existing,parsed,options){
     if(report.status!=='replay'&&Number.isFinite(deliveryTime(previous))&&deliveryTime(d)<deliveryTime(previous)){report.held=parsed.records.length;return stop(null,'stale');}
     if(Number.isFinite(deliveryTime(previous))&&deliveryTime(d)===deliveryTime(previous)&&parsed.records.some(r=>!current.has(r.id)||contentSignature(current.get(r.id))!==contentSignature(r))){report.held=parsed.records.length;return stop(null,'conflict');}
   }
+  const olderBuckets=new Set();
   for(const r of parsed.records){
     const m=hae(r),old=current.get(r.id),oldMeta=hae(old);
     if(!m||m.feedId!==c.feedId||!object(m.delivery)||m.delivery.fileId!==d.fileId||m.delivery.digest!==d.digest)return stop('Parsed records do not match the native delivery and feed namespace.');
@@ -315,11 +329,17 @@ function reconcile(existing,parsed,options){
     if(old&&!oldMeta)return stop('Incoming identity collides with a non-feed source.');
     if(old&&contentSignature(old)!==contentSignature(r)){
       const prior=oldMeta.delivery&&deliveryTime(oldMeta.delivery),now=deliveryTime(d);
-      if(!Number.isFinite(prior)||now<=prior){report.held=parsed.records.length;return stop(null,now<prior?'stale':'conflict');}
+      // V1.12: one overlapping bucket used to hold the whole file, so a year export overlapping two
+      // newer daily files brought in nothing, and its delivery was never retried. An older bucket
+      // now yields to the newer one on its own; a same-time disagreement still holds the file.
+      if(Number.isFinite(prior)&&now<prior){olderBuckets.add(r.id);continue;}
+      if(!Number.isFinite(prior)||now<=prior){report.held=parsed.records.length;return stop(null,'conflict');}
     }
   }
   const updates=new Map(),changes=[];
+  if(olderBuckets.size){report.held=olderBuckets.size;if(olderBuckets.size===parsed.records.length)return stop(null,'stale');}
   for(const r of parsed.records){
+    if(olderBuckets.has(r.id))continue;
     const old=current.get(r.id);
     if(!old){const next=clone(r);next.importedAt=d.receivedAt;updates.set(r.id,next);changes.push({id:r.id,before:null,after:next});report.added++;}
     else if(contentSignature(old)===contentSignature(r)){
@@ -395,9 +415,11 @@ function project(raw,contract){
       // projected keep the same derived identity; merged days are labelled as what they are.
       if(new Set(group.map(r=>r.sourceApp)).size>1)label='Apple Health';
     }else{
-      const writers=new Set(group.map(r=>r.sourceApp));
-      if(group.some(r=>hae(r).writerStatus!=='single')){hold(group,'unknown_or_compound_writer');continue;}
-      if(writers.size!==1){hold(group,'multiple_writers');continue;}
+      const writers=new Set(group.map(r=>r.sourceApp)),metricDef=own(METRICS,hae(group[0]).metric)?METRICS[hae(group[0]).metric]:null;
+      const pooled=metricDef&&(metricDef.reduce==='latest'||POOLED_SUMS.has(hae(group[0]).metric))&&!group.some(r=>hae(r).writerStatus==='unknown');
+      if(!pooled&&group.some(r=>hae(r).writerStatus!=='single')){hold(group,'unknown_or_compound_writer');continue;}
+      if(!pooled&&writers.size!==1){hold(group,'multiple_writers');continue;}
+      if(pooled&&(writers.size>1||[...writers].some(w=>w.includes('|'))))label=[...new Set([...writers].flatMap(w=>w.split('|').map(x=>x.trim())))].join(' + ');
     }
     const first=group[0],m=hae(first);
     if(group.some(r=>(r.clashes||[]).length)){hold(group,'unresolved_revision');continue;}
@@ -449,6 +471,8 @@ function project(raw,contract){
   report.active=activeIds.filter(id=>id.startsWith('hae:bucket:')).length;report.held=heldIds.length;report.shadow=shadowIds.length;
   return {ok:true,records,activeIds,heldIds,shadowIds,fallbackIds,report};
 }
-const api={parse,reconcile,project,validateContract,signature,foreignToFeed};
+// A metric's canonical unit, conversions and reduction, for readers outside the projection.
+function metric(name){return own(METRICS,name)?clone(METRICS[name]):null;}
+const api={parse,reconcile,project,validateContract,signature,foreignToFeed,metric};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.HealthAutoExport=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
