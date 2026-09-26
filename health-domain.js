@@ -1304,7 +1304,10 @@ async function actionTransaction(state, change, options){
     const loaded=opts.persist===false?{ok:true,state}:await store.readCommitted();
     if(!loaded.ok)return loaded;
     const current=loaded.state||state;
-    if((current.revision||0)!==revision)return {ok:false,error:'This action changed in another window. Reload and review again.'};
+    // A queued one-tap action (V2.3) applies to whatever is committed when its turn comes, so a tap
+    // made while an earlier one was saving is not refused; the engine's compare-and-swap still
+    // refuses a change made in another window.
+    if(!opts.rebase&&(current.revision||0)!==revision)return {ok:false,error:'This action changed in another window. Reload and review again.'};
     const draft=JSON.parse(JSON.stringify(current)), result=change(draft);
     if(result && result.ok===false)return result;
     const problem=validateState(draft);if(problem)return {ok:false,error:problem};

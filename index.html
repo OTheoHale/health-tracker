@@ -830,6 +830,15 @@ addEventListener('load', () => {
   }
   const manualActionTransaction=(...args)=>trackManualSave(()=>actionTransaction(...args));
   const manualClaimRewards=(...args)=>trackManualSave(()=>claimRewards(...args));
+  // A nervous double tap is one action: the same control on the same row is ignored while its save is
+  // queued or running, and for half a second after the tap. Checked at the click, before any await.
+  const recentTaps=new Map();
+  function tapId(btn){const row=btn.closest('[data-series]');return btn.dataset.act+'|'+(btn.dataset.s||'')+'|'+(row?row.dataset.key||row.dataset.series+'|'+(row.dataset.date||''):'');}
+  function isRepeatTap(btn){const id=tapId(btn),now=performance.now(),last=recentTaps.get(id);if(last&&(last.busy||now-last.at<500))return true;recentTaps.set(id,{at:now,busy:false});return false;}
+  function tapTransaction(btn,st,change){
+    const id=tapId(btn),mark=recentTaps.get(id)||{at:performance.now()};mark.busy=true;recentTaps.set(id,mark);
+    return manualActionTransaction(st,change,{persist:!preview,rebase:true}).finally(()=>{mark.busy=false;});
+  }
   document.addEventListener('input',e=>{if(e.target?.matches('input,textarea,select,[contenteditable=true]')){inputGeneration++;if(manualSaving||preserveManualDraft)preservedInputs.add(e.target);}},true);
 
   function autoSummary(changes){const names=[...new Set(changes.map(c=>c.name))];return 'From Apple Health: '+names.join(', ')+' checked off. Claim the points when you’re ready.';}
@@ -1205,8 +1214,11 @@ addEventListener('load', () => {
   // manual save still blocks them, because that is someone's typing waiting to be written.
   // Update now is one of them: a long intake refused it for minutes on the Mac (V1.8). It waits for
   // the file being applied to finish, then reloads.
+  /* One-tap row actions wait their turn behind the store lock instead of being refused while a save or an
+     import runs (V2.3, Mintay: "never lose a tap"). Forms and reviews keep the guard. */
+  const QUEUED_ACTS=new Set(['done','toggleDone','log','notToday','exempt','unexcuse']);
   const INTAKE_ESCAPES=new Set(['intakeRetireForeign','intakePause','intakeDisconnect','intakeConnect','applyUpdate']);
-  document.addEventListener('click',e=>{const button=e.target.closest('button,[data-act],label.filebtn');if(button&&!manualSaving&&INTAKE_ESCAPES.has(button.dataset&&button.dataset.act))return;if((intake.applying||manualSaving)&&button){e.preventDefault();e.stopImmediatePropagation();toast('A save is in progress. Your typing is kept; try that action again when it finishes.');return;}if(button&&(leavesManualDraft(button)||button.id==='previewToggle'||button.dataset.area||draftNavigationActions.has(button.dataset.act))&&!resolveDraftNavigation()){e.preventDefault();e.stopImmediatePropagation();}},true);
+  document.addEventListener('click',e=>{const button=e.target.closest('button,[data-act],label.filebtn');if(button&&!manualSaving&&INTAKE_ESCAPES.has(button.dataset&&button.dataset.act))return;if((intake.applying||manualSaving)&&button&&!QUEUED_ACTS.has(button.dataset&&button.dataset.act)){e.preventDefault();e.stopImmediatePropagation();toast('A save is in progress. Your typing is kept; try that action again when it finishes.');return;}if(button&&(leavesManualDraft(button)||button.id==='previewToggle'||button.dataset.area||draftNavigationActions.has(button.dataset.act))&&!resolveDraftNavigation()){e.preventDefault();e.stopImmediatePropagation();}},true);
   document.addEventListener('keydown',e=>{const typing=e.target?.matches('input,textarea,select,[contenteditable=true]');if(((intake.applying||manualSaving)&&(!typing||e.key==='Escape'))||((e.key==='Escape'||(!typing&&/^[0-9/dD]$/.test(e.key)))&&!resolveDraftNavigation())){e.preventDefault();e.stopImmediatePropagation();}},true);
   document.addEventListener('change',e=>{const control=e.target,busy=intake.applying||(manualSaving&&control.dataset.act);if(busy||(control.dataset.act&&leavesManualDraft(control)&&!resolveDraftNavigation())){e.preventDefault();e.stopImmediatePropagation();if(control.dataset.act)restoreRenderedControl(control);if(busy)toast('A save is in progress. Reapply that choice when it finishes.');}},true);
 
@@ -3751,8 +3763,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (!btn) return;
     const st = S();
     const act = btn.dataset.act;
+    if(QUEUED_ACTS.has(act)&&isRepeatTap(btn))return;
     // Mark the tapped control at once; the redraw after the save replaces it (V1.12 speed).
-    if(PENDING_ACTS.has(act)&&!btn.disabled){btn.classList.add('is-pending');btn.setAttribute('aria-busy','true');setTimeout(()=>{btn.classList.remove('is-pending');btn.removeAttribute('aria-busy');},4000);
+    if(PENDING_ACTS.has(act)&&!btn.disabled){btn.classList.add('is-pending');btn.setAttribute('aria-busy','true');setTimeout(()=>{btn.classList.remove('is-pending');btn.removeAttribute('aria-busy');},QUEUED_ACTS.has(act)?60000:4000);
       // Let that mark reach the screen before the save's work holds the main thread.
       await new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)));}
     if(act==='intakeConnect'){await connectIntake();return;}
@@ -4157,12 +4170,12 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
 
       // Done means "I did it" (Mintay, 2026-09-24): one tap self-confirms, with Undo in the toast. A timed
       // target that needs its minutes opens the review instead; a confirmed row opens its review.
-      case 'done': case 'toggleDone': { const r=findPlanRow(st,seriesId,date); if(act==='toggleDone'&&(r.status==='done'||r.status==='tentative')){openActionReview(seriesId,date);return;} const result=await manualActionTransaction(st,d=>confirmAction(d,seriesId,date,{}),{persist:!preview}); if(!result.ok&&/minutes|target/i.test(result.error||'')){openActionReview(seriesId,date,'done');return;} render(); toast(result.ok?'Done · '+r.name+'. Claim its points when you’re ready.':result.error); return; }
+      case 'done': case 'toggleDone': { const r=findPlanRow(st,seriesId,date); if(act==='toggleDone'&&(r.status==='done'||r.status==='tentative')){openActionReview(seriesId,date);return;} const result=await tapTransaction(btn,st,d=>confirmAction(d,seriesId,date,{})); if(!result.ok&&/minutes|target/i.test(result.error||'')){openActionReview(seriesId,date,'done');return;} render(); toast(result.ok?'Done · '+r.name+'. Claim its points when you’re ready.':result.error); return; }
       case 'version': stage(st, 'version'); selectVersion(st, seriesId, date, btn.dataset.v); commit('version', 'Plan set to the ' + btn.dataset.v + ' version for ' + relDay(date).toLowerCase() + '.'); return;
-      case 'log': if(btn.dataset.s==='tentative'){const result=await manualActionTransaction(st,d=>({ok:!!markTentative(d,seriesId,date)}),{persist:!preview});render();toast(result.ok?'Tentative · review to confirm.':result.error);}else if(btn.dataset.s==='skipped'){const r=findPlanRow(st,seriesId,date);const result=await manualActionTransaction(st,d=>({ok:!!logOcc(d,seriesId,date,'skipped',{})}),{persist:!preview});render();toast(result.ok?'Skipped · '+(r?r.name:'this item')+'. Details are there if you need them.':result.error);}else openActionReview(seriesId,date,btn.dataset.s); return;
-      case 'notToday': { const r=findPlanRow(st,seriesId,date); const result=await manualActionTransaction(st,d=>notToday(d,seriesId,date),{persist:!preview}); render(); toast(result.ok?(result.result&&result.result.moved?'Moved to tomorrow · ':'Not today · ')+(r?r.name:'this item')+'.':result.error); return; }
-      case 'exempt': { const r=findPlanRow(st,seriesId,date); const result=await manualActionTransaction(st,d=>({ok:!!excuseOcc(d,seriesId,date,'exempt')}),{persist:!preview}); render(); toast(result.ok?'Exempt · '+(r?r.name:'this item')+' is not required '+relDay(date).toLowerCase()+'.':'This item is already done, so it stays counted.'); return; }
-      case 'unexcuse': { const result=await manualActionTransaction(st,d=>({ok:!!unexcuseOcc(d,seriesId,date)}),{persist:!preview}); render(); toast(result.ok?'Counted again for '+relDay(date).toLowerCase()+'.':result.error); return; }
+      case 'log': if(btn.dataset.s==='tentative'){const result=await tapTransaction(btn,st,d=>({ok:!!markTentative(d,seriesId,date)}));render();toast(result.ok?'Tentative · review to confirm.':result.error);}else if(btn.dataset.s==='skipped'){const r=findPlanRow(st,seriesId,date);const result=await tapTransaction(btn,st,d=>({ok:!!logOcc(d,seriesId,date,'skipped',{})}));render();toast(result.ok?'Skipped · '+(r?r.name:'this item')+'. Details are there if you need them.':result.error);}else openActionReview(seriesId,date,btn.dataset.s); return;
+      case 'notToday': { const r=findPlanRow(st,seriesId,date); const result=await tapTransaction(btn,st,d=>notToday(d,seriesId,date)); render(); toast(result.ok?(result.result&&result.result.moved?'Moved to tomorrow · ':'Not today · ')+(r?r.name:'this item')+'.':result.error); return; }
+      case 'exempt': { const r=findPlanRow(st,seriesId,date); const result=await tapTransaction(btn,st,d=>({ok:!!excuseOcc(d,seriesId,date,'exempt')})); render(); toast(result.ok?'Exempt · '+(r?r.name:'this item')+' is not required '+relDay(date).toLowerCase()+'.':'This item is already done, so it stays counted.'); return; }
+      case 'unexcuse': { const result=await tapTransaction(btn,st,d=>({ok:!!unexcuseOcc(d,seriesId,date)})); render(); toast(result.ok?'Counted again for '+relDay(date).toLowerCase()+'.':result.error); return; }
       case 'clear': openActionReview(seriesId,date,'none'); return;
       case 'saveDetail': { const raw = document.getElementById('m-' + key).value.trim(); const minutes = raw === '' ? null : Math.round(+raw); if (raw !== '' && !Number.isFinite(minutes)){ toast('That duration is not a number.'); return; } stage(st, 'detail'); annotate(st, seriesId, date, { minutes: minutes === null ? null : Math.max(0, minutes), note: document.getElementById('n-' + key).value.trim() }); panel = { kind:area === 'home' ? 'day' : 'edit', key }; commit('detail', 'Detail saved.'); return; }
       case 'dayVersion': { if (date < todayYmd()){ toast('Past plans are preserved.'); return; } stage(st, 'dayVersion'); const n = setDayVersion(st, date, btn.dataset.v); commit('dayVersion', btn.dataset.v === 'minimum' ? n + ' set to the minimum version. That is the plan now, not a compromise.' : n + ' set back to the normal version.'); return; }

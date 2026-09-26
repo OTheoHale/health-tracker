@@ -1,24 +1,24 @@
 {
-  "build": "2026-09-25-V2.2",
+  "build": "2026-09-25-V2.3",
   "files": {
     "body-view.css": "4af4ea0d956f44392761d9276d24a6dbbf1a5dd106b2653b186fb5762e454752",
     "body-view.js": "795fe34b05bf9eea383347990c2f045f15df8ce4de7f6b6400e0230760e6c17b",
     "convert-starter.js": "40c333c133bdb5045fd7fe8660861c723ee1a940628a16d6f9bf05ff9cfa0fc4",
-    "delivery.js": "5e4989f357c71a6a96f433fb4fa537084141e37e7c91bcc8d2f2a0ac0319688a",
+    "delivery.js": "d58e6503d0873a33431aa93f2e07135a69b59c96df7f456ceeeded0c931f8873",
     "eotc-calendar.js": "e166cfb503bb6a27bddec2393b81b38b9993397902d393a4442c3447900eded4",
     "hae-adapter.js": "fbaec6ec0e87624acc1028dd5781fd6db2a3ace96050acb9d46ab491061f8353",
-    "health-domain.js": "18a0d21dcb5916caa3e87739436cfcbbe3bd12493336f681e748b44d5d7d67cc",
+    "health-domain.js": "8fb488ac90e992c7c2bd045fd348c78c74765e25c149f82328073e3fbb5072b5",
     "health-store.js": "ead2937551b182c3f48fd0bda6410c907664c33cea7a8c40de60ee20367dd7bb",
     "icon-192.png": "d5f26583217328b2928df393973bd805d8fe1893abe2f528f96d728401df66d4",
     "icon-512.png": "a03d12b3dc9bc1a2f014cd0a836cb4607b265238459befbe9ba3d3cac0e94079",
-    "index.html": "983e0d2e4d1b86f1ade6d02b32eaf080dd650130d77a7b7362f33a796a8e0629",
+    "index.html": "bf70386fe1d107b7765074c7ec286ca8dc772e39539c90e4ea129490bbaf4e5a",
     "manifest.webmanifest": "136d96b43b17794eba918fb42feb89adfffef490a13b8d03b9387c2cc065eef9",
     "meal-water.js": "2ec35f37435af8cc8e5af71b16b7f3cc13436ef6150aa77c9373422b64e79a4a",
     "model-viewer.min.js": "774edda21e1be2a0934e460ca5943af1fe3f88da130a9f98bd6a9d611576cacf",
     "offline.html": "7f472596880496629a8dcbde453d2257e9815c088d609d013253a3469efe521d",
     "quarter-points.js": "7d8a7554b70172264ce5ee8f6897d02ed0a9c7e271a206f53957785cc258e58d",
     "scoring-v5.js": "2fd45ed76f1105ba8795e2f392162ed1045fda43385f1f70cdd7833c11afef48",
-    "sw.js": "c8a1ec9f13863d9c2ea355460117b96b95529fada8d5b66b3acf9b44805a8e83",
+    "sw.js": "12371e910dbef2e07d8ef1fd6339fcb0bec11d7117953502254658d296f95c2b",
     "workspace-proposal.js": "4e8f5f8d5ee14e9ae40a74086335d372658ca1a7017de7b9311773b12a5d8090"
   }
 }
