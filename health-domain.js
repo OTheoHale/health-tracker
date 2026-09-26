@@ -734,12 +734,17 @@ function reviewFor(state, periodStart){ return state.reviews.find(x => x.periodS
 /* ---- Undo restores the record; claimed credit and evidence reservations
    survive so undo/recomplete can never become another reward. ---- */
 let undoEntry = null;
-function stage(state, label){ undoEntry = { label, snap: JSON.stringify(state) }; }
+function stage(state, label){
+  // Frozen source rows cannot change in place, so the undo copy keeps them by reference (V3.0).
+  const shared = Array.isArray(state.sourceRecords) && Object.isFrozen(state.sourceRecords) ? state.sourceRecords : null;
+  undoEntry = { label, snap: JSON.stringify(shared ? Object.assign({}, state, {sourceRecords: []}) : state), sources: shared };
+}
 function canUndo(){ return !!undoEntry; }
 function undoLabel(){ return undoEntry ? undoEntry.label : ''; }
 function undo(state){
   if (!undoEntry) return false;
   const prev = JSON.parse(undoEntry.snap);
+  if (undoEntry.sources) prev.sourceRecords = undoEntry.sources;
   if (state.rewards && prev.rewards){
     const ledger = JSON.parse(JSON.stringify(state.rewards));
     for (const [id,e] of Object.entries(ledger.evidence)){
@@ -1308,7 +1313,7 @@ async function actionTransaction(state, change, options){
     // made while an earlier one was saving is not refused; the engine's compare-and-swap still
     // refuses a change made in another window.
     if(!opts.rebase&&(current.revision||0)!==revision)return {ok:false,error:'This action changed in another window. Reload and review again.'};
-    const draft=JSON.parse(JSON.stringify(current)), result=change(draft);
+    const draft=cloneRecord(current), result=change(draft);
     if(result && result.ok===false)return result;
     const problem=validateState(draft);if(problem)return {ok:false,error:problem};
     if(opts.persist!==false){const saved=await store.write(draft);if(!saved.ok)return saved;}
@@ -1325,7 +1330,7 @@ async function claimRewards(state, ids, options){
     if (!loaded.ok) return {ok:false,error:loaded.error,claimed:[],amount:0};
     if (confirmedProgression(state) && loaded.state && (loaded.state.revision||0)!==(state.revision||0)){ replaceState(state,loaded.state); }
     if (opts.persist !== false && !loaded.state) return {ok:false,error:'Save the completed task before claiming its reward.',claimed:[],amount:0};
-    const draft = JSON.parse(JSON.stringify(loaded.state || state));
+    const draft = cloneRecord(loaded.state || state);
     migrateTo(draft);
     const wanted = ids == null ? null : new Set(Array.isArray(ids) ? ids : [ids]);
     const pending = rewardReport(draft,today).pending.filter(e => !wanted || wanted.has(e.id));
@@ -1502,6 +1507,7 @@ function relayRecordSnapshot(record){
   const copy = JSON.parse(JSON.stringify(record)); delete copy.clashes; delete copy.resolutions; return copy;
 }
 function resolveRelayConflict(state, sourceId, index, choice){
+  ownSources(state);
   sourceProjectionCache.delete(state);
   const record = (state.sourceRecords || []).find(r => r.id === sourceId);
   const clashes = relayUnresolvedClashes(record);
@@ -1521,6 +1527,7 @@ function resolveRelayConflict(state, sourceId, index, choice){
 }
 function mergeRelayRecords(cur, inc){
   if (!cur.sourceRecords) cur.sourceRecords = [];
+  ownSources(cur);
   const counts = { added:0, same:0, clash:0 };
   for (const incoming of (inc.sourceRecords || [])){
     const mine = cur.sourceRecords.find(r => r.id === incoming.id);
@@ -1585,6 +1592,7 @@ function previewRelay(state, parsed, context){
 function importRelay(state, parsed, context){
   sourceProjectionCache.delete(state);
   const review = previewRelay(state, parsed, context);
+  if (review.ok) ownSources(state);
   if (!review.ok) return { added:0, same:0, clash:0, invalid:0, unsupported:0, error:review.error };
   if (!state.sourceRecords) state.sourceRecords = [];
   if (!state.importReceipts) state.importReceipts = [];
@@ -1628,7 +1636,7 @@ const sourceProjectionCache=new WeakMap();
 function sourceProjection(state){
   if(!state.autoFeed||typeof globalThis.HealthAutoExport==='undefined')return null;
   const prior=sourceProjectionCache.get(state),key=JSON.stringify(state.autoFeed.contract);
-  if(prior&&prior.rows===state.sourceRecords&&prior.revision===state.revision&&prior.length===state.sourceRecords.length&&prior.key===key)return prior.value;
+  if(prior&&prior.rows===state.sourceRecords&&(Object.isFrozen(state.sourceRecords)||prior.revision===state.revision)&&prior.length===state.sourceRecords.length&&prior.key===key)return prior.value;
   const value=HealthAutoExport.project(state.sourceRecords,state.autoFeed.contract);
   sourceProjectionCache.set(state,{rows:state.sourceRecords,revision:state.revision,length:state.sourceRecords.length,key,value,active:new Set(value.activeIds.concat(value.fallbackIds||[]))});return value;
 }
@@ -1652,10 +1660,14 @@ const GOAL_RULES_V2=[
   {id:'bmi',label:'BMI',unit:'',derived:'bmi',down:true,flag:'Weak for muscular builds',source:'CDC BMI categories'}
 ];
 function goalsV2(state){const g=state.prefs?.goalsV2||{};return {...GOAL_DEFAULTS_V2,...g,weightLb:{...GOAL_DEFAULTS_V2.weightLb,...(g.weightLb||{})},deficit:{...GOAL_DEFAULTS_V2.deficit,...(g.deficit||{})},other:Array.isArray(g.other)?g.other:GOAL_DEFAULTS_V2.other};}
+/* Health Auto Export rows by metric, kept per committed row set (V3.0): readers that want one or two
+   metrics no longer walk every minute bucket on every draw. Rows keep their store order. */
+function haeRowsByMetric(state){return rowMemo(state,'byMetric',()=>{const m=new Map();(state.sourceRecords||[]).forEach((r,i)=>{const k=r.unmapped?.healthAutoExport?.metric;if(typeof k!=='string')return;if(!m.has(k))m.set(k,[]);m.get(k).push([i,r]);});return m;});}
+function haeRowsFor(state,metrics){const m=haeRowsByMetric(state),out=[];for(const k of new Set(metrics))for(const x of m.get(k)||[])out.push(x);return out.sort((a,b)=>a[0]-b[0]).map(x=>x[1]);}
 /* A reading for goals, in display units: mass in lb, everything else canonical. */
 function goalReading(state,metrics,pick){
   const H=globalThis.HealthAutoExport,g=goalsV2(state),rows=[];
-  for(const r of state.sourceRecords||[]){const m=r.unmapped?.healthAutoExport;if(!m||!metrics.includes(m.metric)||!Number.isFinite(r.value)||(r.clashes||[]).length)continue;const def=H&&H.metric?H.metric(m.metric):null,f=def&&def.units[r.unit];if(!Number.isFinite(f))continue;let v=r.value*f;if(def.unit==='kg')v=v/0.45359237;rows.push({date:sourceLocalDay(r.start),start:r.start,value:v});}
+  for(const r of haeRowsFor(state,metrics)){const m=r.unmapped?.healthAutoExport;if(!m||!metrics.includes(m.metric)||!Number.isFinite(r.value)||(r.clashes||[]).length)continue;const def=H&&H.metric?H.metric(m.metric):null,f=def&&def.units[r.unit];if(!Number.isFinite(f))continue;let v=r.value*f;if(def.unit==='kg')v=v/0.45359237;rows.push({date:sourceLocalDay(r.start),start:r.start,value:v});}
   rows.sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));if(!rows.length)return null;
   if(pick==='baseline'&&g.startDate){const after=rows.find(x=>x.date>=g.startDate);return after||rows[rows.length-1];}
   return rows[rows.length-1];
@@ -1678,7 +1690,7 @@ function nextCheckpoint(state,today){const t=today||todayYmd();return checkpoint
 /* Where the plan says his weight should be on a date: a straight line from the start to the goal. */
 function weightPaceLb(state,date){const g=goalsV2(state);if(!g.startDate||!Number.isFinite(g.startWeightLb)||!Number.isFinite(g.weightLb.jan7)||!validCalendarDate(g.goalDate))return null;const span=calendarDistance(g.startDate,g.goalDate),at=Math.max(0,Math.min(span,calendarDistance(g.startDate,date)));return span>0?g.startWeightLb+(g.weightLb.jan7-g.startWeightLb)*at/span:g.weightLb.jan7;}
 function latestWeightLb(state,before){
-  const rows=[];for(const r of state.sourceRecords||[]){const m=r.unmapped?.healthAutoExport;if(!m||!['weight_body_mass','weight_&_body_mass'].includes(m.metric)||!Number.isFinite(r.value)||(r.clashes||[]).length)continue;const lb=r.unit==='kg'?r.value/0.45359237:r.unit==='lb'||r.unit==='lbs'?r.value:null;if(lb===null)continue;const d=sourceLocalDay(r.start);if(!before||d<=before)rows.push({date:d,lb});}
+  const rows=[];for(const r of haeRowsFor(state,['weight_body_mass','weight_&_body_mass'])){const m=r.unmapped?.healthAutoExport;if(!m||!['weight_body_mass','weight_&_body_mass'].includes(m.metric)||!Number.isFinite(r.value)||(r.clashes||[]).length)continue;const lb=r.unit==='kg'?r.value/0.45359237:r.unit==='lb'||r.unit==='lbs'?r.value:null;if(lb===null)continue;const d=sourceLocalDay(r.start);if(!before||d<=before)rows.push({date:d,lb});}
   for(const [d,o] of Object.entries(state.observations||{}))if(o&&Number.isFinite(o.weight)&&(!before||d<=before))rows.push({date:d,lb:(o.weightUnit||state.prefs?.units)==='kg'?o.weight/0.45359237:o.weight});
   rows.sort((a,b)=>a.date.localeCompare(b.date));return rows.length?rows[rows.length-1]:null;
 }
@@ -1702,8 +1714,12 @@ function deficitSuggestion(state,today){
    skipped. One pass per draw when the draw memo is open. */
 function latestMeasurements(state){
   if(drawMemo&&drawMemo.state===state&&drawMemo.latest)return drawMemo.latest;
+  if(Object.isFrozen(state.sourceRecords||[]))return rowMemo(state,'latest',()=>latestMeasurementsOf(state));
+  return latestMeasurementsOf(state);
+}
+function latestMeasurementsOf(state){
   const H=globalThis.HealthAutoExport,defs=new Map(),out=new Map();
-  for(const r of state.sourceRecords||[]){
+  for(const [,list] of haeRowsByMetric(state))for(const [,r] of list){
     const m=r.unmapped&&r.unmapped.healthAutoExport;if(!m||typeof m.metric!=='string'||!Number.isFinite(r.value)||(r.clashes||[]).length)continue;
     if(!defs.has(m.metric))defs.set(m.metric,H&&H.metric?H.metric(m.metric):null);
     const def=defs.get(m.metric);if(!def||def.reduce!=='latest')continue;
@@ -1725,7 +1741,22 @@ function relaySourceMatches(id, record){
   const app = String(record.sourceApp || '');
   return id === 'bevel-pro' ? /bevel/i.test(app) : id === 'ifit' ? /ifit/i.test(app) : id === 'apple-fitness' ? /apple (watch|fitness|health)|^com\.apple\./i.test(app) : false;
 }
+/* Committed source rows are frozen (V3.0), so answers that depend only on them are kept per row set
+   instead of rescanning every row on every draw. Unfrozen (in-progress) rows are never cached. */
+const frozenRowCache=new WeakMap();
+function rowMemo(state,name,make){
+  const rows=state.sourceRecords;
+  if(!Array.isArray(rows)||!Object.isFrozen(rows))return make();
+  const key=name+'|'+JSON.stringify(state.autoFeed?.contract||null);
+  let memo=frozenRowCache.get(rows);if(!memo){memo=new Map();frozenRowCache.set(rows,memo);}
+  if(!memo.has(key))memo.set(key,make());
+  return memo.get(key);
+}
 function sourceEvidenceSummary(state, id){
+  const v=rowMemo(state,'summary:'+id,()=>sourceEvidenceSummaryOf(state,id));
+  return Object.assign({},v,{kinds:v.kinds.slice(),writers:v.writers.slice(),transports:v.transports.slice()});
+}
+function sourceEvidenceSummaryOf(state, id){
   const kinds=new Set(), writers=new Set(), transports=new Set();
   let count=0, latest=null, retrieved=null;
   for(const r of state.sourceRecords || []){
@@ -2375,7 +2406,8 @@ const store = {
 };
 /* The legacy synchronous store remains readable until a verified migration.
    Once activated, one IndexedDB transaction owns app state and source records. */
-const durableStore = {engine:null,active:false,cache:null,error:null,stagedState:null};
+const durableStore = {engine:null,active:false,cache:null,error:null,stagedState:null,adopted:null};
+const V3_DB = 'glow-v3';
 const legacyRead = store.read.bind(store), legacyWrite = store.write.bind(store), legacyWriteClaims = store.writeClaims.bind(store);
 store.connect = async function(){
   let marked=false;
@@ -2385,11 +2417,22 @@ store.connect = async function(){
     if(marked)durableStore.error='The transactional storage component is unavailable. Reopen the current app; the preserved legacy copy has not been substituted.';
     return;
   }
-  const engine=globalThis.HealthStore.create({key:STORE_KEY,validateState,sourceSignature:r=>r.unmapped?.healthAutoExport?.format==='JSON'&&typeof HealthAutoExport!=='undefined'?HealthAutoExport.signature(r):relaySignature(r)});
+  const sourceSignature=r=>r.unmapped?.healthAutoExport?.format==='JSON'&&typeof HealthAutoExport!=='undefined'?HealthAutoExport.signature(r):relaySignature(r);
+  // V3.0: the record lives in its own schema-2 database. The V2.x database is read once, copied here
+  // and never written again, so the previous version can still open it if V3.0 is rolled back.
+  const engine=globalThis.HealthStore.create({key:STORE_KEY,dbName:V3_DB,markerKey:STORE_KEY+'.v3-authority',schema:2,validateState,sourceSignature});
   durableStore.engine=engine;
-  const opened=await engine.open();
+  let opened=await engine.open();
+  if(opened.ok&&opened.authority!=='indexeddb'&&marked){
+    const legacy=globalThis.HealthStore.create({key:STORE_KEY,validateState,sourceSignature}),prior=await legacy.read(true);
+    legacy.close();
+    if(!prior.ok||prior.authority!=='indexeddb'){durableStore.error=prior.error||'The previous database could not be read, so it was not copied. Nothing was changed.';return;}
+    opened=await engine.adopt(prior.state,{database:'health-tracker',authorityId:prior.control.authorityId,stateSHA256:prior.control.stateSHA256,revisions:prior.revisions,deliveries:prior.deliveries});
+    if(opened.ok)durableStore.adopted={at:nowIso(),from:'health-tracker',revision:prior.state.revision||0,sources:prior.state.sourceRecords.length};
+  }
   if(!opened.ok){durableStore.error=opened.error;if(opened.code==='STAGED'){const legacy=legacyRead();if(legacy.ok&&legacy.state)durableStore.stagedState=legacy.state;}return;}
-  const loaded=await engine.read();
+  // open() is a full verified read already; a second one doubled every launch.
+  const loaded=opened.authority==='indexeddb'?opened:await engine.read();
   if(!loaded.ok || loaded.blockedMigration){durableStore.error=loaded.error||'A storage migration is waiting for recovery verification. Nothing else will be saved.';return;}
   if(loaded.authority==='indexeddb'){
     if(loaded.state.autoFeed&&typeof globalThis.HealthAutoExport==='undefined'){durableStore.error='The feed adapter is unavailable. Reopen the complete review app before saving.';return;}
@@ -2440,7 +2483,7 @@ store.writeTransactional = async function(state,options){
   if(!confirmedProgression(state))mergeRewardLedger(state,prior);
   if(state.rewards)preserveRewardUnlocks(state,todayYmd());
   const result=await durableStore.engine.write(state,{...options,expectedRevision:prior.revision||0,expectedGeneration:prior.rewardGeneration,allowSourceRemoval:replacing||!!options.allowSourceRemoval});
-  if(result.ok){if(result.duplicateDelivery&&result.state)replaceState(state,result.state);durableStore.cache=JSON.parse(JSON.stringify(state));result.snapshotSafe=true;}
+  if(result.ok){if(result.duplicateDelivery&&result.state)replaceState(state,result.state);durableStore.cache=cloneRecord(state);result.snapshotSafe=true;}
   return result;
 };
 store.writeClaims = function(state){return durableStore.active?this.write(state):legacyWriteClaims(state);};
@@ -2646,9 +2689,20 @@ function mergeState(cur, inc){
   cur.seeded = cur.seeded || inc.seeded;
   return c;
 }
+/* V3.0: committed source rows are frozen and shared (health-store.js schema 2), so copies of the record
+   deep-copy everything except them. Code that must change source rows takes its own copy first. */
+function cloneRecord(state){
+  const out={};
+  for(const k of Object.keys(state)){if(state[k]===undefined)continue;out[k]=k==='sourceRecords'&&Array.isArray(state[k])&&Object.isFrozen(state[k])?state[k]:JSON.parse(JSON.stringify(state[k]));}
+  return out;
+}
+function ownSources(state){
+  if(Array.isArray(state.sourceRecords)&&Object.isFrozen(state.sourceRecords)){sourceProjectionCache.delete(state);state.sourceRecords=JSON.parse(JSON.stringify(state.sourceRecords));}
+  return state.sourceRecords;
+}
 function replaceState(cur, inc){
-  sourceProjectionCache.delete(cur);
-  const next = JSON.parse(JSON.stringify(inc));
+  const next = cloneRecord(inc);
+  if (next.sourceRecords !== cur.sourceRecords) sourceProjectionCache.delete(cur);
   for (const k of Object.keys(cur)) delete cur[k];
   Object.assign(cur, next);
   return cur;
@@ -2983,7 +3037,9 @@ const WS_NIGHT_HOUR=15;
 function sourceLocalHour(instant){const zone=/([+-])(\d{2}):(\d{2})$/.exec(instant),offset=zone?(zone[1]==='-'?-1:1)*(Number(zone[2])*60+Number(zone[3])):0;return new Date(Date.parse(instant)+offset*60000).getUTCHours();}
 function wsProjectedRecord(state,id){const projected=sourceProjection(state);return projected?projected.records.find(r=>r.id===id)||null:null;}
 function wsSourceRecord(state,id){
-  if(wsPass&&wsPass.state===state){if(!wsPass.byId){wsPass.byId=new Map();const projected=sourceProjection(state);for(const r of projected?projected.records:[])if(!wsPass.byId.has(r.id))wsPass.byId.set(r.id,r);for(const r of state.sourceRecords||[])wsPass.byId.set(r.id,r);}return wsPass.byId.get(id)||null;}
+  const build=()=>rowMemo(state,'byId',()=>{const byId=new Map(),projected=sourceProjection(state);for(const r of projected?projected.records:[])if(!byId.has(r.id))byId.set(r.id,r);for(const r of state.sourceRecords||[])byId.set(r.id,r);return byId;});
+  if(wsPass&&wsPass.state===state){if(!wsPass.byId)wsPass.byId=build();return wsPass.byId.get(id)||null;}
+  if(Object.isFrozen(state.sourceRecords||[]))return build().get(id)||null;
   return (state.sourceRecords||[]).find(r=>r.id===id)||wsProjectedRecord(state,id);
 }
 /* One automatic evidence pass asks the same questions of the same records for every activity on
@@ -2994,7 +3050,7 @@ function wsSourceRecord(state,id){
    the answers are the same (test-auto-evidence.js compares a pass with and without it). */
 let wsPass=null;
 function wsPassCandidates(state,v,date){
-  if(!wsPass.byDay){wsPass.byDay=new Map();for(const r of state.sourceRecords||[]){const derived=r.unmapped?.healthAutoExport?.representation==='derived daily view'?r.unmapped.healthAutoExport.day:null,day=derived||sourceLocalDay(r.kind==='sleep'?(r.end||r.start):r.start);if(!wsPass.byDay.has(day))wsPass.byDay.set(day,[]);wsPass.byDay.get(day).push(r);}}
+  if(!wsPass.byDay)wsPass.byDay=rowMemo(state,'byDay',()=>{const byDay=new Map();for(const r of state.sourceRecords||[]){const derived=r.unmapped?.healthAutoExport?.representation==='derived daily view'?r.unmapped.healthAutoExport.day:null,day=derived||sourceLocalDay(r.kind==='sleep'?(r.end||r.start):r.start);if(!byDay.has(day))byDay.set(day,[]);byDay.get(day).push(r);}for(const list of byDay.values())Object.freeze(list);return byDay;});
   const stored=wsPass.byDay.get(date)||[],kind=v?.matching?.kind;if(kind!=='steps'&&kind!=='sleep')return stored;
   const projected=sourceProjection(state);if(!projected)return stored;
   return stored.concat(projected.records.filter(r=>r.kind===kind&&r.unmapped?.healthAutoExport?.representation==='derived daily view'&&r.unmapped.healthAutoExport.day===date));

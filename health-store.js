@@ -10,9 +10,17 @@
     const digest=await root.crypto.subtle.digest('SHA-256',bytes);
     return Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('');
   }
+  // Schema 2 (V3.0, Glow): the committed record and the health source rows are hashed separately, and
+  // committed source rows are frozen and shared between copies, so a save that changes no source row
+  // (every tap) never copies, compares or re-hashes them. Whether rows changed is an identity check:
+  // an unchanged record keeps the very same frozen array.
+  function recordPart(state){const out={};for(const name of Object.keys(state))if(name!=='sourceRecords')out[name]=state[name];return out;}
+  function shareClone(state){const out={};for(const name of Object.keys(state))out[name]=name==='sourceRecords'&&Array.isArray(state[name])?state[name]:clone(state[name]);return out;}
+  function deepFreeze(value){if(value&&typeof value==='object'&&!Object.isFrozen(value)){Object.freeze(value);for(const key of Object.keys(value))deepFreeze(value[key]);}return value;}
+  function freezeSources(state){if(state&&Array.isArray(state.sourceRecords))deepFreeze(state.sourceRecords);return state;}
   function create(options){
     const opts=options||{},idb=opts.indexedDB||root.indexedDB,local=opts.localStorage||root.localStorage;
-    const key=opts.key||'health-tracker-v1',dbName=opts.dbName||'health-tracker',markerKey=key+'.idb-authority';
+    const key=opts.key||'health-tracker-v1',dbName=opts.dbName||'health-tracker',markerKey=opts.markerKey||key+'.idb-authority',schema=opts.schema===2?2:1;
     const validate=opts.validateState||(()=>null);
     const sourceSignature=opts.sourceSignature||(record=>{const value=Object.assign({},record);delete value.importedAt;delete value.lastSeenAt;delete value.lastRetrievedAt;return JSON.stringify(value);});
     let database=null,opening=null;
@@ -72,6 +80,10 @@
     // starting point: the write transaction still compares the stored control hash, audit and
     // revision, and a mismatch drops the cache and retries once from a full read.
     let verified=null;
+    // The control record's seal: one whole-state hash (schema 1), or the record and the source rows
+    // hashed apart (schema 2) so a tap re-hashes only the record.
+    async function sealFields(state,wholeSHA){return schema===1?{stateSHA256:wholeSHA||await hashState(state)}:{recordSHA256:await hashState(recordPart(state)),sourcesSHA256:await hashState(state.sourceRecords)};}
+    async function sealMatches(control,state,wholeSHA){const f=await sealFields(state,wholeSHA);return Object.keys(f).every(k=>control[k]===f[k]);}
     async function snapshot(){
       const db=await connect();
       return transaction(db,TABLES,'readonly',(tx,set,abort)=>{
@@ -82,7 +94,7 @@
       const [revisionsSHA256,deliveriesSHA256]=await Promise.all([hashState(revisions),hashState(deliveries)]);
       return {revisionCount:revisions.length,deliveryCount:deliveries.length,revisionsSHA256,deliveriesSHA256};
     }
-    function parts(state){
+    function parts(state,skipSources){
       const app={},order=Object.keys(state);
       for(const name of order)if(name!=='sourceRecords'&&name!=='importReceipts')app[name]=state[name];
       const rows=(values)=>{
@@ -93,7 +105,8 @@
           seen.add(value.id);return {id:value.id,order:index,value};
         });
       };
-      return {app:{id:'app',value:app,keyOrder:order},sources:rows(state.sourceRecords),receipts:rows(state.importReceipts)};
+      // skipSources: the caller already knows no source row changed, so the rows are not wrapped or compared.
+      return {app:{id:'app',value:app,keyOrder:order},sources:skipSources?[]:rows(state.sourceRecords),receipts:rows(state.importReceipts)};
     }
     async function reconcile(value){
       if(!value.ok)return value;
@@ -102,7 +115,7 @@
         if(a||value.sources.length||value.receipts.length||value.revisions.length||value.deliveries.length)return failed('CORRUPT',message.CORRUPT);
         return {ok:true,state:null,authority:'legacy',needsMigration:true};
       }
-      if(c.schema!==1||!a||!Array.isArray(a.keyOrder)||c.sourceCount!==value.sources.length||c.receiptCount!==value.receipts.length)return failed('CORRUPT',message.CORRUPT);
+      if(c.schema!==schema||!a||!Array.isArray(a.keyOrder)||c.sourceCount!==value.sources.length||c.receiptCount!==value.receipts.length)return failed('CORRUPT',message.CORRUPT);
       if(!c.audit||c.audit.revisionCount!==value.revisions.length||c.audit.deliveryCount!==value.deliveries.length)return failed('CORRUPT',message.CORRUPT);
       if(value.revisions.some((row,index)=>row.sequence!==index+1||row.entity!=='source'||typeof row.generation!=='string'||!row.generation||!Number.isInteger(row.revision)||row.revision<1||typeof row.sourceId!=='string'||(!row.before&&!row.after)||(row.before&&row.before.id!==row.sourceId)||(row.after&&row.after.id!==row.sourceId)))return failed('CORRUPT',message.CORRUPT);
       if(value.deliveries.some(row=>!row.value||typeof row.generation!=='string'||!row.generation||!Number.isInteger(row.revision)||row.revision<1||typeof row.value.digest!=='string'||row.id!==JSON.stringify([row.generation,row.value.digest])))return failed('CORRUPT',message.CORRUPT);
@@ -120,7 +133,9 @@
         else if(Object.prototype.hasOwnProperty.call(a.value,name))state[name]=a.value[name];
         else return failed('CORRUPT',message.CORRUPT);
       }
-      if(!a.keyOrder.includes('sourceRecords')||!a.keyOrder.includes('importReceipts')||validate(state)||await hashState(state)!==c.stateSHA256)return failed('CORRUPT',message.CORRUPT);
+      if(!a.keyOrder.includes('sourceRecords')||!a.keyOrder.includes('importReceipts')||validate(state))return failed('CORRUPT',message.CORRUPT);
+      if(schema===1?await hashState(state)!==c.stateSHA256:(await hashState(recordPart(state))!==c.recordSHA256||await hashState(state.sourceRecords)!==c.sourcesSHA256))return failed('CORRUPT',message.CORRUPT);
+      if(schema===2)freezeSources(state);
       return {ok:true,state,authority:'indexeddb',control:c,revisions:value.revisions,deliveries:value.deliveries};
     }
     async function read(includeAudit=false){
@@ -130,7 +145,7 @@
         if(!value.control)return mark?failed('CORRUPT',message.CORRUPT):value;
         if(!mark)return failed('STAGED',message.STAGED,{blockedMigration:true,needsMigration:true});
         if(mark.authorityId!==value.control.authorityId)return failed('CORRUPT',message.CORRUPT);
-        verified={state:clone(value.state),control:value.control,revisions:value.revisions,deliveries:value.deliveries};
+        verified={state:schema===2?shareClone(value.state):clone(value.state),control:value.control,revisions:value.revisions,deliveries:value.deliveries};
         return Object.assign({ok:true,state:value.state,authority:'indexeddb',revision:value.state.revision,generation:value.state.rewardGeneration},includeAudit?{control:value.control,revisions:value.revisions,deliveries:value.deliveries}:{});
       }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
     }
@@ -144,10 +159,10 @@
         let current=await reconcile(await snapshot());
         if(!current.ok)return current;
         if(current.control){
-          if(current.control.stateSHA256!==sha||current.control.migration.stateSHA256!==sha)return failed('STAGED',message.STAGED,{blockedMigration:true});
+          if(!(await sealMatches(current.control,supplied,sha))||current.control.migration.stateSHA256!==sha)return failed('STAGED',message.STAGED,{blockedMigration:true});
         }else{
           const p=parts(supplied),authorityId=root.crypto.randomUUID(),db=await connect();
-          const control={id:'authority',schema:1,authorityId,stateSHA256:sha,sourceCount:p.sources.length,receiptCount:p.receipts.length,audit:await auditIdentity([],[]),migration:{at:new Date().toISOString(),stateSHA256:sha,backup:clone(backup)}};
+          const control={id:'authority',schema,authorityId,...(await sealFields(supplied,sha)),sourceCount:p.sources.length,receiptCount:p.receipts.length,audit:await auditIdentity([],[]),migration:{at:new Date().toISOString(),stateSHA256:sha,backup:clone(backup)}};
           const saved=await transaction(db,TABLES,'readwrite',(tx,set,abort)=>{
             gather(tx,[['control',tx.objectStore('meta').get('authority')],['sourceCount',tx.objectStore('sources').count()],['receiptCount',tx.objectStore('receipts').count()],['revisionCount',tx.objectStore('revisions').count()],['deliveryCount',tx.objectStore('deliveries').count()]],old=>{
               if(old.control||old.sourceCount||old.receiptCount||old.revisionCount||old.deliveryCount){abort(failed('CAS',message.CAS));return;}
@@ -161,7 +176,7 @@
           current=await reconcile(await snapshot());
           if(!current.ok)return current;
         }
-        if(!current.control||current.control.stateSHA256!==sha)return failed('CORRUPT',message.CORRUPT);
+        if(!current.control||!(await sealMatches(current.control,supplied,sha)))return failed('CORRUPT',message.CORRUPT);
         try{
           local.setItem(markerKey,JSON.stringify({version:1,database:dbName,authorityId:current.control.authorityId}));
           const savedMarker=marker();
@@ -169,6 +184,66 @@
         }catch(e){return failed('STAGED',message.STAGED,{blockedMigration:true,needsMigration:true});}
         const complete=await read();
         return complete.ok?Object.assign(complete,{migrated:true,snapshotSafe:true}):complete;
+      }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
+    }
+    // V3.0: copy a record another engine has just verified (the V2.x database) into this empty schema-2
+    // database, with its revision and delivery audit, then take authority here. The source database is
+    // only read, never written, so the previous app version can still open it (rollback).
+    async function adopt(state,from){
+      verified=null;
+      if(schema!==2||!from||typeof from.database!=='string'||from.database===dbName)return failed('MIGRATION',message.MIGRATION);
+      try{
+        const mark=marker();
+        if(mark){const current=await read();return current.ok?Object.assign(current,{alreadyAdopted:true}):current;}
+        const supplied=clone(state),problem=validate(supplied);if(problem)return failed('MIGRATION',message.MIGRATION);
+        const revisions=Array.isArray(from.revisions)?from.revisions:[],deliveries=Array.isArray(from.deliveries)?from.deliveries:[];
+        const seal=await sealFields(supplied),audit=await auditIdentity(revisions,deliveries);
+        let current=await reconcile(await snapshot());
+        if(!current.ok)return current;
+        if(current.control){
+          if(!(await sealMatches(current.control,supplied))||JSON.stringify(current.control.audit)!==JSON.stringify(audit))return failed('STAGED',message.STAGED,{blockedMigration:true});
+        }else{
+          const p=parts(supplied),authorityId=root.crypto.randomUUID(),db=await connect();
+          const control={id:'authority',schema,authorityId,...seal,sourceCount:p.sources.length,receiptCount:p.receipts.length,audit,adopted:{at:new Date().toISOString(),from:{database:from.database,authorityId:typeof from.authorityId==='string'?from.authorityId:null,stateSHA256:typeof from.stateSHA256==='string'?from.stateSHA256:null,revision:supplied.revision||0}}};
+          const saved=await transaction(db,TABLES,'readwrite',(tx,set,abort)=>{
+            gather(tx,[['control',tx.objectStore('meta').get('authority')],['sourceCount',tx.objectStore('sources').count()],['receiptCount',tx.objectStore('receipts').count()],['revisionCount',tx.objectStore('revisions').count()],['deliveryCount',tx.objectStore('deliveries').count()]],old=>{
+              if(old.control||old.sourceCount||old.receiptCount||old.revisionCount||old.deliveryCount){abort(failed('CAS',message.CAS));return;}
+              tx.objectStore('meta').put(control);tx.objectStore('meta').put(p.app);
+              for(const row of p.sources)tx.objectStore('sources').put(row);
+              for(const row of p.receipts)tx.objectStore('receipts').put(row);
+              for(const row of revisions)tx.objectStore('revisions').put(row);
+              for(const row of deliveries)tx.objectStore('deliveries').put(row);
+              set({ok:true});
+            },abort);
+          });
+          if(!saved.ok)return saved;
+          current=await reconcile(await snapshot());
+          if(!current.ok)return current;
+          if(!current.control||!(await sealMatches(current.control,supplied)))return failed('CORRUPT',message.CORRUPT);
+        }
+        try{
+          local.setItem(markerKey,JSON.stringify({version:1,database:dbName,authorityId:current.control.authorityId}));
+          const savedMarker=marker();
+          if(!savedMarker||savedMarker.authorityId!==current.control.authorityId)throw new Error('marker');
+        }catch(e){return failed('STAGED',message.STAGED,{blockedMigration:true,needsMigration:true});}
+        const complete=await read();
+        return complete.ok?Object.assign(complete,{adopted:true,snapshotSafe:true}):complete;
+      }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
+    }
+    // Schema 2: "was this file delivered?" is one keyed lookup, not a full verified read of the store
+    // (about a quarter of a second per file at 22 MB). Any later write still checks the whole seal.
+    async function findDelivery(digest){
+      try{
+        const db=await connect();
+        return await transaction(db,['meta','deliveries'],'readonly',(tx,set)=>{
+          const app=tx.objectStore('meta').get('app');
+          app.onsuccess=()=>{
+            const generation=app.result&&app.result.value&&app.result.value.rewardGeneration;
+            if(typeof generation!=='string'){set({ok:true,delivery:null});return;}
+            const found=tx.objectStore('deliveries').get(JSON.stringify([generation,digest]));
+            found.onsuccess=()=>set({ok:true,delivery:found.result?clone(found.result.value):null});
+          };
+        });
       }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
     }
     async function write(state,options){
@@ -189,14 +264,16 @@
         const expectedRevision=config.expectedRevision===undefined?(state.revision||0):config.expectedRevision;
         const expectedGeneration=config.expectedGeneration===undefined?state.rewardGeneration:config.expectedGeneration;
         if(expectedRevision!==previous.state.revision||expectedGeneration!==previous.state.rewardGeneration)return failed('CAS',message.CAS);
-        const next=clone(state),problem=validate(next);if(problem)return failed('INVALID','The proposed record was refused: '+problem);
+        const next=schema===2?shareClone(state):clone(state),problem=validate(next);if(problem)return failed('INVALID','The proposed record was refused: '+problem);
+        // Schema 2: the very same frozen array as the committed record means no source row changed.
+        const sourcesSame=schema===2&&next.sourceRecords===previous.state.sourceRecords&&Object.isFrozen(next.sourceRecords);
         next.revision=expectedRevision+1;
         // The delivery ledger is scoped by generation, so deliveries already recorded would retire
         // every re-delivered file as a duplicate and the data would never come back. replayDeliveries
         // rotates the generation for exactly that reason, and unlike replaceRewards it does not
         // relax the claim or evidence guards below — nothing is being replaced, only re-read.
         next.rewardGeneration=config.replaceRewards||config.replayDeliveries?root.crypto.randomUUID():expectedGeneration;
-        const nextParts=parts(next),oldParts=parts(previous.state);
+        const nextParts=parts(next,sourcesSame),oldParts=parts(previous.state,sourcesSame);
         const oldSources=new Map(oldParts.sources.map(row=>[row.id,row])),newSources=new Map(nextParts.sources.map(row=>[row.id,row]));
         const oldReceipts=new Map(oldParts.receipts.map(row=>[row.id,row])),newReceipts=new Map(nextParts.receipts.map(row=>[row.id,row]));
         const removedSources=oldParts.sources.filter(row=>!newSources.has(row.id)),removedReceipts=oldParts.receipts.filter(row=>!newReceipts.has(row.id));
@@ -207,7 +284,8 @@
         if(lostEvidence&&!config.replaceRewards)return failed('EVIDENCE','An ordinary save cannot erase existing reward evidence. Keep its reservation and record a retraction instead.');
         const delivery=config.delivery?clone(config.delivery):null;
         if(delivery&&(typeof delivery.digest!=='string'||!delivery.digest))return failed('INVALID','A delivery needs its content digest before it can be saved.');
-        const stateSHA256=await hashState(next),priorSHA256=previous.control.stateSHA256,db=await connect(),at=new Date().toISOString();
+        const seal=schema===1?{stateSHA256:await hashState(next)}:{recordSHA256:await hashState(recordPart(next)),sourcesSHA256:sourcesSame?previous.control.sourcesSHA256:await hashState(next.sourceRecords)};
+        const priorSeal=JSON.stringify(schema===1?[previous.control.stateSHA256]:[previous.control.recordSHA256,previous.control.sourcesSHA256]),db=await connect(),at=new Date().toISOString();
         const newRevisions=[],changedSources=[];let committedControl=null;
         function revision(sourceId,before,after){newRevisions.push({sequence:previous.revisions.length+newRevisions.length+1,entity:'source',sourceId,at,generation:next.rewardGeneration,revision:next.revision,deliveryDigest:delivery?delivery.digest:null,before,after});}
         for(const row of nextParts.sources){
@@ -224,7 +302,7 @@
           const requests=[['control',tx.objectStore('meta').get('authority')],['app',tx.objectStore('meta').get('app')],['sourceCount',tx.objectStore('sources').count()],['receiptCount',tx.objectStore('receipts').count()],['revisionCount',tx.objectStore('revisions').count()],['deliveryCount',tx.objectStore('deliveries').count()]];
           if(delivery)requests.push(['delivery',tx.objectStore('deliveries').get(JSON.stringify([expectedGeneration,delivery.digest]))]);
           gather(tx,requests,old=>{
-            if(!old.control||!old.app||old.control.stateSHA256!==priorSHA256||JSON.stringify(old.control.audit)!==JSON.stringify(previous.control.audit)||old.app.value.revision!==expectedRevision||old.app.value.rewardGeneration!==expectedGeneration){abort(failed('CAS',message.CAS));return;}
+            if(!old.control||!old.app||JSON.stringify(schema===1?[old.control.stateSHA256]:[old.control.recordSHA256,old.control.sourcesSHA256])!==priorSeal||JSON.stringify(old.control.audit)!==JSON.stringify(previous.control.audit)||old.app.value.revision!==expectedRevision||old.app.value.rewardGeneration!==expectedGeneration){abort(failed('CAS',message.CAS));return;}
             if(old.sourceCount!==old.control.sourceCount||old.receiptCount!==old.control.receiptCount||old.revisionCount!==old.control.audit.revisionCount||old.deliveryCount!==old.control.audit.deliveryCount){abort(failed('CORRUPT',message.CORRUPT));return;}
             if(old.delivery){set({ok:true,duplicateDelivery:true,state:previous.state,revision:expectedRevision,generation:expectedGeneration});return;}
             for(const row of newRevisions)tx.objectStore('revisions').add(row);
@@ -237,12 +315,12 @@
             for(const row of removedReceipts)tx.objectStore('receipts').delete(row.id);
             if(deliveryRow)tx.objectStore('deliveries').add(deliveryRow);
             tx.objectStore('meta').put(nextParts.app);
-            committedControl=Object.assign({},old.control,{stateSHA256,sourceCount:nextParts.sources.length,receiptCount:nextParts.receipts.length,audit,lastCommit:{at,revision:next.revision,deliveryDigest:delivery?delivery.digest:null}});
+            committedControl=Object.assign({},old.control,seal,{sourceCount:next.sourceRecords.length,receiptCount:nextParts.receipts.length,audit,lastCommit:{at,revision:next.revision,deliveryDigest:delivery?delivery.digest:null}});
             tx.objectStore('meta').put(committedControl);
             set({ok:true,snapshotSafe:true,sourceRevisionCount:newRevisions.length,revision:next.revision,generation:next.rewardGeneration});
           },abort);
         });
-        if(saved.ok&&!saved.duplicateDelivery){state.revision=next.revision;state.rewardGeneration=next.rewardGeneration;verified={state:next,control:committedControl,revisions:newRevisions.length?previous.revisions.concat(newRevisions):previous.revisions,deliveries:nextDeliveries};}
+        if(saved.ok&&!saved.duplicateDelivery){if(schema===2)freezeSources(next);state.revision=next.revision;state.rewardGeneration=next.rewardGeneration;verified={state:next,control:committedControl,revisions:newRevisions.length?previous.revisions.concat(newRevisions):previous.revisions,deliveries:nextDeliveries};}
         else if(saved.ok&&saved.duplicateDelivery&&cached)verified=cached;
         return saved;
       }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
@@ -258,7 +336,7 @@
         return {ok:true,delivery:found?clone(found.value):null};
       }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
     }
-    return {open:read,read,migrate,write,writeClaims:write,readDelivery:digest=>list('deliveries',digest),deliveries:()=>list('deliveries'),revisions:()=>list('revisions'),close(){if(database)database.close();database=null;opening=null;},markerKey,dbName};
+    return {open:read,read,migrate,adopt,write,writeClaims:write,schema,readDelivery:digest=>schema===2?findDelivery(digest):list('deliveries',digest),deliveries:()=>list('deliveries'),revisions:()=>list('revisions'),close(){if(database)database.close();database=null;opening=null;},markerKey,dbName};
   }
   const api={create,hashState};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
