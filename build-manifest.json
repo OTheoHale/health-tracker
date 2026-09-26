@@ -1,14 +1,14 @@
 {
-  "build": "2026-09-26-V3",
+  "build": "2026-09-26-V3.0.1",
   "files": {
     "body-view.css": "4af4ea0d956f44392761d9276d24a6dbbf1a5dd106b2653b186fb5762e454752",
     "body-view.js": "795fe34b05bf9eea383347990c2f045f15df8ce4de7f6b6400e0230760e6c17b",
     "convert-starter.js": "40c333c133bdb5045fd7fe8660861c723ee1a940628a16d6f9bf05ff9cfa0fc4",
-    "delivery.js": "be3d85ea01fb3e576c7c5d37e72d1ea60fdef42f0bbbb5dc31b4c9039aa9bd45",
+    "delivery.js": "456c255cfbb2500ecffc26802e3295b9319a4031995187de047ae93b1399b895",
     "eotc-calendar.js": "e166cfb503bb6a27bddec2393b81b38b9993397902d393a4442c3447900eded4",
     "hae-adapter.js": "fbaec6ec0e87624acc1028dd5781fd6db2a3ace96050acb9d46ab491061f8353",
-    "health-domain.js": "b301a933bba1a7f4466795e54edfe66e0c207543f143620cafc377887625729a",
-    "health-store.js": "ba74f682ede1bbcd7ee4cd304c12ae461ebce007ea543d49285835f980ed44d7",
+    "health-domain.js": "fe7699da1492606462e9f75ae7a624c793503fc31305960f0492ef6ae5a388a6",
+    "health-store.js": "6e6a943a39529c43a44ea0d711d50438dc4cd86a4cf92ea9a962dec874d42786",
     "icon-192.png": "d5f26583217328b2928df393973bd805d8fe1893abe2f528f96d728401df66d4",
     "icon-512.png": "a03d12b3dc9bc1a2f014cd0a836cb4607b265238459befbe9ba3d3cac0e94079",
     "index.html": "da9cdca4396853c28bb7354bcd3ce979654dc876a48e7a2c059dd3ae4b6924c4",
@@ -18,7 +18,7 @@
     "offline.html": "7f472596880496629a8dcbde453d2257e9815c088d609d013253a3469efe521d",
     "quarter-points.js": "7d8a7554b70172264ce5ee8f6897d02ed0a9c7e271a206f53957785cc258e58d",
     "scoring-v5.js": "2fd45ed76f1105ba8795e2f392162ed1045fda43385f1f70cdd7833c11afef48",
-    "sw.js": "a08e9c665eb4a57e16a8220ce861aabe0a3880652960e642f351936920be124a",
+    "sw.js": "975b2b11a57c15b054cb925d292449d43cbafc67c2ad59c33dcded05394e410b",
     "workspace-proposal.js": "4e8f5f8d5ee14e9ae40a74086335d372658ca1a7017de7b9311773b12a5d8090"
   }
 }

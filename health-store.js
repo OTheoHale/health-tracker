@@ -17,7 +17,12 @@
   function recordPart(state){const out={};for(const name of Object.keys(state))if(name!=='sourceRecords')out[name]=state[name];return out;}
   function shareClone(state){const out={};for(const name of Object.keys(state))out[name]=name==='sourceRecords'&&Array.isArray(state[name])?state[name]:clone(state[name]);return out;}
   function deepFreeze(value){if(value&&typeof value==='object'&&!Object.isFrozen(value)){Object.freeze(value);for(const key of Object.keys(value))deepFreeze(value[key]);}return value;}
-  function freezeSources(state){if(state&&Array.isArray(state.sourceRecords))deepFreeze(state.sourceRecords);return state;}
+  // WebKit's Object.isFrozen walks every element of an array (V8 answers at once), and with 26,000 rows a
+  // per-lookup isFrozen hung his Mac on first open of V3.0. Sealed row arrays are remembered here instead;
+  // isSealed() is the O(1) test every caller uses (V3.0.1).
+  const sealedRows=new WeakSet();
+  function isSealed(rows){return Array.isArray(rows)&&sealedRows.has(rows);}
+  function freezeSources(state){if(state&&Array.isArray(state.sourceRecords)&&!sealedRows.has(state.sourceRecords)){for(const row of state.sourceRecords)deepFreeze(row);Object.freeze(state.sourceRecords);sealedRows.add(state.sourceRecords);}return state;}
   function create(options){
     const opts=options||{},idb=opts.indexedDB||root.indexedDB,local=opts.localStorage||root.localStorage;
     const key=opts.key||'health-tracker-v1',dbName=opts.dbName||'health-tracker',markerKey=opts.markerKey||key+'.idb-authority',schema=opts.schema===2?2:1;
@@ -266,7 +271,7 @@
         if(expectedRevision!==previous.state.revision||expectedGeneration!==previous.state.rewardGeneration)return failed('CAS',message.CAS);
         const next=schema===2?shareClone(state):clone(state),problem=validate(next);if(problem)return failed('INVALID','The proposed record was refused: '+problem);
         // Schema 2: the very same frozen array as the committed record means no source row changed.
-        const sourcesSame=schema===2&&next.sourceRecords===previous.state.sourceRecords&&Object.isFrozen(next.sourceRecords);
+        const sourcesSame=schema===2&&next.sourceRecords===previous.state.sourceRecords&&isSealed(next.sourceRecords);
         next.revision=expectedRevision+1;
         // The delivery ledger is scoped by generation, so deliveries already recorded would retire
         // every re-delivered file as a duplicate and the data would never come back. replayDeliveries
@@ -338,7 +343,7 @@
     }
     return {open:read,read,migrate,adopt,write,writeClaims:write,schema,readDelivery:digest=>schema===2?findDelivery(digest):list('deliveries',digest),deliveries:()=>list('deliveries'),revisions:()=>list('revisions'),close(){if(database)database.close();database=null;opening=null;},markerKey,dbName};
   }
-  const api={create,hashState};
+  const api={create,hashState,isSealed};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
   root.HealthStore=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

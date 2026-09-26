@@ -736,7 +736,7 @@ function reviewFor(state, periodStart){ return state.reviews.find(x => x.periodS
 let undoEntry = null;
 function stage(state, label){
   // Frozen source rows cannot change in place, so the undo copy keeps them by reference (V3.0).
-  const shared = Array.isArray(state.sourceRecords) && Object.isFrozen(state.sourceRecords) ? state.sourceRecords : null;
+  const shared = Array.isArray(state.sourceRecords) && sealedRows(state.sourceRecords) ? state.sourceRecords : null;
   undoEntry = { label, snap: JSON.stringify(shared ? Object.assign({}, state, {sourceRecords: []}) : state), sources: shared };
 }
 function canUndo(){ return !!undoEntry; }
@@ -1636,7 +1636,7 @@ const sourceProjectionCache=new WeakMap();
 function sourceProjection(state){
   if(!state.autoFeed||typeof globalThis.HealthAutoExport==='undefined')return null;
   const prior=sourceProjectionCache.get(state),key=JSON.stringify(state.autoFeed.contract);
-  if(prior&&prior.rows===state.sourceRecords&&(Object.isFrozen(state.sourceRecords)||prior.revision===state.revision)&&prior.length===state.sourceRecords.length&&prior.key===key)return prior.value;
+  if(prior&&prior.rows===state.sourceRecords&&(sealedRows(state.sourceRecords)||prior.revision===state.revision)&&prior.length===state.sourceRecords.length&&prior.key===key)return prior.value;
   const value=HealthAutoExport.project(state.sourceRecords,state.autoFeed.contract);
   sourceProjectionCache.set(state,{rows:state.sourceRecords,revision:state.revision,length:state.sourceRecords.length,key,value,active:new Set(value.activeIds.concat(value.fallbackIds||[]))});return value;
 }
@@ -1714,7 +1714,7 @@ function deficitSuggestion(state,today){
    skipped. One pass per draw when the draw memo is open. */
 function latestMeasurements(state){
   if(drawMemo&&drawMemo.state===state&&drawMemo.latest)return drawMemo.latest;
-  if(Object.isFrozen(state.sourceRecords||[]))return rowMemo(state,'latest',()=>latestMeasurementsOf(state));
+  if(sealedRows(state.sourceRecords||[]))return rowMemo(state,'latest',()=>latestMeasurementsOf(state));
   return latestMeasurementsOf(state);
 }
 function latestMeasurementsOf(state){
@@ -1746,7 +1746,7 @@ function relaySourceMatches(id, record){
 const frozenRowCache=new WeakMap();
 function rowMemo(state,name,make){
   const rows=state.sourceRecords;
-  if(!Array.isArray(rows)||!Object.isFrozen(rows))return make();
+  if(!Array.isArray(rows)||!sealedRows(rows))return make();
   const key=name+'|'+JSON.stringify(state.autoFeed?.contract||null);
   let memo=frozenRowCache.get(rows);if(!memo){memo=new Map();frozenRowCache.set(rows,memo);}
   if(!memo.has(key))memo.set(key,make());
@@ -2691,13 +2691,15 @@ function mergeState(cur, inc){
 }
 /* V3.0: committed source rows are frozen and shared (health-store.js schema 2), so copies of the record
    deep-copy everything except them. Code that must change source rows takes its own copy first. */
+// O(1): WebKit's Object.isFrozen walks a whole array (V3.0.1).
+function sealedRows(rows){return !!(rows&&globalThis.HealthStore&&typeof globalThis.HealthStore.isSealed==='function'&&globalThis.HealthStore.isSealed(rows));}
 function cloneRecord(state){
   const out={};
-  for(const k of Object.keys(state)){if(state[k]===undefined)continue;out[k]=k==='sourceRecords'&&Array.isArray(state[k])&&Object.isFrozen(state[k])?state[k]:JSON.parse(JSON.stringify(state[k]));}
+  for(const k of Object.keys(state)){if(state[k]===undefined)continue;out[k]=k==='sourceRecords'&&Array.isArray(state[k])&&sealedRows(state[k])?state[k]:JSON.parse(JSON.stringify(state[k]));}
   return out;
 }
 function ownSources(state){
-  if(Array.isArray(state.sourceRecords)&&Object.isFrozen(state.sourceRecords)){sourceProjectionCache.delete(state);state.sourceRecords=JSON.parse(JSON.stringify(state.sourceRecords));}
+  if(Array.isArray(state.sourceRecords)&&sealedRows(state.sourceRecords)){sourceProjectionCache.delete(state);state.sourceRecords=JSON.parse(JSON.stringify(state.sourceRecords));}
   return state.sourceRecords;
 }
 function replaceState(cur, inc){
@@ -3039,7 +3041,7 @@ function wsProjectedRecord(state,id){const projected=sourceProjection(state);ret
 function wsSourceRecord(state,id){
   const build=()=>rowMemo(state,'byId',()=>{const byId=new Map(),projected=sourceProjection(state);for(const r of projected?projected.records:[])if(!byId.has(r.id))byId.set(r.id,r);for(const r of state.sourceRecords||[])byId.set(r.id,r);return byId;});
   if(wsPass&&wsPass.state===state){if(!wsPass.byId)wsPass.byId=build();return wsPass.byId.get(id)||null;}
-  if(Object.isFrozen(state.sourceRecords||[]))return build().get(id)||null;
+  if(sealedRows(state.sourceRecords||[]))return build().get(id)||null;
   return (state.sourceRecords||[]).find(r=>r.id===id)||wsProjectedRecord(state,id);
 }
 /* One automatic evidence pass asks the same questions of the same records for every activity on
