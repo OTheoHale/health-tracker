@@ -1,0 +1,226 @@
+/* Glow views (V3.1): the drawn pieces of the score pages and the Perfect tiers, as pure functions.
+   Data in (what scores.js returns, or a day's due items), markup or a verdict out; no DOM, no storage, no
+   clock. The page gathers the data and places the pieces; test-glow-views.js checks them without a browser.
+   Colour is always a name (red · orange · yellow · green · violet, blue for sleep, brass for a measure)
+   mapped to the page's tokens, so a colour means the same thing everywhere and every scale can show a key. */
+(function(root,factory){
+  if(typeof module==='object'&&module.exports)module.exports=factory();
+  else root.GlowViews=factory();
+})(typeof globalThis!=='undefined'?globalThis:this,function(){
+  'use strict';
+  const esc=s=>String(s===null||s===undefined?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const num=v=>typeof v==='number'&&Number.isFinite(v),clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v)),f=n=>(+n).toFixed(1);
+  const TONES={red:'var(--c-red)',orange:'var(--c-orange)',yellow:'var(--c-yellow)',green:'var(--c-green)',violet:'var(--c-violet)',purple:'var(--c-violet)',blue:'var(--sleep)',brass:'var(--brass)',neutral:'var(--muted)'};
+  const tone=name=>TONES[name]||'var(--muted)';
+  const n0=v=>Math.round(v).toLocaleString('en-US');
+
+  /* ---------- the ring: spiky and segmented, the app's own style ---------- */
+  const SEGMENTS=40;
+  /* share 0–1 fills the segments; `inner` draws a second, thin arc (Fuel's water); `target` {from,to} marks a
+     band on the rim (Load's brass arc); without a value every segment stays faint and the centre reads "—". */
+  function ring(o){
+    const cx=60,cy=60,R=46,r=37,has=num(o.share),filled=has?Math.round(clamp(o.share,0,1)*SEGMENTS):0,colour=tone(o.colour);
+    const at=(a,rr)=>f(cx+Math.cos(a)*rr)+' '+f(cy+Math.sin(a)*rr),angle=s=>s*Math.PI*2-Math.PI/2;
+    let body='';
+    for(let i=0;i<SEGMENTS;i++){
+      const a0=angle(i/SEGMENTS)+.02,a1=angle((i+1)/SEGMENTS)-.02,on=i<filled,spike=on&&i%5===4?R+4:R;
+      body+='<path d="M'+at(a0,r)+'L'+at(a0,R)+'L'+at((a0+a1)/2,spike)+'L'+at(a1,R)+'L'+at(a1,r)+'Z" fill="'+(on?colour:'var(--ring-off,rgba(255,255,255,.08))')+'"/>';
+    }
+    const arc=(from,to,rr,stroke,width)=>{const a=angle(clamp(from,0,1)),b=angle(clamp(to,0,.9999)),large=b-a>Math.PI?1:0;return '<path d="M'+at(a,rr)+'A'+rr+' '+rr+' 0 '+large+' 1 '+at(b,rr)+'" fill="none" stroke="'+stroke+'" stroke-width="'+width+'" stroke-linecap="round"/>';};
+    if(o.target&&num(o.target.from)&&num(o.target.to)&&o.target.to>o.target.from)body+=arc(o.target.from,o.target.to,53,'var(--brass)',2.4);
+    if(o.inner&&num(o.inner.share)){body+='<circle cx="60" cy="60" r="31" fill="none" stroke="var(--ring-off,rgba(255,255,255,.08))" stroke-width="3"/>';if(o.inner.share>0)body+=arc(0,o.inner.share,31,tone(o.inner.colour),3);}
+    const centre=has||o.centre?String(o.centre===undefined?Math.round(o.share*100):o.centre):'—',size=centre.length>4?17:centre.length>3?21:26;
+    const arrow=o.arrow&&o.arrow.arrow?' <span class="ring-arrow" style="color:'+tone(o.arrow.colour)+'" title="'+esc(o.arrow.title||'This week against the last four')+'">'+esc(o.arrow.arrow)+'</span>':'';
+    return '<div class="score-ring'+(has?'':' empty')+'"'+(o.id?' data-score="'+esc(o.id)+'"':'')+'><svg viewBox="0 0 120 120" role="img" aria-label="'+esc(o.label||o.title+' '+centre)+'">'+body+
+      '<text x="60" y="'+(size>22?68:66)+'" text-anchor="middle" font-size="'+size+'" class="ring-value">'+esc(centre)+'</text></svg><b>'+esc(o.title)+arrow+'</b>'+
+      (o.word?'<em style="color:'+tone(o.wordColour||o.colour)+'">'+esc(o.word)+'</em>':'')+(o.chip?'<small class="ring-chip">'+esc(o.chip)+'</small>':'')+'</div>';
+  }
+  /* The key every coloured scale carries. steps: [[name,label],…] */
+  function key(steps,lead){return '<p class="scale-key">'+(lead?'<span>'+esc(lead)+'</span>':'')+steps.map(([name,label])=>'<span><i style="background:'+tone(name)+'"></i>'+esc(label)+'</span>').join('')+'</p>';}
+  const KEYS={
+    goal:[['orange','Under 75%'],['yellow','75–99%'],['green','On target']],
+    readiness:[['red','0–19'],['orange','20–39'],['yellow','40–69 Pace'],['green','70–89 Ready'],['violet','90–100']],
+    quality:[['red','0–24'],['orange','25–49'],['yellow','50–74'],['green','75–89'],['violet','90–100']],
+    rungs:[['red','Poor'],['orange','Below'],['yellow','Avg'],['green','Good · Trained'],['violet','Athlete · Elite']],
+    vitals:[['red','Behind'],['orange',''],['yellow',''],['green','On target'],['violet','Excellent']],
+    load:[['brass','So far'],['green','In band'],['orange','Above'],['yellow','Below (day over)'],['red','Well above 3 days']]
+  };
+
+  /* ---------- a vital on the quality track (the approved Body look, Sept 26) ----------
+     The track runs behind → on target → excellent in the ladder's own colours, one slot per rung. A ranked
+     vital (HRV, resting heart rate, VO₂ max) sits where its rung puts it. A flag (breathing, blood oxygen,
+     wrist temperature) has no rungs: it sits by how far it is from his own typical value, green within 60%
+     of the way to the outlier line, yellow after that, orange from the line on; never red, and never
+     better than green. The box is his typical range, the small dots recent nights, the knob last night. */
+  const SLOT_TONES=['red','orange','yellow','green','green','violet','violet'];
+  const PLACE={typical:4.5/7,yellow:3/7,outlier:2/7,floor:1/7+.03,ceiling:5/7-.03};
+  /* side: 'high' when higher is the worry (breathing, resting heart rate), 'low' (blood oxygen), 'both' (temperature). */
+  function flagPlace(value,typical,margin,side){
+    if(!num(value)||!num(typical)||!(margin>0))return null;
+    const d=side==='low'?typical-value:side==='both'?Math.abs(value-typical):value-typical,t=d/margin;
+    const p=t<=0?PLACE.typical+Math.min(1,-t)*(PLACE.ceiling-PLACE.typical):t<=.6?PLACE.typical-(PLACE.typical-PLACE.yellow)*t/.6:PLACE.yellow-(PLACE.yellow-PLACE.outlier)*(t-.6)/.4;
+    return clamp(p,PLACE.floor,PLACE.ceiling);
+  }
+  /* The colour of a place on a track; an edge belongs to the slot below it. */
+  function placeTone(p,tones){const t=tones||SLOT_TONES;return t[clamp(Math.ceil(p*t.length-1e-9)-1,0,t.length-1)];}
+  const track=tones=>'linear-gradient(90deg,'+tones.map((t,i)=>tone(t)+' '+f((i+.5)/tones.length*100)+'%').join(',')+')';
+  function vital(o){
+    const tones=o.tones||SLOT_TONES,has=num(o.place),x=p=>f(clamp(p,0,1)*100),band=o.band&&num(o.band[0])&&num(o.band[1])?[Math.min(o.band[0],o.band[1]),Math.max(o.band[0],o.band[1])]:null;
+    const name=has?o.tone||placeTone(o.place,tones):null,colour=has?tone(name):'var(--faint)';
+    const spoken=o.label+': '+(has?o.text+(o.word?', '+o.word:''):'no reading yet')+(band&&o.bandText?'; your typical range '+o.bandText:'');
+    return '<div class="vital'+(has?'':' empty')+'"'+(o.id?' data-vital="'+esc(o.id)+'"':'')+(has?' data-tone="'+esc(name)+'"':'')+'><div class="vital-name"><b>'+esc(o.label)+'</b><small>'+esc(o.sub||'')+'</small></div>'+
+      '<div class="vital-track" role="img" aria-label="'+esc(spoken)+'" style="background:'+track(tones)+'">'+
+      (band?'<i class="typical" style="left:'+x(band[0])+'%;width:'+f(Math.max(3,(band[1]-band[0])*100))+'%"></i>':'')+
+      (o.recent||[]).filter(num).map(p=>'<i class="dot" style="left:'+x(p)+'%"></i>').join('')+
+      (has?'<i class="knob" style="left:'+x(o.place)+'%;--glow:'+colour+'"></i>':'')+'</div>'+
+      '<div class="vital-now"><b style="color:'+colour+'">'+esc(has?o.text:'—')+'</b>'+(o.note?'<small>'+esc(o.note)+'</small>':'')+'</div></div>';
+  }
+  /* A small coloured note beside a figure: "▼ 1.2 this month", "5 over the healthy range", "steady". */
+  function chip(o){return '<span class="trend-chip" data-tone="'+esc(o.tone||'neutral')+'" style="color:'+tone(o.tone||'neutral')+'">'+(o.arrow?'<i aria-hidden="true">'+esc(o.arrow)+'</i> ':'')+esc(o.text)+'</span>';}
+
+  /* ---------- Where I Stand: a ladder row, a range row ---------- */
+  const RUNG_LABEL={poor:'Poor',below:'Below',avg:'Avg',good:'Good',trained:'Trained',athlete:'Athlete',elite:'Elite'},RUNG_TONE={poor:'red',below:'orange',avg:'yellow',good:'green',trained:'green',athlete:'violet',elite:'violet'};
+  const RUNGS=['poor','below','avg','good','trained','athlete','elite'];
+  /* Where the marker sits, as a share of the whole ladder: inside his rung, by how far the value has come
+     from that rung's cut-off toward the next. The bottom and the top rung have no far edge, so the marker
+     rests a fixed way in. */
+  function ladderMark(e){
+    const order=e.order,i=order.indexOf(e.rung),down=e.direction==='down',cut=r=>e.cuts[r];
+    let within=.5;
+    if(i>0&&i<order.length-1){const a=cut(order[i]),b=cut(order[i+1]);within=clamp((e.value-a)/(b-a||1),0,1);}
+    else if(i===0&&order.length>1){const b=cut(order[1]),span=Math.abs(cut(order[Math.min(2,order.length-1)])-b)||1;within=clamp(1-(down?e.value-b:b-e.value)/(span*1.5),.06,.94);}
+    else if(i>0){const a=cut(order[i]),span=Math.abs(a-cut(order[i-1]))||1;within=clamp((down?a-e.value:e.value-a)/(span*1.5),.06,.94);}
+    return (i+within)/order.length;
+  }
+  /* A ranked value on the vitals track: where its rung puts it, in its rung's colour, on a track of its own rungs. */
+  function rungPlace(e){return e&&e.rung?{place:ladderMark(e),tone:RUNG_TONE[e.rung],tones:e.order.map(r=>RUNG_TONE[r]),word:RUNG_LABEL[e.rung]}:null;}
+  /* The short row of the Body summary: the measure and its rung (or range state) as an outlined chip. */
+  function standLine(e,o){
+    const opt=o||{},name=esc(opt.name||e.metric),graded=e&&(e.rung||e.state),word=!graded?'—':e.rung?RUNG_LABEL[e.rung]+(e.star?' ✦':''):e.state==='in'?'In range':e.state==='over'?'Above healthy range':'Under the range',colour=!graded?'neutral':e.rung?RUNG_TONE[e.rung]:e.colour;
+    return '<div class="stand-line"'+(e&&e.metric?' data-metric="'+esc(e.metric)+'"':'')+(graded?' data-tone="'+esc(colour)+'"':'')+'><span>'+name+(!graded&&opt.note?' <small>'+esc(opt.note)+'</small>':'')+'</span><b class="rung-pill" style="color:'+tone(colour)+';border-color:'+tone(colour)+'">'+esc(word)+'</b></div>';
+  }
+  function ladder(e,o){
+    const opt=o||{},name=esc(opt.name||e.name||e.metric),sub=opt.sub?'<small>'+esc(opt.sub)+'</small>':'';
+    if(!e||!e.rung)return '<div class="stand-row empty"'+(e&&e.metric?' data-metric="'+esc(e.metric)+'"':'')+'><div class="stand-name"><b>'+name+'</b>'+sub+'</div><div class="stand-ladder muted">'+RUNGS.map(r=>'<span>'+RUNG_LABEL[r]+'</span>').join('')+'</div><div class="stand-value"><b>—</b><small>'+esc(opt.note||(e&&e.note)||'No reading yet')+'</small></div></div>';
+    const mark=ladderMark(e),colour=tone(RUNG_TONE[e.rung]);
+    const rungs=e.order.map(r=>'<span class="'+(r===e.rung?'on':'')+'" style="--rung:'+tone(RUNG_TONE[r])+'">'+RUNG_LABEL[r]+(r==='elite'?' ✦':'')+'</span>').join('');
+    const value=opt.text||(e.unit==='steps'?n0(e.value):String(Math.round(e.value*10)/10));
+    return '<div class="stand-row" data-metric="'+esc(e.metric)+'" data-rung="'+esc(e.rung)+'"><div class="stand-name"><b>'+name+'</b>'+sub+'</div>'+
+      '<div class="stand-ladder" role="img" aria-label="'+esc((opt.name||e.metric)+': '+RUNG_LABEL[e.rung]+', '+e.gapText)+'" style="grid-template-columns:repeat('+e.order.length+',1fr)">'+rungs+'<i class="mark" style="left:'+f(mark*100)+'%"></i></div>'+
+      '<div class="stand-value"><b>'+esc(value)+' <small>'+esc(e.unit==='steps'?'':e.unit)+'</small></b><span class="rung-chip" style="background:'+colour+'">'+RUNG_LABEL[e.rung]+(e.star?' ✦':'')+'</span>'+
+      '<small>'+[e.appleLevel?'Apple: '+e.appleLevel:null,num(e.percentile)&&opt.percentile!==false?'ahead of about '+e.percentile+'%':null,opt.asOf||null].filter(Boolean).map(esc).join(' · ')+'</small>'+
+      '<small class="gap" style="color:'+colour+'">'+esc(e.gapText)+(e.flag?' · at or under 12: worth a word with a doctor':'')+'</small></div></div>';
+  }
+  function rangeRow(e,o){
+    const opt=o||{},name=esc(opt.name||e.metric),sub=opt.sub?'<small>'+esc(opt.sub)+'</small>':'';
+    if(!e||!e.state)return '<div class="stand-row empty"'+(e&&e.metric?' data-metric="'+esc(e.metric)+'"':'')+'><div class="stand-name"><b>'+name+'</b>'+sub+'</div><div class="stand-range muted"></div><div class="stand-value"><b>—</b><small>'+esc(opt.note||'No reading yet')+'</small></div></div>';
+    const [a,b]=e.in,span=(b-a)||1,lo=Math.min(opt.from!==undefined?opt.from:a-span*.9,e.value-span*.15),hi=Math.max(opt.to!==undefined?opt.to:b+span*1.3,e.value+span*.15),x=v=>f(clamp((v-lo)/(hi-lo)*100,0,100));
+    const zone=(from,to,colour,label)=>'<i class="zone" style="left:'+x(from)+'%;width:'+f(Math.max(0,x(to)-x(from)))+'%;background:color-mix(in srgb,'+tone(colour)+' 62%,transparent)" title="'+esc(label)+'"></i>';
+    const zones=zone(Math.max(a,lo),b,'green','In range')+(e.athlete&&opt.athlete!==false?zone(Math.max(e.athlete[0],lo),Math.min(e.athlete[1],b),'violet','Athlete zone'):'');
+    const ticks=[a,b].filter(v=>v>lo&&v<hi).map(v=>'<em style="left:'+x(v)+'%">'+esc(opt.tick?opt.tick(v):v)+'</em>').join('');
+    return '<div class="stand-row" data-metric="'+esc(e.metric)+'" data-state="'+esc(e.state)+'"><div class="stand-name"><b>'+name+'</b>'+sub+'</div>'+
+      '<div class="stand-range" role="img" aria-label="'+esc((opt.name||e.metric)+': '+e.text)+'">'+zones+'<i class="mark" style="left:'+x(e.value)+'%"></i>'+ticks+'</div>'+
+      '<div class="stand-value"><b>'+esc(opt.text||String(Math.round(e.value*10)/10))+' <small>'+esc(opt.unit===undefined?e.unit:opt.unit)+'</small></b><small class="gap" style="color:'+tone(e.colour)+'">'+esc(e.text)+'</small>'+(opt.asOf?'<small>'+esc(opt.asOf)+'</small>':'')+'</div></div>';
+  }
+
+  /* ---------- small charts ---------- */
+  /* A band chart: the day's value as a bar, the target band behind it (Load's 28 days). */
+  function bandChart(days,o){
+    const opt=o||{},W=560,H=150,L=8,B=20,values=days.flatMap(d=>[d.value,d.lo,d.hi]).filter(num),top=Math.max(10,...values)*1.12,n=days.length||1,w=(W-2*L)/n,y=v=>f(H-B-(v/top)*(H-B-8));
+    let out='<svg class="band-chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(opt.label||'Daily values against their band')+'" preserveAspectRatio="none">';
+    days.forEach((d,i)=>{if(num(d.lo)&&num(d.hi))out+='<rect x="'+f(L+i*w)+'" y="'+y(d.hi)+'" width="'+f(w+.5)+'" height="'+f(Math.max(1,y(d.lo)-y(d.hi)))+'" fill="color-mix(in srgb,var(--brass) 22%,transparent)"/>';});
+    days.forEach((d,i)=>{if(!num(d.value)){out+='<rect x="'+f(L+i*w+w*.3)+'" y="'+f(H-B-2)+'" width="'+f(w*.4)+'" height="2" fill="var(--line-strong)"><title>'+esc(d.title||'No data')+'</title></rect>';return;}
+      out+='<rect x="'+f(L+i*w+w*.2)+'" y="'+y(d.value)+'" width="'+f(w*.6)+'" height="'+f(Math.max(1.5,H-B-y(d.value)))+'" rx="2" fill="'+tone(d.colour)+'"'+(d.approx?' opacity=".55"':'')+'><title>'+esc(d.title||'')+'</title></rect>';});
+    const marks=opt.ticks||[];marks.forEach(([i,label])=>{out+='<text x="'+f(L+i*w+w/2)+'" y="'+(H-5)+'" text-anchor="middle" class="axis">'+esc(label)+'</text>';});
+    return out+'</svg>';
+  }
+  /* A line through points with gaps where a value is missing. */
+  function spark(values,o){
+    const opt=o||{},W=opt.width||260,H=opt.height||70,known=values.filter(num);if(!known.length)return '';
+    let lo=Math.min(...known),hi=Math.max(...known);if(hi-lo<1e-9){lo-=1;hi+=1;}const pad=(hi-lo)*.15;lo-=pad;hi+=pad;
+    const x=i=>f(values.length===1?W/2:6+i*(W-12)/(values.length-1)),y=v=>f(H-6-(v-lo)/(hi-lo)*(H-12));
+    let d='',pen=false;values.forEach((v,i)=>{if(!num(v)){pen=false;return;}d+=(pen?'L':'M')+x(i)+' '+y(v);pen=true;});
+    const last=values.map((v,i)=>[v,i]).filter(p=>num(p[0])).pop();
+    return '<svg class="spark" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(opt.label||'Trend')+'"><path d="'+d+'" fill="none" stroke="'+tone(opt.colour||'brass')+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'+
+      values.map((v,i)=>num(v)?'<circle cx="'+x(i)+'" cy="'+y(v)+'" r="'+(i===last[1]?3.4:1.8)+'" fill="'+tone(opt.colour||'brass')+'"/>':'').join('')+'</svg>';
+  }
+  /* Two groups of one outcome side by side, each value a dot and the mean a bar (Faith × Readiness). */
+  function twoGroups(a,b,o){
+    const opt=o||{},W=300,H=110,all=a.values.concat(b.values).filter(num);if(!all.length)return '';
+    let lo=Math.min(...all),hi=Math.max(...all);if(hi-lo<1){lo-=1;hi+=1;}const pad=(hi-lo)*.12;lo=Math.max(opt.min===undefined?-Infinity:opt.min,lo-pad);hi=Math.min(opt.max===undefined?Infinity:opt.max,hi+pad);
+    const y=v=>f(H-24-(v-lo)/(hi-lo||1)*(H-34)),mean=l=>l.length?l.reduce((s,v)=>s+v,0)/l.length:null;
+    const group=(g,cx)=>{const m=mean(g.values.filter(num));return g.values.filter(num).map((v,i)=>'<circle cx="'+f(cx-22+((i*37)%44))+'" cy="'+y(v)+'" r="3" fill="'+tone(g.colour)+'" opacity=".55"/>').join('')+(m===null?'':'<line x1="'+(cx-34)+'" x2="'+(cx+34)+'" y1="'+y(m)+'" y2="'+y(m)+'" stroke="'+tone(g.colour)+'" stroke-width="3" stroke-linecap="round"/><text x="'+(cx+40)+'" y="'+f(+y(m)+4)+'" class="axis strong">'+Math.round(m)+'</text>')+'<text x="'+cx+'" y="'+(H-6)+'" text-anchor="middle" class="axis">'+esc(g.label+' · '+g.values.filter(num).length)+'</text>';};
+    return '<svg class="two-groups" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(opt.label||a.label+' against '+b.label)+'">'+group(a,80)+group(b,210)+'</svg>';
+  }
+
+  /* =======================================================================================
+     Perfect tiers (decided Sept 26). Two tracks, Perfect (everything due, all areas, Faith included) and
+     Perfect Fitness (the fitness items due, plus the Cardio and Strength rings), each by Day, Week and
+     Month. "Due when necessary": an item with a weekly or monthly quota never blocks a day unless that
+     day is its last chance to still meet the quota; weeks judge weekly quotas and months monthly ones; a
+     day with nothing due is neutral and breaks no streak. Recognition only in V3.1: no points follow.
+     ======================================================================================= */
+  const dayMs=d=>Date.UTC(+d.slice(0,4),+d.slice(5,7)-1,+d.slice(8,10)),addDays=(d,k)=>new Date(dayMs(d)+k*86400000).toISOString().slice(0,10),between=(a,b)=>Math.round((dayMs(b)-dayMs(a))/86400000);
+  /* A quota is {from,to,target,count,left}: count = done within the window up to and including the day;
+     left = the chances still open from that morning on, the day itself included (the days the item is
+     scheduled and not excused: an appointment that can only fall on a Wednesday or a Friday has no chance
+     on a weekend). Without `left` every calendar day to the window's end is taken as a chance. It is
+     necessary on a day when what is still missing, counting from that morning, needs every chance left. */
+  function necessary(quota,date,doneToday){
+    if(!quota||!(quota.target>0)||date<quota.from||date>quota.to)return false;
+    const before=Math.max(0,(quota.count||0)-(doneToday?1:0)),missing=quota.target-before,left=num(quota.left)?quota.left:between(date,quota.to)+1;
+    return missing>0&&missing>=left;
+  }
+  /* day: {date, items:[{id,name,fitness,done,neutral,optional,quota}], rings:{cardio:{applicable,closed},strength:{…}}} */
+  function day(d){
+    const due=[],fit=[];
+    for(const it of d.items||[]){
+      if(it.neutral)continue;
+      const needed=it.quota?necessary(it.quota,d.date,!!it.done):!it.optional;
+      if(!needed)continue;
+      due.push(it);if(it.fitness)fit.push(it);
+    }
+    const rings=['cardio','strength'].map(k=>d.rings&&d.rings[k]).filter(r=>r&&r.applicable),open=due.filter(it=>!it.done);
+    const fitOpen=fit.filter(it=>!it.done).map(it=>it.name).concat(rings.filter(r=>!r.closed).map(r=>r.label||'Ring'));
+    return {date:d.date,perfect:due.length?open.length===0:null,due:due.length,done:due.length-open.length,open:open.map(it=>it.name),
+      fitness:fit.length||rings.length?fitOpen.length===0:null,fitnessDue:fit.length+rings.length,fitnessDone:fit.length+rings.length-fitOpen.length,fitnessOpen:fitOpen};
+  }
+  /* A span of days (a week or a month) with the quotas it judges: each {name,fitness,target,count,neutral}.
+     today closes nothing early: a span still running reports what it has so far and whether it can still
+     be perfect. */
+  function span(days,quotas,today,track){
+    const pick=v=>track==='fitness'?v.fitness:v.perfect,judged=days.filter(v=>v.date<=today),lived=judged.filter(v=>pick(v)!==null),missed=judged.filter(v=>pick(v)===false);
+    const mine=(quotas||[]).filter(q=>!q.neutral&&(track!=='fitness'||q.fitness)),over=!days.length||days[days.length-1].date<today,short=mine.filter(q=>(q.count||0)<q.target);
+    const broken=missed.length>0||(over&&short.length>0);
+    return {perfect:lived.length===0&&!mine.length?null:over?!broken&&lived.length>0:broken?false:null,running:!over,possible:!broken,days:lived.length,perfectDays:lived.filter(v=>pick(v)===true).length,missed:missed.map(v=>v.date),
+      quotas:mine.map(q=>({name:q.name,target:q.target,count:q.count||0,met:(q.count||0)>=q.target}))};
+  }
+  /* Streak over verdicts oldest first: true counts, false ends it, null (nothing due, or still running) is skipped. */
+  function streak(verdicts){
+    let current=0,best=0,run=0;
+    for(const v of verdicts){if(v===null||v===undefined)continue;if(v){run++;best=Math.max(best,run);}else run=0;}
+    for(let i=verdicts.length-1;i>=0;i--){const v=verdicts[i];if(v===null||v===undefined)continue;if(v)current++;else break;}
+    return {current,best};
+  }
+  function monthDays(month){const out=[];for(let d=month+'-01';d.slice(0,7)===month;d=addDays(d,1))out.push(d);return out;}
+  const mondayOf=d=>addDays(d,-((new Date(dayMs(d)).getUTCDay()+6)%7));
+
+  /* The medal: a sunburst that lights when earned. */
+  function medal(o){
+    const earned=!!o.earned,rays=o.tier==='month'?32:o.tier==='week'?24:16,c=o.track==='fitness'?['#e9fff4','#79d6a9','#2f7a62']:['#fff4cf','#e3b262','#8a5f22'],id='md-'+esc(o.id||o.track+'-'+o.tier);
+    let burst='';for(let i=0;i<rays;i++){const a=i/rays*Math.PI*2,w=Math.PI/rays*.62;burst+='<path d="M'+f(Math.cos(a-w)*30)+' '+f(Math.sin(a-w)*30)+'L'+f(Math.cos(a)*(i%2?41:46))+' '+f(Math.sin(a)*(i%2?41:46))+'L'+f(Math.cos(a+w)*30)+' '+f(Math.sin(a+w)*30)+'Z"/>';}
+    return '<div class="medal'+(earned?' earned':'')+'" data-track="'+esc(o.track)+'" data-tier="'+esc(o.tier)+'"><svg viewBox="-50 -50 100 100" role="img" aria-label="'+esc(o.title+(earned?': earned':': not yet'))+'"><defs><radialGradient id="'+id+'" cx=".4" cy=".35"><stop offset="0" stop-color="'+c[0]+'"/><stop offset=".55" stop-color="'+c[1]+'"/><stop offset="1" stop-color="'+c[2]+'"/></radialGradient></defs>'+
+      '<g fill="'+(earned?'url(#'+id+')':'var(--ring-off,rgba(255,255,255,.09))')+'">'+burst+'<circle r="31"/></g><circle r="25" fill="none" stroke="'+(earned?c[0]:'var(--line)')+'" stroke-opacity=".6"/>'+
+      '<text y="'+(o.mark&&o.mark.length>1?5:7)+'" text-anchor="middle" font-size="'+(o.mark&&o.mark.length>1?13:20)+'" class="medal-mark" fill="'+(earned?'#1a1206':'var(--faint)')+'">'+esc(o.mark||'✦')+'</text></svg><b>'+esc(o.title)+'</b><small>'+esc(o.note||'')+'</small></div>';
+  }
+  /* A month at a glance: gold = a Perfect day, a green rim = Perfect Fitness, dim = nothing due, plain = open. */
+  function calendar(month,verdicts,today){
+    const days=monthDays(month),by=new Map((verdicts||[]).map(v=>[v.date,v])),lead=(new Date(dayMs(days[0])).getUTCDay()+6)%7;
+    const cell=d=>{const v=by.get(d),future=d>today,cls=[future?'future':'',v&&v.perfect===true?'perfect':v&&v.perfect===false?'open':'rest',v&&v.fitness===true?'fit':'',d===today?'today':''].filter(Boolean).join(' ');
+      const say=future?'ahead':!v||v.perfect===null?'nothing due':v.perfect?'Perfect day':v.done+' of '+v.due+' due done';
+      return '<span class="'+cls+'" title="'+esc(d+': '+say+(v&&v.fitness===true?' · Perfect Fitness':''))+'">'+(+d.slice(8))+'</span>';};
+    return '<div class="perfect-cal" role="img" aria-label="'+esc('Perfect days in '+month)+'">'+['M','T','W','T','F','S','S'].map(h=>'<em>'+h+'</em>').join('')+(lead?'<span class="pad" style="grid-column:span '+lead+'"></span>':'')+days.map(cell).join('')+'</div>';
+  }
+
+  return {esc,tone,TONES,KEYS,SEGMENTS,SLOT_TONES,PLACE,ring,key,vital,flagPlace,placeTone,rungPlace,chip,standLine,ladder,ladderMark,rangeRow,bandChart,spark,twoGroups,necessary,day,span,streak,monthDays,mondayOf,addDays,medal,calendar,RUNG_LABEL,RUNG_TONE};
+});

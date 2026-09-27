@@ -392,7 +392,9 @@ function notToday(state, seriesId, date){
 function pruneOcc(state, k){
   const o = state.occurrences[k];
   if (o && o.status === null && !o.disposition && o.selected === 'normal' && !o.removed && !o.added &&
-      !o.override && !o.note && o.actualMinutes === null && !o.corrections.length && (!o.rewardEventId || o.rewardEventId === k)) delete state.occurrences[k];
+      !o.override && !o.note && o.actualMinutes === null && !o.corrections.length && (!o.rewardEventId || o.rewardEventId === k) &&
+      // A claimed occurrence stays, so its pinned rule survives an un-mark and a later re-mark pays under it (V3.1).
+      !(state.rewards && state.rewards.claims && state.rewards.claims[typeof rewardIdentity === 'function' ? rewardIdentity(state, o) : k])) delete state.occurrences[k];
 }
 
 /* ---- one-day changes: "this occurrence", never the series ---- */
@@ -1167,6 +1169,17 @@ function adjustConfirmedClaim(state,id,note){
   c.adjustments=c.adjustments||[];
   if(p.delta)c.adjustments.push({id:newId('adjust'),at:nowIso(),delta:p.delta,reason:String(note||'Reviewed action correction').slice(0,300),revision:c.adjustments.length+1});
   c.reconciliationSignature=rewardReviewSignature(state,c);c.reconciledAt=nowIso();return p;
+}
+/* Points follow corrected facts (Mintay, Sept 25, approved; V3.1). After any change to an occurrence
+   whose points were claimed — Skipped, Done again, Tentative, new minutes — the claim is brought to what
+   the facts now earn by the same signed, logged adjustment the review uses (adjustConfirmedClaim; the
+   rule-4 batch keeps each claim's own rule). Nothing is paid twice: the claim id is the occurrence. */
+function followCorrection(state,seriesId,date,reason){
+  if(!confirmedProgression(state))return null;
+  const o=state.occurrences[occKey(seriesId,date)],id=o?rewardIdentity(state,o):occKey(seriesId,date);
+  if(!state.rewards.claims[id]){const lines=typeof wsLineCorrections==='function'?wsLineCorrections(state,reason):[];return lines.length?{id:null,before:0,after:0,lines}:null;}
+  const before=claimBalance(state.rewards.claims[id]),result=adjustConfirmedClaim(state,id,reason);
+  return result?{id,before,after:claimBalance(state.rewards.claims[id]),lines:result.lineChanges||[]}:null;
 }
 function completionRows(state,date){
   return flatPlanFor(state,date).filter(r=>{
@@ -2408,6 +2421,9 @@ const store = {
    Once activated, one IndexedDB transaction owns app state and source records. */
 const durableStore = {engine:null,active:false,cache:null,error:null,stagedState:null,adopted:null};
 const V3_DB = 'glow-v3';
+// V3.1 (one-year storage) writes rollups the V3.0 code cannot read, so it lives in its own database and
+// leaves glow-v3 untouched: shipping V3.0.1 back reopens it with nothing to restore (Mintay, Sept 26).
+const V31_DB = 'glow-v31';
 const legacyRead = store.read.bind(store), legacyWrite = store.write.bind(store), legacyWriteClaims = store.writeClaims.bind(store);
 store.connect = async function(){
   let marked=false;
@@ -2420,15 +2436,19 @@ store.connect = async function(){
   const sourceSignature=r=>r.unmapped?.healthAutoExport?.format==='JSON'&&typeof HealthAutoExport!=='undefined'?HealthAutoExport.signature(r):relaySignature(r);
   // V3.0: the record lives in its own schema-2 database. The V2.x database is read once, copied here
   // and never written again, so the previous version can still open it if V3.0 is rolled back.
-  const engine=globalThis.HealthStore.create({key:STORE_KEY,dbName:V3_DB,markerKey:STORE_KEY+'.v3-authority',schema:2,validateState,sourceSignature});
+  const engine=globalThis.HealthStore.create({key:STORE_KEY,dbName:V31_DB,markerKey:STORE_KEY+'.v31-authority',schema:2,validateState,sourceSignature});
   durableStore.engine=engine;
   let opened=await engine.open();
-  if(opened.ok&&opened.authority!=='indexeddb'&&marked){
-    const legacy=globalThis.HealthStore.create({key:STORE_KEY,validateState,sourceSignature}),prior=await legacy.read(true);
+  // First open of this version: copy the newest earlier database (V3.0's, else V2.x's), read by an
+  // engine of its own and never written again, so each earlier version can still open its own.
+  let markedV3=false;try{markedV3=!!localStorage.getItem(STORE_KEY+'.v3-authority');}catch(e){}
+  if(opened.ok&&opened.authority!=='indexeddb'&&(markedV3||marked)){
+    const from=markedV3?{database:V3_DB,options:{key:STORE_KEY,dbName:V3_DB,markerKey:STORE_KEY+'.v3-authority',schema:2,validateState,sourceSignature}}:{database:'health-tracker',options:{key:STORE_KEY,validateState,sourceSignature}};
+    const legacy=globalThis.HealthStore.create(from.options),prior=await legacy.read(true);
     legacy.close();
     if(!prior.ok||prior.authority!=='indexeddb'){durableStore.error=prior.error||'The previous database could not be read, so it was not copied. Nothing was changed.';return;}
-    opened=await engine.adopt(prior.state,{database:'health-tracker',authorityId:prior.control.authorityId,stateSHA256:prior.control.stateSHA256,revisions:prior.revisions,deliveries:prior.deliveries});
-    if(opened.ok)durableStore.adopted={at:nowIso(),from:'health-tracker',revision:prior.state.revision||0,sources:prior.state.sourceRecords.length};
+    opened=await engine.adopt(prior.state,{database:from.database,authorityId:prior.control.authorityId,stateSHA256:prior.control.stateSHA256||prior.control.recordSHA256||null,revisions:prior.revisions,deliveries:prior.deliveries});
+    if(opened.ok)durableStore.adopted={at:nowIso(),from:from.database,revision:prior.state.revision||0,sources:prior.state.sourceRecords.length};
   }
   if(!opened.ok){durableStore.error=opened.error;if(opened.code==='STAGED'){const legacy=legacyRead();if(legacy.ok&&legacy.state)durableStore.stagedState=legacy.state;}return;}
   // open() is a full verified read already; a second one doubled every launch.
@@ -2701,6 +2721,27 @@ function cloneRecord(state){
 function ownSources(state){
   if(Array.isArray(state.sourceRecords)&&sealedRows(state.sourceRecords)){sourceProjectionCache.delete(state);state.sourceRecords=JSON.parse(JSON.stringify(state.sourceRecords));}
   return state.sourceRecords;
+}
+/* V3.1 one-year storage (Mintay, Sept 26). Heart rate, steps and energy minute rows roll up to one
+   row per metric and day once the day is `days` old (35 by default), keeping the day's projected
+   totals exactly and its hourly figures (hae-adapter.js rollup). Rows that any evidence, confirmation
+   or claim names are kept as they are. */
+function rollupKeep(state){
+  const keep=new Set(Object.keys(state.rewards?.evidence||{}));
+  for(const c of Object.values(state.rewards?.claims||{}))for(const id of c?.evidenceIds||[])keep.add(id);
+  for(const o of Object.values(state.occurrences||{}))for(const id of o?.confirmation?.sourceIds||[])keep.add(id);
+  return keep;
+}
+function compactAgedDays(state,today,options){
+  const days=Number.isInteger(options?.days)?options.days:35,H=globalThis.HealthAutoExport;
+  if(!state.autoFeed||!H||typeof H.rollup!=='function')return {ok:true,rolled:[],removedIds:[]};
+  const before=addDays(today||todayYmd(),-days),r=H.rollup(state.sourceRecords||[],state.autoFeed.contract,{before,keep:rollupKeep(state),at:nowIso()});
+  if(!r.ok)return {ok:false,error:r.error,rolled:[],removedIds:[]};
+  if(!r.rolled.length)return {ok:true,rolled:[],removedIds:[]};
+  sourceProjectionCache.delete(state);state.sourceRecords=r.records;
+  const prior=state.autoFeed.rollups||{metricDays:0,rows:0};
+  state.autoFeed.rollups={through:before,at:nowIso(),metricDays:prior.metricDays+r.rolled.length,rows:prior.rows+r.removedIds.length};
+  return {ok:true,rolled:r.rolled,removedIds:r.removedIds,before};
 }
 function replaceState(cur, inc){
   const next = cloneRecord(inc);
@@ -3378,40 +3419,40 @@ function wsPerfectDay(state,date){
   return rings.closed===3&&req.every(r=>r.status==='done');
 }
 function v5StepsDay(state,date){const v=relayedRecords(state,'steps').filter(r=>sourceLocalDay(r.start)===date&&r.unmapped?.healthAutoExport?.representation==='derived daily view').map(r=>r.value).filter(Number.isFinite);return v.length?Math.max(...v):null;}
-function wsDayLine(state,date,itemsQ,epoch){
-  const table=v5Rule(state,date);if(!table||!(itemsQ>0))return null;
+function wsDayLine(state,date,itemsQ,epoch,allowZero){
+  const table=v5Rule(state,date);if(!table||(!(itemsQ>0)&&!allowZero))return null;itemsQ=itemsQ>0?itemsQ:0;
   const perfect=wsPerfectDay(state,date)===true,perfectQ=perfect?Math.floor(itemsQ*table.perfectDayPct/100):0;
   const steps=v5StepsDay(state,date),stepsQ=steps&&steps>table.stepsTarget?Math.min(4,Math.floor((steps-table.stepsTarget)/3000))*4:0;
   const eb=Workspace.energyBalance(state,date),deficitQ=eb&&eb.complete&&eb.available?ScoringV5.deficitPoints(-eb.balance,table)*4:0;
-  const capQ=ScoringV5.dailyCapQ(itemsQ,table),room=Math.max(0,capQ-itemsQ),raw=perfectQ+stepsQ+deficitQ,amount=Math.min(raw,room);
-  if(amount<=0)return null;
+  const capQ=ScoringV5.dailyCapQ(itemsQ,table),room=Math.max(0,capQ-itemsQ),raw=perfectQ+stepsQ+deficitQ,amount=Math.max(0,Math.min(raw,room));
+  if(amount<=0&&!allowZero)return null;
   const id='v5day|'+date;
   return {id,eventId:id,seriesId:'@day',date,name:'Day bonus'+(perfect?' · perfect day':''),amount,amountQ:amount,displayAmount:amount/4,ruleVersion:4,unit:'quarter-point',epochId:epoch.id,origin:'import',evidenceIds:[],
     calculation:{dayLine:5,tableId:table.id,itemsQ,perfect,perfectQ,stepsQ,deficitQ,capQ,trimQ:raw-amount,steps,stepsTarget:table.stepsTarget,deficitCurve:table.deficitCurve,deficit:eb&&eb.available?Math.round(-eb.balance):null,baseQ:amount,bonusQ:0,priorFull:0,pending:false,recurring:false},disputed:false};
 }
-function wsWeekLine(state,monday,itemsByDate,epoch,today){
+function wsWeekLine(state,monday,itemsByDate,epoch,today,allowZero){
   const table=v5Rule(state,monday),sunday=addDays(monday,6);if(!table||sunday>=today)return null;
   const days=Array.from({length:7},(_,i)=>addDays(monday,i)).filter(d=>d>=epoch.effectiveFrom&&d>=state.rewards.ruleStep5.effectiveFrom);if(days.length<7)return null;
   const weekQ=days.reduce((n,d)=>n+(itemsByDate.get(d)||0),0),states=days.map(d=>wsPerfectDay(state,d)),perfect=states.every(x=>x!==false)&&states.some(x=>x===true);
   const perfectQ=perfect?Math.floor(weekQ*table.perfectWeekPct/100):0;
   const nights=days.map(d=>{const night=relayedRecords(state,'sleep').find(r=>r.unmapped?.healthAutoExport?.day===d&&Number.isFinite(r.durationSec));return {date:d,minutes:night?Math.round(night.durationSec/60):null};});
   const sc=ScoringV5.sleepCredit(nights,table),creditQ=sc.credit&&sc.credit.n?QuarterPoints.baseQ({importance:3,difficulty:2,sizeNumerator:sc.credit.n,sizeDenominator:sc.credit.d}):0;
-  const amount=perfectQ+creditQ;if(amount<=0)return null;
+  const amount=perfectQ+creditQ;if(amount<=0&&!allowZero)return null;
   const id='v5week|'+monday;
   return {id,eventId:id,seriesId:'@week',date:sunday,name:'Week bonus'+(perfect?' · perfect week':'')+(creditQ?' · Sleep Credit':''),amount,amountQ:amount,displayAmount:amount/4,ruleVersion:4,unit:'quarter-point',epochId:epoch.id,origin:'import',evidenceIds:[],
     calculation:{weekLine:5,tableId:table.id,weekQ,perfect,perfectQ,sleepBalanceMin:sc.balanceMin,credit:sc.credit,creditQ,baseQ:amount,bonusQ:0,priorFull:0,pending:false,recurring:false},disputed:false};
 }
-function wsBonusLines(state,eligible,today,epoch){
+function wsBonusLines(state,eligible,today,epoch,allowZero){
   if(!state.rewards?.ruleStep5||typeof ScoringV5==='undefined')return [];
   // Several reports run per screen draw; the lines are computed once per draw for the same inputs.
-  const memoKey=drawMemo&&drawMemo.state===state?JSON.stringify([today,epoch.id,eligible.length,eligible.reduce((n,e)=>n+e.amount,0)]):null;
+  const memoKey=drawMemo&&drawMemo.state===state&&!allowZero?JSON.stringify([today,epoch.id,eligible.length,eligible.reduce((n,e)=>n+e.amount,0)]):null;
   if(memoKey&&drawMemo.bonusKey===memoKey)return drawMemo.bonus;
   const from=state.rewards.ruleStep5.effectiveFrom>epoch.effectiveFrom?state.rewards.ruleStep5.effectiveFrom:epoch.effectiveFrom,byDate=new Map();
   for(const e of eligible)if(e.seriesId&&e.seriesId[0]!=='@')byDate.set(e.date,(byDate.get(e.date)||0)+e.amount);
   for(const c of Object.values(state.rewards.claims))if(c.ruleVersion===4&&c.epochId===epoch.id&&c.seriesId&&c.seriesId[0]!=='@'&&!eligible.some(e=>e.id===c.id))byDate.set(c.date,(byDate.get(c.date)||0)+claimBalance(c));
   const out=[];
-  for(let d=from;d<=today;d=addDays(d,1)){const line=wsDayLine(state,d,byDate.get(d)||0,epoch);if(line)out.push(line);}
-  for(let m=weekStartOf(from,1);addDays(m,6)<today;m=addDays(m,7)){const line=wsWeekLine(state,m,byDate,epoch,today);if(line)out.push(line);}
+  for(let d=from;d<=today;d=addDays(d,1)){const line=wsDayLine(state,d,byDate.get(d)||0,epoch,allowZero);if(line)out.push(line);}
+  for(let m=weekStartOf(from,1);addDays(m,6)<today;m=addDays(m,7)){const line=wsWeekLine(state,m,byDate,epoch,today,allowZero);if(line)out.push(line);}
   if(memoKey){drawMemo.bonusKey=memoKey;drawMemo.bonus=out;}
   return out;
 }
@@ -3430,7 +3471,7 @@ function validateLineClaim(c,id){
 function validateQuarterClaim(c,id,rewards){
   if(c.id!==id||c.eventId!==id||c.unit!=='quarter-point'||typeof c.epochId!=='string'||!(rewards.epochs||[]).some(e=>e.id===c.epochId)||!Number.isSafeInteger(c.amount)||c.amount<1||!validCalendarDate(c.date)||typeof c.seriesId!=='string'||typeof c.claimedAt!=='string')return 'A quarter-point claim is malformed.';
   const calc=c.calculation;if(!calc||!Number.isSafeInteger(calc.baseQ)||calc.baseQ<0||!Number.isSafeInteger(calc.bonusQ)||calc.bonusQ<0||calc.baseQ+calc.bonusQ!==c.amount)return 'A quarter-point calculation is malformed.';
-  if(calc.dayLine!==undefined||calc.weekLine!==undefined){const bad=validateLineClaim(c,id);if(bad)return bad;const adj=c.adjustments||[];if(adj.some((a,i)=>!a||!Number.isSafeInteger(a.delta)||a.delta<1||a.unit!=='quarter-point'||a.epochId!==c.epochId||a.ruleVersion!==4||a.revision!==i+1||!a.calculation||validateLineClaim({...c,amount:c.amount+adj.slice(0,i+1).reduce((n,x)=>n+x.delta,0),calculation:a.calculation},id)))return 'A bonus top-up is malformed.';return null;}
+  if(calc.dayLine!==undefined||calc.weekLine!==undefined){const bad=validateLineClaim(c,id);if(bad)return bad;const adj=c.adjustments||[];if(!Number.isSafeInteger(claimBalance(c))||claimBalance(c)<0||adj.some((a,i)=>!a||!Number.isSafeInteger(a.delta)||a.delta===0||a.unit!=='quarter-point'||a.epochId!==c.epochId||a.ruleVersion!==4||a.revision!==i+1||!a.calculation||validateLineClaim({...c,amount:c.amount+adj.slice(0,i+1).reduce((n,x)=>n+x.delta,0),calculation:a.calculation},id)))return 'A bonus top-up is malformed.';return null;}
   if(!Number.isSafeInteger(calc.priorFull)||calc.priorFull<0||typeof calc.pending!=='boolean'||typeof calc.recurring!=='boolean')return 'A quarter-point chain is malformed.';
   try{
     const maxBonus=QuarterPoints.bonusQ(calc.baseQ,{priorFull:calc.priorFull,pending:calc.pending,recurring:calc.recurring});
@@ -3497,13 +3538,31 @@ function wsCorrectionBatch(state,id){
   const totalQ=claims.reduce((n,c)=>n+claimBalance(c),0),afterQ=totalQ+changes.reduce((n,c)=>n+c.delta,0),own=changes.find(c=>c.id===id);
   return {id,before:claimBalance(selected),after:own?.after??claimBalance(selected),delta:own?.delta||0,changes,total:afterQ/4,totalQ:afterQ,level:QuarterPoints.levelFor(afterQ).level,signature:wsSignature({claims,changes}),unit:'quarter-point',epochId:selected.epochId};
 }
+/* Day and week bonuses follow corrected items too (Mintay, Sept 26). After item claims are corrected,
+   every claimed bonus line is recomputed from the corrected facts; one now lower gets a signed
+   adjustment down to it that carries the recomputed calculation, which the validator re-derives.
+   A bonus that would grow is left to the ordinary top-up. */
+function wsLineCorrections(state,note){
+  const today=todayYmd(),at=nowIso(),out=[],byEpoch=new Map();
+  for(const c of Object.values(state.rewards.claims||{})){
+    if(c.ruleVersion!==4||(c.seriesId!=='@day'&&c.seriesId!=='@week'))continue;
+    if(!byEpoch.has(c.epochId)){const epoch=(state.rewards.epochs||[]).find(e=>e.id===c.epochId);byEpoch.set(c.epochId,epoch?wsBonusLines(state,confirmedEligibility(state,today).filter(e=>e.epochId===epoch.id),today,epoch,true):[]);}
+    const now=byEpoch.get(c.epochId).find(l=>l.id===c.id),before=claimBalance(c);
+    if(!now||now.amount>=before)continue;
+    c.adjustments=c.adjustments||[];
+    c.adjustments.push({id:newId('adjust'),at,delta:now.amount-before,reason:String(note||'Bonus follows corrected items').slice(0,300),revision:c.adjustments.length+1,ruleVersion:4,unit:'quarter-point',epochId:c.epochId,calculation:now.calculation});
+    out.push({id:c.id,before,after:now.amount});
+  }
+  return out;
+}
 function wsApplyCorrectionBatch(state,preview,note){
   const current=preview&&wsCorrectionBatch(state,preview.id);if(!current||current.signature!==preview.signature)return {ok:false,error:'The correction changed. Review the current batch.'};
   const at=nowIso();for(const change of current.changes){const claim=state.rewards.claims[change.id];claim.adjustments=claim.adjustments||[];claim.adjustments.push({id:newId('adjust'),at,delta:change.delta,reason:String(note||'Reviewed correction batch').slice(0,300),revision:claim.adjustments.length+1,ruleVersion:4,unit:'quarter-point',epochId:claim.epochId,calculation:change.calculation});claim.reconciledAt=at;claim.reconciliationSignature=rewardReviewSignature(state,claim);}
+  current.lineChanges=wsLineCorrections(state,note);
   return {ok:true,record:current};
 }
 correctionPreview=function(state,id){return state.rewards.claims[id]?.ruleVersion===4?wsCorrectionBatch(state,id):wsLegacyCorrection(state,id);};
-adjustConfirmedClaim=function(state,id,note){if(state.rewards.claims[id]?.ruleVersion!==4)return wsLegacyAdjust(state,id,note);const preview=wsCorrectionBatch(state,id);const result=wsApplyCorrectionBatch(state,preview,note);return result.ok?preview:null;};
+adjustConfirmedClaim=function(state,id,note){if(state.rewards.claims[id]?.ruleVersion!==4)return wsLegacyAdjust(state,id,note);const preview=wsCorrectionBatch(state,id);const result=wsApplyCorrectionBatch(state,preview,note);return result.ok?{...preview,lineChanges:result.record.lineChanges||[]}:null;};
 
 function wsGoalDay(state,series,date,cache){
   if(cache&&!cache.has(date))cache.set(date,new Map(allRows(planFor(state,date)).map(row=>[row.seriesId,row])));

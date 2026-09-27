@@ -8,7 +8,7 @@
  * Health Tracker publishes to its own host for the same family of reasons, so today it is alone
  * there — but a worker that only cleans up after itself stays correct if that ever changes.
  */
-const BUILD = '2026-09-26-V3.0.1';                      // ship.sh stamps this in step with delivery.js
+const BUILD = '2026-09-26-V3.1';                      // ship.sh stamps this in step with delivery.js
 const SHELL_PREFIX = 'health-tracker-shell-';
 const SHELL = SHELL_PREFIX + BUILD;
 
@@ -16,10 +16,10 @@ const SHELL = SHELL_PREFIX + BUILD;
    in IndexedDB and localStorage, and body files never leave the Mac. */
 const SHELL_FILES = [
   './', 'index.html', 'delivery.js',
-  'health-domain.js', 'health-store.js', 'hae-adapter.js', 'body-view.js',
+  'health-domain.js', 'health-store.js', 'hae-adapter.js', 'history-import.js', 'norms.js', 'scores.js', 'glow-views.js', 'body-view.js',
   'meal-water.js', 'quarter-points.js', 'scoring-v5.js', 'eotc-calendar.js', 'workspace-proposal.js', 'convert-starter.js',
   'model-viewer.min.js', 'body-view.css', 'manifest.webmanifest', 'offline.html',
-  'icon-192.png', 'icon-512.png'
+  'icon-192.png', 'icon-512.png', 'glow-mark.webp', 'glow-cross.webp'
 ];
 
 self.addEventListener('install', event => {

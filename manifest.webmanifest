@@ -4,8 +4,8 @@
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
-  "background_color": "#0e2219",
-  "theme_color": "#0e2219",
+  "background_color": "#0b1710",
+  "theme_color": "#193427",
   "description": "Keep the light. Private daily health and whole-life guidance; records stay on this device.",
   "icons": [
     {

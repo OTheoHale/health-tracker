@@ -152,6 +152,23 @@ function weeklyGrouped(rows){
 // Nutrition sums that apps such as Grow, Bevel and MyFitnessPal write together (V1.12, ASSUMED).
 const POOLED_SUMS=new Set(['dietary_energy','dietary_water','protein','carbohydrates','total_fat','dietary_sugar','caffeine','alcohol_consumption','fiber','saturated_fat','sodium','cholesterol']);
 function hae(r){const m=r&&r.unmapped&&r.unmapped.healthAutoExport;return m&&m.format==='JSON'&&m.adapterVersion===1?m:null;}
+// V3.1 one-year storage (Mintay, Sept 26): the all-day minute streams roll up once a day is old enough.
+// A day's minute rows of one metric become one "daily rollup" row that keeps the day's projected
+// totals exactly (same derived identities and values, so evidence and claims are untouched) and the
+// 24 hourly figures the charts draw. Workouts never roll up, and sparse measurements (HRV, resting
+// heart rate, respiratory rate, VO2 max, wrist temperature, sleep, body composition, walking and
+// running measures) keep every sample. Extended to the other all-day streams on Sept 26 once he
+// confirmed workouts keep their own detail.
+const ROLLUP_METRICS=new Set(['heart_rate','step_count','active_energy','basal_energy_burned','walking_running_distance','apple_exercise_time','apple_stand_time','apple_stand_hour','flights_climbed','time_in_daylight','physical_effort','environmental_audio_exposure','headphone_audio_exposure']);
+const ROLLUP='daily rollup';
+// V3.1 history import (option b): day values from a one-time, long, day-grain export. They
+// fill baselines and history for the scores; the projection never counts them, so a day's totals, evidence
+// and check-offs come only from the live feed's own rows.
+const HISTORY='history day summary';
+function rollupId(feed,metric,unit,day){return 'hae:rollup:v1:'+JSON.stringify([feed,metric,unit,day]);}
+function rollupKey(metric,day){return metric+'|'+day;}
+// Keys (metric|day) already rolled up in this store.
+function rolledKeys(rows,feed){const keys=new Set();for(const r of rows||[]){const m=hae(r);if(m&&m.representation===ROLLUP&&(!feed||m.feedId===feed))keys.add(rollupKey(m.metric,m.day));}return keys;}
 function feedRecord(r){const m=r&&r.unmapped&&r.unmapped.healthAutoExport;return !!(m&&m.format==='JSON'||r&&typeof r.id==='string'&&r.id.startsWith('hae:'));}
 // One definition of "this row was imported under a different feed connection". reconcile() refuses
 // a store that holds any, and the page offers to retire them; those two must never disagree.
@@ -165,12 +182,48 @@ function foreignToFeed(record,feedId){const m=hae(record);return feedRecord(reco
 function bucketId(c,metric,unit,source,start){return 'hae:bucket:v1:'+JSON.stringify([1,c.feedId,c.route,c.grouping,metric,unit,source,new Date(Date.parse(start)).toISOString(),GROUPINGS[c.grouping]]);}
 function signature(r){
   const v=clone(r),m=hae(v);if(m)delete m.delivery;
-  for(const k of ['importedAt','lastSeenAt','lastRetrievedAt','sourceCorrectedAt','revision'])delete v[k];
+  for(const k of ['importedAt','lastSeenAt','lastRetrievedAt','sourceCorrectedAt','revision','detail'])delete v[k];
   return JSON.stringify(ordered(v));
 }
 function contentSignature(r){const v=clone(r);delete v.clashes;delete v.resolutions;return signature(v);}
 function quantity(v,positive){if(typeof v!=='number'||!Number.isFinite(v)||v<0||(positive&&v===0))throw new Error('invalid_quantity');return v;}
 function workoutQuantity(v){return v&&typeof v==='object'&&Number.isFinite(Number(v.qty))?{qty:Number(v.qty),units:String(v.units||'')}:null;}
+/* V3.1 (Mintay, Sept 26): the heart-rate trace of a workout and its recovery afterwards, for the scores
+   that need them (Recovery Speed, Durability, Run Efficiency, Load). The export carries them per second;
+   Glow keeps a per-minute curve (min, average, max from the start), per-minute distance (metres) and
+   steps, and the first ten minutes of recovery (seconds after the end, average). Kept as `detail`, outside the row's signature, so a workout's
+   evidence and claims do not change when its trace arrives. Unreadable samples are skipped. */
+function heartSamples(rows){
+  const out=[];for(const x of Array.isArray(rows)?rows:[]){if(!object(x))continue;const t=instant(x.date,true)||instant(x.date);const avg=Number(x.Avg??x.avg??x.qty),min=Number(x.Min??x.min??avg),max=Number(x.Max??x.max??avg);
+    if(t&&Number.isFinite(avg)&&avg>0&&avg<260)out.push({ms:t.ms,avg,min:Number.isFinite(min)?min:avg,max:Number.isFinite(max)?max:avg});}
+  return out.sort((a,b)=>a.ms-b.ms);
+}
+const r1=v=>Math.round(v*10)/10;
+// Distance and steps inside a workout, summed per minute from the start (Run Efficiency and Durability
+// need pace beside heart rate). Distance is kept in metres.
+const METRES={m:1,km:1000,mi:1609.344,yd:0.9144,ft:0.3048};
+function perMinute(rows,start,n,factor){
+  const out=Array(n).fill(null);let any=false;
+  for(const x of Array.isArray(rows)?rows:[]){if(!object(x))continue;const t=instant(x.date,true)||instant(x.date),q=Number(x.qty),f=factor(x);
+    if(!t||!Number.isFinite(q)||q<0||!Number.isFinite(f))continue;const i=Math.floor((t.ms-start.ms)/60000);if(i<0||i>=n)continue;out[i]=(out[i]||0)+q*f;any=true;}
+  return any?out.map(v=>v===null?null:r1(v)):null;
+}
+function workoutDetail(w,start,end){
+  const trace=heartSamples(w.heartRateData),after=heartSamples(w.heartRateRecovery),detail={};
+  if(trace.length){
+    const n=Math.max(1,Math.ceil((end.ms-start.ms)/60000)),min=Array(n).fill(null),max=Array(n).fill(null),sum=Array(n).fill(0),count=Array(n).fill(0);
+    for(const x of trace){const i=Math.floor((x.ms-start.ms)/60000);if(i<0||i>=n)continue;min[i]=min[i]===null?x.min:Math.min(min[i],x.min);max[i]=max[i]===null?x.max:Math.max(max[i],x.max);sum[i]+=x.avg;count[i]++;}
+    if(count.some(Boolean))detail.hr={stepSec:60,avg:sum.map((v,i)=>count[i]?r1(v/count[i]):null),min:min.map(v=>v===null?null:r1(v)),max:max.map(v=>v===null?null:r1(v)),samples:trace.length};
+  }
+  const minutes=Math.max(1,Math.ceil((end.ms-start.ms)/60000));
+  const distance=perMinute([].concat(Array.isArray(w.walkingAndRunningDistance)?w.walkingAndRunningDistance:[],Array.isArray(w.cyclingDistance)?w.cyclingDistance:[]),start,minutes,x=>METRES[String(x.units||'').toLowerCase()]);
+  if(distance)detail.distanceM=distance;
+  const steps=perMinute(w.stepCount,start,minutes,()=>1);
+  if(steps)detail.steps=steps;
+  const rec=after.filter(x=>x.ms>=end.ms-1000&&x.ms<=end.ms+600000);
+  if(rec.length)detail.recovery={sec:rec.map(x=>Math.round((x.ms-end.ms)/1000)),avg:rec.map(x=>r1(x.avg))};
+  return Object.keys(detail).length?detail:null;
+}
 function parseWorkouts(obj,c,d,report,stop){
   if(!object(obj)||Object.keys(obj).some(k=>k!=='data')||!object(obj.data)||!Array.isArray(obj.data.workouts))
     return stop('Unsupported Health Auto Export envelope; expected the configured data.workouts route.');
@@ -208,7 +261,7 @@ function parseWorkouts(obj,c,d,report,stop){
         durationSec:duration,elapsedSec:Math.round((end.ms-start.ms)/1000),
         idRule:'Health Auto Export workout v1: the provider UUID, so the same session delivered twice is one record',
         origin:'source-recorded (local automatic file)',transport:'local folder',relayedBy:'local folder',source:'Health Auto Export',
-        unmapped:{healthAutoExport:meta}});
+        unmapped:{healthAutoExport:meta},...(()=>{const detail=workoutDetail(w,start,end);return detail?{detail}:{};})()});
       report.counts.accepted++;
     }catch(e){report.counts.invalid++;if(report.issues.length<200)report.issues.push({path:wp,code:e.message});}
   }
@@ -298,6 +351,9 @@ function reconcile(existing,parsed,options){
   report.feedId=c.feedId;
   const current=new Map(existing.map(r=>[r.id,r]));
   if(current.size!==existing.length)return stop('Existing source identities are duplicated; preserve and review the store.');
+  // A day already rolled up keeps its rollup; its minute rows arriving again are counted, not stored.
+  const rolled=rolledKeys(existing,c.feedId);report.rolledSkipped=0;
+  const isRolled=r=>{const m=hae(r);return !!m&&ROLLUP_METRICS.has(m.metric)&&m.representation!==ROLLUP&&rolled.has(rollupKey(m.metric,m.day));};
   if(previous&&previous.fileId!==d.fileId)return stop('The previous delivery belongs to a different file.');
   if(previous){
     const history=[previous.digest,...(previous.digests||[]),...(previous.digestHistory||[])].filter(x=>typeof x==='string').map(x=>x.toLowerCase());
@@ -340,11 +396,13 @@ function reconcile(existing,parsed,options){
   if(olderBuckets.size){report.held=olderBuckets.size;if(olderBuckets.size===parsed.records.length)return stop(null,'stale');}
   for(const r of parsed.records){
     if(olderBuckets.has(r.id))continue;
+    if(isRolled(r)){report.rolledSkipped++;continue;}
     const old=current.get(r.id);
     if(!old){const next=clone(r);next.importedAt=d.receivedAt;updates.set(r.id,next);changes.push({id:r.id,before:null,after:next});report.added++;}
     else if(contentSignature(old)===contentSignature(r)){
       report.same++;
-      if(deliveryTime(hae(r).delivery)>deliveryTime(hae(old).delivery)){const next=clone(old);hae(next).delivery=clone(hae(r).delivery);updates.set(r.id,next);report.metadataUpdated++;}
+      const newerDelivery=deliveryTime(hae(r).delivery)>deliveryTime(hae(old).delivery),newDetail=own(r,'detail')&&JSON.stringify(r.detail)!==JSON.stringify(old.detail);
+      if(newerDelivery||newDetail){const next=clone(old);if(newerDelivery)hae(next).delivery=clone(hae(r).delivery);if(newDetail)next.detail=clone(r.detail);updates.set(r.id,next);report.metadataUpdated++;}
     }else{
       const next=clone(r);next.importedAt=old.importedAt||d.receivedAt;next.sourceCorrectedAt=d.receivedAt;
       // Prior review history remains addressable; a changed evidence fingerprint requires new confirmation.
@@ -352,13 +410,13 @@ function reconcile(existing,parsed,options){
       updates.set(r.id,next);changes.push({id:r.id,before:old,after:next});report.revised++;
     }
   }
-  const records=existing.map(r=>updates.get(r.id)||r);for(const r of parsed.records)if(!current.has(r.id))records.push(updates.get(r.id));
+  const records=existing.map(r=>updates.get(r.id)||r);for(const r of parsed.records)if(!current.has(r.id)&&updates.has(r.id))records.push(updates.get(r.id));
   return {ok:true,records,changes,report};
 }
 function project(raw,contract){
   const problem=validateContract(contract);
   if(problem||!Array.isArray(raw))return {ok:false,error:problem||'Source records must be an array.',records:[],activeIds:[],heldIds:[],shadowIds:[],report:{complete:false}};
-  const records=[],activeIds=[],heldIds=[],shadowIds=[],fallbackIds=[],csvCandidates=[],sessions=[],qualifiedDays=new Set(),groups=new Map(),report={complete:false,rawBuckets:0,active:0,held:0,shadow:0,projected:0,baselineFallback:0,latestData:null,latestActiveData:null,reasons:{},label:'Partial received data; missing buckets are unknown'};
+  const records=[],activeIds=[],heldIds=[],shadowIds=[],historyIds=[],fallbackIds=[],csvCandidates=[],sessions=[],qualifiedDays=new Set(),groups=new Map(),report={complete:false,rawBuckets:0,active:0,held:0,shadow:0,projected:0,baselineFallback:0,latestData:null,latestActiveData:null,reasons:{},label:'Partial received data; missing buckets are unknown'};
   const latest=(a,b)=>!a||Date.parse(b)>Date.parse(a)?b:a;
   function metricDayKey(metric,unit,day){return JSON.stringify([contract.feedId,metric,unit,day]);}
   function csvKey(r){
@@ -370,6 +428,7 @@ function project(raw,contract){
     const metric=own(byKind,r.kind)?byKind[r.kind]:own(byLabel,label)?byLabel[label]:null,def=metric&&METRICS[metric],day=dayAt(Date.parse(r.start));
     return def&&own(def.units,r.unit)&&day>=contract.activeFrom?metricDayKey(metric,def.unit,day):null;
   }
+  const rolled=rolledKeys(raw,contract.feedId);report.rolledUp=0;
   for(const r of raw){
     const m=hae(r);if(!m){
       if(feedRecord(r)){heldIds.push(r.id);report.reasons.unknown_feed_namespace=(report.reasons.unknown_feed_namespace||0)+1;continue;}
@@ -378,7 +437,17 @@ function project(raw,contract){
     report.rawBuckets++;
     if(!feedId(m.feedId)||m.feedId!==contract.feedId){heldIds.push(r.id);const reason=feedId(m.feedId)?'different_feed_namespace':'unknown_feed_namespace';report.reasons[reason]=(report.reasons[reason]||0)+1;continue;}
     if(!instant(r.start)||!validDay(m.day)){heldIds.push(r.id);report.reasons.unsupported_bucket_contract=(report.reasons.unsupported_bucket_contract||0)+1;continue;}
+    if(m.representation===HISTORY){historyIds.push(r.id);continue;}
     report.latestData=latest(report.latestData,r.end||r.start);
+    // A rolled-up day stands for its minute rows: it re-emits the day's projected rows as they were,
+    // and any minute rows of that metric and day that arrive again are shadowed rather than counted twice.
+    if(m.representation===ROLLUP){
+      if(m.day<contract.activeFrom){shadowIds.push(r.id);continue;}
+      activeIds.push(r.id);report.rolledUp++;qualifiedDays.add(metricDayKey(m.metric,m.canonicalUnit,m.day));
+      for(const x of m.projection||[]){const row=clone(x);hae(row).inputIds=[r.id];records.push(row);report.projected++;}
+      continue;
+    }
+    if(ROLLUP_METRICS.has(m.metric)&&rolled.has(rollupKey(m.metric,m.day))){shadowIds.push(r.id);report.reasons.rolled_up=(report.reasons.rolled_up||0)+1;continue;}
     if(m.day<contract.activeFrom){shadowIds.push(r.id);continue;}
     // A workout is a session, not a metric bucket. It used to fall into the bucket grouping below,
     // find no METRICS entry and be held as outside the contract, so the workouts route imported
@@ -468,11 +537,66 @@ function project(raw,contract){
     if(qualifiedDays.has(candidate.key))shadowIds.push(r.id);else{records.push(r);activeIds.push(r.id);fallbackIds.push(r.id);}
   }
   report.baselineFallback=fallbackIds.length;
-  report.active=activeIds.filter(id=>id.startsWith('hae:bucket:')).length;report.held=heldIds.length;report.shadow=shadowIds.length;
-  return {ok:true,records,activeIds,heldIds,shadowIds,fallbackIds,report};
+  report.active=activeIds.filter(id=>id.startsWith('hae:bucket:')).length;report.held=heldIds.length;report.shadow=shadowIds.length;report.history=historyIds.length;
+  return {ok:true,records,activeIds,heldIds,shadowIds,historyIds,fallbackIds,report};
+}
+/* Roll the heavy minute streams of days before options.before into one row per metric and day.
+   The day's totals come from project() itself (every day counted, so a later start-date change still
+   finds them), so a rollup reproduces the same derived rows, identities and values. A metric-day is
+   left as it is when any of its rows is in options.keep (evidence, confirmations, claims), when a
+   row carries an open clash, or when the day projected nothing (held for review). */
+function rollup(raw,contract,options){
+  const o=options||{},before=o.before,keep=o.keep||new Set(),at=o.at||null;
+  if(validateContract(contract)||!Array.isArray(raw)||!validDay(before))return {ok:false,error:'A valid contract, rows and cutoff day are required.',records:raw,rolled:[]};
+  const already=rolledKeys(raw,contract.feedId),groups=new Map();
+  for(const r of raw){
+    const m=hae(r);
+    if(!m||m.feedId!==contract.feedId||!ROLLUP_METRICS.has(m.metric)||m.representation!=='minute aggregate'||!validDay(m.day)||m.day>=before||already.has(rollupKey(m.metric,m.day)))continue;
+    const key=rollupKey(m.metric,m.day);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(r);
+  }
+  if(!groups.size)return {ok:true,records:raw,rolled:[]};
+  const days=new Set([...groups.keys()].map(k=>k.split('|')[1]));
+  const sessions=raw.filter(r=>{const m=hae(r);return m&&m.route==='workouts'&&days.has(m.day);});
+  const view=project([].concat(...groups.values(),sessions),{...contract,activeFrom:'1000-01-01'});
+  if(!view.ok)return {ok:false,error:view.error,records:raw,rolled:[]};
+  const derivedBy=new Map();
+  for(const d of view.records){const m=hae(d);if(!m||m.representation!=='derived daily view'||!ROLLUP_METRICS.has(m.metric))continue;const key=rollupKey(m.metric,m.day);if(!derivedBy.has(key))derivedBy.set(key,[]);derivedBy.get(key).push(d);}
+  const remove=new Set(),added=[],rolled=[];
+  for(const [key,rows] of groups){
+    const derived=derivedBy.get(key);
+    if(!derived||rows.some(r=>keep.has(r.id)||(r.clashes||[]).length))continue;
+    const [metricName,day]=key.split('|'),def=METRICS[metricName],inputs=new Set(),hours=Array(24).fill(null);
+    // Physical effort feeds Load, which counts effort minutes outside workouts by band (SCORES_SPEC A3).
+    // Each hour keeps minutes per 0.5 band, outside and inside workouts, and each workout its effort
+    // sum and count, so any band edge on a 0.5 step and a workout's mean effort stay exact.
+    const effort=metricName==='physical_effort',windows=effort?sessions.filter(w=>hae(w).day===day).map(w=>({id:w.id,a:Date.parse(w.start),b:Date.parse(w.end)})):[],perWorkout={};
+    for(const d of derived)for(const id of hae(d).inputIds||[])inputs.add(id);
+    for(const r of rows){
+      if(!inputs.has(r.id))continue;const h=+String(r.start).slice(11,13);if(!(h>=0&&h<24))continue;
+      if(def.reduce==='heart'){const st=hae(r).stats||{},cur=hours[h]||{min:Infinity,max:-Infinity,sum:0,n:0};if(Number.isFinite(st.min))cur.min=Math.min(cur.min,st.min);if(Number.isFinite(st.max))cur.max=Math.max(cur.max,st.max);if(Number.isFinite(st.avg)){cur.sum+=st.avg;cur.n++;}hours[h]=cur;}
+      else if(def.reduce==='latest'){const f=def.units[r.unit];if(Number.isFinite(f)&&Number.isFinite(r.value)){const v=r.value*f,cur=hours[h]||{max:-Infinity,sum:0,n:0};cur.max=Math.max(cur.max,v);cur.sum+=v;cur.n++;
+        if(effort){const t=Date.parse(r.start),w=windows.find(x=>t>=x.a&&t<=x.b),band=String(Math.min(40,Math.floor(v/0.5)));const side=w?'in':'out';cur[side]=cur[side]||{};cur[side][band]=(cur[side][band]||0)+1;if(w){const p=perWorkout[w.id]||(perWorkout[w.id]={sum:0,n:0});p.sum+=v;p.n++;}}
+        hours[h]=cur;}}
+      else{const f=def.units[r.unit];if(Number.isFinite(f)&&Number.isFinite(r.value))hours[h]=(hours[h]||0)+r.value*f;}
+    }
+    // Sums stay sums; heart rate keeps min, average and max; a reading (effort, sound) keeps its average,
+    // maximum and count, so an effort-minutes total is still exact (average × count).
+    const hourly=hours.map(x=>x===null?null:def.reduce==='heart'?{min:Number.isFinite(x.min)?x.min:null,max:Number.isFinite(x.max)?x.max:null,avg:x.n?x.sum/x.n:null}:def.reduce==='latest'?{avg:x.sum/x.n,max:x.max,n:x.n,...(x.out?{out:x.out}:{}),...(x.in?{in:x.in}:{})}:x);
+    const projection=derived.map(d=>{const c=clone(d),m=hae(c);m.inputCount=(m.inputIds||[]).length;delete m.inputIds;return c;});
+    const first=derived[0],label=first.sourceApp,sum=def.reduce==='sum'?first.value:null;
+    const id=rollupId(contract.feedId,metricName,def.unit,day);
+    added.push({id,kind:def.kind,type:def.label+' (daily rollup)',sourceApp:label,sourceRecordId:null,device:null,start:dayStart(day),end:null,value:sum,unit:def.unit,durationSec:null,elapsedSec:null,
+      idRule:'Health Auto Export daily rollup v1: feed, metric, canonical unit and day; stands for that day\'s minute buckets',origin:'rolled up from source-recorded minute buckets',transport:'local folder',relayedBy:'local folder',source:'Health Auto Export JSON',relayedAt:null,window:{from:day,to:day},
+      unmapped:{healthAutoExport:{format:'JSON',adapterVersion:1,contractVersion:contract.version,feedId:contract.feedId,route:'health-metrics',metric:metricName,day,representation:ROLLUP,grouping:'hour',timeZone:contract.timeZone,canonicalUnit:def.unit,writerStatus:'single',hours:hourly,inputCount:inputs.size,rowCount:rows.length,rolledAt:at,projection,...(effort?{bandStep:0.5,workouts:perWorkout}:{})}},
+      importedAt:at});
+    for(const r of rows)remove.add(r.id);
+    rolled.push({metric:metricName,day,id,removed:rows.length});
+  }
+  if(!rolled.length)return {ok:true,records:raw,rolled:[]};
+  return {ok:true,records:raw.filter(r=>!remove.has(r.id)).concat(added),rolled,removedIds:[...remove]};
 }
 // A metric's canonical unit, conversions and reduction, for readers outside the projection.
 function metric(name){return own(METRICS,name)?clone(METRICS[name]):null;}
-const api={parse,reconcile,project,validateContract,signature,foreignToFeed,metric};
+const api={parse,reconcile,project,rollup,validateContract,signature,foreignToFeed,metric,ROLLUP_METRICS,ROLLUP,HISTORY,instant,dayAt,dayStart,appleWriter};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.HealthAutoExport=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

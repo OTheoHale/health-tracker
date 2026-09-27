@@ -122,7 +122,10 @@
       }
       if(c.schema!==schema||!a||!Array.isArray(a.keyOrder)||c.sourceCount!==value.sources.length||c.receiptCount!==value.receipts.length)return failed('CORRUPT',message.CORRUPT);
       if(!c.audit||c.audit.revisionCount!==value.revisions.length||c.audit.deliveryCount!==value.deliveries.length)return failed('CORRUPT',message.CORRUPT);
-      if(value.revisions.some((row,index)=>row.sequence!==index+1||row.entity!=='source'||typeof row.generation!=='string'||!row.generation||!Number.isInteger(row.revision)||row.revision<1||typeof row.sourceId!=='string'||(!row.before&&!row.after)||(row.before&&row.before.id!==row.sourceId)||(row.after&&row.after.id!==row.sourceId)))return failed('CORRUPT',message.CORRUPT);
+      // Schema 2: pruned history leaves gaps (sequences only increase), and a compaction writes 'rollup' revisions.
+      const badRevision=(row,index)=>schema===2&&row.entity==='rollup'?!(Number.isInteger(row.sequence)&&(index===0||row.sequence>value.revisions[index-1].sequence)&&typeof row.generation==='string'&&row.generation&&Number.isInteger(row.revision)&&row.revision>=1&&row.summary&&typeof row.summary==='object'):
+        (schema===2?!(Number.isInteger(row.sequence)&&(index===0||row.sequence>value.revisions[index-1].sequence)):row.sequence!==index+1)||row.entity!=='source'||typeof row.generation!=='string'||!row.generation||!Number.isInteger(row.revision)||row.revision<1||typeof row.sourceId!=='string'||(!row.before&&!row.after)||(row.before&&row.before.id!==row.sourceId)||(row.after&&row.after.id!==row.sourceId);
+      if(value.revisions.some(badRevision))return failed('CORRUPT',message.CORRUPT);
       if(value.deliveries.some(row=>!row.value||typeof row.generation!=='string'||!row.generation||!Number.isInteger(row.revision)||row.revision<1||typeof row.value.digest!=='string'||row.id!==JSON.stringify([row.generation,row.value.digest])))return failed('CORRUPT',message.CORRUPT);
       const audit=await auditIdentity(value.revisions,value.deliveries);
       if(audit.revisionsSHA256!==c.audit.revisionsSHA256||audit.deliveriesSHA256!==c.audit.deliveriesSHA256)return failed('CORRUPT',message.CORRUPT);
@@ -282,7 +285,11 @@
         const oldSources=new Map(oldParts.sources.map(row=>[row.id,row])),newSources=new Map(nextParts.sources.map(row=>[row.id,row]));
         const oldReceipts=new Map(oldParts.receipts.map(row=>[row.id,row])),newReceipts=new Map(nextParts.receipts.map(row=>[row.id,row]));
         const removedSources=oldParts.sources.filter(row=>!newSources.has(row.id)),removedReceipts=oldParts.receipts.filter(row=>!newReceipts.has(row.id));
-        if((removedSources.length||removedReceipts.length)&&!config.allowSourceRemoval)return failed('REMOVAL','Source history cannot disappear during an ordinary save. Use an explicit reviewed restore or undo.');
+        // V3.1 compaction (schema 2): rolled-up minute rows leave the store, and their revision history
+        // leaves with them, replaced by one 'rollup' revision that records what was pruned and its hash.
+        const compaction=schema===2&&config.compaction&&typeof config.compaction==='object'?config.compaction:null;
+        if(compaction&&removedReceipts.length)return failed('REMOVAL','A compaction removes source rows only.');
+        if((removedSources.length||removedReceipts.length)&&!config.allowSourceRemoval&&!compaction)return failed('REMOVAL','Source history cannot disappear during an ordinary save. Use an explicit reviewed restore or undo.');
         const lostClaims=Object.keys(previous.state.rewards&&previous.state.rewards.claims||{}).some(id=>!Object.prototype.hasOwnProperty.call(next.rewards&&next.rewards.claims||{},id));
         if(lostClaims)return failed('CLAIMS','A save cannot erase existing reward claims. Reconcile corrections or merge the preserved ledger before restoring.');
         const lostEvidence=Object.keys(previous.state.rewards&&previous.state.rewards.evidence||{}).some(id=>!Object.prototype.hasOwnProperty.call(next.rewards&&next.rewards.evidence||{},id));
@@ -292,17 +299,22 @@
         const seal=schema===1?{stateSHA256:await hashState(next)}:{recordSHA256:await hashState(recordPart(next)),sourcesSHA256:sourcesSame?previous.control.sourcesSHA256:await hashState(next.sourceRecords)};
         const priorSeal=JSON.stringify(schema===1?[previous.control.stateSHA256]:[previous.control.recordSHA256,previous.control.sourcesSHA256]),db=await connect(),at=new Date().toISOString();
         const newRevisions=[],changedSources=[];let committedControl=null;
-        function revision(sourceId,before,after){newRevisions.push({sequence:previous.revisions.length+newRevisions.length+1,entity:'source',sourceId,at,generation:next.rewardGeneration,revision:next.revision,deliveryDigest:delivery?delivery.digest:null,before,after});}
+        const prunedIds=compaction?new Set(removedSources.map(row=>row.id)):null;
+        const pruned=prunedIds?previous.revisions.filter(row=>row.entity==='source'&&prunedIds.has(row.sourceId)):[];
+        const keptRevisions=pruned.length?previous.revisions.filter(row=>!(row.entity==='source'&&prunedIds.has(row.sourceId))):previous.revisions;
+        const lastSequence=previous.revisions.length?previous.revisions[previous.revisions.length-1].sequence:0;
+        function revision(sourceId,before,after){newRevisions.push({sequence:lastSequence+newRevisions.length+1,entity:'source',sourceId,at,generation:next.rewardGeneration,revision:next.revision,deliveryDigest:delivery?delivery.digest:null,before,after});}
         for(const row of nextParts.sources){
           const before=oldSources.get(row.id),different=!before||JSON.stringify(before.value)!==JSON.stringify(row.value);
           if(!before||sourceSignature(before.value)!==sourceSignature(row.value))revision(row.id,before?before.value:null,row.value);
           if(different||before.order!==row.order)changedSources.push(row);
         }
-        for(const row of removedSources)revision(row.id,row.value,null);
+        if(compaction)newRevisions.push({sequence:lastSequence+newRevisions.length+1,entity:'rollup',at,generation:next.rewardGeneration,revision:next.revision,summary:Object.assign(clone(compaction),{removedRows:removedSources.length,prunedRevisions:pruned.length,prunedSHA256:await hashState(pruned)})});
+        else for(const row of removedSources)revision(row.id,row.value,null);
         const deliveryRow=delivery?{id:JSON.stringify([next.rewardGeneration,delivery.digest]),value:delivery,at,revision:next.revision,generation:next.rewardGeneration,sourceRevisionCount:newRevisions.length}:null;
         const nextDeliveries=deliveryRow?previous.deliveries.concat(deliveryRow).sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0):previous.deliveries;
-        const [revisionsSHA256,deliveriesSHA256]=await Promise.all([newRevisions.length?hashState(previous.revisions.concat(newRevisions)):previous.control.audit.revisionsSHA256,deliveryRow?hashState(nextDeliveries):previous.control.audit.deliveriesSHA256]);
-        const audit={revisionCount:previous.revisions.length+newRevisions.length,deliveryCount:nextDeliveries.length,revisionsSHA256,deliveriesSHA256};
+        const [revisionsSHA256,deliveriesSHA256]=await Promise.all([newRevisions.length||pruned.length?hashState(keptRevisions.concat(newRevisions)):previous.control.audit.revisionsSHA256,deliveryRow?hashState(nextDeliveries):previous.control.audit.deliveriesSHA256]);
+        const audit={revisionCount:keptRevisions.length+newRevisions.length,deliveryCount:nextDeliveries.length,revisionsSHA256,deliveriesSHA256};
         const saved=await transaction(db,TABLES,'readwrite',(tx,set,abort)=>{
           const requests=[['control',tx.objectStore('meta').get('authority')],['app',tx.objectStore('meta').get('app')],['sourceCount',tx.objectStore('sources').count()],['receiptCount',tx.objectStore('receipts').count()],['revisionCount',tx.objectStore('revisions').count()],['deliveryCount',tx.objectStore('deliveries').count()]];
           if(delivery)requests.push(['delivery',tx.objectStore('deliveries').get(JSON.stringify([expectedGeneration,delivery.digest]))]);
@@ -310,6 +322,7 @@
             if(!old.control||!old.app||JSON.stringify(schema===1?[old.control.stateSHA256]:[old.control.recordSHA256,old.control.sourcesSHA256])!==priorSeal||JSON.stringify(old.control.audit)!==JSON.stringify(previous.control.audit)||old.app.value.revision!==expectedRevision||old.app.value.rewardGeneration!==expectedGeneration){abort(failed('CAS',message.CAS));return;}
             if(old.sourceCount!==old.control.sourceCount||old.receiptCount!==old.control.receiptCount||old.revisionCount!==old.control.audit.revisionCount||old.deliveryCount!==old.control.audit.deliveryCount){abort(failed('CORRUPT',message.CORRUPT));return;}
             if(old.delivery){set({ok:true,duplicateDelivery:true,state:previous.state,revision:expectedRevision,generation:expectedGeneration});return;}
+            for(const row of pruned)tx.objectStore('revisions').delete(row.sequence);
             for(const row of newRevisions)tx.objectStore('revisions').add(row);
             for(const row of changedSources)tx.objectStore('sources').put(row);
             for(const row of removedSources)tx.objectStore('sources').delete(row.id);
@@ -325,7 +338,7 @@
             set({ok:true,snapshotSafe:true,sourceRevisionCount:newRevisions.length,revision:next.revision,generation:next.rewardGeneration});
           },abort);
         });
-        if(saved.ok&&!saved.duplicateDelivery){if(schema===2)freezeSources(next);state.revision=next.revision;state.rewardGeneration=next.rewardGeneration;verified={state:next,control:committedControl,revisions:newRevisions.length?previous.revisions.concat(newRevisions):previous.revisions,deliveries:nextDeliveries};}
+        if(saved.ok&&!saved.duplicateDelivery){if(schema===2)freezeSources(next);state.revision=next.revision;state.rewardGeneration=next.rewardGeneration;verified={state:next,control:committedControl,revisions:newRevisions.length||pruned.length?keptRevisions.concat(newRevisions):previous.revisions,deliveries:nextDeliveries};}
         else if(saved.ok&&saved.duplicateDelivery&&cached)verified=cached;
         return saved;
       }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
