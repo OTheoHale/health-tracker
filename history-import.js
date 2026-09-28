@@ -325,11 +325,19 @@
       if(m&&typeof m.metric==='string'&&typeof m.day==='string'&&m.representation!==HISTORY)held.add(m.metric+'|'+m.day);
     }
     const add=[],traces=[],summary=JSON.parse(JSON.stringify(read.summary)),w={...read.report.workouts,written:0,yielded:0,tracesAdded:0,leftToFeed:0};
-    let same=0;
+    // A stored row holds its day only when the scores can read a value from it (V3.2.1). `reads(row)` is the
+    // engine's answer for a history row's measure and day: true, false, or null for a measure it does not index,
+    // where the stored row holds the day as before. Without `reads` every stored row holds its day.
+    const reads=typeof o.reads==='function'?o.reads:null;
+    let same=0,filled=0;
     for(const r of read.rows){
       const m=r.unmapped.healthAutoExport,s=summary[m.metric];
       if(ids.has(r.id)){same++;s.same=(s.same||0)+1;continue;}                              // this file, imported before
-      if(held.has(m.metric+'|'+m.day)||(m.metric==='weight_body_mass'&&held.has('weight_&_body_mass|'+m.day))){s.yielded++;continue;}
+      if(held.has(m.metric+'|'+m.day)||(m.metric==='weight_body_mass'&&held.has('weight_&_body_mass|'+m.day))){
+        const readable=reads?reads(r):null;
+        if(readable!==false){s.yielded++;continue;}
+        s.filled=(s.filled||0)+1;filled++;
+      }
       add.push(r);s.written++;
     }
     for(const r of read.workouts){
@@ -343,7 +351,7 @@
       add.push(r);w.written++;
     }
     const daysOf=add.map(r=>r.unmapped.healthAutoExport.day).sort();
-    return {add,traces,same,summary,workouts:w,span:daysOf.length?{from:daysOf[0],to:daysOf[daysOf.length-1]}:null};
+    return {add,traces,same,filled,summary,workouts:w,span:daysOf.length?{from:daysOf[0],to:daysOf[daysOf.length-1]}:null};
   }
   /* Rows in write order, in batches small enough that each sealed write stays quick. */
   function batches(planned,size){
@@ -364,7 +372,7 @@
   function receipt(read,planned,options){
     const o=options||{},w=planned.workouts,metrics=planned.summary;
     const invalid=read.report.invalidRows+read.report.oversizeRows+w.invalid+w.oversize,unsupported=Object.values(metrics).filter(m=>m.reason).reduce((n,m)=>n+m.rows,0);
-    return {id:'history:'+read.digest,at:read.at,transport:'history file',counts:{added:planned.add.length,same:planned.same,clash:0,invalid,unsupported},
+    return {id:'history:'+read.digest,at:read.at,transport:'history file',counts:{added:planned.add.length,same:planned.same,clash:0,invalid,unsupported,filled:planned.filled||0},
       feedId:o.contract.feedId,status:o.status||'complete',file:read.file,span:planned.span,metrics,
       workouts:{seen:w.seen,written:w.written,withCurves:w.withCurves,withRecovery:w.withRecovery,tracesAdded:w.tracesAdded,yielded:w.yielded,leftToFeed:w.leftToFeed,duplicate:w.duplicate,invalid:w.invalid,oversize:w.oversize},
       otherCollections:read.others,unchanged:o.unchanged||null,receivedKinds:[...new Set(planned.add.map(r=>r.kind))],

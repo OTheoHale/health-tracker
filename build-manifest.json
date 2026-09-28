@@ -1,10 +1,10 @@
 {
-  "build": "2026-09-27-V3.2",
+  "build": "2026-09-27-V3.2.1",
   "files": {
     "body-view.css": "4af4ea0d956f44392761d9276d24a6dbbf1a5dd106b2653b186fb5762e454752",
     "body-view.js": "7849da65af8910a09e65c09d0b55eea05974f89ad5e8187f567ae5c7849e5df6",
     "convert-starter.js": "40c333c133bdb5045fd7fe8660861c723ee1a940628a16d6f9bf05ff9cfa0fc4",
-    "delivery.js": "92acaea7440e7d99c291ca07dd0d86627df1c387e249b91e6c30280e20cb7eac",
+    "delivery.js": "707ca6530ca825b54a08c70da1a3bfdc3e9f3f3afc20eaec9f55fa185603b8f7",
     "eotc-calendar.js": "1fcc866733b1160d7f01d603aaa191e7f8879a3f844275941078d33bf5dde0c4",
     "glow-cross.webp": "db5eac33a2a9215aebca6f0c19c95fef9b9518c300c7cd3b0e50072057d21fcd",
     "glow-mark.webp": "6763ef9b3dff3fadd70a266b876302a53fc6810cd203fdf3f86c6ccc9c1546fa",
@@ -12,19 +12,19 @@
     "hae-adapter.js": "f96937750f60abc1442dd422d828adf3cad6acf1b8e08a579743f2d52f9156eb",
     "health-domain.js": "f3adb2f89dfb26899f97de86593b91e2baeadf1b45dd588f153e8c210540616d",
     "health-store.js": "fabc564ff53fbe7c8c89a903c53cb5d7461d7a8dd4c52a431e003e09bf103d25",
-    "history-import.js": "f20dffba16a80918be9c46bfd5bf3c07260838d75cbcaf6000a0c09a7c4b72c7",
+    "history-import.js": "bf031eba1b207969b7bb9ece1aafd92bff93ef9470befad63e4a9220b755fcd9",
     "icon-192.png": "44ab06f93317174e110f8edba98fd335d37f75d6fc7838844007e8c6617a8909",
     "icon-512.png": "e6857fa64bd57035354f2e0443b5e9d28f67c2242e75282223a4076fd61ba6ec",
-    "index.html": "e5f471ef22c37c57be0f777586180737298303a6b6242f30e066f62f649de1ae",
+    "index.html": "3da106b1dc078c5856bab0e8d0c60e103c31658f5b96582b3ccb87ca8d4684f5",
     "manifest.webmanifest": "1df1641bf89b82effa7b1c00ef3ae33eddc61a0b9d5524b507d076f797097cef",
     "meal-water.js": "2ec35f37435af8cc8e5af71b16b7f3cc13436ef6150aa77c9373422b64e79a4a",
     "model-viewer.min.js": "774edda21e1be2a0934e460ca5943af1fe3f88da130a9f98bd6a9d611576cacf",
     "norms.js": "7bf714d4bb7ac516422bff451ce93504b169d5ffc2e179d4943e8980113c07de",
     "offline.html": "7f472596880496629a8dcbde453d2257e9815c088d609d013253a3469efe521d",
     "quarter-points.js": "7d8a7554b70172264ce5ee8f6897d02ed0a9c7e271a206f53957785cc258e58d",
-    "scores.js": "b3e8f080506f2904cbc2231490a670cf6b2cc73373689fc0b7cb1d25bcf636b0",
+    "scores.js": "785891e1a9a2b36ccf055248fca5ba077ec64d2a057f27d0bb6e5a8462962bdf",
     "scoring-v5.js": "2fd45ed76f1105ba8795e2f392162ed1045fda43385f1f70cdd7833c11afef48",
-    "sw.js": "90bda188d4adac6e32181bceca8928040152ce8093398f92e1dd9bdeb56b1cd9",
+    "sw.js": "adbb0ea840737a3f9cc9103fdfc0a1c09aad4ecf42836edb2adc942d279cb64d",
     "workspace-proposal.js": "4e8f5f8d5ee14e9ae40a74086335d372658ca1a7017de7b9311773b12a5d8090"
   }
 }

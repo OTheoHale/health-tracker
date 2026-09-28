@@ -530,6 +530,21 @@
     return ids;
   }
   function select(rows,ids){return (rows||[]).filter(r=>ids.has(r.id)&&!(r.clashes||[]).length);}
+  /* Do the indexed rows give this row's measure a value of their own on its day? A history file asks before it
+     steps aside for a day the store holds (V3.2.1): a stored row the scores cannot read held the day and left it
+     empty. true or false for a measure the index reads; null for one it does not (the caller keeps its own rule). */
+  function holds(x,row){
+    const m=metaOf(row);if(!x||!m||typeof m.metric!=='string'||typeof m.day!=='string')return null;
+    if(m.metric==='sleep_analysis'){
+      // A night is filed under the day it ends (addNight), so that is the day asked about.
+      const end=row.end?Date.parse(row.end):NaN,day=Number.isFinite(end)?localClock(end,x.zone).day:m.day,n=x.nights.get(day);
+      return !!n&&!n.history;
+    }
+    if(m.metric==='time_in_daylight'){const d=x.daylight.get(m.day);return !!d&&d.known;}
+    if(TOTALS.has(m.metric)){const t=x.live.get(m.metric);return !!t&&t.has(m.day);}
+    if(SPARSE.has(m.metric)){const name=m.metric==='weight_&_body_mass'?'weight_body_mass':m.metric,s=x.samples.get(name);return !!s&&s.has(m.day);}
+    return null;
+  }
   const afterNoon=minutes=>(minutes-720+1440)%1440;                                                 // half an hour before midnight → 690, half an hour after → 750
   const textMinutes=start=>{const h=+String(start).slice(11,13),m=+String(start).slice(14,16);return h>=0&&h<24&&m>=0&&m<60?h*60+m:null;};
   function index(rows,options){
@@ -873,7 +888,7 @@
     fitnessAge,healthAge,healthAgeWindow,ageOn,bandFor,cutsFor,stand,range,floorCheck,appleLevel,biggestGains,mergeSessions,hrMaxOf,hrAt60,endHr,recoverySpeed,earlyWarning,momentum,
     mobility,walkLowerLimit,strengthBalance,daylightRhythm,runEfficiency,cardiacDrift,driftColour,goalColour,qualityColour,ageColour,
     // rows
-    readable,select,index,sessions,night,overnight,restingHr,baseline,series,latestReading,sleepFor,bedtimeFor,hrMaxFor,effortFor,loadOf,loadFor,wellAboveRun,warningFor,readinessFor,healthAgeFor,healthAgeTrend,fitnessAgeFor,recoveryFor,standFor,momentumFor,mobilityFor,strengthFor,daylightFor,runsFor,stepsOn,
+    readable,select,holds,index,sessions,night,overnight,restingHr,baseline,series,latestReading,sleepFor,bedtimeFor,hrMaxFor,effortFor,loadOf,loadFor,wellAboveRun,warningFor,readinessFor,healthAgeFor,healthAgeTrend,fitnessAgeFor,recoveryFor,standFor,momentumFor,mobilityFor,strengthFor,daylightFor,runsFor,stepsOn,
     // helpers the page shares
     addDays,daysBetween,mondayOf,median,mean,sd,robustSd,stepDown};
 });
