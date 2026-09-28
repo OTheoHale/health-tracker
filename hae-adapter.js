@@ -35,6 +35,10 @@ const METRICS={
   respiratory_rate:{kind:'other',label:'Respiratory rate',unit:'count/min',units:{'count/min':1},reduce:'latest'},
   heart_rate_variability:{kind:'other',label:'Heart rate variability',unit:'ms',units:{ms:1},reduce:'latest'},
   blood_oxygen_saturation:{kind:'other',label:'Blood oxygen',unit:'%',units:{'%':1},reduce:'latest'},
+  // Sleeping wrist temperature (V3.2). Every spelling of the two units is accepted, so a file that carries the
+  // metric is never refused for its unit. The factor turns a difference in °F into one in °C; the scores read
+  // only how far a night sits from his own usual nights, never the temperature itself.
+  apple_sleeping_wrist_temperature:{kind:'other',label:'Wrist temperature',unit:'degC',units:{degC:1,'°C':1,C:1,celsius:1,degF:5/9,'°F':5/9,F:5/9,fahrenheit:5/9},reduce:'latest',signed:true},
   vo2_max:{kind:'other',label:'VO2 max',unit:'ml/(kg·min)',units:{'ml/(kg·min)':1},reduce:'latest'},
   cardio_recovery:{kind:'other',label:'Cardio recovery',unit:'count/min',units:{'count/min':1},reduce:'latest'},
   walking_heart_rate_average:{kind:'other',label:'Walking heart rate',unit:'count/min',units:{'count/min':1,bpm:1},reduce:'latest'},
@@ -222,6 +226,10 @@ function workoutDetail(w,start,end){
   if(steps)detail.steps=steps;
   const rec=after.filter(x=>x.ms>=end.ms-1000&&x.ms<=end.ms+600000);
   if(rec.length)detail.recovery={sec:rec.map(x=>Math.round((x.ms-end.ms)/1000)),avg:rec.map(x=>r1(x.avg))};
+  // Where it happened, when the export says (V3.2): Run Efficiency read the workout's name alone, so an outdoor
+  // run the Watch called just "Running" was left out.
+  const where=typeof w.location==='string'?w.location.trim().toLowerCase():typeof w.isIndoor==='boolean'?(w.isIndoor?'indoor':'outdoor'):'';
+  if(where==='indoor'||where==='outdoor')detail.indoor=where==='indoor';
   return Object.keys(detail).length?detail:null;
 }
 function parseWorkouts(obj,c,d,report,stop){

@@ -25,6 +25,8 @@ function migrateTo(state){
   return state;
 }
 const BUILD = '2026-09-21-daily-workspace-candidate';
+// The build ship.sh stamped (delivery.js loads after this file, so it is read when asked for, never at load).
+const stampedBuildId = () => (typeof window !== 'undefined' && window.HealthDelivery && window.HealthDelivery.build) || BUILD;
 // Raised from 20,000 on 2026-09-22. Minute-bucketed Health Auto Export lands about 2,300 rows a
 // day, so the old cap was eight days of history. Source rows live in IndexedDB, not the 5 MB
 // localStorage record, and measured cost at this size is 20.7 MB / 50 ms serialize / 67 ms
@@ -970,7 +972,9 @@ function overallRankReport(state,today,windowKind,range){
   // A weekly goal (prayer 3 days a week, church once in four weeks) counts against its goal, pro-rated
   // to the days counted and capped there, so meeting the goal is 100 % rather than 3 of 7.
   const v2=(state.workspace?.migrations||[]).some(m=>m.status==='active'&&m.structureV2),SLOTS=v2?RANK_SLOTS_V2:RANK_SLOTS;
-  const tally={},goals={},slotOf=c=>Object.keys(SLOTS).find(k=>SLOTS[k].includes(c)),span=calendarDistance(from,to)+1;
+  // A card he made himself (V3.2) is graded with its umbrella; Hobbies stays outside the rank, as its own card does.
+  const UMBRELLA_SLOT=v2?{faith:'faith',health:'health','home-care':'hygiene',relationship:'relationship',career:'career'}:{faith:'faith',health:'care','home-care':'care',relationship:'care',career:'work'};
+  const tally={},goals={},slotOf=c=>Object.keys(SLOTS).find(k=>SLOTS[k].includes(c))||UMBRELLA_SLOT[((state.groups||[]).find(g=>g.id===c)||{}).umbrella],span=calendarDistance(from,to)+1;
   // Scoring V2: a measured item counts by its share of the target, not all or nothing.
   const share=(r,d)=>{if(r.status!=='done'||typeof v5Rule!=='function')return r.status==='done'?1:0;const t=v5Rule(state,d),series=t&&state.series.find(x=>x.id===r.seriesId);if(!series||!v5Kind(versionFor(series,d)))return 1;const m=v5Inputs(state,series,state.occurrences[occKey(r.seriesId,d)]||{seriesId:r.seriesId,date:d},t);return m?m.credit.n/m.credit.d:1;};
   for(let d=from;d<=to;d=addDays(d,1))for(const r of allRows(planFor(state,d))){
@@ -1008,7 +1012,9 @@ function gradeReport(state, exampleScores){
 /* S1 action scoring and S1.1 levels share the existing occurrence identity.
    Old epochs are immutable history, never silently converted to confirmed XP. */
 
-function addPlanIdea(state,text){const value=String(text||'').trim().slice(0,300);if(!value)return null;const idea={id:newId('idea'),text:value,at:nowIso(),status:'idea'};state.planIdeas.push(idea);return idea;}
+function addPlanIdea(state,text,extra){const value=String(text||'').trim().slice(0,300);if(!value)return null;const e=extra||{},category=String(e.category||'').trim().slice(0,40),idea={id:newId('idea'),text:value,at:nowIso(),status:'idea',...(category?{category}:{}),...(e.kind==='note'?{kind:'note'}:{})};state.planIdeas.push(idea);if(category)addIdeaCategory(state,category);return idea;}
+function ideaCategories(state){const own=Array.isArray(state.prefs&&state.prefs.ideaCategories)?state.prefs.ideaCategories.filter(x=>typeof x==='string'&&x.trim()):[];const used=(state.planIdeas||[]).map(i=>i.category).filter(x=>typeof x==='string'&&x.trim());return [...new Set(['General',...own,...used])];}
+function addIdeaCategory(state,name){const n=String(name||'').trim().slice(0,40);if(!n)return null;const list=Array.isArray(state.prefs.ideaCategories)?state.prefs.ideaCategories:[];if(!list.some(x=>x.toLowerCase()===n.toLowerCase())&&n.toLowerCase()!=='general')state.prefs.ideaCategories=list.concat(n);return n;}
 function mergeActionAlias(state,duplicateKey,keptKey){
   const [a,day]=duplicateKey.split('|'),[b,date]=keptKey.split('|');
   const left=findPlanRow(state,a,day),right=findPlanRow(state,b,date);
@@ -1177,7 +1183,7 @@ function adjustConfirmedClaim(state,id,note){
 function followCorrection(state,seriesId,date,reason){
   if(!confirmedProgression(state))return null;
   const o=state.occurrences[occKey(seriesId,date)],id=o?rewardIdentity(state,o):occKey(seriesId,date);
-  if(!state.rewards.claims[id]){const lines=typeof wsLineCorrections==='function'?wsLineCorrections(state,reason):[];return lines.length?{id:null,before:0,after:0,lines}:null;}
+  if(!state.rewards.claims[id]){const s=state.series.find(x=>x.id===seriesId),v=s&&(versionFor(s,date)||latestVersion(s)),lines=typeof wsLineCorrections==='function'?wsLineCorrections(state,v&&v.name?'Recalculated with '+v.name+' ('+String(reason||'corrected')+')':reason):[];return lines.length?{id:null,before:0,after:0,lines}:null;}
   const before=claimBalance(state.rewards.claims[id]),result=adjustConfirmedClaim(state,id,reason);
   return result?{id,before,after:claimBalance(state.rewards.claims[id]),lines:result.lineChanges||[]}:null;
 }
@@ -1329,8 +1335,15 @@ async function actionTransaction(state, change, options){
     const draft=cloneRecord(current), result=change(draft);
     if(result && result.ok===false)return result;
     const problem=validateState(draft);if(problem)return {ok:false,error:problem};
+    const same=(state.revision||0)===(current.revision||0);
     if(opts.persist!==false){const saved=await store.write(draft);if(!saved.ok)return saved;}
-    replaceState(state,draft);dropUndo();return {ok:true,result};
+    // Saved as he types (V3.2): the live record may hold a tap that is still waiting its turn to be written.
+    // Replacing the record would erase that tap, so inPlace(live, written) copies what was written into the
+    // live record (the same values, the same times) along with the two stamps the store sets. A record written
+    // by another window is still replaced whole.
+    if(typeof opts.inPlace==='function'&&same&&opts.persist!==false){opts.inPlace(state,draft);state.revision=draft.revision;state.rewardGeneration=draft.rewardGeneration;}
+    else replaceState(state,draft);
+    dropUndo();return {ok:true,result};
   };
   if(opts.persist===false)return run();
   if(typeof navigator==='undefined'||!navigator.locks)return {ok:false,error:'Safe saving needs Web Locks. Your prior record is unchanged.'};
@@ -1701,7 +1714,7 @@ function goalTargets(state){
 function checkpointsOf(state){const g=goalsV2(state),main={id:'main',name:'Goal date',date:state.prefs?.checkpoint||g.goalDate,main:true};return [main,...(Array.isArray(state.prefs?.checkpoints)?state.prefs.checkpoints:[])].filter(c=>c&&validCalendarDate(c.date)).sort((a,b)=>a.date.localeCompare(b.date));}
 function nextCheckpoint(state,today){const t=today||todayYmd();return checkpointsOf(state).find(c=>c.date>=t)||null;}
 /* Where the plan says his weight should be on a date: a straight line from the start to the goal. */
-function weightPaceLb(state,date){const g=goalsV2(state);if(!g.startDate||!Number.isFinite(g.startWeightLb)||!Number.isFinite(g.weightLb.jan7)||!validCalendarDate(g.goalDate))return null;const span=calendarDistance(g.startDate,g.goalDate),at=Math.max(0,Math.min(span,calendarDistance(g.startDate,date)));return span>0?g.startWeightLb+(g.weightLb.jan7-g.startWeightLb)*at/span:g.weightLb.jan7;}
+function weightPaceLb(state,date){const g=goalsV2(state),goalDate=validCalendarDate(state.prefs?.checkpoint)?state.prefs.checkpoint:g.goalDate;if(!g.startDate||!Number.isFinite(g.startWeightLb)||!Number.isFinite(g.weightLb.jan7)||!validCalendarDate(goalDate))return null;const span=calendarDistance(g.startDate,goalDate),at=Math.max(0,Math.min(span,calendarDistance(g.startDate,date)));return span>0?g.startWeightLb+(g.weightLb.jan7-g.startWeightLb)*at/span:g.weightLb.jan7;}
 function latestWeightLb(state,before){
   const rows=[];for(const r of haeRowsFor(state,['weight_body_mass','weight_&_body_mass'])){const m=r.unmapped?.healthAutoExport;if(!m||!['weight_body_mass','weight_&_body_mass'].includes(m.metric)||!Number.isFinite(r.value)||(r.clashes||[]).length)continue;const lb=r.unit==='kg'?r.value/0.45359237:r.unit==='lb'||r.unit==='lbs'?r.value:null;if(lb===null)continue;const d=sourceLocalDay(r.start);if(!before||d<=before)rows.push({date:d,lb});}
   for(const [d,o] of Object.entries(state.observations||{}))if(o&&Number.isFinite(o.weight)&&(!before||d<=before))rows.push({date:d,lb:(o.weightUnit||state.prefs?.units)==='kg'?o.weight/0.45359237:o.weight});
@@ -1811,18 +1824,35 @@ function workoutHistory(state, from, to){
    half of the shorter one folds into the Watch record, which names the other app under `also`. It
    was listed twice and counted twice in Fitness (182 min for 145). Types not yet classified, manual
    logs and two Watch workouts never merge. Evidence check-offs already choose one of the two. */
+function workoutLinks(state){
+  const pairs=list=>(Array.isArray(list)?list:[]).filter(p=>Array.isArray(p)&&p.length===2&&p.every(v=>typeof v==='string'));
+  const l=state&&state.prefs&&state.prefs.workoutLinks||{};return {join:pairs(l.join),split:pairs(l.split)};
+}
+/* He says two entries are one workout, or two (V3.2). The latest word on a pair is the one kept. */
+function setWorkoutLink(state,a,b,kind){
+  if(typeof a!=='string'||typeof b!=='string'||!a||!b||a===b||!['join','split','clear'].includes(kind))return {ok:false,error:'Choose two different workouts.'};
+  const l=workoutLinks(state),other=(p)=>!((p[0]===a&&p[1]===b)||(p[0]===b&&p[1]===a));
+  state.prefs.workoutLinks={join:l.join.filter(other),split:l.split.filter(other)};
+  if(kind!=='clear')state.prefs.workoutLinks[kind].push([a,b]);
+  return {ok:true};
+}
 function workoutSessions(state, rows){
   const kind=r=>wsWorkoutClass(state,r.reference),span=r=>{const a=Date.parse(r.reference.start),b=r.reference.end?Date.parse(r.reference.end):a+(r.minutes||0)*60000;return [a,b];};
-  const copies=rows.map(r=>({...r})),watch=copies.filter(r=>r.origin==='relayed'&&wsWatch(r.reference)),out=[];
-  for(const r of copies){
-    if(r.origin==='relayed'&&!wsWatch(r.reference)){
-      const k=kind(r),[a,b]=span(r);
-      const host=(k==='cardio'||k==='strength')&&watch.find(w=>{if(kind(w)!==k)return false;const [c,d]=span(w),o=Math.min(b,d)-Math.max(a,c);return o>0&&o>=0.5*Math.min(b-a,d-c);});
-      if(host){(host.also=host.also||[]).push(r.source);continue;}
+  // One stretch of time is one session whatever each app called it (V3.2, Mintay Sept 27): an entry that shares
+  // half of the shorter one's time with a session already kept joins it. The Watch's entry is the one kept.
+  // Pairs he joined or split by hand (prefs.workoutLinks) win over the clock.
+  const links=workoutLinks(state),paired=(list,a,b)=>list.some(p=>(p[0]===a&&p[1]===b)||(p[0]===b&&p[1]===a)),idOf=r=>r.reference&&r.reference.id;
+  const copies=rows.map(r=>({...r})),order=copies.map((r,i)=>[r,i]).sort((x,y)=>(y[0].origin==='relayed'&&wsWatch(y[0].reference)?1:0)-(x[0].origin==='relayed'&&wsWatch(x[0].reference)?1:0)||x[1]-y[1]),kept=new Set(),hosts=[];
+  for(const [r] of order){
+    if(r.origin==='relayed'&&r.reference){
+      const [a,b]=span(r);
+      const host=hosts.find(w=>{if(paired(links.split,idOf(w),idOf(r)))return false;if(paired(links.join,idOf(w),idOf(r)))return true;const [c,d]=span(w),o=Math.min(b,d)-Math.max(a,c);return o>0&&o>=0.5*Math.min(b-a,d-c);});
+      if(host){(host.also=host.also||[]).push(r.source&&r.source!==host.source?r.source:r.type);(host.alsoIds=host.alsoIds||[]).push(idOf(r));continue;}
+      hosts.push(r);
     }
-    out.push(r);
+    kept.add(r);
   }
-  return out;
+  return copies.filter(r=>kept.has(r));
 }
 function workoutComparison(rows, end, span){
   span=Math.max(1,Math.min(7,span||7));
@@ -1935,13 +1965,13 @@ function newerFeedbackDraft(incoming, current){
 function buildBrief(state, today){
   const open = (state.notes || []).filter(n => !n.done);
   const lines = [
-    'Health Tracker improvement brief — ' + today + ' (build ' + BUILD + ')',
+    'Glow improvement brief — ' + today + ' (build ' + stampedBuildId() + ')',
     'Read docs/health-tracker/ROADMAP.md first. Mac is the primary app; phone support comes next.',
     'This brief includes the open suggestions and areas written below. It does not automatically include health records, journal entries, routine details, or measurements. Suggestions may contain personal details you wrote; review before sharing.',
     '',
     open.length ? 'Open suggestions (' + open.length + '):' : 'No open suggestions.',
   ].concat(open.map(n => '[' + n.id + '] ' + n.text + (n.area ? ' [' + n.area + ']' : '') + (n.sourceCard ? ' (Card: ' + n.sourceCard.label + '; ' + n.sourceCard.id + ')' : '')));
-  lines.push('', 'Use the stable suggestion IDs when discussing changes. After reviewing an update, mark its suggestion resolved manually in Lessons & Updates. Reopen it there if more work is needed.');
+  lines.push('', 'Use the stable suggestion IDs when discussing changes. After reviewing an update, mark its suggestion resolved manually in Lessons. Reopen it there if more work is needed.');
   return lines.join('\n');
 }
 
@@ -2111,7 +2141,7 @@ function migrate(state){
   if (!Array.isArray(state.goals)) state.goals = [];
   // freshState() gained these two, migrate() did not. A record saved before they existed passed
   // validateState (both are optional there) and then threw on first render: Today, Profile,
-  // Plan & Quests and Progress all call S().learning.find or S().planIdeas.filter directly, so
+  // Quests and Progress all call S().learning.find or S().planIdeas.filter directly, so
   // every one of those areas came up blank while Fitness, which touches neither, looked fine.
   if (!Array.isArray(state.learning)) state.learning = [];
   if (!Array.isArray(state.planIdeas)) state.planIdeas = [];
@@ -2525,7 +2555,7 @@ function parseRecord(raw){
 function exportBundle(state, opts){
   const data = JSON.parse(JSON.stringify(state));
   if (!(opts && opts.includePhoto)) data.avatar = null;                 // a photo leaves only when asked
-  return { format: EXPORT_FORMAT, schema: SCHEMA, build: BUILD, exportedAt: nowIso(), data,...(syntheticPreviewData(data)?{syntheticPreview:true}:{}) };
+  return { format: EXPORT_FORMAT, schema: SCHEMA, build: stampedBuildId(), exportedAt: nowIso(), data,...(syntheticPreviewData(data)?{syntheticPreview:true}:{}) };
 }
 function parseBundle(text,options={}){
   let obj;
@@ -2928,7 +2958,7 @@ function wsState(state,row,date,options={}){
   return 'open';
 }
 function planFor(state,date){
-  // Within one draw the same day's plan is asked for many times (433 calls on Plan & Quests).
+  // Within one draw the same day's plan is asked for many times (433 calls on Quests).
   // Each caller gets its own copy, so a caller that edits its rows cannot touch another's.
   if(drawMemo&&drawMemo.state===state){
     const plans=drawMemo.plans||(drawMemo.plans=new Map());
@@ -3557,8 +3587,11 @@ function wsLineCorrections(state,note){
 }
 function wsApplyCorrectionBatch(state,preview,note){
   const current=preview&&wsCorrectionBatch(state,preview.id);if(!current||current.signature!==preview.signature)return {ok:false,error:'The correction changed. Review the current batch.'};
-  const at=nowIso();for(const change of current.changes){const claim=state.rewards.claims[change.id];claim.adjustments=claim.adjustments||[];claim.adjustments.push({id:newId('adjust'),at,delta:change.delta,reason:String(note||'Reviewed correction batch').slice(0,300),revision:claim.adjustments.length+1,ruleVersion:4,unit:'quarter-point',epochId:claim.epochId,calculation:change.calculation});claim.reconciledAt=at;claim.reconciliationSignature=rewardReviewSignature(state,claim);}
-  current.lineChanges=wsLineCorrections(state,note);
+  // The item that started the batch keeps the reason as given; every other claim the batch moves says which item
+  // it was recalculated with (the Mac check, Sept 27: four claims all read "Skipped after claiming").
+  const base=String(note||'Reviewed correction batch'),origin=state.rewards.claims[preview.id],carried=origin&&origin.name?'Recalculated with '+origin.name+' ('+base+')':base;
+  const at=nowIso();for(const change of current.changes){const claim=state.rewards.claims[change.id];claim.adjustments=claim.adjustments||[];claim.adjustments.push({id:newId('adjust'),at,delta:change.delta,reason:(change.id===preview.id?base:carried).slice(0,300),revision:claim.adjustments.length+1,ruleVersion:4,unit:'quarter-point',epochId:claim.epochId,calculation:change.calculation});claim.reconciledAt=at;claim.reconciliationSignature=rewardReviewSignature(state,claim);}
+  current.lineChanges=wsLineCorrections(state,carried);
   return {ok:true,record:current};
 }
 correctionPreview=function(state,id){return state.rewards.claims[id]?.ruleVersion===4?wsCorrectionBatch(state,id):wsLegacyCorrection(state,id);};

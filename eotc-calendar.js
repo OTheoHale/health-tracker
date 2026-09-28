@@ -1,4 +1,6 @@
-/* EOTC calendar: the Ethiopian date, the church's fasts and feasts, pure and offline. Rules follow the
+/* Names read American (Ethiopian) throughout (Mintay, Sept 27): "Christmas (Genna)", "Advent — Fast of the
+   Prophets (Tsome Nebiyat)"; test-eotc-calendar.js holds every name to that shape.
+   EOTC calendar: the Ethiopian date, the church's fasts and feasts, pure and offline. Rules follow the
    church's own page (SOURCE); where it is silent or disagrees with common practice the choice is noted
    beside the rule. Dates are 'YYYY-MM-DD' Gregorian local calendar days; no clocks, no time zones.
    Fasts kept only by clergy and monastics: the page says about 250 fast days a year of which about 180
@@ -60,7 +62,7 @@
 
   const season=(id,name,amharic,from,to)=>({id,name,amharic,from,to,required:true,kind:'fast'});
   const feast=(id,name,date,kind,monthly)=>monthly?{id,name,date,kind,monthly}:{id,name,date,kind};
-  const MONTHLY=Object.freeze([[7,'trinity','Holy Trinity (Silassie)'],[12,'michael','St Michael'],[16,'kidanemehret','Kidane Mehret'],[21,'mary','St Mary'],[27,'medhanealem','Medhane Alem'],[29,'bealewold','Beale Wold']]);
+  const MONTHLY=Object.freeze([[7,'trinity','Holy Trinity (Silassie)'],[12,'michael','St Michael (Kidus Mikael)'],[16,'kidanemehret','Covenant of Mercy (Kidane Mehret)'],[21,'mary','St Mary (Kidist Mariam)'],[27,'medhanealem','Saviour of the World (Medhane Alem)'],[29,'bealewold','Feast of the Son (Beale Wold)']]);
   const cache=new Map();
   /* Every season and feast of one Ethiopian year (Meskerem 1 … Pagumen); all of them fall inside it. */
   function ethYear(ec){
@@ -70,34 +72,34 @@
       // The page: 40 days "begins with Sibket on 15th Hedar and ends on Christmas eve" (Tahsas 28). As
       // counted that is 44 days (43 when Genna is Tahsas 28). Some calendars start it on Hidar 16; the page wins.
       season('advent','Advent — Fast of the Prophets (Tsome Nebiyat)','ጾመ ነቢያት',at(3,15),addDays(genna,-1)),
-      season('gahad-genna','Gahad of Genna (Christmas eve)','ገሃድ',addDays(genna,-1),addDays(genna,-1)),
-      season('gahad-timket','Gahad of Timket (Epiphany eve)','ገሃድ',addDays(timket,-1),addDays(timket,-1)),
+      season('gahad-genna','Christmas Eve Fast (Gahad of Genna)','ገሃድ',addDays(genna,-1),addDays(genna,-1)),
+      season('gahad-timket','Epiphany Eve Fast (Gahad of Timket)','ገሃድ',addDays(timket,-1),addDays(timket,-1)),
       season('nineveh','Fast of Nineveh (Tsome Nenewe)','ጾመ ነነዌ',addDays(E,-69),addDays(E,-67)),
       // The page says 56 days; Monday 55 days before Easter to Easter eve is 55 calendar days (the count
       // most published calendars give). The dates are what the app uses.
-      season('lent','Lent — Hudadi / Abiy Tsom','ዐቢይ ጾም',addDays(E,-55),addDays(E,-1)),
+      season('lent','Great Lent (Abiy Tsom, Hudadi)','ዐቢይ ጾም',addDays(E,-55),addDays(E,-1)),
       season('apostles','Fast of the Apostles (Tsome Hawaryat)','ጾመ ሐዋርያት',addDays(pentecost,1),at(11,4)),
       // The page says 16 days; Nehase 1–15 is the fast (Nehase 16 is the feast that ends it).
       season('filseta','Fast of the Assumption (Tsome Filseta)','ጾመ ፍልሰታ',at(12,1),at(12,15))
     ];
     const feasts=[
-      feast('enkutatash','Enkutatash (New Year)',at(1,1),'major'),
-      feast('meskel','Meskel (Finding of the True Cross)',at(1,17),'major'),
-      feast('genna','Genna (Christmas)',genna,'major','bealewold'),
-      feast('timket','Timket (Epiphany)',timket,'major'),
-      feast('kana','Kana ze Galila',at(5,12),'minor'),   // also the national St Michael day (Tir 12) on the page
-      feast('kidanemehret','Kidane Mehret',at(6,16),'minor','kidanemehret'),
+      feast('enkutatash','New Year (Enkutatash)',at(1,1),'major'),
+      feast('meskel','Finding of the True Cross (Meskel)',at(1,17),'major'),
+      feast('genna','Christmas (Genna)',genna,'major','bealewold'),
+      feast('timket','Epiphany (Timket)',timket,'major'),
+      feast('kana','Wedding at Cana (Kana ze Galila)',at(5,12),'minor'),   // also the national St Michael day (Tir 12) on the page
+      feast('kidanemehret','Covenant of Mercy (Kidane Mehret)',at(6,16),'minor','kidanemehret'),
       feast('conception','Conception of Christ (Tsinset)',at(7,29),'major','bealewold'),  // one of the page's nine major feasts
-      feast('debrezeit','Debre Zeit (Mount of Olives)',addDays(E,-28),'minor'),
-      feast('hosanna','Hosanna (Palm Sunday)',addDays(E,-7),'major'),
-      feast('siklet','Siklet (Good Friday)',addDays(E,-2),'major'),
-      feast('fasika','Fasika (Easter)',E,'major'),
-      feast('rekebekahinat','Rekebe Kahinat',addDays(E,24),'minor'),
-      feast('erget','Erget (Ascension)',addDays(E,39),'major'),
-      feast('paraclete','Paraclete (Pentecost)',pentecost,'major'),
-      feast('apostles','Feast of the Apostles Peter and Paul',at(11,5),'minor'),
-      feast('debretabor','Debre Tabor (Transfiguration)',at(12,13),'major'),
-      feast('filseta','Filseta (Assumption)',at(12,16),'major')
+      feast('debrezeit','Mount of Olives (Debre Zeit)',addDays(E,-28),'minor'),
+      feast('hosanna','Palm Sunday (Hosanna)',addDays(E,-7),'major'),
+      feast('siklet','Good Friday (Siklet)',addDays(E,-2),'major'),
+      feast('fasika','Easter (Fasika)',E,'major'),
+      feast('rekebekahinat','Synod of the Priests (Rekebe Kahinat)',addDays(E,24),'minor'),
+      feast('erget','Ascension (Erget)',addDays(E,39),'major'),
+      feast('paraclete','Pentecost (Paraclete)',pentecost,'major'),
+      feast('apostles','Saints Peter and Paul (Petros we Paulos)',at(11,5),'minor'),
+      feast('debretabor','Transfiguration (Debre Tabor)',at(12,13),'major'),
+      feast('filseta','Assumption (Filseta)',at(12,16),'major')
     ];
     // Monthly feasts, skipped where the same commemoration is already that day's annual feast.
     for(let m=1;m<=12;m++)for(const [d,id,name] of MONTHLY){

@@ -11,7 +11,8 @@
   const esc=s=>String(s===null||s===undefined?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const num=v=>typeof v==='number'&&Number.isFinite(v),clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v)),f=n=>(+n).toFixed(1);
   const TONES={red:'var(--c-red)',orange:'var(--c-orange)',yellow:'var(--c-yellow)',green:'var(--c-green)',violet:'var(--c-violet)',purple:'var(--c-violet)',blue:'var(--sleep)',brass:'var(--brass)',neutral:'var(--muted)'};
-  const tone=name=>TONES[name]||'var(--muted)';
+  /* A name from the table, or a colour of the page's own continuous scales (rgb(…), a token) passed through. */
+  const tone=name=>TONES[name]||(/^(#[0-9a-f]{3,8}|rgb\(|hsl\(|var\(--)/i.test(String(name||''))?String(name):'var(--muted)');
   const n0=v=>Math.round(v).toLocaleString('en-US');
 
   /* ---------- the ring: spiky and segmented, the app's own style ---------- */
@@ -132,16 +133,31 @@
     days.forEach((d,i)=>{if(!num(d.value)){out+='<rect x="'+f(L+i*w+w*.3)+'" y="'+f(H-B-2)+'" width="'+f(w*.4)+'" height="2" fill="var(--line-strong)"><title>'+esc(d.title||'No data')+'</title></rect>';return;}
       out+='<rect x="'+f(L+i*w+w*.2)+'" y="'+y(d.value)+'" width="'+f(w*.6)+'" height="'+f(Math.max(1.5,H-B-y(d.value)))+'" rx="2" fill="'+tone(d.colour)+'"'+(d.approx?' opacity=".55"':'')+'><title>'+esc(d.title||'')+'</title></rect>';});
     const marks=opt.ticks||[];marks.forEach(([i,label])=>{out+='<text x="'+f(L+i*w+w/2)+'" y="'+(H-5)+'" text-anchor="middle" class="axis">'+esc(label)+'</text>';});
+    // The scale: half and the full height of what is drawn, written on the chart's own lines.
+    if(opt.scale!==false)for(const v of [top/1.12/2,top/1.12]){out+='<line class="grid" x1="'+L+'" x2="'+(W-L)+'" y1="'+y(v)+'" y2="'+y(v)+'"/><text class="axis" x="'+(L+2)+'" y="'+f(+y(v)-3)+'">'+esc(axisText(v)+(opt.unit?' '+opt.unit:''))+'</text>';}
     return out+'</svg>';
   }
-  /* A line through points with gaps where a value is missing. */
+  /* Round figures for an axis: three ticks across what is drawn. */
+  const axisText=(v,digits)=>num(digits)?(+v).toFixed(digits):Math.abs(v)>=1000?n0(v):Math.abs(v)>=20?String(Math.round(v)):String(Math.round(v*10)/10);
+  /* A line through points with gaps where a value is missing. With `axis` it carries a labelled scale: `axis.x`
+     names the points (the first, the middle and the last are written), `axis.unit` the figures up the side.
+     `reference` {value,label} is a dashed line to read the trend against (his own age under Health Age). */
   function spark(values,o){
-    const opt=o||{},W=opt.width||260,H=opt.height||70,known=values.filter(num);if(!known.length)return '';
-    let lo=Math.min(...known),hi=Math.max(...known);if(hi-lo<1e-9){lo-=1;hi+=1;}const pad=(hi-lo)*.15;lo-=pad;hi+=pad;
-    const x=i=>f(values.length===1?W/2:6+i*(W-12)/(values.length-1)),y=v=>f(H-6-(v-lo)/(hi-lo)*(H-12));
+    const opt=o||{},axis=opt.axis||null,ref=opt.reference&&num(opt.reference.value)?opt.reference:null,W=opt.width||260,H=opt.height||(axis?120:70),known=values.filter(num);if(!known.length)return '';
+    let lo=Math.min(...known,...(ref?[ref.value]:[])),hi=Math.max(...known,...(ref?[ref.value]:[]));if(hi-lo<1e-9){lo-=1;hi+=1;}const pad=(hi-lo)*.15,d0=lo,d1=hi;lo-=pad;hi+=pad;
+    const L=axis?38:6,R=axis?10:6,T=axis?14:6,B=axis?22:6;
+    const x=i=>f(values.length===1?(L+W-R)/2:L+i*(W-L-R)/(values.length-1)),y=v=>f(H-B-(v-lo)/(hi-lo)*(H-B-T));
     let d='',pen=false;values.forEach((v,i)=>{if(!num(v)){pen=false;return;}d+=(pen?'L':'M')+x(i)+' '+y(v);pen=true;});
     const last=values.map((v,i)=>[v,i]).filter(p=>num(p[0])).pop();
-    return '<svg class="spark" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(opt.label||'Trend')+'"><path d="'+d+'" fill="none" stroke="'+tone(opt.colour||'brass')+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'+
+    let frame='';
+    if(axis){
+      for(const v of [d0,(d0+d1)/2,d1])frame+='<line class="grid" x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v)+'" y2="'+y(v)+'"/><text class="axis" x="'+(L-5)+'" y="'+f(+y(v)+3.5)+'" text-anchor="end">'+esc(axisText(v,axis.digits))+'</text>';
+      if(axis.unit)frame+='<text class="axis unit" x="'+(L-5)+'" y="9" text-anchor="end">'+esc(axis.unit)+'</text>';
+      const names=axis.x||[],at=[...new Set([0,Math.floor((values.length-1)/2),values.length-1])];
+      at.forEach((i,k)=>{if(names[i]!==undefined&&names[i]!==null)frame+='<text class="axis" x="'+x(i)+'" y="'+(H-6)+'" text-anchor="'+(k===0?'start':k===at.length-1?'end':'middle')+'">'+esc(names[i])+'</text>';});
+    }
+    if(ref)frame+='<line class="ref" x1="'+L+'" x2="'+(W-R)+'" y1="'+y(ref.value)+'" y2="'+y(ref.value)+'" stroke="'+tone(ref.colour||'neutral')+'"/>'+(ref.label?'<text class="axis ref-label" x="'+(W-R)+'" y="'+f(+y(ref.value)-4)+'" text-anchor="end" fill="'+tone(ref.colour||'neutral')+'">'+esc(ref.label)+'</text>':'');
+    return '<svg class="spark'+(axis?' with-axis':'')+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(opt.label||'Trend')+'">'+frame+'<path d="'+d+'" fill="none" stroke="'+tone(opt.colour||'brass')+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'+
       values.map((v,i)=>num(v)?'<circle cx="'+x(i)+'" cy="'+y(v)+'" r="'+(i===last[1]?3.4:1.8)+'" fill="'+tone(opt.colour||'brass')+'"/>':'').join('')+'</svg>';
   }
   /* Two groups of one outcome side by side, each value a dot and the mean a bar (Faith × Readiness). */
@@ -150,7 +166,8 @@
     let lo=Math.min(...all),hi=Math.max(...all);if(hi-lo<1){lo-=1;hi+=1;}const pad=(hi-lo)*.12;lo=Math.max(opt.min===undefined?-Infinity:opt.min,lo-pad);hi=Math.min(opt.max===undefined?Infinity:opt.max,hi+pad);
     const y=v=>f(H-24-(v-lo)/(hi-lo||1)*(H-34)),mean=l=>l.length?l.reduce((s,v)=>s+v,0)/l.length:null;
     const group=(g,cx)=>{const m=mean(g.values.filter(num));return g.values.filter(num).map((v,i)=>'<circle cx="'+f(cx-22+((i*37)%44))+'" cy="'+y(v)+'" r="3" fill="'+tone(g.colour)+'" opacity=".55"/>').join('')+(m===null?'':'<line x1="'+(cx-34)+'" x2="'+(cx+34)+'" y1="'+y(m)+'" y2="'+y(m)+'" stroke="'+tone(g.colour)+'" stroke-width="3" stroke-linecap="round"/><text x="'+(cx+40)+'" y="'+f(+y(m)+4)+'" class="axis strong">'+Math.round(m)+'</text>')+'<text x="'+cx+'" y="'+(H-6)+'" text-anchor="middle" class="axis">'+esc(g.label+' · '+g.values.filter(num).length)+'</text>';};
-    return '<svg class="two-groups" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(opt.label||a.label+' against '+b.label)+'">'+group(a,80)+group(b,210)+'</svg>';
+    const scale=[lo,hi].map(v=>'<line class="grid" x1="26" x2="'+(W-4)+'" y1="'+y(v)+'" y2="'+y(v)+'"/><text class="axis" x="22" y="'+f(+y(v)+3.5)+'" text-anchor="end">'+esc(axisText(v))+'</text>').join('')+(opt.unit?'<text class="axis unit" x="4" y="9">'+esc(opt.unit)+'</text>':'');
+    return '<svg class="two-groups" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(opt.label||a.label+' against '+b.label)+'">'+scale+group(a,95)+group(b,215)+'</svg>';
   }
 
   /* =======================================================================================
@@ -205,13 +222,25 @@
   function monthDays(month){const out=[];for(let d=month+'-01';d.slice(0,7)===month;d=addDays(d,1))out.push(d);return out;}
   const mondayOf=d=>addDays(d,-((new Date(dayMs(d)).getUTCDay()+6)%7));
 
-  /* The medal: a sunburst that lights when earned. */
+  /* The medal (V3.2, his pick of Sept 27): a cameo cut from the room's own stone in a brass frame, with a flame
+     inside that grows with the tier: an ember for a day, a fuller flame with a halo for a week, full bloom
+     and a beaded frame for a month. Perfect burns gold, Perfect Fitness malachite. Not yet earned, the stone
+     is dull and the flame only an outline. `mark` (D, W, M, or ×3 once earned more than once) sits on the plaque. */
+  const MEDAL_TIERS={day:{rx:29,ry:35,frame:2,flame:.6,halo:0,beads:0},week:{rx:32,ry:38,frame:3,flame:.82,halo:.55,beads:0},month:{rx:35,ry:41,frame:4,flame:1.04,halo:.9,beads:26}};
   function medal(o){
-    const earned=!!o.earned,rays=o.tier==='month'?32:o.tier==='week'?24:16,c=o.track==='fitness'?['#e9fff4','#79d6a9','#2f7a62']:['#fff4cf','#e3b262','#8a5f22'],id='md-'+esc(o.id||o.track+'-'+o.tier);
-    let burst='';for(let i=0;i<rays;i++){const a=i/rays*Math.PI*2,w=Math.PI/rays*.62;burst+='<path d="M'+f(Math.cos(a-w)*30)+' '+f(Math.sin(a-w)*30)+'L'+f(Math.cos(a)*(i%2?41:46))+' '+f(Math.sin(a)*(i%2?41:46))+'L'+f(Math.cos(a+w)*30)+' '+f(Math.sin(a+w)*30)+'Z"/>';}
-    return '<div class="medal'+(earned?' earned':'')+'" data-track="'+esc(o.track)+'" data-tier="'+esc(o.tier)+'"><svg viewBox="-50 -50 100 100" role="img" aria-label="'+esc(o.title+(earned?': earned':': not yet'))+'"><defs><radialGradient id="'+id+'" cx=".4" cy=".35"><stop offset="0" stop-color="'+c[0]+'"/><stop offset=".55" stop-color="'+c[1]+'"/><stop offset="1" stop-color="'+c[2]+'"/></radialGradient></defs>'+
-      '<g fill="'+(earned?'url(#'+id+')':'var(--ring-off,rgba(255,255,255,.09))')+'">'+burst+'<circle r="31"/></g><circle r="25" fill="none" stroke="'+(earned?c[0]:'var(--line)')+'" stroke-opacity=".6"/>'+
-      '<text y="'+(o.mark&&o.mark.length>1?5:7)+'" text-anchor="middle" font-size="'+(o.mark&&o.mark.length>1?13:20)+'" class="medal-mark" fill="'+(earned?'#1a1206':'var(--faint)')+'">'+esc(o.mark||'✦')+'</text></svg><b>'+esc(o.title)+'</b><small>'+esc(o.note||'')+'</small></div>';
+    const earned=!!o.earned,t=MEDAL_TIERS[o.tier]||MEDAL_TIERS.day,fit=o.track==='fitness',id='md-'+esc(o.id||o.track+'-'+o.tier);
+    const fire=fit?['#f2fff8','#9be8c4','#79d6a9']:['#fffaf0','#ffe8a8','#e3b262'],brass=fit?'#b9c7a0':'#e3b262',frame=earned?brass:'var(--line-strong,rgba(255,255,255,.26))';
+    const k=t.flame,flame='M0 '+f(-25*k)+'C'+f(-12*k)+' '+f(-7*k)+' '+f(-10*k)+' '+f(9*k)+' 0 '+f(18*k)+'C'+f(10*k)+' '+f(9*k)+' '+f(12*k)+' '+f(-7*k)+' 0 '+f(-25*k)+'Z';
+    let beads='';for(let i=0;i<t.beads;i++){const a=i/t.beads*Math.PI*2;beads+='<circle cx="'+f(Math.cos(a)*(t.rx+6))+'" cy="'+f(Math.sin(a)*(t.ry+6))+'" r="1.3"/>';}
+    const defs='<defs><radialGradient id="'+id+'-stone" cx=".35" cy=".3"><stop offset="0" stop-color="#4a5c4f"/><stop offset=".55" stop-color="#2c3a30"/><stop offset="1" stop-color="#15201a"/></radialGradient>'+
+      '<radialGradient id="'+id+'-bloom" cx=".5" cy=".5"><stop offset="0" stop-color="'+fire[0]+'"/><stop offset=".5" stop-color="'+fire[1]+'" stop-opacity=".7"/><stop offset="1" stop-color="'+fire[2]+'" stop-opacity="0"/></radialGradient><clipPath id="'+id+'-cut"><ellipse rx="'+t.rx+'" ry="'+t.ry+'"/></clipPath></defs>';
+    const stone='<ellipse class="medal-stone" rx="'+t.rx+'" ry="'+t.ry+'" fill="'+(earned?'url(#'+id+'-stone)':'var(--ring-off,rgba(255,255,255,.07))')+'" stroke="'+frame+'" stroke-width="'+t.frame+'"/>'+
+      '<g clip-path="url(#'+id+'-cut)" fill="none" stroke="'+(earned?'#6f927a':'var(--line,rgba(255,255,255,.1))')+'" stroke-linecap="round" opacity="'+(earned?.6:.5)+'"><path d="M-26 -18Q-8 -25 -4 -4Q0 18 -18 32" stroke-width="1.2"/><path d="M26 -26Q10 -8 15 12Q18 26 6 38" stroke-width=".9"/></g>';
+    const light=earned?(t.halo?'<ellipse class="medal-halo" rx="'+f(t.rx*.78)+'" ry="'+f(t.ry*.78)+'" fill="url(#'+id+'-bloom)" opacity="'+t.halo+'"/>':'')+'<path class="medal-flame" data-flame="'+esc(o.tier||'day')+'" d="'+flame+'" fill="'+(t.halo?fire[0]:fire[2])+'"/>'
+      :'<path class="medal-flame unlit" d="'+flame+'" fill="none" stroke="var(--faint,rgba(255,255,255,.3))" stroke-width="1" stroke-dasharray="2 3"/>';
+    const plaque='<rect class="medal-plaque" x="-15" y="'+f(t.ry-6)+'" width="30" height="14" rx="7" fill="'+(earned?brass:'var(--sunk,rgba(255,255,255,.06))')+'" stroke="'+frame+'" stroke-width=".8"/><text y="'+f(t.ry+4.5)+'" text-anchor="middle" font-size="10" class="medal-mark" fill="'+(earned?'#1a1206':'var(--faint)')+'">'+esc(o.mark||'✦')+'</text>';
+    return '<div class="medal'+(earned?' earned':'')+'" data-track="'+esc(o.track)+'" data-tier="'+esc(o.tier)+'"><svg viewBox="-50 -50 100 108" role="img" aria-label="'+esc(o.title+(earned?': earned':': not yet'))+'">'+defs+
+      (beads?'<g class="medal-beads" fill="'+frame+'">'+beads+'</g>':'')+stone+light+plaque+'</svg><b>'+esc(o.title)+'</b><small>'+esc(o.note||'')+'</small></div>';
   }
   /* A month at a glance: gold = a Perfect day, a green rim = Perfect Fitness, dim = nothing due, plain = open. */
   function calendar(month,verdicts,today){
@@ -222,5 +251,5 @@
     return '<div class="perfect-cal" role="img" aria-label="'+esc('Perfect days in '+month)+'">'+['M','T','W','T','F','S','S'].map(h=>'<em>'+h+'</em>').join('')+(lead?'<span class="pad" style="grid-column:span '+lead+'"></span>':'')+days.map(cell).join('')+'</div>';
   }
 
-  return {esc,tone,TONES,KEYS,SEGMENTS,SLOT_TONES,PLACE,ring,key,vital,flagPlace,placeTone,rungPlace,chip,standLine,ladder,ladderMark,rangeRow,bandChart,spark,twoGroups,necessary,day,span,streak,monthDays,mondayOf,addDays,medal,calendar,RUNG_LABEL,RUNG_TONE};
+  return {esc,tone,TONES,KEYS,SEGMENTS,SLOT_TONES,PLACE,ring,key,vital,flagPlace,placeTone,rungPlace,chip,standLine,ladder,ladderMark,rangeRow,bandChart,spark,twoGroups,necessary,day,span,streak,monthDays,mondayOf,addDays,medal,MEDAL_TIERS,calendar,RUNG_LABEL,RUNG_TONE};
 });

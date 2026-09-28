@@ -335,7 +335,7 @@
     for(const r of read.workouts){
       const old=ids.get(r.id);
       if(old){
-        if(r.detail&&!old.detail){traces.push({id:r.id,detail:r.detail});w.tracesAdded++;}
+        if(r.detail&&r.detail.hr&&!(old.detail&&old.detail.hr)){traces.push({id:r.id,detail:r.detail});w.tracesAdded++;}
         else{w.yielded++;if(old.unmapped&&old.unmapped.healthAutoExport&&old.unmapped.healthAutoExport.delivery&&old.unmapped.healthAutoExport.delivery.digest===read.digest)same++;}
         continue;
       }
@@ -357,7 +357,7 @@
      the store already held keeps its identity, its order and its signature. */
   function apply(existing,batch){
     const traces=new Map(batch.traces.map(t=>[t.id,t.detail])),have=new Set(existing.map(r=>r.id));
-    const rows=traces.size?existing.map(r=>traces.has(r.id)&&!r.detail?{...r,detail:traces.get(r.id)}:r):existing.slice();
+    const rows=traces.size?existing.map(r=>traces.has(r.id)&&!(r.detail&&r.detail.hr)?{...r,detail:{...(r.detail||{}),...traces.get(r.id)}}:r):existing.slice();
     for(const r of batch.rows)if(!have.has(r.id)){rows.push(r);have.add(r.id);}
     return rows;
   }

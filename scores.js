@@ -204,7 +204,7 @@
       else if(i.L>=band.lo){colour='green';label='in band';}
       else if(i.closed){colour='yellow';label='below';}
     }else label=null;
-    if((i.wellAboveDays||0)>=T.redAfter)colour='red';
+    if((i.wellAboveDays||0)>=T.redAfter&&!(band&&i.L<band.lo))colour='red';
     return {value,label,colour,confidence:C28===null?'Low':i.weak?'Medium':'High',inputs:{L:i.L,C28,A7,days:known.length},missing:C28===null?['A target band (needs 14 days)']:[],band,trend};
   }
 
@@ -534,7 +534,9 @@
   const textMinutes=start=>{const h=+String(start).slice(11,13),m=+String(start).slice(14,16);return h>=0&&h<24&&m>=0&&m<60?h*60+m:null;};
   function index(rows,options){
     const o=options||{},zone=o.timeZone||TABLE.zone;
-    const x={zone,samples:new Map(),approx:new Map(),totals:new Map(),live:new Map(),nights:new Map(),workouts:[],effort:new Map(),effortRolled:new Map(),heartDays:new Set(),daylight:new Map(),water:new Map(),memo:new Map(),rows:0};
+    // Pairs of workout ids he set by hand: `join` makes two entries one session, `split` keeps two apart.
+    const pairs=list=>(Array.isArray(list)?list:[]).filter(p=>Array.isArray(p)&&p.length===2&&p.every(v=>typeof v==='string'));
+    const x={zone,links:{join:pairs(o.links&&o.links.join),split:pairs(o.links&&o.links.split)},samples:new Map(),approx:new Map(),totals:new Map(),live:new Map(),nights:new Map(),workouts:[],effort:new Map(),effortRolled:new Map(),heartDays:new Set(),daylight:new Map(),water:new Map(),memo:new Map(),rows:0};
     const put=(map,metric,day,value)=>{let m=map.get(metric);if(!m){m=new Map();map.set(metric,m);}let list=m.get(day);if(!list){list=[];m.set(day,list);}list.push(value);};
     for(const r of rows||[]){
       const m=metaOf(r);if(!m||(r.clashes||[]).length)continue;
@@ -595,7 +597,9 @@
     const d=r.detail||{},hr=d.hr||{},METRES={m:1,km:1000,mi:1609.344,yd:0.9144,ft:0.3048},q=m.distance,unit=q&&METRES[String(q.units||'').toLowerCase()];
     return {id:r.id,type:r.type||'Workout',name:r.type||'',writer:r.sourceApp||'',day:m.day,start,end,minutes:Math.max(1,Math.ceil((end-start)/60000)),movingSec:num(r.durationSec)?r.durationSec:null,
       hr:Array.isArray(hr.avg)?hr.avg:null,hrMin:Array.isArray(hr.min)?hr.min:null,hrMax:Array.isArray(hr.max)?hr.max:null,distanceM:Array.isArray(d.distanceM)?d.distanceM:null,steps:Array.isArray(d.steps)?d.steps:null,
-      recovery:d.recovery&&Array.isArray(d.recovery.sec)?d.recovery:null,distance:q&&num(q.qty)&&unit?q.qty*unit:null,indoor:/indoor|treadmill/i.test(String(r.type||'')),outdoor:/outdoor|trail/i.test(String(r.type||''))&&!/indoor|treadmill/i.test(String(r.type||''))};
+      recovery:d.recovery&&Array.isArray(d.recovery.sec)?d.recovery:null,distance:q&&num(q.qty)&&unit?q.qty*unit:null,
+      // The export's own flag decides where it has one; the name decides for a record stored before the flag was kept.
+      indoor:typeof d.indoor==='boolean'?d.indoor:/indoor|treadmill/i.test(String(r.type||'')),outdoor:typeof d.indoor==='boolean'?!d.indoor:/outdoor|trail/i.test(String(r.type||''))&&!/indoor|treadmill/i.test(String(r.type||''))};
   }
   const watch=writer=>/apple\s+watch/i.test(String(writer||''));
   // The family an activity belongs to, from its name: two apps name the same run differently.
@@ -603,12 +607,17 @@
   /* One effort recorded by two apps is one session (the Watch and iFIT on the same run): overlapping
      workouts of the same family from different apps yield to the one with a heart-rate curve, then to the
      Watch. A run and a strength session that overlap are two activities and both stay. iFIT's own effort
-     numbers are never read (decision 8). Then same-type workouts at most 10 minutes apart are merged (E4). */
+     numbers are never read (decision 8). Then same-type workouts at most 10 minutes apart are merged (E4).
+     V3.2: entries that share half of the shorter one's time are one session whatever their names. */
+  const paired=(list,a,b)=>(list||[]).some(p=>(p[0]===a&&p[1]===b)||(p[0]===b&&p[1]===a));
   function sessions(x){
     if(x.memo.has('sessions'))return x.memo.get('sessions');
     const rank=w=>(w.hr?2:0)+(watch(w.writer)?1:0),kept=[];
     for(const w of x.sessionsRaw.slice().sort((a,b)=>rank(b)-rank(a)||a.start-b.start)){
-      const twin=kept.find(k=>{const over=Math.min(k.end,w.end)-Math.max(k.start,w.start);return over>0&&over>=0.5*Math.min(k.end-k.start,w.end-w.start)&&family(k.type)===family(w.type)&&k.writer!==w.writer;});
+      // One stretch of time is one session whatever each app called it (Mintay, Sept 27: one says Walking, one
+      // Running). Half of the shorter entry must be shared; what he joined or split by hand wins.
+      const twin=kept.find(k=>{if(paired(x.links.split,k.id,w.id))return false;if(paired(x.links.join,k.id,w.id))return true;const over=Math.min(k.end,w.end)-Math.max(k.start,w.start);return over>0&&over>=0.5*Math.min(k.end-k.start,w.end-w.start);});
+      if(twin)(twin.also=twin.also||[]).push({id:w.id,type:w.type,writer:w.writer});
       if(!twin)kept.push(w);
     }
     const merged=mergeSessions(kept);x.memo.set('sessions',merged);return merged;
@@ -618,9 +627,12 @@
   /* C3: the overnight value of a sparse metric is the median of its samples timed inside the night. */
   function overnight(x,metric,day){
     return memo(x,'o|'+metric+'|'+day,()=>{
-      const n=night(x,day);if(!n||n.start===null||n.end===null)return null;
+      // The Watch gives one wrist temperature for a night and stamps it as it sees fit (the night's start, its end,
+      // midnight), so that figure belongs to the day it is filed under, whether or not it falls inside the night.
+      const own=()=>{if(metric!=='apple_sleeping_wrist_temperature')return null;const list=(x.samples.get(metric)||new Map()).get(day)||[];return list.length?list.slice().sort((a,b)=>a.t-b.t)[list.length-1].v:null;};
+      const n=night(x,day);if(!n||n.start===null||n.end===null)return own();
       const values=[];for(const d of [addDays(day,-1),day])for(const s of (x.samples.get(metric)||new Map()).get(d)||[])if(s.t>=n.start&&s.t<=n.end)values.push(s.v);
-      return values.length?median(values):null;
+      return values.length?median(values):own();
     });
   }
   const latestOf=list=>list&&list.length?list.reduce((a,b)=>b.t>=a.t?b:a).v:null;
@@ -695,9 +707,13 @@
       return {L:workout+effort.everyday,workout,everyday:effort.everyday,parts,approx:!effort.known,weak:weak||!effort.known};
     });
   }
+  /* A day's load as the band and the trend may read it. A day without its everyday effort (imported history)
+     holds its workouts only, a floor: counted as a load it pulled the 28-day mean down, so an ordinary day read
+     as far above it (V3.2). Such a day is drawn, faded, and sets nothing. */
+  function fullLoad(x,day,options){const d=loadOf(x,day,options);return d.approx?null:d.L;}
   function loadFor(x,day,options){
     const o=options||{},today=loadOf(x,day,o),history=[];
-    for(let k=TABLE.load.chronic;k>=1;k--)history.push(loadOf(x,addDays(day,-k),o).L);
+    for(let k=TABLE.load.chronic;k>=1;k--)history.push(fullLoad(x,addDays(day,-k),o));
     const result=load({L:today.L,history,readinessLabel:o.readinessLabel,closed:o.closed,wellAboveDays:o.wellAboveDays,weak:today.weak});
     result.inputs.workout=today.workout;result.inputs.everyday=today.everyday;result.inputs.parts=today.parts;result.inputs.approx=today.approx;
     return result;
@@ -705,7 +721,7 @@
   /* Consecutive days, ending yesterday, whose trend label read Well Above (the only road to red). */
   function wellAboveRun(x,day,options){
     let run=0;
-    for(let k=1;k<=TABLE.load.redAfter;k++){const d=addDays(day,-k),h=[];for(let j=TABLE.load.chronic;j>=1;j--)h.push(loadOf(x,addDays(d,-j),options).L);
+    for(let k=1;k<=TABLE.load.redAfter;k++){const d=addDays(day,-k),h=[];for(let j=TABLE.load.chronic;j>=1;j--)h.push(fullLoad(x,addDays(d,-j),options));
       const known=present(h),recent=present(h.slice(-TABLE.load.acute));if(known.length<TABLE.load.chronicMin||!recent.length||loadTrend(mean(recent),mean(known))!=='Well Above')break;run++;}
     return run;
   }
@@ -839,7 +855,7 @@
   function runsFor(x,day,options){
     const o=options||{},R=TABLE.run,D=TABLE.durability,hrMax=o.hrMax,runs=sessions(x).filter(s=>/run/i.test(s.type)&&s.day<=day&&s.hr&&s.distanceM);
     const easy=s=>{const m=mean(present(s.hr));return num(hrMax)&&m>=R.easy[0]*hrMax&&m<=R.easy[1]*hrMax;};
-    // Outdoor by name only: the stored record has no indoor flag, so a run that does not say where it was
+    // Outdoor by the export's flag where the record carries it (V3.2), else by name: a run that does not say where it was
     // is left out rather than guessed at.
     const eff=(from,to)=>runs.filter(s=>s.day>=from&&s.day<=to&&s.outdoor&&!s.indoor&&s.minutes>=R.minMin&&sum(present(s.distanceM))>=R.minM&&easy(s)).map(runEfficiency);
     const now=medianScore(eff(addDays(day,-(R.window-1)),day),R.minRuns,2),before=medianScore(eff(addDays(day,-(2*R.window-1)),addDays(day,-R.window)),R.minRuns,2);

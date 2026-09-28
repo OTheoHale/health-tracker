@@ -44,14 +44,19 @@ const FITDAYS_GROUPS = {
 };
 /* Segment estimates (V2.0; Mintay accepts labelled estimates, overriding the old whole-region-only rule):
    a limb's Fitdays fat and muscle split by segment mass fractions, de Leva 1996, male — upper arm 2.71%,
-   forearm + hand 2.23% of body mass; thigh 14.16%, shank 4.33%, foot 1.37%. Always labelled "est.". */
-const SEGMENT_SHARE = {'upper-arm': 0.549, forearm: 0.451, thigh: 0.713, calf: 0.218, foot: 0.069};
+   forearm + hand 2.23% of body mass; thigh 14.16%, shank 4.33%, foot 1.37%. Always labelled "est.".
+   The trunk is split the same way (V3.2, Mintay Sept 27): de Leva's upper trunk 15.96%, middle trunk 16.33%
+   and lower trunk 11.17% of body mass (43.46% together). The model cuts the upper and middle trunk into a
+   front (chest, abdomen) and a back, so each front takes half of its level and the back takes the two other
+   halves; hips and pelvis are the lower trunk. The four shares add up to the trunk Fitdays measured. */
+const SEGMENT_SHARE = {'upper-arm': 0.549, forearm: 0.451, thigh: 0.713, calf: 0.218, foot: 0.069,
+  chest: 15.96 / 2 / 43.46, abdomen: 16.33 / 2 / 43.46, back: (15.96 + 16.33) / 2 / 43.46, pelvis: 11.17 / 43.46};
 const segmentShare = region => { const key = Object.keys(SEGMENT_SHARE).find(k => region.endsWith(k)); return key ? SEGMENT_SHARE[key] : null; };
 const fitdaysGroup = region => Object.keys(FITDAYS_GROUPS).find(key => key === region || FITDAYS_GROUPS[key].parts.includes(region));
 /* Regions from parts (V2.2, PLAN 2.1/2.3). A key is a segment, a Fitdays whole region, or a saved region
-   ('custom:<id>'). Figures: a whole limb is exact; a limb part is its de Leva share and reads "est.";
-   the trunk has no split, so a trunk part shows the trunk total standing in; head, neck, feet and anything
-   without a Fitdays row are "not available at this segmentation". Nothing here is invented. */
+   ('custom:<id>'). Figures: a whole limb or the whole trunk is exact; a part of one is its de Leva share and
+   reads "est."; head, neck and anything without a Fitdays row are "not available at this segmentation".
+   `total` is fat plus muscle, the two figures Fitdays reports for a region. */
 function regionPartsOf(key, saved) {
   if (!key || key === 'all') return [];
   if (FITDAYS_GROUPS[key]) return FITDAYS_GROUPS[key].parts.slice();
@@ -73,8 +78,8 @@ function regionFigures(parts, fitdays) {
     else { fat += row.fatMassLb * share; muscle += row.muscleBalanceMassLb * share; est = true; }
     covered.push(...ps);
   }
-  if (!covered.length) return {fat: null, muscle: null, est: false, standIn, covered, missing};
-  return {fat, muscle, est, standIn, covered, missing};
+  if (!covered.length) return {fat: null, muscle: null, total: null, est: false, standIn, covered, missing};
+  return {fat, muscle, total: fat + muscle, est, standIn, covered, missing};
 }
 function regionAutoName(parts, regions) {
   for (const [key, group] of Object.entries(FITDAYS_GROUPS)) if (group.parts.length === parts.length && group.parts.every(p => parts.includes(p))) return group.label;
@@ -238,15 +243,15 @@ class HealthBodyView extends HTMLElement {
     return '<div class="body-segments"><div class="body-modes" role="group" aria-label="Region tool">' + modes.map(([m,l]) => '<button data-body="mode" data-mode="' + m + '" aria-pressed="' + (this.mode === m) + '">' + l + '</button>').join('') + '</div>' +
       '<label>' + (this.mode === 'link' ? 'Add to the region' : this.mode === 'compare' ? 'Pick a region' : 'Highlight a region') + '<select data-body="region" aria-label="Choose a body region"><option value="all">Whole body</option>' + this.regionOptions(this.mode === 'select' ? this.region : null) + '</select></label>' +
       '<div class="body-tools">' + this.toolsHTML() + '</div>' +
-      '<p class="hint">Click the model or choose a region. Boundaries are approximate viewing guides. Left and right refer to your body.</p></div>';
+      '<p class="hint">Click the model or choose a region; hold Cmd (or Ctrl or Shift) and click to select several at once. Boundaries are approximate viewing guides. Left and right refer to your body.</p></div>';
   }
   figuresLine(parts) {
     const f = regionFigures(parts, this.fitdays), esc = v => this.escape(v), name = k => this.regions[k] || FITDAYS_GROUPS[k]?.label || k;
     if (f.fat === null) return '<span class="body-na">Not available at this segmentation' + (f.missing.length ? ' (' + esc(f.missing.map(name).join(', ')) + ')' : '') + '</span>';
     const est = f.est || f.standIn.length ? 'est. ' : '';
-    let out = '<b>' + est + f.fat.toFixed(1) + ' lb</b> fat · <b>' + est + f.muscle.toFixed(1) + ' lb</b> muscle';
+    let out = '<b>' + est + f.total.toFixed(1) + ' lb</b> total · <b>' + f.fat.toFixed(1) + ' lb</b> fat · <b>' + f.muscle.toFixed(1) + ' lb</b> muscle';
     const notes = [];
-    if (f.est) notes.push('limb parts split by typical segment mass');
+    if (f.est) notes.push('parts split by typical segment mass');
     if (f.standIn.length) notes.push(f.standIn.map(g => FITDAYS_GROUPS[g].label.toLowerCase() + ' total stands in').join(', ') + ' (no separate measurement)');
     if (f.missing.length) notes.push('no reading for ' + f.missing.map(name).join(', '));
     return out + (notes.length ? '<small>' + esc(notes.join(' · ')) + '</small>' : '');
@@ -268,7 +273,7 @@ class HealthBodyView extends HTMLElement {
         const size = pa.length !== pb.length ? '<p class="hint">Unequal regions: ' + esc(label(a)) + ' has ' + pa.length + ' segment' + (pa.length === 1 ? '' : 's') + ', ' + esc(label(b)) + ' has ' + pb.length + '. Shapes are comparable; the numbers cover different amounts of body.</p>' : '';
         table = '<table class="body-cmp"><thead><tr><th></th><th><span class="body-swatch a"></span>' + esc(label(a)) + '</th><th><span class="body-swatch b"></span>' + esc(label(b)) + '</th></tr></thead><tbody>' +
           '<tr><td>Fat</td><td>' + cell(fa, 'fat') + '</td><td>' + cell(fb, 'fat') + '</td></tr><tr><td>Muscle</td><td>' + cell(fa, 'muscle') + '</td><td>' + cell(fb, 'muscle') + '</td></tr><tr><td>Segments</td><td>' + pa.length + '</td><td>' + pb.length + '</td></tr></tbody></table>' + size +
-          ((fa.est || fb.est) ? '<p class="hint">est.: limb parts are split from the Fitdays limb total by typical segment mass (de Leva).</p>' : '') + ((fa.standIn.length || fb.standIn.length) ? '<p class="hint">A trunk part shows the trunk total standing in; Fitdays does not split the trunk.</p>' : '');
+          ((fa.est || fb.est) ? '<p class="hint">est.: parts are split from the Fitdays total of their limb or of the trunk by typical segment mass (de Leva).</p>' : '') + ((fa.standIn.length || fb.standIn.length) ? '<p class="hint">A trunk part shows the trunk total standing in; Fitdays does not split the trunk.</p>' : '');
       } else table = '<p class="hint">Click two regions on the model, or choose A and B. Compare stays separate from linking.</p>';
       return '<div class="body-cmp-picks">' + pick('a', a) + pick('b', b) + '<button class="ghost" data-body="cmpSwap"' + (a && b ? '' : ' disabled') + '>Swap</button></div>' + table;
     }
@@ -314,6 +319,13 @@ class HealthBodyView extends HTMLElement {
     if (this.mode === 'compare') { if (key === 'all') return; const slot = this.compare.next; this.compare[slot] = key; this.compare.next = slot === 'a' ? 'b' : 'a'; this.refreshTools(); return; }
     this.highlight(key);
   }
+  /* Cmd-, Ctrl- or Shift-click on the model (V3.2): the segment joins what is selected, without choosing Link
+     first. What was highlighted comes along, so two clicks make a region of two. */
+  addToSelection(key) {
+    if (this.mode !== 'link') { this.linked = new Set(this.region && this.region !== 'all' ? this.partsInView(this.region) : []); this.mode = 'link'; }
+    if (this.linked.has(key)) this.linked.delete(key); else this.linked.add(key);
+    this.refreshTools();
+  }
   saveRegions() { try { localStorage.setItem('glow-body-regions', JSON.stringify(this.saved)); } catch (_) {} }
   /* A whole-body figure follows whichever source measured it most recently and shows that
      source's own date. The Fitdays report was the only source here, so a May scale reading stayed
@@ -351,7 +363,7 @@ class HealthBodyView extends HTMLElement {
   compositionHTML() {
     if (!this.fitdays) return '<div class="body-fitdays-empty"><label class="filebtn body-import">Add reviewed Fitdays report<input data-body="fitdays" type="file" accept=".zip" aria-label="Add reviewed Fitdays report ZIP"></label></div>';
     const report = this.fitdays;
-    return '<section class="body-composition" aria-label="Fitdays regional composition"><h3>Fat &amp; muscle by region</h3><p class="hint">Fitdays · '+this.escape(this.date(report.measurementDate))+' '+this.escape(report.measurementTime || '')+' · report timezone not specified. No other source measures individual regions, so these stay on the Fitdays date'+(report.measurementDate !== this.selected.captureDate ? ', shown on your '+this.escape(this.date(this.selected.captureDate))+' model' : '')+'. Fitdays-reported estimates; segment fat is inferred, and colors identify regions rather than showing fat inside your body.</p><div class="body-composition-cards">'+this.fitdays.segments.map(row => '<button data-body="composition-region" data-region="'+row.id+'" aria-pressed="false" style="--region-color:'+FITDAYS_GROUPS[row.id].color+'"><strong><i aria-hidden="true"></i>'+row.label+'</strong><span><b>'+row.fatMassLb.toFixed(1)+' lb</b> fat</span><span><b>'+row.muscleBalanceMassLb.toFixed(1)+' lb</b> muscle</span></button>').join('')+'</div><p class="hint">Whole-arm, whole-leg and trunk totals. Smaller regions do not have separate measurements in this report.</p><details class="body-composition-details"><summary>Report details & comparison percentages</summary><p class="hint">These percentages compare with the Fitdays standard range. They are not regional body-fat percentages or shares of your total. Transcribed from the saved report image.</p><table><thead><tr><th>Region</th><th>Fat comparison</th><th>Muscle comparison</th></tr></thead><tbody>'+this.fitdays.segments.map(row=>'<tr><td>'+row.label+'</td><td>'+row.fatComparisonPercent.toFixed(1)+'%</td><td>'+row.muscleComparisonPercent.toFixed(1)+'%</td></tr>').join('')+'</tbody></table><p><a class="body-export" href="'+this.asset('fitdays-source.jpg')+'" target="_blank" rel="noopener">View original Fitdays report ↗</a></p><p><a class="body-export" href="'+this.asset('fitdays-export.zip')+'" download>Export Fitdays report + values</a></p><label class="filebtn body-import">Add another reviewed Fitdays report<input data-body="fitdays" type="file" accept=".zip" aria-label="Add reviewed Fitdays report ZIP"></label><p class="hint">Fitdays reports are saved separately from your model, photos and HealthAutoExport source.</p></details></section>';
+    return '<section class="body-composition" aria-label="Fitdays regional composition"><h3>Fat &amp; muscle by region</h3><p class="hint">Fitdays · '+this.escape(this.date(report.measurementDate))+' '+this.escape(report.measurementTime || '')+' · report timezone not specified. No other source measures individual regions, so these stay on the Fitdays date'+(report.measurementDate !== this.selected.captureDate ? ', shown on your '+this.escape(this.date(this.selected.captureDate))+' model' : '')+'. Fitdays-reported estimates; segment fat is inferred, and colors identify regions rather than showing fat inside your body.</p><div class="body-composition-cards">'+this.fitdays.segments.map(row => '<button data-body="composition-region" data-region="'+row.id+'" aria-pressed="false" style="--region-color:'+FITDAYS_GROUPS[row.id].color+'"><strong><i aria-hidden="true"></i>'+row.label+'</strong><span><b>'+row.fatMassLb.toFixed(1)+' lb</b> fat</span><span><b>'+row.muscleBalanceMassLb.toFixed(1)+' lb</b> muscle</span></button>').join('')+'</div><p class="hint">Whole-arm, whole-leg and trunk totals. Smaller regions are estimated from these by typical segment mass and read “est.”.</p><details class="body-composition-details"><summary>Report details & comparison percentages</summary><p class="hint">These percentages compare with the Fitdays standard range. They are not regional body-fat percentages or shares of your total. Transcribed from the saved report image.</p><table><thead><tr><th>Region</th><th>Fat comparison</th><th>Muscle comparison</th></tr></thead><tbody>'+this.fitdays.segments.map(row=>'<tr><td>'+row.label+'</td><td>'+row.fatComparisonPercent.toFixed(1)+'%</td><td>'+row.muscleComparisonPercent.toFixed(1)+'%</td></tr>').join('')+'</tbody></table><p><a class="body-export" href="'+this.asset('fitdays-source.jpg')+'" target="_blank" rel="noopener">View original Fitdays report ↗</a></p><p><a class="body-export" href="'+this.asset('fitdays-export.zip')+'" download>Export Fitdays report + values</a></p><label class="filebtn body-import">Add another reviewed Fitdays report<input data-body="fitdays" type="file" accept=".zip" aria-label="Add reviewed Fitdays report ZIP"></label><p class="hint">Fitdays reports are saved separately from your model, photos and HealthAutoExport source.</p></details></section>';
   }
 
   measurementHTML() {
@@ -381,8 +393,8 @@ class HealthBodyView extends HTMLElement {
       if (this.fitdays) {
         const row = this.fitdays.segments.find(item => item.id === groupKey);
         if (key === 'all') detail.textContent = 'Five colored regions · select a region to inspect its fat and muscle totals.';
-        else if (row && key !== groupKey && segmentShare(key) !== null) { const f = segmentShare(key); detail.textContent = 'est. ' + (row.fatMassLb * f).toFixed(1) + ' lb fat · est. ' + (row.muscleBalanceMassLb * f).toFixed(1) + ' lb muscle · ' + Math.round(f * 100) + '% of the ' + row.label.toLowerCase() + ' (' + row.fatMassLb.toFixed(1) + ' / ' + row.muscleBalanceMassLb.toFixed(1) + ' lb), by typical segment mass'; }
-        else if (row) detail.textContent = (key === groupKey ? 'Whole region' : row.label + ' total — not a separate ' + this.regions[key].toLowerCase() + ' measurement') + ': ' + row.fatMassLb.toFixed(1) + ' lb fat · ' + row.muscleBalanceMassLb.toFixed(1) + ' lb muscle';
+        else if (row && key !== groupKey && segmentShare(key) !== null) { const f = segmentShare(key); detail.textContent = 'est. ' + ((row.fatMassLb + row.muscleBalanceMassLb) * f).toFixed(1) + ' lb total · ' + (row.fatMassLb * f).toFixed(1) + ' lb fat · ' + (row.muscleBalanceMassLb * f).toFixed(1) + ' lb muscle · ' + Math.round(f * 100) + '% of the ' + row.label.toLowerCase() + ' (' + (row.fatMassLb + row.muscleBalanceMassLb).toFixed(1) + ' lb), by typical segment mass'; }
+        else if (row) detail.textContent = (key === groupKey ? 'Whole region' : row.label + ' total — not a separate ' + this.regions[key].toLowerCase() + ' measurement') + ': ' + (row.fatMassLb + row.muscleBalanceMassLb).toFixed(1) + ' lb total · ' + row.fatMassLb.toFixed(1) + ' lb fat · ' + row.muscleBalanceMassLb.toFixed(1) + ' lb muscle';
         else detail.textContent = 'No separate head / neck composition data in this report.';
         overlay.append(detail);
         const source = document.createElement('span'); source.className = 'body-overlay-source'; source.textContent = 'Fitdays estimates · ' + this.date(this.fitdays.measurementDate) + ' · segment fat inferred'; overlay.append(source);
@@ -475,7 +487,8 @@ class HealthBodyView extends HTMLElement {
       viewer.addEventListener('click', event => {
         if (!this.pointerStart || Math.hypot(event.clientX-this.pointerStart[0],event.clientY-this.pointerStart[1]) > 5) return;
         const material = viewer.materialFromPoint(event.clientX, event.clientY);
-        if (material && this.regions[material.name]) this.pick(material.name);
+        if (!material || !this.regions[material.name]) return;
+        if ((event.metaKey || event.ctrlKey || event.shiftKey) && this.mode !== 'compare') this.addToSelection(material.name); else this.pick(material.name);
       });
     }
   }
