@@ -776,8 +776,14 @@
   }
   /* A window's current values of a sparse metric, newest last, each {day,v,approx}: sample-based days only,
      except for a now-and-then reading, whose history day value is the reading. */
+  /* A window's days (a 30-day median, not one current value). Two measures may take a history file's day figure
+     there (Mintay, Sept 27, V3.2.2): the Watch reports one resting heart rate a day, so the day's figure is that
+     reading, and a day's mean walking speed is what a 30-day median is made of. HRV stays on overnight samples;
+     latestReading (one current value) takes no day figure for any all-day measure. */
+  const WINDOW_DAY=new Set(['resting_heart_rate','walking_speed']);
   function series(x,metric,from,to,kind){
-    const out=[];for(let d=from;d<=to;d=addDays(d,1)){const b=baselineValue(x,metric,d,kind||'latest',true);if(b)out.push({day:d,v:b.v,approx:b.approx});}
+    const day=WINDOW_DAY.has(metric)&&(kind||'latest')==='latest';
+    const out=[];for(let d=from;d<=to;d=addDays(d,1)){const b=baselineValue(x,metric,d,kind||'latest',!day);if(b)out.push({day:d,v:b.v,approx:b.approx});}
     return out;
   }
   /* The newest reading on or before a day, with its age in days (a current value, as above). */
@@ -820,7 +826,7 @@
   /* Where I Stand: current values (30-day window; VO₂ max the latest within 60 days), graded. */
   function standFor(x,day,options){
     const o=options||{},from=addDays(day,-29),who={sex:o.sex,age:o.age},rows=[];
-    const values=(metric,kind)=>series(x,metric,from,day,kind).map(p=>p.v);
+    const values=(metric,kind)=>series(x,metric,from,day,kind).map(p=>p.v),fromFile=metric=>series(x,metric,from,day).filter(p=>p.approx).length;
     const vo2=latestReading(x,'vo2_max',day,TABLE.vo2.staleDays);
     const push=(entry,confidence,extra)=>rows.push({...entry,confidence,...(extra||{})});
     // C.6: the current value is the latest within 60 days. An older reading is dated context: shown with its
@@ -830,7 +836,7 @@
     const recovery=o.recovery||recoveryFor(x,day,o);
     push(recovery.mode==='primary'?stand('heart_rate_recovery',recovery.value,who):{metric:'heart_rate_recovery',value:null,rung:null,label:null,colour:null,note:recovery.mode==='fallback'?recovery.gradeNote:null,fallback:recovery.mode==='fallback'?recovery:null,missing:recovery.missing},recovery.mode==='primary'?recovery.confidence:null,{group:'fitness'});
     const rhr=values('resting_heart_rate'),hrv=values('heart_rate_variability','overnight');
-    push(stand('resting_heart_rate',rhr.length?median(rhr):null,who),rhr.length>=10?'High':rhr.length>=5?'Medium':rhr.length?'Low':null,{group:'fitness',days:rhr.length});
+    push(stand('resting_heart_rate',rhr.length?median(rhr):null,who),rhr.length>=10?'High':rhr.length>=5?'Medium':rhr.length?'Low':null,{group:'fitness',days:rhr.length,historyDays:fromFile('resting_heart_rate')});
     push(stand('heart_rate_variability',hrv.length?median(hrv):null,who),hrv.length>=10?'High':hrv.length>=5?'Medium':hrv.length?'Low':null,{group:'fitness',days:hrv.length});
     const steps=[],nights=[];for(let d=from;d<=day;d=addDays(d,1)){const s=stepsOn(x,d,o.steps);if(s!==null&&d<day)steps.push(s);const n=night(x,d);if(n)nights.push(n.tst);}
     push(stand('step_count',steps.length?mean(steps):null,who),steps.length>=10?'High':steps.length>=5?'Medium':steps.length?'Low':null,{group:'body',days:steps.length});

@@ -1,10 +1,10 @@
 {
-  "build": "2026-09-27-V3.2.1",
+  "build": "2026-09-27-V3.2.2",
   "files": {
     "body-view.css": "4af4ea0d956f44392761d9276d24a6dbbf1a5dd106b2653b186fb5762e454752",
     "body-view.js": "7849da65af8910a09e65c09d0b55eea05974f89ad5e8187f567ae5c7849e5df6",
     "convert-starter.js": "40c333c133bdb5045fd7fe8660861c723ee1a940628a16d6f9bf05ff9cfa0fc4",
-    "delivery.js": "707ca6530ca825b54a08c70da1a3bfdc3e9f3f3afc20eaec9f55fa185603b8f7",
+    "delivery.js": "8ae373c0a71e3c38e401752014c30ad7cbc64dfb5a97215039c5f23334bc8469",
     "eotc-calendar.js": "1fcc866733b1160d7f01d603aaa191e7f8879a3f844275941078d33bf5dde0c4",
     "glow-cross.webp": "db5eac33a2a9215aebca6f0c19c95fef9b9518c300c7cd3b0e50072057d21fcd",
     "glow-mark.webp": "6763ef9b3dff3fadd70a266b876302a53fc6810cd203fdf3f86c6ccc9c1546fa",
@@ -15,16 +15,16 @@
     "history-import.js": "bf031eba1b207969b7bb9ece1aafd92bff93ef9470befad63e4a9220b755fcd9",
     "icon-192.png": "44ab06f93317174e110f8edba98fd335d37f75d6fc7838844007e8c6617a8909",
     "icon-512.png": "e6857fa64bd57035354f2e0443b5e9d28f67c2242e75282223a4076fd61ba6ec",
-    "index.html": "3da106b1dc078c5856bab0e8d0c60e103c31658f5b96582b3ccb87ca8d4684f5",
+    "index.html": "7164990d13ded9bd5796d1e47b958fe7c776d54cf4c1d9466c35fb639cda18e3",
     "manifest.webmanifest": "1df1641bf89b82effa7b1c00ef3ae33eddc61a0b9d5524b507d076f797097cef",
     "meal-water.js": "2ec35f37435af8cc8e5af71b16b7f3cc13436ef6150aa77c9373422b64e79a4a",
     "model-viewer.min.js": "774edda21e1be2a0934e460ca5943af1fe3f88da130a9f98bd6a9d611576cacf",
     "norms.js": "7bf714d4bb7ac516422bff451ce93504b169d5ffc2e179d4943e8980113c07de",
     "offline.html": "7f472596880496629a8dcbde453d2257e9815c088d609d013253a3469efe521d",
     "quarter-points.js": "7d8a7554b70172264ce5ee8f6897d02ed0a9c7e271a206f53957785cc258e58d",
-    "scores.js": "785891e1a9a2b36ccf055248fca5ba077ec64d2a057f27d0bb6e5a8462962bdf",
+    "scores.js": "c9794c88d2bc28c8b1baef0f8c9db34e9f6503418880e6af2c14ba49231fb5ef",
     "scoring-v5.js": "2fd45ed76f1105ba8795e2f392162ed1045fda43385f1f70cdd7833c11afef48",
-    "sw.js": "adbb0ea840737a3f9cc9103fdfc0a1c09aad4ecf42836edb2adc942d279cb64d",
+    "sw.js": "40ab3e32f58c01995c66973b7d2db7a9a9ab83adf56bf77b331d1810157295ef",
     "workspace-proposal.js": "4e8f5f8d5ee14e9ae40a74086335d372658ca1a7017de7b9311773b12a5d8090"
   }
 }
