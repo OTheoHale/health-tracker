@@ -6,9 +6,9 @@
    can be tuned in one place. Every result is {value,label,colour,confidence,inputs,missing} plus its own
    detail; value null means "—", never zero. */
 (function(root,factory){
-  if(typeof module==='object'&&module.exports)module.exports=factory(require('./norms.js'));
-  else root.Scores=factory(root.Norms);
-})(typeof globalThis!=='undefined'?globalThis:this,function(NORMS){
+  if(typeof module==='object'&&module.exports)module.exports=factory(require('./norms.js'),require('./workout-sessions.js'));
+  else root.Scores=factory(root.Norms,root.WorkoutSessions);
+})(typeof globalThis!=='undefined'?globalThis:this,function(NORMS,WORKOUTS){
   'use strict';
   const TABLE=Object.freeze({
     zone:'America/Los_Angeles',
@@ -17,7 +17,7 @@
     sleep:{needH:8,floorH:4,duration:50,consistency:30,interruptions:20,window:14,minNights:5,sdFull:20,sdZero:90,perWake:2,perWakeMin:0.25,freeWakeMin:10,wakeSegmentMin:2,bankNights:7,bankCapH:2,nightFrom:3,nightTo:13,bedtimeOwedH:1,bedtimeLeadMin:15,wakeNights:14,wakeMin:3},
     load:{zones:[[90,5],[80,4],[70,3],[60,2],[50,1]],effortWeights:[[9,4],[6,3],[3,2],[0,1]],defaultWeight:2,everyday:[[6,2],[3,1]],missingShare:0.2,chronic:28,acute:7,chronicMin:14,
       bands:{Recover:[0,0.8],Pace:[0.5,1.0],Ready:[0.8,1.3],Go:[1.0,1.5]},trend:[[0.6,'Well Below'],[0.8,'Below'],[1.3,'Steady'],[1.5,'Above']],redAfter:3},
-    fuel:{mlPerOz:29.5735,proteinPerKg:1.6,kcalFree:150,kcalSlope:500},
+    fuel:{mlPerOz:29.5735,proteinPerKg:1.6,kcalFree:150,kcalSlope:500,waterWeight:0.5,proteinShare:0.5,burnDays:7,burnMin:3},
     healthAge:{perSd:10,clampSd:2,vo2Clamp:20,weights:{vo2:0.40,rhr:0.15,hrv:0.10,bodyFat:0.10,sleep:0.10,steps:0.10,walk:0.05},rhrMedian:65,rhrSd:11.1,hrvMedian:42,hrvLnSd:0.3986,bodyFatMean:26.1,bodyFatSd:6.82,sleepIn:[7,9],steps:7500,stepsSd:2500,walk:1.43,walkSd:0.15,window:30,minDays:10,minWeighIns:3,changeDays:91},
     vo2:{freshDays:60,staleDays:180},
     recovery:{hardShare:0.80,fallbackShare:0.65,halfLifeDays:10,windowDays:30,minSessions:3,endWithinSec:10,around60:[50,70],coolDownDrop:15},
@@ -27,9 +27,12 @@
     hrMax:{minSessions:10,days:365},
     mobility:{speed:[0.8,1.43],asymmetry:[15,12],doubleSupport:[40,12],walkSpan:153,mphToMs:0.44704},
     strength:{targetDays:8,window:28,types:['Traditional Strength Training','Functional Strength Training','Core Training']},
-    daylight:{target:60,morning:10,before:10,rhythm:[75,60],minNights:7,nights:14,minDays:4},
+    daylight:{target:60,morning:10,before:10,rhythm:[75,60],minNights:7,nights:14,minDays:4,weights:{light:40,morning:20,rhythm:40},days:7},
     run:{minMin:20,minM:3000,easy:[0.60,0.80],skip:5,window:28,minRuns:3,trendPct:2},
-    durability:{minMin:50,skip:10,maxGapMin:2,steadyCv:0.08,window:60,minRuns:2}
+    durability:{minMin:50,skip:10,maxGapMin:2,steadyCv:0.08,window:60,minRuns:2,bands:[5,8,12]},
+    // D5 Fast Resilience (V3.3 Phase 2, 7.1): a 180-day window (the spec's 90 is the alternative), the 8-and-8 floor, and
+    // SD floors so one quiet baseline cannot blow a small difference up.
+    fastResilience:{window:180,minDays:8,perD:25,lnSdFloor:0.05,rhrSdFloor:1.5,sleepSdFloor:4,minSamples:3,bands:{steady:90,slight:75,noticeable:50}}
   });
 
   /* ---- small maths ---- */
@@ -224,7 +227,7 @@
     let c=null;if(num(i.kcal)&&num(i.kcalTarget)){const d=Math.abs(i.kcal-i.kcalTarget);c=d<=T.kcalFree?1:Math.max(0,1-(d-T.kcalFree)/T.kcalSlope);}
     const missing=[...(p!==null?[]:[num(i.proteinG)?'Protein target':'Protein']),...(c!==null?[]:[num(i.kcal)?'Calorie target':'Calories'])];
     if(missing.length)return only(missing);
-    const outer=0.5*p+0.5*c,value=Math.round(100*(0.5*inner+0.5*outer));
+    const outer=T.proteinShare*p+(1-T.proteinShare)*c,value=Math.round(100*(T.waterWeight*inner+(1-T.waterWeight)*outer));
     return {value,label:null,colour:goalColour(value,i.closed),confidence:'High',
       inputs:{inner,outer,water:w,protein:p,calories:c,innerColour:goalColour(Math.round(100*inner),i.closed),outerColour:goalColour(Math.round(100*outer),i.closed)},missing};
   }
@@ -236,6 +239,48 @@
     if(!planned.length)return {value:null,label:null,colour:'purple',confidence:null,inputs:{done:0,planned:0},missing:['Nothing planned']};
     const credit=x=>x.status==='done'?1:x.status==='partial'?clamp((num(x.pct)?x.pct:50)/100,0,1):0,done=sum(planned.map(credit));
     return {value:Math.round(100*done/planned.length),label:null,colour:'purple',confidence:null,inputs:{done,planned:planned.length},missing:[]};
+  }
+
+  /* ---- D5 Fast Resilience: how his body carries a fast (Faith colour, never framed as a cost) ----
+     input: {lnH:{fast:[],other:[]}, rhr:{fast:[],other:[]}, sleep:{fast:[],other:[]}, fastDays, otherDays, min}. Each list holds
+     the outcome on the night after a kept fast day and after other days: ln(SDNN) for HRV, bpm for resting heart rate,
+     the Sleep score. For each outcome d = (mean_fast − mean_other) / SD_other (SD floored), with the sign flipped for
+     resting heart rate so that negative always means "carried less well". Resilience = clamp(100 + 25·mean(d), 0, 100),
+     rounded; 100 means no measurable change. It needs 8 kept fast days and 8 other days (the spec's statistical floor). */
+  function fastResilienceLabel(v){const b=TABLE.fastResilience.bands;return v>=b.steady?'Steady':v>=b.slight?'Slight dip':v>=b.noticeable?'Noticeable dip':'Marked dip';}
+  function fastResilience(input){
+    const T=TABLE.fastResilience,i=input||{},min=num(i.min)?i.min:T.minDays;
+    const fastDays=num(i.fastDays)?i.fastDays:null,otherDays=num(i.otherDays)?i.otherDays:null;
+    const base={value:null,label:null,colour:'violet',confidence:null,inputs:{fastDays,otherDays,window:num(i.window)?i.window:T.window,min,outcomes:{}},missing:[]};
+    if(fastDays!==null&&fastDays<min)base.missing.push((min-fastDays)+' more fast day'+(min-fastDays===1?'':'s'));
+    if(otherDays!==null&&otherDays<min)base.missing.push((min-otherDays)+' more other day'+(min-otherDays===1?'':'s'));
+    if(base.missing.length)return base;
+    const ds=[];
+    for(const [key,flip,floor] of [['lnH',false,T.lnSdFloor],['rhr',true,T.rhrSdFloor],['sleep',false,T.sleepSdFloor]]){
+      const g=i[key]||{},fast=present(g.fast||[]),other=present(g.other||[]);
+      if(fast.length<T.minSamples||other.length<T.minSamples)continue;
+      const mf=mean(fast),mo=mean(other),s=Math.max(sd(other),floor),d=(mf-mo)/s*(flip?-1:1);
+      ds.push(d);base.inputs.outcomes[key]={fast:mf,other:mo,sd:s,d,n:[fast.length,other.length],plain:key==='lnH'?(Math.exp(mf-mo)-1)*100:mf-mo};
+    }
+    if(!ds.length){base.missing.push('A night’s HRV, resting heart rate or Sleep score after fast days and other days');return base;}
+    const value=Math.round(clamp(100+T.perD*mean(ds),0,100));
+    const least=Math.min(fastDays===null?Infinity:fastDays,otherDays===null?Infinity:otherDays);
+    return {...base,value,label:fastResilienceLabel(value),confidence:least>=3*min?'High':least>=2*min?'Medium':'Low',inputs:{...base.inputs,meanD:mean(ds)}};
+  }
+  /* The rows' side: options.isFast(day) answers 'fast' (a fast day he kept), 'other' or null (left out); the outcomes are read
+     on the following morning (the night that ends the next day). The window ends the day before `day`. */
+  function fastResilienceFor(x,day,options){
+    const o=options||{},T=TABLE.fastResilience,window=num(o.window)?o.window:T.window,isFast=typeof o.isFast==='function'?o.isFast:()=>null;
+    const g={lnH:{fast:[],other:[]},rhr:{fast:[],other:[]},sleep:{fast:[],other:[]}},days={fast:0,other:0};
+    for(let k=window;k>=1;k--){
+      const d=addDays(day,-k),kind=isFast(d);if(kind!=='fast'&&kind!=='other')continue;
+      const next=addDays(d,1);if(next>day)continue;
+      const h=overnight(x,'heart_rate_variability',next),r=restingHr(x,next),s=sleepFor(x,next,{need:o.need});
+      const lnH=num(h)&&h>0?Math.log(h):null,rhr=r&&!r.yesterday&&num(r.value)?r.value:null,sleep=s&&num(s.value)?s.value:null;
+      if(lnH===null&&rhr===null&&sleep===null)continue;
+      days[kind]++;if(lnH!==null)g.lnH[kind].push(lnH);if(rhr!==null)g.rhr[kind].push(rhr);if(sleep!==null)g.sleep[kind].push(sleep);
+    }
+    return fastResilience({...g,fastDays:days.fast,otherDays:days.other,window,min:o.min});
   }
 
   /* ---- B1 Fitness age ---- */
@@ -352,17 +397,18 @@
   }
 
   /* ---- E4 sessions: same-type workouts at most 10 minutes apart are one session (a scoring view only) ---- */
-  function mergeSessions(workouts){
+  function mergeSessions(workouts,links){
     const gap=TABLE.merge.gapMin*60000,list=(workouts||[]).filter(w=>w&&num(w.start)&&num(w.end)&&w.end>w.start).slice().sort((a,b)=>a.start-b.start||a.end-b.end),out=[];
     const place=(into,from,offset,length)=>{const a=(into||[]).slice();while(a.length<length)a.push(null);(from||[]).forEach((v,k)=>{const at=offset+k;if(at<length&&(a[at]===null||a[at]===undefined))a[at]=v;});return a;};
     for(const w of list){
       const last=out.filter(s=>s.type===w.type).pop();
-      if(last&&w.start-last.end<=gap){
+      if(last&&w.start-last.end<=gap&&!WORKOUTS.splitBetween(last,w,links)){
         const offset=Math.max(0,Math.floor((w.start-last.start)/60000)),end=Math.max(last.end,w.end),length=Math.max(1,Math.ceil((end-last.start)/60000));
         const had=key=>last[key]||w[key];
         for(const key of ['hr','hrMin','hrMax','distanceM','steps'])if(had(key))last[key]=place(last[key]||Array(Math.ceil((last.end-last.start)/60000)).fill(null),w[key]||[],offset,length);
         last.gaps.push(Math.max(0,(w.start-last.end)/60000));
         last.end=end;last.minutes=length;last.parts.push(w.id);last.recovery=w.recovery||null;last.name=last.name||w.name;
+        last.aliases=[...(last.aliases||[]),...(w.aliases||[])];last.also=[...(last.also||[]),...(w.also||[])];
         for(const key of ['distance','energy','movingSec'])if(num(w[key]))last[key]=(num(last[key])?last[key]:0)+w[key];
         if(w.indoor)last.indoor=true;if(!w.outdoor)last.outdoor=false;
       }else out.push({...w,minutes:Math.max(1,Math.ceil((w.end-w.start)/60000)),parts:[w.id],gaps:[]});
@@ -477,7 +523,7 @@
   function daylightRhythm(input){
     const D=TABLE.daylight,i=input||{};
     if(!num(i.daylightMean)||!num(i.midpointSd)||(num(i.nights)&&i.nights<D.minNights))return {value:null,label:null,colour:null,confidence:null,inputs:{},missing:[...(num(i.daylightMean)?[]:['Time in daylight']),...(num(i.midpointSd)&&!(num(i.nights)&&i.nights<D.minNights)?[]:['Seven nights of sleep'])]};
-    const light=40*Math.min(1,i.daylightMean/D.target),morning=20*(num(i.mornings)?i.mornings:0)/7,rhythm=40*clamp((D.rhythm[0]-i.midpointSd)/D.rhythm[1],0,1),value=Math.round(light+morning+rhythm);
+    const light=D.weights.light*Math.min(1,i.daylightMean/D.target),morning=D.weights.morning*(num(i.mornings)?i.mornings:0)/D.days,rhythm=D.weights.rhythm*clamp((D.rhythm[0]-i.midpointSd)/D.rhythm[1],0,1),value=Math.round(light+morning+rhythm);
     return {value,label:null,colour:qualityColour(value,true),confidence:num(i.mornings)?'High':'Medium',inputs:{light,morning,rhythm},missing:[]};
   }
   /* ---- D1 Run Efficiency and D2 Durability (shown once history brings the runs in) ---- */
@@ -492,7 +538,7 @@
     const first=metresPerBeat(d.slice(0,half),h.slice(0,half)),second=metresPerBeat(d.slice(half,2*half),h.slice(half,2*half));
     return first&&second!==null?(first-second)/first*100:null;
   }
-  const driftColour=v=>v<=5?'green':v<=8?'yellow':v<=12?'orange':'red';
+  const driftColour=v=>v<=TABLE.durability.bands[0]?'green':v<=TABLE.durability.bands[1]?'yellow':v<=TABLE.durability.bands[2]?'orange':'red';
   function medianScore(values,min,places){const v=present(values||[]);if(v.length<min)return null;const f=Math.pow(10,places);return Math.round(median(v)*f)/f;}
 
   /* =======================================================================================
@@ -589,7 +635,7 @@
       else if(rep===SAMPLE)put(x.samples,name,day,{t:Date.parse(r.start),v:value});
     }
     for(const list of x.effort.values())list.sort((a,b)=>a.t-b.t);
-    x.sessionsRaw=x.workouts.map(workoutOf).filter(Boolean).sort((a,b)=>a.start-b.start);
+    x.sessionsRaw=x.workouts.map(workoutOf).filter(Boolean);
     return x;
   }
   /* C2: the night of D is the main sleep that ENDS on D between 03:00 and 13:00; the longest wins; naps are ignored. */
@@ -607,35 +653,16 @@
     // A live night outranks a history night for the same day; otherwise the longer sleep is the main one.
     if(!held||(held.history&&!night.history)||(held.history===night.history&&night.tst>held.tst))x.nights.set(day,night);
   }
-  function workoutOf(r){
-    const m=metaOf(r),start=Date.parse(r.start),end=Date.parse(r.end);if(!m||!Number.isFinite(start)||!Number.isFinite(end)||end<=start)return null;
-    const d=r.detail||{},hr=d.hr||{},METRES={m:1,km:1000,mi:1609.344,yd:0.9144,ft:0.3048},q=m.distance,unit=q&&METRES[String(q.units||'').toLowerCase()];
-    return {id:r.id,type:r.type||'Workout',name:r.type||'',writer:r.sourceApp||'',day:m.day,start,end,minutes:Math.max(1,Math.ceil((end-start)/60000)),movingSec:num(r.durationSec)?r.durationSec:null,
-      hr:Array.isArray(hr.avg)?hr.avg:null,hrMin:Array.isArray(hr.min)?hr.min:null,hrMax:Array.isArray(hr.max)?hr.max:null,distanceM:Array.isArray(d.distanceM)?d.distanceM:null,steps:Array.isArray(d.steps)?d.steps:null,
-      recovery:d.recovery&&Array.isArray(d.recovery.sec)?d.recovery:null,distance:q&&num(q.qty)&&unit?q.qty*unit:null,
-      // The export's own flag decides where it has one; the name decides for a record stored before the flag was kept.
-      indoor:typeof d.indoor==='boolean'?d.indoor:/indoor|treadmill/i.test(String(r.type||'')),outdoor:typeof d.indoor==='boolean'?!d.indoor:/outdoor|trail/i.test(String(r.type||''))&&!/indoor|treadmill/i.test(String(r.type||''))};
+  function workoutOf(r){return metaOf(r)?WORKOUTS.record(r,metaOf(r).day):null;}
+  /* Fitness and scores share duplicate ownership. E4's adjacent same-type analysis grouping remains
+     score-only; it cannot undo an explicit split, including a split naming a duplicate's alias. */
+  function selectedSessions(x){
+    if(!x.memo.has('selected-sessions'))x.memo.set('selected-sessions',WORKOUTS.select(x.sessionsRaw,x.links));
+    return x.memo.get('selected-sessions');
   }
-  const watch=writer=>/apple\s+watch/i.test(String(writer||''));
-  // The family an activity belongs to, from its name: two apps name the same run differently.
-  const family=type=>{const t=String(type||'').toLowerCase();return /run|jog/.test(t)?'run':/walk|hik/.test(t)?'walk':/cycl|bik|ride|spin/.test(t)?'cycle':/swim/.test(t)?'swim':/row/.test(t)?'row':/strength|core|functional|weight/.test(t)?'strength':t.trim();};
-  /* One effort recorded by two apps is one session (the Watch and iFIT on the same run): overlapping
-     workouts of the same family from different apps yield to the one with a heart-rate curve, then to the
-     Watch. A run and a strength session that overlap are two activities and both stay. iFIT's own effort
-     numbers are never read (decision 8). Then same-type workouts at most 10 minutes apart are merged (E4).
-     V3.2: entries that share half of the shorter one's time are one session whatever their names. */
-  const paired=(list,a,b)=>(list||[]).some(p=>(p[0]===a&&p[1]===b)||(p[0]===b&&p[1]===a));
   function sessions(x){
-    if(x.memo.has('sessions'))return x.memo.get('sessions');
-    const rank=w=>(w.hr?2:0)+(watch(w.writer)?1:0),kept=[];
-    for(const w of x.sessionsRaw.slice().sort((a,b)=>rank(b)-rank(a)||a.start-b.start)){
-      // One stretch of time is one session whatever each app called it (Mintay, Sept 27: one says Walking, one
-      // Running). Half of the shorter entry must be shared; what he joined or split by hand wins.
-      const twin=kept.find(k=>{if(paired(x.links.split,k.id,w.id))return false;if(paired(x.links.join,k.id,w.id))return true;const over=Math.min(k.end,w.end)-Math.max(k.start,w.start);return over>0&&over>=0.5*Math.min(k.end-k.start,w.end-w.start);});
-      if(twin)(twin.also=twin.also||[]).push({id:w.id,type:w.type,writer:w.writer});
-      if(!twin)kept.push(w);
-    }
-    const merged=mergeSessions(kept);x.memo.set('sessions',merged);return merged;
+    if(!x.memo.has('sessions'))x.memo.set('sessions',mergeSessions(selectedSessions(x),x.links));
+    return x.memo.get('sessions');
   }
   const memo=(x,key,make)=>{if(!x.memo.has(key))x.memo.set(key,make());return x.memo.get(key);};
   const night=(x,day)=>x.nights.get(day)||null;
@@ -696,11 +723,12 @@
   /* Effort minutes outside every workout window, and each workout's mean effort, for one day. */
   function effortFor(x,day){
     return memo(x,'effort|'+day,()=>{
-      const rolled=x.effortRolled.get(day);
-      if(rolled){let points=0;for(const h of rolled.hours||[])if(h&&h.out)points+=everydayLoadFromBands(h.out,rolled.bandStep);return {known:true,everyday:points,workouts:rolled.workouts||{}};}
+      const rolled=x.effortRolled.get(day),selected=selectedSessions(x),owner=new Map();for(const w of selected)for(const id of WORKOUTS.ids(w))owner.set(id,w.id);
+      if(rolled){let points=0;for(const h of rolled.hours||[])if(h&&h.out)points+=everydayLoadFromBands(h.out,rolled.bandStep);const per={};for(const [id,p] of Object.entries(rolled.workouts||{})){const into=owner.get(id);if(!into)continue;const sum=per[into]||(per[into]={sum:0,n:0});sum.sum+=p.sum;sum.n+=p.n;}return {known:true,everyday:points,workouts:per};}
       const list=x.effort.get(day);if(!list)return {known:false,everyday:0,workouts:{}};
+      // Preserve the raw input-order attribution kept by HAE rollups, then resolve its duplicate owner.
       const windows=x.sessionsRaw.filter(w=>w.day===day||w.day===addDays(day,-1)),outside=[],per={};
-      for(const s of list){const w=windows.find(k=>s.t>=k.start&&s.t<=k.end);if(w){const p=per[w.id]||(per[w.id]={sum:0,n:0});p.sum+=s.v;p.n++;}else outside.push(s.v);}
+      for(const s of list){const w=windows.find(a=>s.t>=a.start&&s.t<=a.end),id=w&&owner.get(w.id);if(id){const p=per[id]||(per[id]={sum:0,n:0});p.sum+=s.v;p.n++;}else outside.push(s.v);}
       return {known:true,everyday:everydayLoad(outside),workouts:per};
     });
   }
@@ -726,11 +754,13 @@
      holds its workouts only, a floor: counted as a load it pulled the 28-day mean down, so an ordinary day read
      as far above it (V3.2). Such a day is drawn, faded, and sets nothing. */
   function fullLoad(x,day,options){const d=loadOf(x,day,options);return d.approx?null:d.L;}
+  const workoutBaselineLoad=d=>d.parts.length||(!d.approx&&d.L!==null)?d.workout:null;
   function loadFor(x,day,options){
-    const o=options||{},today=loadOf(x,day,o),history=[];
-    for(let k=TABLE.load.chronic;k>=1;k--)history.push(fullLoad(x,addDays(day,-k),o));
-    const result=load({L:today.L,history,readinessLabel:o.readinessLabel,closed:o.closed,wellAboveDays:o.wellAboveDays,weak:today.weak});
-    result.inputs.workout=today.workout;result.inputs.everyday=today.everyday;result.inputs.parts=today.parts;result.inputs.approx=today.approx;
+    const o=options||{},today=loadOf(x,day,o),full=[],workouts=[];
+    for(let k=TABLE.load.chronic;k>=1;k--){const date=addDays(day,-k),d=loadOf(x,date,o);full.push(fullLoad(x,date,o));workouts.push(workoutBaselineLoad(d));}
+    const fullDays=present(full).length,workoutDays=present(workouts).length,workoutsOnly=fullDays<TABLE.load.chronicMin,history=workoutsOnly?workouts:full;
+    const result=load({L:workoutsOnly?workoutBaselineLoad(today):today.L,history,readinessLabel:o.readinessLabel,closed:o.closed,wellAboveDays:workoutsOnly?0:o.wellAboveDays,weak:today.weak||workoutsOnly});
+    Object.assign(result.inputs,{workout:today.workout,everyday:today.everyday,parts:today.parts,approx:today.approx||workoutsOnly,totalLoad:today.L,baselineKind:workoutsOnly?'workouts':'full',fullDays,workoutDays,days:present(history).length,closed:o.closed===true});
     return result;
   }
   /* Consecutive days, ending yesterday, whose trend label read Well Above (the only road to red). */
@@ -892,9 +922,9 @@
     // formulas
     readiness,readinessLabel,readinessColour,zScores,sleepScore,sleepBand,sleepBank,clock,timeOfDay,bedtime,zoneWeight,sessionLoad,everydayLoad,everydayLoadFromBands,loadTrend,loadBand,load,fuel,faith,
     fitnessAge,healthAge,healthAgeWindow,ageOn,bandFor,cutsFor,stand,range,floorCheck,appleLevel,biggestGains,mergeSessions,hrMaxOf,hrAt60,endHr,recoverySpeed,earlyWarning,momentum,
-    mobility,walkLowerLimit,strengthBalance,daylightRhythm,runEfficiency,cardiacDrift,driftColour,goalColour,qualityColour,ageColour,
+    mobility,walkLowerLimit,strengthBalance,daylightRhythm,runEfficiency,cardiacDrift,driftColour,goalColour,qualityColour,ageColour,fastResilience,fastResilienceLabel,
     // rows
-    readable,select,holds,index,sessions,night,overnight,restingHr,baseline,series,latestReading,sleepFor,bedtimeFor,hrMaxFor,effortFor,loadOf,loadFor,wellAboveRun,warningFor,readinessFor,healthAgeFor,healthAgeTrend,fitnessAgeFor,recoveryFor,standFor,momentumFor,mobilityFor,strengthFor,daylightFor,runsFor,stepsOn,
+    readable,select,holds,index,sessions,night,overnight,restingHr,baseline,series,latestReading,sleepFor,bedtimeFor,hrMaxFor,effortFor,loadOf,loadFor,wellAboveRun,warningFor,readinessFor,healthAgeFor,healthAgeTrend,fitnessAgeFor,recoveryFor,standFor,momentumFor,mobilityFor,strengthFor,daylightFor,runsFor,stepsOn,fastResilienceFor,
     // helpers the page shares
     addDays,daysBetween,mondayOf,median,mean,sd,robustSd,stepDown};
 });

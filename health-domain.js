@@ -126,6 +126,27 @@ function tzName(){
   try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown'; }
   catch(e){ return 'unknown'; }
 }
+/* Printed instants only. Calendar, feed and sleep-day selection must not call this formatter. */
+const pacificFormats = new Map();
+function pacificTime(value, style='stamp'){
+  if(value===null||value===undefined||value===''||(typeof value==='string'&&!/(?:Z|[+-]\d{2}:?\d{2})$/i.test(value)))return 'Unknown';
+  const date=new Date(value);if(!Number.isFinite(date.getTime()))return 'Unknown';
+  if(!pacificFormats.has(style)){
+    const options=style==='clock'?{hour:'2-digit',minute:'2-digit',hourCycle:'h23'}:{...(['time','compact'].includes(style)?{}:{month:'short',day:'numeric',year:'numeric'}),hour:'numeric',minute:'2-digit',...(style==='compact'?{}:{timeZoneName:'short'})};
+    pacificFormats.set(style,new Intl.DateTimeFormat('en-US',{...options,timeZone:'America/Los_Angeles'}));
+  }
+  return pacificFormats.get(style).format(date);
+}
+function freshnessAge(value, now=Date.now()){
+  const at=value?Date.parse(value):NaN,age=now-at;
+  if(!Number.isFinite(age)||age<0)return {tone:'none',word:'unknown freshness',ago:'unknown',at:null};
+  const [tone,word]=age<=6e5?['live','current']:age<=432e5?['recent','a few hours old']:age<=864e5?['today','most of a day old']:['stale','over a day old'];
+  return {tone,word,at:value,ago:age<36e5?Math.max(1,Math.round(age/6e4))+' min ago':age<864e5?Math.floor(age/36e5)+' h ago':Math.floor(age/864e5)+' d ago'};
+}
+function targetParts(value,target){
+  if(!Number.isFinite(value)||!Number.isFinite(target)||target<=0)return {known:false,done:null,left:null,extra:null};
+  return {known:true,done:Math.min(target,Math.max(0,value)),left:Math.max(0,target-value),extra:Math.max(0,value-target)};
+}
 function newId(prefix){ return prefix + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7); }
 
 /* ---- template versions are append-only. A date resolves to the version
@@ -217,10 +238,13 @@ function legacyPlanFor(state, date){
     return r;
   }).filter(r => !r.childIds || r.children.length);
 }
-function flatPlanFor(state, date){ return leafRows(planFor(state,date)).filter(r=>!confirmedProgression(state)||!r.aliasOf); }
+function flatPlanFor(state, date){
+  const held=drawMemo&&drawMemo.state===state,rows=leafRows(held?planForDraw(state,date):planFor(state,date)).filter(r=>!confirmedProgression(state)||!r.aliasOf);
+  return held?structuredClone(rows):rows;
+}
 function findPlanRow(state, seriesId, date){
-  const rows = planFor(state, date);
-  return allRows(rows).find(r => r.seriesId === seriesId) || null;
+  const held=drawMemo&&drawMemo.state===state,rows=held?planForDraw(state,date):planFor(state,date),row=allRows(rows).find(r=>r.seriesId===seriesId)||null;
+  return held&&row?structuredClone(row):row;
 }
 function familySummary(children){
   const required = children.filter(c => !c.optional), basis = required.length ? required : children;
@@ -1297,10 +1321,12 @@ function rewardReport(state, today){
   return Object.assign({orbs,pending,claims,daysRecorded:days.size,progression:rewards.progression,quest:{text:REWARD_RULES.questText,done:eligible.some(e => e.date === today),reward:1},achievements:rewardAchievements(state,orbs,days.size)},level);
 }
 function rewardMergeConflicts(cur,inc){
+  if(wsMergePerfectRules(cur.rewards?.perfectTiers,inc.rewards?.perfectTiers).error)return ['Perfect policy history'];
   if((!confirmedProgression(cur)||!confirmedProgression(inc))&&!Object.values(cur.rewards?.claims||{}).concat(Object.values(inc.rewards?.claims||{})).some(c=>c.ruleVersion===4))return [];
   return Object.keys(inc.rewards.claims).filter(id=>{
     const a=cur.rewards.claims[id],b=inc.rewards.claims[id];if(!a)return false;
     if(a.amount!==b.amount||a.claimedAt!==b.claimedAt)return true;
+    if((wsProtectedClaim(a)||wsProtectedClaim(b))&&JSON.stringify([a.seriesId,a.date,a.epochId,a.calculation])!==JSON.stringify([b.seriesId,b.date,b.epochId,b.calculation]))return true;
     const x=a.adjustments||[],y=b.adjustments||[];
     return x.slice(0,Math.min(x.length,y.length)).some((v,i)=>JSON.stringify(v)!==JSON.stringify(y[i]));
   });
@@ -1693,7 +1719,7 @@ function haeRowsFor(state,metrics){const m=haeRowsByMetric(state),out=[];for(con
 /* A reading for goals, in display units: mass in lb, everything else canonical. */
 function goalReading(state,metrics,pick){
   const H=globalThis.HealthAutoExport,g=goalsV2(state),rows=[];
-  for(const r of haeRowsFor(state,metrics)){const m=r.unmapped?.healthAutoExport;if(!m||!metrics.includes(m.metric)||!Number.isFinite(r.value)||(r.clashes||[]).length)continue;const def=H&&H.metric?H.metric(m.metric):null,f=def&&def.units[r.unit];if(!Number.isFinite(f))continue;let v=r.value*f;if(def.unit==='kg')v=v/0.45359237;rows.push({date:sourceLocalDay(r.start),start:r.start,value:v});}
+  for(const r of haeRowsFor(state,metrics)){const m=r.unmapped?.healthAutoExport;if(!m||!metrics.includes(m.metric)||!Number.isFinite(r.value)||(r.clashes||[]).length)continue;const def=H&&H.metric?H.metric(m.metric):null,f=def&&def.units[r.unit];if(!Number.isFinite(f))continue;let v=r.value*f;if(def.unit==='kg')v=v/0.45359237;if(m.metric==='waist_circumference'&&def.unit==='cm')v=v/2.54;rows.push({date:sourceLocalDay(r.start),start:r.start,value:v});}
   rows.sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));if(!rows.length)return null;
   if(pick==='baseline'&&g.startDate){const after=rows.find(x=>x.date>=g.startDate);return after||rows[rows.length-1];}
   return rows[rows.length-1];
@@ -1702,7 +1728,7 @@ function goalTargets(state){
   const g=goalsV2(state),goalW=g.weightLb.jan7,longW=g.weightLb.longTerm,out=[];
   const r1=v=>Number.isFinite(v)?Math.round(v*10)/10:null;
   for(const rule of GOAL_RULES_V2){
-    if(rule.derived==='bmi'){const w=latestWeightLb(state);const bmi=lb=>g.heightIn&&Number.isFinite(lb)?703*lb/(g.heightIn*g.heightIn):null;out.push({...rule,latest:w?{value:r1(bmi(w.lb)),date:w.date}:null,jan7:r1(bmi(goalW)),longTerm:r1(bmi(longW))});continue;}
+    if(rule.derived==='bmi'){const w=latestWeightLb(state),base=goalReading(state,['weight_body_mass'],'baseline');const bmi=lb=>g.heightIn&&Number.isFinite(lb)?lb*0.45359237/Math.pow(g.heightIn*.0254,2):null;out.push({...rule,baseline:base?{value:r1(bmi(base.value)),date:base.date}:null,latest:w?{value:r1(bmi(w.lb)),date:w.date}:null,jan7:r1(bmi(goalW)),longTerm:r1(bmi(longW))});continue;}
     const latest=goalReading(state,rule.metrics),base=goalReading(state,rule.metrics,'baseline');
     const val=spec=>{if(!spec)return null;if(spec==='fatAtGoal'){const bw=base?latestWeightLb(state,base.date):null;return base&&bw&&goalW?r1((base.value/100*bw.lb-0.85*(bw.lb-goalW))/goalW*100):null;}
       if(Number.isFinite(spec.value))return spec.value;if(spec.baselineMinus!==undefined)return base?r1(base.value-spec.baselineMinus):null;if(spec.baselinePlus!==undefined)return base?r1(base.value+spec.baselinePlus):null;
@@ -1784,20 +1810,22 @@ function sourceEvidenceSummary(state, id){
 }
 function sourceEvidenceSummaryOf(state, id){
   const kinds=new Set(), writers=new Set(), transports=new Set();
-  let count=0, latest=null, retrieved=null;
+  const projected=state.autoFeed&&sourceProjection(state),active=projected&&sourceProjectionCache.get(state).active;
+  let count=0, latest=null, retrieved=null, lastWorkout=null;
   for(const r of state.sourceRecords || []){
-    if(!sourceIsActive(state,r.id,r)||!relaySourceMatches(id,r)) continue;
+    if((state.autoFeed?!active?.has(r.id):!sourceIsActive(state,r.id,r))||!relaySourceMatches(id,r)) continue;
     count++; kinds.add(r.kind); writers.add(r.sourceApp); transports.add(r.transport || 'legacy relay; transport not recorded');
     const sample=r.end || r.start, retrieval=r.lastRetrievedAt || r.relayedAt;
     if(sample && (!latest || Date.parse(sample)>Date.parse(latest))) latest=sample;
+    if(r.kind==='workout'&&sample&&(!lastWorkout||Date.parse(sample)>Date.parse(lastWorkout)))lastWorkout=sample;
     if(retrieval && (!retrieved || Date.parse(retrieval)>Date.parse(retrieved))) retrieved=retrieval;
   }
   const local=transports.has('local file'), mixed=local && transports.size>1;
-  return {id,state:count?(mixed?'mixed imports':local?'local import':'relayed'):'unverified',count,kinds:[...kinds],writers:[...writers],lastSample:latest,retrievedAt:retrieved,transports:[...transports],route:count?(mixed?'Local file and relay records; no verified direct connection':local?'Locally selected file; no verified direct connection':'Sender-reported records via relay; no verified direct connection'):'No matching local records; actual field availability unverified',note:'Based on writing-app labels in local records, not independent device/account verification.'};
+  return {id,state:count?(mixed?'mixed imports':local?'local import':'relayed'):'unverified',count,kinds:[...kinds],writers:[...writers],lastSample:latest,lastWorkout,retrievedAt:retrieved,transports:[...transports],route:count?(mixed?'Local file and relay records; no verified direct connection':local?'Locally selected file; no verified direct connection':'Sender-reported records via relay; no verified direct connection'):'No matching local records; actual field availability unverified',note:'Based on writing-app labels in local records, not independent device/account verification.'};
 }
 const BODY_MASS_METRICS = ['weight_body_mass', 'weight_&_body_mass'];
 function weightHistory(state, from, to, unit){
-  const dest = ['kg','lb'].includes(unit) ? unit : state.prefs.units;
+  const dest = ['kg','lb'].includes(unit) ? unit : state.prefs.units==='kg'?'kg':'lb';
   const rows = observationsBetween(state, from, to).filter(o => Number.isFinite(o.weight)).map(o => ({ id:'manual:' + o.date, date:o.date, instant:o.date, originalValue:o.weight, originalUnit:o.weightUnit || null, source:'Manual check-in', origin:'self-reported', reference:o }));
   // Body fat percentage, BMI and lean body mass are all kind 'weight' too. A percentage or an
   // index is not a body weight, and including them put "32.6 %" under a heading that says Weight
@@ -1819,11 +1847,8 @@ function workoutHistory(state, from, to){
   }
   return rows.sort((a, b) => b.date.localeCompare(a.date) || (b.start || '').localeCompare(a.start || ''));
 }
-/* One run recorded by the Watch and by iFIT is one session (Mintay, 2026-09-24): an imported workout
-   of the same kind (cardio or strength) from another app that overlaps a Watch workout by at least
-   half of the shorter one folds into the Watch record, which names the other app under `also`. It
-   was listed twice and counted twice in Fitness (182 min for 145). Types not yet classified, manual
-   logs and two Watch workouts never merge. Evidence check-offs already choose one of the two. */
+/* Watch-owned duplicates share at least half the shorter span, whatever the names. Explicit joins
+   and splits override overlap; self-reported logs stay separate. The shared selector owns this rule. */
 function workoutLinks(state){
   const pairs=list=>(Array.isArray(list)?list:[]).filter(p=>Array.isArray(p)&&p.length===2&&p.every(v=>typeof v==='string'));
   const l=state&&state.prefs&&state.prefs.workoutLinks||{};return {join:pairs(l.join),split:pairs(l.split)};
@@ -1837,22 +1862,24 @@ function setWorkoutLink(state,a,b,kind){
   return {ok:true};
 }
 function workoutSessions(state, rows){
-  const kind=r=>wsWorkoutClass(state,r.reference),span=r=>{const a=Date.parse(r.reference.start),b=r.reference.end?Date.parse(r.reference.end):a+(r.minutes||0)*60000;return [a,b];};
-  // One stretch of time is one session whatever each app called it (V3.2, Mintay Sept 27): an entry that shares
-  // half of the shorter one's time with a session already kept joins it. The Watch's entry is the one kept.
-  // Pairs he joined or split by hand (prefs.workoutLinks) win over the clock.
-  const links=workoutLinks(state),paired=(list,a,b)=>list.some(p=>(p[0]===a&&p[1]===b)||(p[0]===b&&p[1]===a)),idOf=r=>r.reference&&r.reference.id;
-  const copies=rows.map(r=>({...r})),order=copies.map((r,i)=>[r,i]).sort((x,y)=>(y[0].origin==='relayed'&&wsWatch(y[0].reference)?1:0)-(x[0].origin==='relayed'&&wsWatch(x[0].reference)?1:0)||x[1]-y[1]),kept=new Set(),hosts=[];
-  for(const [r] of order){
-    if(r.origin==='relayed'&&r.reference){
-      const [a,b]=span(r);
-      const host=hosts.find(w=>{if(paired(links.split,idOf(w),idOf(r)))return false;if(paired(links.join,idOf(w),idOf(r)))return true;const [c,d]=span(w),o=Math.min(b,d)-Math.max(a,c);return o>0&&o>=0.5*Math.min(b-a,d-c);});
-      if(host){(host.also=host.also||[]).push(r.source&&r.source!==host.source?r.source:r.type);(host.alsoIds=host.alsoIds||[]).push(idOf(r));continue;}
-      hosts.push(r);
-    }
-    kept.add(r);
+  const normalized=[],unselected=[];
+  for(const row of rows){const value=row.origin==='relayed'&&row.reference?WorkoutSessions.record(row.reference,row.date):null;if(value)normalized.push({...value,row});else unselected.push({...row});}
+  const selected=WorkoutSessions.select(normalized,workoutLinks(state)).map(w=>{
+    const row={...w.row},detail=row.reference.detail||{},hr=detail.hr||{};
+    row.reference={...row.reference,detail:{...detail,hr:{...hr,avg:w.hr,min:w.hrMin,max:w.hrMax},distanceM:w.distanceM,steps:w.steps,recovery:w.recovery}};
+    if(w.aliases.length){row.also=w.aliases.map(a=>a.writer&&a.writer!==w.writer?a.writer:a.type);row.alsoIds=w.aliases.map(a=>a.id);}row.curveSources=w.curveSources;
+    return row;
+  });
+  return [...selected,...unselected].sort((a,b)=>b.date.localeCompare(a.date)||(b.start||'').localeCompare(a.start||''));
+}
+function workoutSessionsInRange(state,from,to){
+  // Choose ownership before date filtering: a duplicate crossing midnight cannot reappear in a day view.
+  let selected=drawMemo&&drawMemo.state===state&&drawMemo.workoutSessions;
+  if(!selected){
+    const rows=workoutHistory(state,'1000-01-01','9999-12-31').filter(w=>w.origin==='relayed'&&!(w.reference.clashes||[]).length).map(w=>({...w,date:w.reference.unmapped?.healthAutoExport?.day||w.date}));
+    selected=workoutSessions(state,rows);if(drawMemo&&drawMemo.state===state)drawMemo.workoutSessions=selected;
   }
-  return copies.filter(r=>kept.has(r));
+  return selected.filter(w=>w.date>=from&&w.date<=to);
 }
 function workoutComparison(rows, end, span){
   span=Math.max(1,Math.min(7,span||7));
@@ -1916,6 +1943,7 @@ function addNote(state, text, area){
   const t = String(text || '').trim().slice(0, 300); if (!t) return null;
   if (!state.notes) state.notes = [];
   const n = { id: newId('n'), text: t, area: String(area || ''), at: nowIso(), done: false };
+  if (typeof stampedBuildId === 'function') n.build = stampedBuildId();   // V3.3 (3.6): the build the suggestion was written on
   state.notes.push(n); return n;
 }
 function noteChangedAt(n){ return Math.max(...[n.at, n.doneAt, n.updatedAt].map(t => Date.parse(t) || 0)); }
@@ -1940,7 +1968,8 @@ function saveFeedbackDraft(state, fields){
   }
   if (!text.trim() || typeof f.cardId !== 'string' || !f.cardId || typeof f.cardLabel !== 'string' || !f.cardLabel) return null;
   const at = nowIso();
-  d = {id:newId('feedback'),cardId:f.cardId,cardLabel:f.cardLabel,area:String(f.area || ''),text,at,updatedAt:at,status:'draft'};
+  d = {id:newId('feedback'),cardId:f.cardId,cardLabel:f.cardLabel,area:String(f.area || ''),text,at,updatedAt:at,status:'draft',
+    ...(f.page ? {page:String(f.page)} : {}), ...(f.item ? {item:String(f.item)} : {}), ...(f.day ? {day:String(f.day)} : {}), build:typeof stampedBuildId === 'function' ? stampedBuildId() : undefined};   // V3.3 (3.6): where it was written
   state.feedbackDrafts.push(d); return d;
 }
 function promoteFeedbackDraft(state, id){
@@ -1953,7 +1982,7 @@ function promoteFeedbackDraft(state, id){
   if (existing && (existing.sourceDraftId !== d.id || !existing.sourceCard || existing.sourceCard.id !== d.cardId)) return null;
   if (d.status === 'approved') return existing || null;
   const at = new Date(Math.max(Date.now(), noteChangedAt(d) + 1)).toISOString();
-  const n = existing || {id:noteId,text:d.text.trim(),area:d.area,at,done:false,sourceCard:{id:d.cardId,label:d.cardLabel,area:d.area},sourceDraftId:d.id};
+  const n = existing || {id:noteId,text:d.text.trim(),area:d.area,at,done:false,sourceCard:{id:d.cardId,label:d.cardLabel,area:d.area,...(d.page ? {page:d.page} : {}),...(d.item ? {item:d.item} : {}),...(d.day ? {day:d.day} : {})},sourceDraftId:d.id,...(d.build ? {build:d.build} : {})};
   if (!existing) state.notes.push(n);
   d.status = 'approved'; d.approvedNoteId = n.id; d.approvedAt = at; d.updatedAt = at;
   return n;
@@ -2250,6 +2279,7 @@ function validateState(x){
   if (x.rewards !== undefined){
     const r = x.rewards, map = v => v && typeof v === 'object' && !Array.isArray(v);
     if (!map(r) || r.version !== 2 || !map(r.claims) || !map(r.evidence) || !map(r.unlocks) || !map(r.progression)) return 'The reward ledger is malformed.';
+    if(r.perfectTiers!==undefined){const error=validatePerfectPolicy(r.perfectTiers);if(error)return error;}
     if (!['legacy-10','gentle-v1','confirmed-s11','quarter-v1'].includes(r.progression.rule)) return 'The progression rule is unsupported.';
     if (r.progression.rule === 'gentle-v1' && (!Number.isInteger(r.progression.anchorLevel) || r.progression.anchorLevel < 1 || r.progression.firstThreshold !== r.progression.anchorLevel * 10)) return 'The progression milestone is malformed.';
     for (const [id,c] of Object.entries(r.claims)){
@@ -2491,7 +2521,7 @@ store.connect = async function(){
 };
 store.read = function(){
   if(durableStore.error)return {ok:false,error:durableStore.error,transactionalError:true};
-  if(durableStore.active)return {ok:true,state:JSON.parse(JSON.stringify(durableStore.cache))};
+  if(durableStore.active)return {ok:true,state:cloneRecord(durableStore.cache)};
   return legacyRead();
 };
 // The committed record this tab last read or saved, without re-reading the whole store. A tap
@@ -2506,7 +2536,7 @@ store.readFresh = async function(){
   const result=await durableStore.engine.read();
   if(!result.ok || result.authority!=='indexeddb')return {ok:false,error:result.error||'The current storage generation could not be read.',transactionalError:true};
   durableStore.cache=result.state;
-  return {ok:true,state:JSON.parse(JSON.stringify(result.state))};
+  return {ok:true,state:cloneRecord(result.state)};
 };
 store.activate = async function(state,backup){
   if(!durableStore.engine)return {ok:false,error:'Transactional storage is unavailable in this app.'};
@@ -2624,6 +2654,7 @@ function previewMerge(cur, inc){
   const currentGrades = cur.grades || defaultGradeSettings();
   if (JSON.stringify(currentGrades) !== JSON.stringify(inc.grades)) out.clash.push({kind:'category importance and inclusion',key:'settings',keeps:later(inc.grades.updatedAt,currentGrades.updatedAt)?'file':'here'});
   if (cur.rewards && JSON.stringify(cur.rewards.progression) !== JSON.stringify(inc.rewards.progression)) out.clash.push({kind:'progression rule (active milestone preserved)',key:'settings',keeps:'here'});
+  if(inc.rewards?.perfectTiers){const a=cur.rewards?.perfectTiers,b=inc.rewards.perfectTiers;out.add.perfectPolicies=a?b.tables.filter(t=>!a.tables.some(x=>x.effectiveFrom===t.effectiveFrom)).length:b.tables.length;out.add.sleepPreferences=a?b.sleep.filter(t=>!a.sleep.some(x=>x.effectiveFrom===t.effectiveFrom)).length:b.sleep.length;}
   if (typeof journalMergePreview === 'function'){ const j = journalMergePreview(cur,inc); out.add.journal = j.add; out.clash.push(...j.clash); }
   for (const g of inc.groups){
     const mine = (cur.groups || []).find(x => x.id === g.id);
@@ -2957,15 +2988,17 @@ function wsState(state,row,date,options={}){
   if(date===(options.today||todayYmd())&&options.time&&/^\d\d:\d\d$/.test(row.window||'')&&row.window>options.time)return 'future';
   return 'open';
 }
-function planFor(state,date){
-  // Within one draw the same day's plan is asked for many times (433 calls on Quests).
-  // Each caller gets its own copy, so a caller that edits its rows cannot touch another's.
+function planForDraw(state,date){
+  // Private read-only tree for this draw; public readers copy only the shape they return.
   if(drawMemo&&drawMemo.state===state){
     const plans=drawMemo.plans||(drawMemo.plans=new Map());
     if(!plans.has(date))plans.set(date,planForUncached(state,date));
-    return structuredClone(plans.get(date));
+    return plans.get(date);
   }
   return planForUncached(state,date);
+}
+function planFor(state,date){
+  return drawMemo&&drawMemo.state===state?structuredClone(planForDraw(state,date)):planForUncached(state,date);
 }
 function planForUncached(state,date){
   if(!wsEnabled(state))return legacyPlanFor(state,date);
@@ -3029,8 +3062,9 @@ function validateWorkspaceFamily(state){
   if(state.journal&&Object.entries(state.journal).some(([d,e])=>!validCalendarDate(d)||!e||e.date!==d||['intention','reflection','feedback'].some(k=>typeof e[k]!=='string')))return 'A journal entry is malformed.';
   return null;
 }
+function wsCommitOn(draft,id,date,committed){const s=draft.series.find(s=>s.id===id),v=s&&versionFor(s,date);if(!v||v.childIds||!validCalendarDate(date)||!scheduledOn(v,date))return {ok:false,error:'Choose an available leaf on this date.'};const o=ensureOcc(draft,id,date);o.committed=!!committed;if(committed&&v.recurrence?.kind==='target'&&v.recurrence.count===1&&v.recurrence.mode!=='rolling'&&!o.status&&!draft.rewards.claims[o.rewardEventId])o.rewardEventId=id+'|week:'+weekStartOf(date,1);touch(o);return {ok:true,record:o};}
 function wsTransaction(state,change){
-  const draft=wsClone(state);wsEnsure(draft);
+  const draft=state.syntheticWorkspace===true?wsClone(state):cloneRecord(state);wsEnsure(draft);
   try{const result=change(draft);if(result?.ok===false)return result;const error=validateState(draft);if(error)return {ok:false,error};replaceState(state,draft);return result&&result.ok!==undefined?result:{ok:true,record:result||null};}
   catch(error){return {ok:false,error:error.message};}
 }
@@ -3267,6 +3301,8 @@ function wsAutoEvidence(state,options={}){
   for(let i=days-1;i>=0;i--){
     const date=addDays(today,-i);
     for(const series of state.series.slice()){
+      const dv=versionFor(series,date);
+      if(dv&&dv.matching?.kind==='deficit'){const r=wsAutoDeficit(state,series,date,dv,today);if(r)changes.push(r);continue;}
       if(!wsAutoEligible(state,series,date))continue;
       const preview=wsEvidencePreview(state,series.id,date);if(!preview.ok)continue;
       // Only the automatic feed links itself; a file imported by hand keeps its reviewed flow.
@@ -3282,10 +3318,25 @@ function wsAutoEvidence(state,options={}){
   }
   return {ok:true,changes};
 }
+/* V3.3 Phase 2 (7.2): the Deficit item checks itself the same day, once the day's food, resting and active energy are all
+   there and the deficit is on track (the item's own onTrack figure); a day he already marked, excused or removed is left
+   alone. The check is his own confirmation made by the data (`auto`), so his later edit still wins. */
+function wsAutoDeficit(state,series,date,v,today){
+  // 7.2: the day itself only. The sweep walks the last week, and a past day's record never moves (P2-13).
+  if(date!==(today||todayYmd()))return null;
+  if(series.demo||(series.archivedAt&&series.archivedAt<=date)||!scheduledOn(v,date))return null;
+  const o=state.occurrences[occKey(series.id,date)];if(o&&(o.status||o.removed||o.disposition||o.autoDeclined))return null;
+  const eb=Workspace.energyBalance(state,date);if(!eb||!eb.complete)return null;
+  const need=Number(v.matching.onTrack)||Number(v.matching.target)||0;if(-eb.balance<need)return null;
+  const r=confirmAction(state,series.id,date,{});if(!r.ok||!r.occurrence)return null;
+  r.occurrence.confirmation={...r.occurrence.confirmation,made:'data',deficit:Math.round(-eb.balance)};   // a data-made confirmation: not a source record (`auto` means source-linked to V3.2.2), not self-reported
+  return {seriesId:series.id,date,name:v.name,sourceIds:[],minutes:null};
+}
 function wsUnsortedWorkouts(state,options={}){
   const today=options.today||todayYmd(),from=addDays(today,-((options.days||WS_AUTO_DAYS)-1)),seen=new Map();
-  for(const r of state.sourceRecords||[]){
-    if(r.kind!=='workout'||!sourceEvidenceEligible(state,r)||wsWorkoutClass(state,r)!==null)continue;
+  const workouts=rowMemo(state,'raw-workouts',()=>(state.sourceRecords||[]).filter(r=>r.kind==='workout'));
+  for(const r of workouts){
+    if(!sourceEvidenceEligible(state,r)||wsWorkoutClass(state,r)!==null)continue;
     const day=sourceLocalDay(r.start);if(day<from||day>today)continue;
     const key=wsWorkoutTypeKey(r);if(!key)continue;
     const item=seen.get(key)||{key,type:r.type,count:0,latest:null,minutes:0};item.count++;item.minutes+=wsExactMinutes(r)||0;item.latest=!item.latest||r.start>item.latest?r.start:item.latest;seen.set(key,item);
@@ -3323,7 +3374,7 @@ function wsSlots(state,rows,date,options){
   return decorated.map(({row,plannedTime,angle})=>{const status=wsState(state,row,date,options),o=state.occurrences[row.key];return {id:row.key,seriesId:row.seriesId,occurrenceKey:row.key,title:row.name,groupId:row.group,state:status,confirmed:status==='closed',plannedTime,period:plannedTime?null:row.anchor||'untimed',angle:angle%360,width,actualTime:o?.loggedAt||null,positionBasis:plannedTime?'approximate planned hour':'untimed list position; not a clock time'};});
 }
 function wsRings(state,date,options={}){
-  const all=flatPlanFor(state,date).filter(r=>!r.demo&&(!options.groupId||r.group===options.groupId));
+  const all=flatPlanFor(state,date).filter(r=>!r.demo&&(!options.groupId||r.group===options.groupId)&&(!options.includeRow||options.includeRow(r)));
   const required=all.filter(r=>wsRequired(state,r)),routineRows=required.filter(r=>!['cardio','strength'].includes(r.workspaceKind));
   const slots=wsSlots(state,routineRows,date,options),done=slots.filter(s=>s.confirmed).length;
   const routine={id:'routine',label:'Routine',status:!slots.length?'no-target':done===slots.length?'closed':slots.some(s=>s.state==='pending-evidence')?'pending-evidence':done?'partial':slots.every(s=>s.state==='future')?'future':slots.every(s=>s.state==='not-done')?'not-done':'open',applicable:slots.length>0,closed:slots.length>0&&done===slots.length,value:done,target:slots.length,unit:'leaves',minimum:null,sourceIds:[],actionIds:routineRows.map(r=>r.seriesId),slots};
@@ -3435,42 +3486,168 @@ function wsQuarterEntitlement(state,o,epochOverride){
   const amount=baseQ+bonusQ;if(!Number.isSafeInteger(amount)||amount<=0)return null;
   return {id,eventId:id,seriesId:o.seriesId,date:o.date,name:v.name,amount,amountQ:amount,displayAmount:amount/4,ruleVersion:4,unit:'quarter-point',epochId:epoch.id,origin:o.confirmation?.kind==='source'?'import':'manual',evidenceIds:Object.values(state.rewards.evidence).filter(e=>e.eventId===id&&!e.retractedAt).map(e=>e.sourceId),calculation:{baseQ,bonusQ,priorFull:chain.priorFull,pending:chain.pending,recurring:p.recurring,kind:p.kind,rule:wsClone(rule),budgetQ:p.budgetQ,allocation,minutes:p.kind==='cardio'?wsEvidenceQuantity(state,o.seriesId,o.date).minutes:null,...(v5?{ruleStep:5,credit:wsClone(v5.credit),creditKind:v5.kind,measure:{value:v5.value,target:v5.target,source:v5.source,inputs:v5.inputs},tableId:v5.tableId}:{})},disputed:false};
 }
+const WS_PERFECT_DEFAULTS=Object.freeze({dayQ:4,weekQ:20,monthQ:80});
+function wsValidPerfectTable(t){return t&&typeof t.id==='string'&&!!t.id&&validCalendarDate(t.effectiveFrom)&&['dayQ','weekQ','monthQ'].every(k=>Number.isSafeInteger(t[k])&&t[k]>=0&&t[k]<=4000);}
+function validatePerfectPolicy(rule){
+  if(!rule||rule.version!==1||!validCalendarDate(rule.effectiveFrom)||typeof rule.adoptedAt!=='string')return 'The dated Perfect rule is malformed.';
+  for(const key of ['tables','sleep']){
+    const list=rule[key];if(!Array.isArray(list)||!list.length||!list[0]||list[0].effectiveFrom!==rule.effectiveFrom)return 'Perfect history must begin at adoption.';
+    if(list.some((t,i)=>!t||!validCalendarDate(t.effectiveFrom)||i&&t.effectiveFrom<=list[i-1].effectiveFrom||(key==='tables'?!wsValidPerfectTable(t):typeof t.enabled!=='boolean')))return 'Perfect history is malformed or repeats a date.';
+  }
+  if(new Set(rule.tables.map(t=>t.id)).size!==rule.tables.length)return 'Perfect table identities repeat.';
+  return null;
+}
+function wsMergePerfectRules(a,b){
+  if(!a||!b)return {rule:wsClone(a||b||null)};
+  if(a.effectiveFrom!==b.effectiveFrom||a.adoptedAt!==b.adoptedAt)return {error:'Perfect adoption histories conflict; preserve both exports for review.'};
+  const rule=wsClone(a);
+  for(const key of ['tables','sleep'])for(const entry of b[key]){const old=rule[key].find(t=>t.effectiveFrom===entry.effectiveFrom);if(old&&JSON.stringify(old)!==JSON.stringify(entry))return {error:'Perfect '+key+' histories conflict on '+entry.effectiveFrom+'. Preserve both exports for review.'};if(!old)rule[key].push(wsClone(entry));}
+  for(const key of ['tables','sleep'])rule[key].sort((x,y)=>x.effectiveFrom.localeCompare(y.effectiveFrom));
+  return {rule};
+}
+function wsSetPerfectPolicy(state,values,from){
+  if(typeof PerfectVerdicts==='undefined')return {ok:false,error:'Perfect calculations are unavailable; no rule changed.'};
+  if(!quarterProgression(state)||!state.rewards.ruleStep5)return {ok:false,error:'Turn on Scoring V2 before Perfect rewards.'};
+  const old=state.rewards.perfectTiers,first=old?addDays(todayYmd(),1):todayYmd(),epoch=wsEpoch(state);
+  if(!validCalendarDate(from)||from<first||from<epoch.effectiveFrom||from<state.rewards.ruleStep5.effectiveFrom)return {ok:false,error:'Choose '+first+' or later. Earlier days keep their rule.'};
+  if(old&&old.tables.some(t=>t.effectiveFrom===from))return {ok:false,error:'A Perfect table already starts on that date; choose a later date.'};
+  const table={...WS_PERFECT_DEFAULTS,...values,id:newId('perfect-table'),effectiveFrom:from};
+  if(!wsValidPerfectTable(table))return {ok:false,error:'Use 0–1,000 points per tier, in quarter-point steps.'};
+  if(old)old.tables.push(table);
+  else state.rewards.perfectTiers={version:1,effectiveFrom:from,adoptedAt:nowIso(),tables:[table],sleep:[{effectiveFrom:from,enabled:!!state.prefs.sleepCheckOff}]};
+  state.rewards.perfectTiers.tables.sort((a,b)=>a.effectiveFrom.localeCompare(b.effectiveFrom));
+  return {ok:true,record:table};
+}
+function wsSetSleepCheckOff(state,enabled){
+  if(typeof enabled!=='boolean')return {ok:false,error:'Choose whether Sleep is on the list.'};
+  const rule=state.rewards.perfectTiers;
+  if(rule){const date=todayYmd()<rule.effectiveFrom?rule.effectiveFrom:todayYmd();rule.sleep=rule.sleep.filter(t=>t.effectiveFrom!==date).concat({effectiveFrom:date,enabled}).sort((a,b)=>a.effectiveFrom.localeCompare(b.effectiveFrom));}
+  state.prefs.sleepCheckOff=enabled;return {ok:true};
+}
+function wsPerfectPolicy(state,date){
+  const rule=state.rewards?.perfectTiers;
+  return rule&&date>=rule.effectiveFrom?(rule.tables||[]).filter(t=>t.effectiveFrom<=date).sort((a,b)=>b.effectiveFrom.localeCompare(a.effectiveFrom))[0]||null:null;
+}
+function wsPerfectSleepOn(state,date){
+  const rule=state.rewards?.perfectTiers;
+  if(!rule||date<rule.effectiveFrom)return true; // Earlier verdicts retain the pre-adoption requirement.
+  return (rule.sleep||[]).filter(t=>t.effectiveFrom<=date).sort((a,b)=>b.effectiveFrom.localeCompare(a.effectiveFrom))[0]?.enabled!==false;
+}
+function wsPerfectVisible(state,group,date){return !(state.groups||[]).some(g=>g.id===group&&g.hidden&&(!g.hiddenFrom||date>=g.hiddenFrom));}
+function wsPerfectIncluded(state,row,date){return wsPerfectVisible(state,row.group,date)&&(wsPerfectSleepOn(state,date)||row.matching?.kind!=='sleep');}
+function wsPerfectFitness(row){return row.group==='fitness'||['cardio','strength','steps'].includes(row.workspaceKind);}
+function wsQuotaChances(state,seriesId,from,to){
+  const series=state.series.find(s=>s.id===seriesId);if(!series)return 0;
+  let count=0;
+  for(let d=from;d<=to;d=addDays(d,1)){
+    if(series.archivedAt&&series.archivedAt<=d)break;
+    const v=versionFor(series,d),o=state.occurrences[occKey(seriesId,d)];
+    if(!v||!scheduledOn(v,d)||o&&(o.removed||o.disposition==='excused'||o.disposition==='rest'))continue;
+    count++;
+  }
+  return count;
+}
+function wsPerfectVerdict(state,date){
+  if(typeof PerfectVerdicts==='undefined')return {date,perfect:null,fitness:null,due:0,done:0,open:[],fitnessDue:0,fitnessDone:0,fitnessOpen:[],unavailable:true};
+  const rows=flatPlanFor(state,date).filter(r=>!r.demo&&wsPerfectIncluded(state,r,date));
+  const rings=wsRings(state,date,wsPerfectPolicy(state,date)?{includeRow:r=>wsPerfectIncluded(state,r,date)}:{});
+  const items=rows.map(r=>{const o=state.occurrences[r.key]||{},q=r.targetProgress,parent=r.parentId&&state.series.find(s=>s.id===r.parentId),name=parent&&versionFor(parent,date)?.name;
+    return {id:r.seriesId,name:(name?name+' · ':'')+r.name,fitness:wsPerfectFitness(r),done:r.status==='done',neutral:o.disposition==='excused'||o.disposition==='rest',optional:!!r.optional,quota:q?{from:q.from,to:q.to,target:q.target,count:q.count,left:wsQuotaChances(state,r.seriesId,date,q.to)}:null};});
+  const ring=r=>r?{applicable:!!r.applicable&&!rings.noTargets,closed:!!r.closed,label:(r.label||'Ring')+' ring'}:null;
+  return PerfectVerdicts.day({date,items,rings:{cardio:ring(rings.cardio),strength:ring(rings.strength)}});
+}
+function wsPerfectQuotas(state,from,to,monthly,today=todayYmd()){
+  const out=[];
+  for(const s of state.series){
+    if(s.demo||s.archivedAt&&s.archivedAt<=from||!s.versions.some(v=>v.recurrence?.kind==='target'))continue;
+    for(let d=from;d<=to&&d<=today;){
+      const v=versionFor(s,d),r=v?.recurrence,w=r?.kind==='target'?recurrenceWindow(v,d):null;
+      if(!w){d=addDays(d,1);continue;}
+      const end=w.mode==='rolling'?(to<today?to:today):w.to;
+      if(end>to)break;
+      const at=end<today?end:today,group=wsGroup(s,at),current=versionFor(s,at);
+      const p=(r.weeks>1)===!!monthly&&wsPerfectVisible(state,group,at)&&(wsPerfectSleepOn(state,at)||current?.matching?.kind!=='sleep')?targetProgress(state,s.id,at):null;
+      if(p)out.push({name:current?.name||v.name,fitness:wsPerfectFitness({group,workspaceKind:current?.workspaceKind}),target:p.target,count:p.count,to:end,neutral:p.count<p.target&&wsQuotaChances(state,s.id,p.from,end)===0});
+      if(w.mode==='rolling')break;
+      d=addDays(w.to,1);
+    }
+  }
+  return out;
+}
+function wsPerfectSpan(state,from,to,monthly,track,today=todayYmd()){
+  if(typeof PerfectVerdicts==='undefined')return {perfect:null,unavailable:true};
+  const days=[];for(let d=from;d<=to;d=addDays(d,1))days.push(wsPerfectVerdict(state,d));
+  return PerfectVerdicts.span(days,wsPerfectQuotas(state,from,to,monthly,today),today,track);
+}
+function wsProtectedClaim(c){return !!c&&(c.seriesId?.startsWith('@perfect:')||['@dated-day-v1','@dated-week-v1'].includes(c.seriesId));}
+function wsFixedCalculation(seriesId,amount,metadata){return {baseQ:amount,bonusQ:0,priorFull:0,pending:false,recurring:false,budgetQ:amount,allocation:[{id:seriesId,amountQ:amount}],...metadata};}
+function wsProtectLine(line,kind,policy,table,qualified){
+  const seriesId='@dated-'+kind+'-v1',math=wsClone(line.calculation);
+  return {...line,seriesId,calculation:wsFixedCalculation(seriesId,line.amount,{[kind==='day'?'datedDayLine':'datedWeekLine']:{version:1,policyId:policy.id,effectiveFrom:policy.effectiveFrom,table:wsClone(table),math,...(kind==='day'?{deficitQualified:!!qualified}:{})}})};
+}
+function wsPerfectAwards(state,today,epoch){
+  const rule=state.rewards?.perfectTiers;if(!rule||typeof PerfectVerdicts==='undefined')return [];
+  if(!drawMemo||drawMemo.state!==state)return withDrawMemo(state,()=>wsPerfectAwards(state,today,epoch));
+  const from=rule.effectiveFrom>epoch.effectiveFrom?rule.effectiveFrom:epoch.effectiveFrom,out=[],days=new Map();
+  const verdict=d=>{if(!days.has(d))days.set(d,wsPerfectVerdict(state,d));return days.get(d);};
+  const award=(track,tier,start,end,earned)=>{
+    if(!earned||start<from||end>today)return;
+    const id='perfect-v1|'+track+'|'+tier+'|'+start,old=state.rewards.claims[id],policy=old?.calculation?.perfectTier?.policy||wsPerfectPolicy(state,start),amount=policy?.[tier+'Q'];
+    if(!(amount>0)||old&&old.epochId!==epoch.id)return;
+    const seriesId='@perfect:'+track+':'+tier;
+    out.push({id,eventId:id,seriesId,date:end,name:'Perfect'+(track==='fitness'?' Fitness':'')+' '+tier[0].toUpperCase()+tier.slice(1),amount,amountQ:amount,displayAmount:amount/4,ruleVersion:4,unit:'quarter-point',epochId:epoch.id,origin:'manual',evidenceIds:[],disputed:false,calculation:wsFixedCalculation(seriesId,amount,{perfectTier:{version:1,track,tier,from:start,to:end,policy:wsClone(policy)}})});
+  };
+  for(let date=from;date<=today;date=addDays(date,1)){const v=verdict(date);for(const track of ['perfect','fitness'])award(track,'day',date,date,v[track]===true);}
+  const span=(start,end,tier)=>{if(start<from||end>=today)return;const list=[];for(let d=start;d<=end;d=addDays(d,1))list.push(verdict(d));const quotas=wsPerfectQuotas(state,start,end,tier==='month',today);for(const track of ['perfect','fitness'])award(track,tier,start,end,PerfectVerdicts.span(list,quotas,today,track).perfect===true);};
+  for(let start=weekStartOf(from,1);start<today;start=addDays(start,7))span(start,addDays(start,6),'week');
+  for(let start=from.slice(0,7)+'-01';start<today;){const next=addDays(start.slice(0,7)+'-28',7).slice(0,7)+'-01';span(start,addDays(next,-1),'month');start=next;}
+  return out;
+}
+
 /* Scoring V2 day and week lines (V2.0; Mintay Sept 24–25). One claim per day ('v5day|date', series '@day'):
    a perfect day (three rings closed and every required item done) adds 5% of that day's item points; steps
    add 1 point per 3,000 over 12,000 (at most 4); a complete day's deficit adds the curve points (500 → 8,
    800 → 10, 1,000 → 12); the day never passes 150% of its item points. One claim per finished week
    ('v5week|monday', series '@week'): a perfect week (every day with required items perfect) adds 10% of
    the week's item points, and Sleep Credit pays an ordinary item's points times its credit. */
-function wsPerfectDay(state,date){
-  let rings=null;try{rings=Workspace.rings(state,date,{});}catch(_){rings=null;}
+function wsPerfectDay(state,date,dated=false){
+  const includeRow=r=>!dated||wsPerfectIncluded(state,r,date);
+  let rings=null;try{rings=Workspace.rings(state,date,dated?{includeRow}:{});}catch(_){rings=null;}
   if(!rings||typeof rings!=='object'||rings.noTargets)return null;
-  const req=flatPlanFor(state,date).filter(r=>!r.optional&&!r.demo&&r.status!=='skipped');
+  const req=flatPlanFor(state,date).filter(r=>!r.optional&&!r.demo&&r.status!=='skipped'&&includeRow(r));
   if(!req.length)return null;
-  return rings.closed===3&&req.every(r=>r.status==='done');
+  const closed=rings.closed===3||dated&&!rings.routine.applicable&&rings.cardio.closed&&rings.strength.closed;
+  return closed&&req.every(r=>r.status==='done');
 }
 function v5StepsDay(state,date){const v=relayedRecords(state,'steps').filter(r=>sourceLocalDay(r.start)===date&&r.unmapped?.healthAutoExport?.representation==='derived daily view').map(r=>r.value).filter(Number.isFinite);return v.length?Math.max(...v):null;}
 function wsDayLine(state,date,itemsQ,epoch,allowZero){
-  const table=v5Rule(state,date);if(!table||(!(itemsQ>0)&&!allowZero))return null;itemsQ=itemsQ>0?itemsQ:0;
-  const perfect=wsPerfectDay(state,date)===true,perfectQ=perfect?Math.floor(itemsQ*table.perfectDayPct/100):0;
+  const old=state.rewards.claims['v5day|'+date],pinned=old?.calculation?.datedDayLine,table=pinned?.table||v5Rule(state,date);if(!table||(!(itemsQ>0)&&!allowZero))return null;itemsQ=itemsQ>0?itemsQ:0;
+  const policy=pinned?{id:pinned.policyId,effectiveFrom:pinned.effectiveFrom}:!old?wsPerfectPolicy(state,date):null;
+  if(policy&&typeof PerfectVerdicts==='undefined')return null;
+  const perfect=wsPerfectDay(state,date,!!policy)===true,perfectQ=perfect?Math.floor(itemsQ*table.perfectDayPct/100):0;
   const steps=v5StepsDay(state,date),stepsQ=steps&&steps>table.stepsTarget?Math.min(4,Math.floor((steps-table.stepsTarget)/3000))*4:0;
-  const eb=Workspace.energyBalance(state,date),deficitQ=eb&&eb.complete&&eb.available?ScoringV5.deficitPoints(-eb.balance,table)*4:0;
+  const eb=Workspace.energyBalance(state,date),qualified=!!(eb&&eb.available&&(policy?eb.complete:eb.reviewed)),deficitQ=qualified?ScoringV5.deficitPoints(policy?Math.round(-eb.balance):-eb.balance,table)*4:0;
   const capQ=ScoringV5.dailyCapQ(itemsQ,table),room=Math.max(0,capQ-itemsQ),raw=perfectQ+stepsQ+deficitQ,amount=Math.max(0,Math.min(raw,room));
   if(amount<=0&&!allowZero)return null;
   const id='v5day|'+date;
-  return {id,eventId:id,seriesId:'@day',date,name:'Day bonus'+(perfect?' · perfect day':''),amount,amountQ:amount,displayAmount:amount/4,ruleVersion:4,unit:'quarter-point',epochId:epoch.id,origin:'import',evidenceIds:[],
+  const line={id,eventId:id,seriesId:'@day',date,name:'Day bonus'+(perfect?' · perfect day':''),amount,amountQ:amount,displayAmount:amount/4,ruleVersion:4,unit:'quarter-point',epochId:epoch.id,origin:'import',evidenceIds:[],
     calculation:{dayLine:5,tableId:table.id,itemsQ,perfect,perfectQ,stepsQ,deficitQ,capQ,trimQ:raw-amount,steps,stepsTarget:table.stepsTarget,deficitCurve:table.deficitCurve,deficit:eb&&eb.available?Math.round(-eb.balance):null,baseQ:amount,bonusQ:0,priorFull:0,pending:false,recurring:false},disputed:false};
+  return policy?wsProtectLine(line,'day',policy,table,qualified):line;
 }
 function wsWeekLine(state,monday,itemsByDate,epoch,today,allowZero){
-  const table=v5Rule(state,monday),sunday=addDays(monday,6);if(!table||sunday>=today)return null;
+  const old=state.rewards.claims['v5week|'+monday],pinned=old?.calculation?.datedWeekLine,table=pinned?.table||v5Rule(state,monday),sunday=addDays(monday,6);if(!table||sunday>=today)return null;
   const days=Array.from({length:7},(_,i)=>addDays(monday,i)).filter(d=>d>=epoch.effectiveFrom&&d>=state.rewards.ruleStep5.effectiveFrom);if(days.length<7)return null;
-  const weekQ=days.reduce((n,d)=>n+(itemsByDate.get(d)||0),0),states=days.map(d=>wsPerfectDay(state,d)),perfect=states.every(x=>x!==false)&&states.some(x=>x===true);
+  const policy=pinned?{id:pinned.policyId,effectiveFrom:pinned.effectiveFrom}:!old?wsPerfectPolicy(state,monday):null;
+  if(policy&&typeof PerfectVerdicts==='undefined')return null;
+  const weekQ=days.reduce((n,d)=>n+(itemsByDate.get(d)||0),0),states=days.map(d=>wsPerfectDay(state,d,!!policy)),perfect=states.every(x=>x!==false)&&states.some(x=>x===true);
   const perfectQ=perfect?Math.floor(weekQ*table.perfectWeekPct/100):0;
   const nights=days.map(d=>{const night=relayedRecords(state,'sleep').find(r=>r.unmapped?.healthAutoExport?.day===d&&Number.isFinite(r.durationSec));return {date:d,minutes:night?Math.round(night.durationSec/60):null};});
   const sc=ScoringV5.sleepCredit(nights,table),creditQ=sc.credit&&sc.credit.n?QuarterPoints.baseQ({importance:3,difficulty:2,sizeNumerator:sc.credit.n,sizeDenominator:sc.credit.d}):0;
   const amount=perfectQ+creditQ;if(amount<=0&&!allowZero)return null;
   const id='v5week|'+monday;
-  return {id,eventId:id,seriesId:'@week',date:sunday,name:'Week bonus'+(perfect?' · perfect week':'')+(creditQ?' · Sleep Credit':''),amount,amountQ:amount,displayAmount:amount/4,ruleVersion:4,unit:'quarter-point',epochId:epoch.id,origin:'import',evidenceIds:[],
+  const line={id,eventId:id,seriesId:'@week',date:sunday,name:'Week bonus'+(perfect?' · perfect week':'')+(creditQ?' · Sleep Credit':''),amount,amountQ:amount,displayAmount:amount/4,ruleVersion:4,unit:'quarter-point',epochId:epoch.id,origin:'import',evidenceIds:[],
     calculation:{weekLine:5,tableId:table.id,weekQ,perfect,perfectQ,sleepBalanceMin:sc.balanceMin,credit:sc.credit,creditQ,baseQ:amount,bonusQ:0,priorFull:0,pending:false,recurring:false},disputed:false};
+  return policy?wsProtectLine(line,'week',policy,table):line;
 }
 function wsBonusLines(state,eligible,today,epoch,allowZero){
   if(!state.rewards?.ruleStep5||typeof ScoringV5==='undefined')return [];
@@ -3498,9 +3675,41 @@ function validateLineClaim(c,id){
     if(calc.creditQ){const cr=calc.credit;if(!cr||!Number.isSafeInteger(cr.n)||!Number.isSafeInteger(cr.d)||cr.n<1||cr.n>cr.d||QuarterPoints.baseQ({importance:3,difficulty:2,sizeNumerator:cr.n,sizeDenominator:cr.d})!==calc.creditQ)return 'A Sleep Credit award differs from its calculation.';}return null;}
   return 'A bonus line is unsupported.';
 }
+function validatePerfectClaim(c,id,rewards){
+  const calc=c.calculation,keys=['perfectTier','datedDayLine','datedWeekLine'].filter(k=>calc[k]!==undefined);
+  if(!wsProtectedClaim(c)&&!keys.length)return null;
+  const bad='A dated Perfect award differs from its pinned calculation.';
+  if(!wsProtectedClaim(c)||keys.length!==1||calc.dayLine!==undefined||calc.weekLine!==undefined||calc.ruleStep!==undefined||calc.bonusQ!==0||calc.priorFull!==0||calc.pending!==false||calc.recurring!==false||calc.budgetQ!==c.amount||JSON.stringify(calc.allocation)!==JSON.stringify([{id:c.seriesId,amountQ:c.amount}]))return bad;
+  const key=keys[0],p=calc[key],rule=rewards.perfectTiers;if(!p||p.version!==1||!rule)return bad;
+  if(key==='perfectTier'){
+    if(!['perfect','fitness'].includes(p.track)||!['day','week','month'].includes(p.tier)||!validCalendarDate(p.from)||!validCalendarDate(p.to)||!wsValidPerfectTable(p.policy)||p.policy.effectiveFrom>p.from||c.date!==p.to||c.seriesId!=='@perfect:'+p.track+':'+p.tier||id!=='perfect-v1|'+p.track+'|'+p.tier+'|'+p.from||c.amount!==p.policy[p.tier+'Q'])return bad;
+    const end=p.tier==='day'?p.from:p.tier==='week'?addDays(p.from,6):addDays(addDays(p.from.slice(0,7)+'-28',7).slice(0,7)+'-01',-1);
+    if(p.to!==end||p.tier==='week'&&weekStartOf(p.from,1)!==p.from||p.tier==='month'&&!p.from.endsWith('-01'))return bad;
+    const stored=rule.tables.find(t=>t.id===p.policy.id);if(!stored||JSON.stringify(stored)!==JSON.stringify(p.policy)||p.from<rule.effectiveFrom)return bad;
+    return null;
+  }
+  const day=key==='datedDayLine',m=p.math,t=p.table,legacy={...c,seriesId:day?'@day':'@week',calculation:m};
+  const start=day?c.date:id.slice(7),stored=rule.tables.find(t=>t.id===p.policyId);
+  if(typeof p.policyId!=='string'||!p.policyId||!stored||stored.effectiveFrom!==p.effectiveFrom||!validCalendarDate(p.effectiveFrom)||!t||!m||m.tableId!==t.id||!validCalendarDate(t.effectiveFrom)||t.effectiveFrom>start||c.seriesId!==(day?'@dated-day-v1':'@dated-week-v1')||typeof m.perfect!=='boolean'||p.effectiveFrom>start||start<rule.effectiveFrom||validateLineClaim(legacy,id))return bad;
+  if(![t.stepsTarget,t.perfectDayPct,t.perfectWeekPct,t.dailyCapPct].every(v=>Number.isFinite(v)&&v>=0)||t.dailyCapPct<100||!Array.isArray(t.deficitCurve)||!t.deficitCurve.length||t.deficitCurve.some(row=>!Array.isArray(row)||row.length!==2||!row.every(v=>Number.isFinite(v)&&v>=0)))return bad;
+  const known=[rewards.ruleStep5?.table,...(rewards.ruleStep5?.tables||[])].find(x=>x?.id===t.id);
+  if(known&&wsSignature(ScoringV5.table(known))!==wsSignature(t))return bad;
+  if(day){
+    if(m.dayLine!==5||m.weekLine!==undefined||typeof p.deficitQualified!=='boolean'||m.stepsTarget!==t.stepsTarget||JSON.stringify(m.deficitCurve)!==JSON.stringify(t.deficitCurve)||m.perfectQ!==(m.perfect?Math.floor(m.itemsQ*t.perfectDayPct/100):0)||m.capQ!==ScoringV5.dailyCapQ(m.itemsQ,t)||m.deficitQ!==(p.deficitQualified?ScoringV5.deficitPoints(m.deficit,t)*4:0))return bad;
+    const raw=m.perfectQ+m.stepsQ+m.deficitQ;if(c.amount!==Math.max(0,Math.min(raw,m.capQ-m.itemsQ))||m.trimQ!==raw-c.amount)return bad;
+  }else{
+    const monday=id.slice(7);if(m.weekLine!==5||m.dayLine!==undefined||!validCalendarDate(monday)||weekStartOf(monday,1)!==monday||c.date!==addDays(monday,6)||m.perfectQ!==(m.perfect?Math.floor(m.weekQ*t.perfectWeekPct/100):0))return bad;
+    const s=t.sleepCredit;if(!s||![s.weekTargetMin,s.fullDebtMin,s.zeroDebtMin,s.bankCapMin].every(v=>Number.isSafeInteger(v)&&v>=0)||s.zeroDebtMin<=s.fullDebtMin||!(s.weekTargetMin>0)||m.sleepBalanceMin!==null&&!Number.isSafeInteger(m.sleepBalanceMin))return bad;
+    const debt=m.sleepBalanceMin===null?null:Math.max(0,-m.sleepBalanceMin),credit=debt===null?null:debt<=s.fullDebtMin?{n:1,d:1}:debt>=s.zeroDebtMin?{n:0,d:1}:ScoringV5.fraction(s.zeroDebtMin-debt,s.zeroDebtMin-s.fullDebtMin);
+    if(JSON.stringify(credit)!==JSON.stringify(m.credit))return bad;
+    if(m.creditQ!==(credit&&credit.n?QuarterPoints.baseQ({importance:3,difficulty:2,sizeNumerator:credit.n,sizeDenominator:credit.d}):0))return bad;
+  }
+  return null;
+}
 function validateQuarterClaim(c,id,rewards){
   if(c.id!==id||c.eventId!==id||c.unit!=='quarter-point'||typeof c.epochId!=='string'||!(rewards.epochs||[]).some(e=>e.id===c.epochId)||!Number.isSafeInteger(c.amount)||c.amount<1||!validCalendarDate(c.date)||typeof c.seriesId!=='string'||typeof c.claimedAt!=='string')return 'A quarter-point claim is malformed.';
   const calc=c.calculation;if(!calc||!Number.isSafeInteger(calc.baseQ)||calc.baseQ<0||!Number.isSafeInteger(calc.bonusQ)||calc.bonusQ<0||calc.baseQ+calc.bonusQ!==c.amount)return 'A quarter-point calculation is malformed.';
+  try{const protectedError=validatePerfectClaim(c,id,rewards);if(protectedError)return protectedError;}catch(_){return 'A dated Perfect calculation is malformed.';}
   if(calc.dayLine!==undefined||calc.weekLine!==undefined){const bad=validateLineClaim(c,id);if(bad)return bad;const adj=c.adjustments||[];if(!Number.isSafeInteger(claimBalance(c))||claimBalance(c)<0||adj.some((a,i)=>!a||!Number.isSafeInteger(a.delta)||a.delta===0||a.unit!=='quarter-point'||a.epochId!==c.epochId||a.ruleVersion!==4||a.revision!==i+1||!a.calculation||validateLineClaim({...c,amount:c.amount+adj.slice(0,i+1).reduce((n,x)=>n+x.delta,0),calculation:a.calculation},id)))return 'A bonus top-up is malformed.';return null;}
   if(!Number.isSafeInteger(calc.priorFull)||calc.priorFull<0||typeof calc.pending!=='boolean'||typeof calc.recurring!=='boolean')return 'A quarter-point chain is malformed.';
   try{
@@ -3551,11 +3760,12 @@ rewardReport=function(state,today){
     const filtered={...state,rewards:{...state.rewards,claims:Object.fromEntries(Object.entries(state.rewards.claims).filter(([,c])=>c.ruleVersion!==4))}};
     const report=wsLegacyReport(filtered,today);report.pending=report.pending.filter(e=>!state.rewards.claims[e.id]);return {...report,historyClaims};
   }
-  const rewards=state.rewards,epoch=wsEpoch(state),items=confirmedEligibility(state,today).filter(e=>e.epochId===epoch.id),eligible=items.concat(wsBonusLines(state,items,today,epoch)),byId=new Map(eligible.map(e=>[e.id,e]));
+  const rewards=state.rewards,epoch=wsEpoch(state),items=confirmedEligibility(state,today).filter(e=>e.epochId===epoch.id),eligible=items.concat(wsBonusLines(state,items,today,epoch),wsPerfectAwards(state,today,epoch)),byId=new Map(eligible.map(e=>[e.id,e]));
   // A Scoring V2 claim whose day has since grown (steps climbing to 12,000) is topped up by the
   // difference, once; only a drop needs the reviewed correction (V2.0).
-  const grown=c=>(c.calculation?.ruleStep===5||c.calculation?.dayLine===5||c.calculation?.weekLine===5)&&(byId.get(c.id)?.amount||0)>claimBalance(c);
-  const claims=Object.values(rewards.claims).filter(c=>c.ruleVersion===4&&c.epochId===epoch.id).map(c=>({...c,balance:claimBalance(c),displayAmount:c.amount/4,displayBalance:claimBalance(c)/4,needsReview:(byId.get(c.id)?.amount||0)!==claimBalance(c)&&!grown(c)}));
+  const grown=c=>(c.calculation?.ruleStep===5||c.calculation?.dayLine===5||c.calculation?.weekLine===5||wsProtectedClaim(c))&&(byId.get(c.id)?.amount||0)>claimBalance(c);
+  const unknown=c=>wsProtectedClaim(c)&&typeof PerfectVerdicts==='undefined';
+  const claims=Object.values(rewards.claims).filter(c=>c.ruleVersion===4&&c.epochId===epoch.id).map(c=>({...c,balance:claimBalance(c),displayAmount:c.amount/4,displayBalance:claimBalance(c)/4,eligibilityUnknown:unknown(c),needsReview:!unknown(c)&&(byId.get(c.id)?.amount||0)!==claimBalance(c)&&!grown(c)}));
   const topUps=Object.values(rewards.claims).filter(c=>c.ruleVersion===4&&c.epochId===epoch.id&&grown(c)).map(c=>{const e=byId.get(c.id),delta=e.amount-claimBalance(c);return {...e,topUp:true,delta,amount:delta,amountQ:delta,displayAmount:delta/4,previousAmount:claimBalance(c)};});
   const pending=eligible.filter(e=>!rewards.claims[e.id]).concat(topUps),totalQ=claims.reduce((n,c)=>n+claimBalance(c),0),orbs=totalQ/4;
   return {orbs,totalQ,pending,claims,historyClaims:Object.values(rewards.claims).filter(c=>!claims.some(a=>a.id===c.id)),activeEpoch:epoch,daysRecorded:new Set(claims.map(c=>c.date)).size,progression:rewards.progression,quest:{text:REWARD_RULES.questText,done:eligible.some(e=>e.date===today),reward:0},achievements:rewardAchievements(state,orbs,new Set(claims.map(c=>c.date)).size),...rewardLevel(state,orbs)};
@@ -3565,23 +3775,37 @@ function wsCorrectionBatch(state,id){
   if(selected.ruleVersion!==4)return wsLegacyCorrection(state,id);
   const claims=Object.values(state.rewards.claims).filter(c=>c.ruleVersion===4&&c.epochId===selected.epochId&&!(c.seriesId&&c.seriesId[0]==='@')),changes=[];
   for(const claim of claims){const entitlement=Object.values(state.occurrences).filter(o=>rewardIdentity(state,o)===claim.id).map(o=>wsQuarterEntitlement(state,o,claim.epochId)).find(Boolean),before=claimBalance(claim),after=entitlement?.amount||0;if(before!==after)changes.push({id:claim.id,date:claim.date,ruleVersion:4,epochId:claim.epochId,before,after,delta:after-before,calculation:entitlement?.calculation||null});}
-  const totalQ=claims.reduce((n,c)=>n+claimBalance(c),0),afterQ=totalQ+changes.reduce((n,c)=>n+c.delta,0),own=changes.find(c=>c.id===id);
-  return {id,before:claimBalance(selected),after:own?.after??claimBalance(selected),delta:own?.delta||0,changes,total:afterQ/4,totalQ:afterQ,level:QuarterPoints.levelFor(afterQ).level,signature:wsSignature({claims,changes}),unit:'quarter-point',epochId:selected.epochId};
+  // Preview the exact dependency order: item corrections first, then their capped day/week and tier lines.
+  const draft=wsClone(state);
+  for(const change of changes){const claim=draft.rewards.claims[change.id];claim.adjustments=claim.adjustments||[];claim.adjustments.push({delta:change.delta,calculation:change.calculation});}
+  const lineChanges=wsLineCorrections(draft,'Preview only',selected.epochId).map(change=>({...change,delta:change.after-change.before,calculation:wsClone(draft.rewards.claims[change.id].adjustments.slice(-1)[0].calculation)}));
+  const afterQ=Object.values(draft.rewards.claims).filter(c=>c.ruleVersion===4&&c.epochId===selected.epochId).reduce((n,c)=>n+claimBalance(c),0),own=changes.concat(lineChanges).find(c=>c.id===id),protectedChanges=lineChanges.filter(c=>wsProtectedClaim(state.rewards.claims[c.id]));
+  return {id,before:claimBalance(selected),after:own?.after??claimBalance(selected),delta:own?.delta||0,changes,lineChanges,protectedChanges,total:afterQ/4,totalQ:afterQ,level:QuarterPoints.levelFor(afterQ).level,signature:wsSignature({claims:Object.values(state.rewards.claims).filter(c=>c.ruleVersion===4&&c.epochId===selected.epochId),changes,lineChanges}),unit:'quarter-point',epochId:selected.epochId};
+}
+function wsProtectedCorrections(state,epochId){
+  if(typeof PerfectVerdicts==='undefined')return [];
+  const epoch=wsEpoch(state,epochId);if(!epoch)return [];
+  const today=todayYmd(),items=confirmedEligibility(state,today).filter(e=>e.epochId===epochId),lines=wsBonusLines(state,items,today,epoch,true).concat(wsPerfectAwards(state,today,epoch)),byId=new Map(lines.map(e=>[e.id,e]));
+  return Object.values(state.rewards.claims).filter(c=>wsProtectedClaim(c)&&c.epochId===epochId).flatMap(c=>{const e=byId.get(c.id),before=claimBalance(c),after=e?.amount||0;return after<before?[{id:c.id,before,after,delta:after-before,calculation:after?e.calculation:null}]:[];});
 }
 /* Day and week bonuses follow corrected items too (Mintay, Sept 26). After item claims are corrected,
    every claimed bonus line is recomputed from the corrected facts; one now lower gets a signed
    adjustment down to it that carries the recomputed calculation, which the validator re-derives.
    A bonus that would grow is left to the ordinary top-up. */
-function wsLineCorrections(state,note){
+function wsLineCorrections(state,note,reviewedEpoch){
   const today=todayYmd(),at=nowIso(),out=[],byEpoch=new Map();
   for(const c of Object.values(state.rewards.claims||{})){
-    if(c.ruleVersion!==4||(c.seriesId!=='@day'&&c.seriesId!=='@week'))continue;
+    if(c.ruleVersion!==4||(c.seriesId!=='@day'&&c.seriesId!=='@week')||reviewedEpoch&&c.epochId!==reviewedEpoch)continue;
     if(!byEpoch.has(c.epochId)){const epoch=(state.rewards.epochs||[]).find(e=>e.id===c.epochId);byEpoch.set(c.epochId,epoch?wsBonusLines(state,confirmedEligibility(state,today).filter(e=>e.epochId===epoch.id),today,epoch,true):[]);}
     const now=byEpoch.get(c.epochId).find(l=>l.id===c.id),before=claimBalance(c);
     if(!now||now.amount>=before)continue;
     c.adjustments=c.adjustments||[];
     c.adjustments.push({id:newId('adjust'),at,delta:now.amount-before,reason:String(note||'Bonus follows corrected items').slice(0,300),revision:c.adjustments.length+1,ruleVersion:4,unit:'quarter-point',epochId:c.epochId,calculation:now.calculation});
     out.push({id:c.id,before,after:now.amount});
+  }
+  for(const epochId of new Set(Object.values(state.rewards.claims).filter(c=>wsProtectedClaim(c)&&(!reviewedEpoch||c.epochId===reviewedEpoch)).map(c=>c.epochId)))for(const change of wsProtectedCorrections(state,epochId)){
+    const c=state.rewards.claims[change.id];c.adjustments=c.adjustments||[];
+    c.adjustments.push({id:newId('adjust'),at,delta:change.delta,reason:String(note||'Dated reward follows corrected facts').slice(0,300),revision:c.adjustments.length+1,ruleVersion:4,unit:'quarter-point',epochId,calculation:change.calculation});out.push({id:c.id,before:change.before,after:change.after});
   }
   return out;
 }
@@ -3591,7 +3815,7 @@ function wsApplyCorrectionBatch(state,preview,note){
   // it was recalculated with (the Mac check, Sept 27: four claims all read "Skipped after claiming").
   const base=String(note||'Reviewed correction batch'),origin=state.rewards.claims[preview.id],carried=origin&&origin.name?'Recalculated with '+origin.name+' ('+base+')':base;
   const at=nowIso();for(const change of current.changes){const claim=state.rewards.claims[change.id];claim.adjustments=claim.adjustments||[];claim.adjustments.push({id:newId('adjust'),at,delta:change.delta,reason:(change.id===preview.id?base:carried).slice(0,300),revision:claim.adjustments.length+1,ruleVersion:4,unit:'quarter-point',epochId:claim.epochId,calculation:change.calculation});claim.reconciledAt=at;claim.reconciliationSignature=rewardReviewSignature(state,claim);}
-  current.lineChanges=wsLineCorrections(state,carried);
+  current.lineChanges=wsLineCorrections(state,carried,current.epochId);
   return {ok:true,record:current};
 }
 correctionPreview=function(state,id){return state.rewards.claims[id]?.ruleVersion===4?wsCorrectionBatch(state,id):wsLegacyCorrection(state,id);};
@@ -3823,15 +4047,30 @@ function wsBackdate(draft,date,options={}){
 
 const Workspace={
   tree(state,date,options={}){const rows=planFor(state,date);if(!options.groupId)return rows;const filter=rows=>rows.flatMap(r=>{if(r.children){const children=filter(r.children);return children.length?[{...r,children,family:familySummary(leafRows(children))}]:[];}return r.group===options.groupId?[r]:[];});return filter(rows);},
-  rings:wsRings,goals:wsGoals,
+  rings:wsRings,goals:wsGoals,perfectVerdict:wsPerfectVerdict,perfectQuotas:wsPerfectQuotas,perfectSpan:wsPerfectSpan,perfectPolicy:wsPerfectPolicy,perfectDefaults:WS_PERFECT_DEFAULTS,
+  setPerfectPolicy(state,values,from){return wsTransaction(state,draft=>wsSetPerfectPolicy(draft,values,from));},
+  setSleepCheckOff(state,enabled){return wsTransaction(state,draft=>wsSetSleepCheckOff(draft,enabled));},
   create(state,fields,date){return wsTransaction(state,draft=>wsCreate(draft,fields,date,fields.parentId||null));},
+  /* V3.3 Phase 2 (3.1, P2-20): a container and its sub-items in one transaction (one clone, one validation). */
+  createWithChildren(state,fields,date,children,options={}){return wsTransaction(state,draft=>{const once=options.scope==='occurrence'?{recurrence:{kind:'once',date}}:{};const parentId=fields.parentId||null;const made=wsCreate(draft,parentId?{...fields,...once}:fields,date,parentId);for(const c of children||[])wsCreate(draft,{...c,...once},date,fields.id);return {ok:true,record:made};});},
+  addTemplateBatch(state,nodes,date,templateIds=[]){
+    if(!Array.isArray(nodes)||!nodes.length)return {ok:false,error:'Choose at least one Template item.'};
+    return wsTransaction(state,draft=>{
+      const ids=nodes.map(({parentId,...fields})=>wsCreate(draft,{...fields,recurrence:{kind:'once',date}},date,parentId||null).id);
+      draft.prefs.templateUse=draft.prefs.templateUse||{};
+      for(const id of new Set(templateIds))draft.prefs.templateUse[id]=[...(draft.prefs.templateUse[id]||[]).filter(d=>d!==date),date].sort().slice(-7);
+      return {ok:true,record:{ids}};
+    });
+  },
+  /* V3.3 Phase 2 (3.4, P2-20): place several leaves on a day, and move them to a card, in one transaction; a leaf with an entry, a placement, a removal or a met count is left as it is. */
+  placeMany(state,ids,date,options={}){const place=options.place!==false,category=options.category||null;return wsTransaction(state,draft=>{const placed=[];if(place)for(const id of ids){const x=draft.series.find(z=>z.id===id),v=x&&versionFor(x,date);if(!v||(Array.isArray(v.childIds)&&v.childIds.length))continue;const o=draft.occurrences[occKey(id,date)];if(o&&(o.status||o.committed||o.removed||o.disposition))continue;const q=targetProgress(draft,id,date);if(q&&q.count>=q.target)continue;const r=wsCommitOn(draft,id,date,true);if(!r.ok)return r;placed.push(id);}if(category)for(const id of ids){const r=wsEdit(draft,id,{category},date,{});if(r&&r.ok===false)return r;}return {ok:true,placed};});},
   addChild(state,parentId,fields,date,options={}){return wsTransaction(state,draft=>wsCreate(draft,{...fields,...(options.scope==='occurrence'?{recurrence:{kind:'once',date}}:{})},date,parentId));},
   edit(state,id,changes,date,options={}){return wsTransaction(state,draft=>wsEdit(draft,id,changes,date,options));},
   fastingSeasons:wsFastingSeasons,
   addFastingSeason(state,season){return wsTransaction(state,draft=>wsAddFastingSeason(draft,season));},
   move(state,id,parentId,date){return wsTransaction(state,draft=>wsMove(draft,id,parentId,date));},
   reorder(state,id,order,date){if(!Number.isFinite(order))return {ok:false,error:'Choose a valid order.'};return wsTransaction(state,draft=>wsEdit(draft,id,{order},date));},
-  commit(state,id,date,committed=true){return wsTransaction(state,draft=>{const s=draft.series.find(s=>s.id===id),v=s&&versionFor(s,date);if(!v||v.childIds||!validCalendarDate(date)||!scheduledOn(v,date))return {ok:false,error:'Choose an available leaf on this date.'};const o=ensureOcc(draft,id,date);o.committed=!!committed;if(committed&&v.recurrence?.kind==='target'&&v.recurrence.count===1&&v.recurrence.mode!=='rolling'&&!o.status&&!draft.rewards.claims[o.rewardEventId])o.rewardEventId=id+'|week:'+weekStartOf(date,1);touch(o);return {ok:true,record:o};});},
+  commit(state,id,date,committed=true){return wsTransaction(state,draft=>wsCommitOn(draft,id,date,committed));},
   evidencePreview:wsEvidencePreview,confirmEvidence:wsConfirmEvidence,
   autoEvidence(state,options={}){if(!wsEnabled(state))return {ok:true,changes:[]};return wsTransaction(state,draft=>wsAutoEvidence(draft,options));},
   declineAuto(state,id,date){return wsTransaction(state,draft=>wsDeclineAuto(draft,id,date));},
@@ -3868,6 +4107,8 @@ mergeState=function(current,incoming){
   if(current.syntheticWorkspace!==true&&syntheticPreviewData(incoming))return {error:'Synthetic walkthrough records cannot be merged into a personal record.'};
   for(const [date,value]of Object.entries(incoming.hydration||{})){if(date in (current.hydration||{})&&current.hydration[date]!==value&&(current.hydrationRevisions?.[date]?.revision||0)===(incoming.hydrationRevisions?.[date]?.revision||0))return {error:'Legacy glass counts conflict on '+date+'. Preserve both exports and review the count; volume is unknown.'};}
   const draft=wsClone(current),copy=wsClone(incoming);
+  const perfect=wsMergePerfectRules(draft.rewards?.perfectTiers,copy.rewards?.perfectTiers);if(perfect.error)return {error:perfect.error};
+  if(perfect.rule)draft.rewards.perfectTiers=perfect.rule;
   if(copy.rewards?.epochs?.length||draft.rewards.epochs)draft.rewards.epochs=draft.rewards.epochs||[];
   for(const epoch of copy.rewards?.epochs||[]){const old=draft.rewards.epochs.find(e=>e.id===epoch.id);if(old&&JSON.stringify(old)!==JSON.stringify(epoch))return {error:'Scoring epoch definitions conflict; preserve both exports for review.'};if(!old)draft.rewards.epochs.push(wsClone(epoch));}
   if(wsEnabled(copy)){
@@ -3910,8 +4151,11 @@ Workspace.energyBalance=function(state,date,dayRecords){
   // Food logged here adds on top of the imported total by default (Mintay, Sept 24 late); a day he
   // marks "Replace Apple Health" counts only what he logged. An entry without calories blanks the day.
   const importedFood=source('dietaryEnergy','dietary_energy'),replaceDay=!!state.prefs?.foodReplacesImported?.[date],overridden=replaceDay&&foods.length>0&&manualFood!==null,mixedFood=foods.length>0&&manualFood===null,food=mixedFood?null:foods.length?(replaceDay||importedFood===null?manualFood:manualFood+importedFood):importedFood,resting=source('restingEnergy','basal_energy_burned'),active=source('activeEnergy');
-  const available=[food,resting,active].every(Number.isFinite),coverage=state.energyCoverage?.[date]||{},signature=wsSignature([date,foods,day]),complete=date<todayYmd()&&available&&coverage.signature===signature&&coverage.food===true&&coverage.resting===true&&coverage.active===true;
-  return {date,food,resting,active,signature,balance:available?food-resting-active:null,available,provisional:!complete,complete,scoring:false,unit:'kcal',foodSource:food===null?null:!foods.length?'imported':replaceDay||importedFood===null?'logged':'logged+imported',note:mixedFood?'A logged food has no calories, so the day\'s food is unknown.':overridden?'Your logged food replaces the imported total for this day.':complete?'Explicitly reviewed coverage; workouts are already included in active energy.':'Coverage is incomplete or unverified. Missing values stay unavailable; no deficit award.'};
+  const available=[food,resting,active].every(Number.isFinite),coverage=state.energyCoverage?.[date]||{},signature=wsSignature([date,foods,day]),reviewed=date<todayYmd()&&available&&coverage.signature===signature&&coverage.food===true&&coverage.resting===true&&coverage.active===true;
+  // V3.3 Phase 2 (7.2): complete once food, resting and active energy are all there (live on the day itself); a reviewed
+  // coverage that a source correction has since invalidated keeps the day provisional.
+  const complete=available&&[food,resting,active].every(v=>v>0)&&(!coverage.signature||coverage.signature===signature);
+  return {date,food,resting,active,signature,balance:available?food-resting-active:null,available,provisional:!reviewed,complete,reviewed,scoring:false,unit:'kcal',foodSource:food===null?null:!foods.length?'imported':replaceDay||importedFood===null?'logged':'logged+imported',note:mixedFood?'A logged food has no calories, so the day\'s food is unknown.':overridden?'Your logged food replaces the imported total for this day.':reviewed?'Explicitly reviewed coverage; workouts are already included in active energy.':'Coverage is incomplete or unverified. Missing values stay unavailable; no deficit award.'};
 };
 Workspace.syntheticPreview=function(date,prefs){
   const state=freshState();state.seeded=true;state.demo=false;state.syntheticWorkspace=true;if(prefs)state.prefs={...state.prefs,...wsClone(prefs)};

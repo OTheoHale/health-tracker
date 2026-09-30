@@ -565,6 +565,8 @@ function rollup(raw,contract,options){
   if(!groups.size)return {ok:true,records:raw,rolled:[]};
   const days=new Set([...groups.keys()].map(k=>k.split('|')[1]));
   const sessions=raw.filter(r=>{const m=hae(r);return m&&m.route==='workouts'&&days.has(m.day);});
+  const workoutView=project(raw.filter(r=>r.kind==='workout'),{...contract,activeFrom:'1000-01-01'});
+  const effortSessions=workoutView.records.filter(r=>{const m=hae(r);return m&&m.representation==='workout session'&&!(r.clashes||[]).length&&Number.isFinite(Date.parse(r.start))&&Date.parse(r.end)>Date.parse(r.start);});
   const view=project([].concat(...groups.values(),sessions),{...contract,activeFrom:'1000-01-01'});
   if(!view.ok)return {ok:false,error:view.error,records:raw,rolled:[]};
   const derivedBy=new Map();
@@ -577,7 +579,8 @@ function rollup(raw,contract,options){
     // Physical effort feeds Load, which counts effort minutes outside workouts by band (SCORES_SPEC A3).
     // Each hour keeps minutes per 0.5 band, outside and inside workouts, and each workout its effort
     // sum and count, so any band edge on a 0.5 step and a workout's mean effort stay exact.
-    const effort=metricName==='physical_effort',windows=effort?sessions.filter(w=>hae(w).day===day).map(w=>({id:w.id,a:Date.parse(w.start),b:Date.parse(w.end)})):[],perWorkout={};
+    const previousDay=new Date(Date.parse(day+'T00:00:00Z')-86400000).toISOString().slice(0,10);
+    const effort=metricName==='physical_effort',windows=effort?effortSessions.filter(w=>hae(w).day===day||hae(w).day===previousDay).map(w=>({id:w.id,a:Date.parse(w.start),b:Date.parse(w.end)})):[],perWorkout={};
     for(const d of derived)for(const id of hae(d).inputIds||[])inputs.add(id);
     for(const r of rows){
       if(!inputs.has(r.id))continue;const h=+String(r.start).slice(11,13);if(!(h>=0&&h<24))continue;

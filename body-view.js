@@ -15,6 +15,16 @@ const BODY_TRANSPORT = window.HealthBodyTransport || null;
 const BODY_LOOPBACK = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname);
 const BODY_BASE = BODY_TRANSPORT ? BODY_TRANSPORT.base : 'api/body/';
 const BODY_AVAILABLE = !!BODY_TRANSPORT || BODY_LOOPBACK;
+const bodyMass=value=>{const u=window.HealthDisplayUnits||{mass:'lb',lb:v=>v};return u.lb(value).toFixed(1)+' '+u.mass;};
+const bodyMeasurement=row=>{
+  const u=window.HealthDisplayUnits,value=row.value,unit=row.unit;
+  if(u&&Number.isFinite(value)){
+    if(unit==='kg'||unit==='lb')return (unit==='kg'?u.kg(value):u.lb(value)).toFixed(1)+' '+u.mass;
+    if(unit==='cm'||unit==='in')return (unit==='cm'?u.cm(value):u.inch(value)).toFixed(1)+' '+u.length;
+    if(unit==='m'||unit==='km'||unit==='mi')return u.meters(value*(unit==='km'?1000:unit==='mi'?1609.344:1)).toFixed(2)+' '+u.distance;
+  }
+  return String(value??'')+(unit?' '+unit:'');
+};
 /* From the hosted HTTPS page WebKit never hands a custom-scheme request to the wrapper: it failed as
    "TypeError: Load failed" with no load started (Mintay's V1.1 log, 2026-09-23). The hosted wrapper
    therefore sets bridge:true, and every body request travels through the same native message bridge
@@ -87,6 +97,7 @@ function regionAutoName(parts, regions) {
   return parts.length + ' segments';
 }
 window.HealthBodyRegionMath = {partsOf: regionPartsOf, figures: regionFigures, autoName: regionAutoName, share: segmentShare};
+const BODY_ZOOM = {min:20, max:250, start:115, step:20};
 class HealthBodyView extends HTMLElement {
   connectedCallback() {
     this.records = [];
@@ -114,6 +125,7 @@ class HealthBodyView extends HTMLElement {
      wrapper can reach, so this is a permanent state on those surfaces, not a loading error.
      TODO(Mintay): decide what this should say and show. See the three options discussed. */
   unavailable() {
+    const esc=value=>this.escape(value);
     const snap = window.HealthBodySnapshot || null;
     const note = '<p class="hint">The 3D model and reference photos stay on the Mac, where the files live. These numbers came across with your last backup' + (snap && snap.capturedAt ? ', captured ' + esc(snap.capturedAt) : '') + '.</p>';
     // Imported whole-body figures live in the record itself, not in the body snapshot, so this
@@ -130,17 +142,17 @@ class HealthBodyView extends HTMLElement {
         snap.fitdays.segments.filter(row => FITDAYS_GROUPS[row.id]).map(row =>
           '<div class="body-composition-card" style="--region-color:' + FITDAYS_GROUPS[row.id].color + '">' +
           '<strong>' + esc(row.label) + '</strong>' +
-          '<span><b>' + row.fatMassLb.toFixed(1) + ' lb</b> fat</span>' +
-          '<span><b>' + row.muscleBalanceMassLb.toFixed(1) + ' lb</b> muscle</span></div>').join('') +
+          '<span><b>' + bodyMass(row.fatMassLb) + '</b> fat</span>' +
+          '<span><b>' + bodyMass(row.muscleBalanceMassLb) + '</b> muscle</span></div>').join('') +
         '</div>';
     }
     const readings = (snap && snap.measurements && snap.measurements.readings) || [];
     if (readings.length) {
       html += '<details class="body-composition-details"><summary>Measurements</summary><table><tbody>' +
-        readings.map(r => '<tr><td>' + esc(r.label || r.id || '') + '</td><td>' + esc(String(r.value ?? '')) + (r.unit ? ' ' + esc(r.unit) : '') + '</td></tr>').join('') +
+        readings.map(r => '<tr><td>' + esc(r.label || r.id || '') + '</td><td>' + esc(bodyMeasurement(r)) + '</td></tr>').join('') +
         '</tbody></table></details>';
     }
-    this.innerHTML = html + note + '</section>';
+    this.innerHTML = html + this.reconciliationHTML() + note + '</section>';
   }
 
   /* Swap every body-file address in this element for a blob: URL fetched over the bridge. Images and
@@ -221,6 +233,7 @@ class HealthBodyView extends HTMLElement {
         // Whole-body figures travel too, so the website and the phone can date each one the same
         // way the Mac does instead of showing regions with no reading beside them.
         wholeBody: this.fitdays.wholeBody || null,
+        previous: this.fitdays.previous ? {measurementDate:this.fitdays.previous.measurementDate, wholeBody:this.fitdays.previous.wholeBody, segments:this.fitdays.previous.segments} : null,
         segments: (this.fitdays.segments || []).map(row => ({
           id: row.id, label: row.label, fatMassLb: row.fatMassLb,
           muscleBalanceMassLb: row.muscleBalanceMassLb,
@@ -243,13 +256,14 @@ class HealthBodyView extends HTMLElement {
     return '<div class="body-segments"><div class="body-modes" role="group" aria-label="Region tool">' + modes.map(([m,l]) => '<button data-body="mode" data-mode="' + m + '" aria-pressed="' + (this.mode === m) + '">' + l + '</button>').join('') + '</div>' +
       '<label>' + (this.mode === 'link' ? 'Add to the region' : this.mode === 'compare' ? 'Pick a region' : 'Highlight a region') + '<select data-body="region" aria-label="Choose a body region"><option value="all">Whole body</option>' + this.regionOptions(this.mode === 'select' ? this.region : null) + '</select></label>' +
       '<div class="body-tools">' + this.toolsHTML() + '</div>' +
-      '<p class="hint">Click the model or choose a region; hold Cmd (or Ctrl or Shift) and click to select several at once. Boundaries are approximate viewing guides. Left and right refer to your body.</p></div>';
+      '<details class="body-help"><summary aria-label="About body regions">ⓘ Region controls</summary><p class="hint">Click the model or choose a region; hold Cmd (or Ctrl or Shift) and click to select several at once. Boundaries are approximate viewing guides. Left and right refer to your body.</p></details></div>';
   }
   figuresLine(parts) {
     const f = regionFigures(parts, this.fitdays), esc = v => this.escape(v), name = k => this.regions[k] || FITDAYS_GROUPS[k]?.label || k;
     if (f.fat === null) return '<span class="body-na">Not available at this segmentation' + (f.missing.length ? ' (' + esc(f.missing.map(name).join(', ')) + ')' : '') + '</span>';
-    const est = f.est || f.standIn.length ? 'est. ' : '';
-    let out = '<b>' + est + f.total.toFixed(1) + ' lb</b> total · <b>' + f.fat.toFixed(1) + ' lb</b> fat · <b>' + f.muscle.toFixed(1) + ' lb</b> muscle';
+    const u=window.HealthDisplayUnits||{mass:'lb',lb:v=>v},old=regionFigures(parts,this.fitdays&&this.fitdays.previous),pct=n=>f.total>0?(100*n/f.total).toFixed(1)+'%':'—';
+    const change=(key,better)=>old[key]===null?'':window.GlowViews?GlowViews.delta({now:u.lb(f[key]),prev:u.lb(old[key]),unit:u.mass,better,period:'since '+this.date(this.fitdays.previous.measurementDate)}):'';
+    let out = '<b>'+parts.length+' segments (all est.)</b><span><strong>Total</strong> '+u.lb(f.total).toFixed(1)+' '+u.mass+' · 100% '+change('total','')+'</span><span class="body-fat-value"><strong>Fat</strong> '+u.lb(f.fat).toFixed(1)+' '+u.mass+' · '+pct(f.fat)+' '+change('fat','down')+'</span><span class="body-lean-value"><strong>Lean muscle</strong> '+u.lb(f.muscle).toFixed(1)+' '+u.mass+' · '+pct(f.muscle)+' '+change('muscle','up')+'</span>';
     const notes = [];
     if (f.est) notes.push('parts split by typical segment mass');
     if (f.standIn.length) notes.push(f.standIn.map(g => FITDAYS_GROUPS[g].label.toLowerCase() + ' total stands in').join(', ') + ' (no separate measurement)');
@@ -262,14 +276,14 @@ class HealthBodyView extends HTMLElement {
       const parts = [...this.linked], auto = parts.length ? regionAutoName(parts, this.regions) : '';
       const chips = parts.length ? parts.map(p => '<span class="body-chip">' + esc(name(p)) + '<button data-body="unlink" data-part="' + esc(p) + '" aria-label="Unlink ' + esc(name(p)) + '">✕</button></span>').join('') : '<span class="hint">Click segments on the model, or choose them above, to link them into one region.</span>';
       const mine = this.saved.length ? '<p class="cap">Your regions</p><div class="body-chips">' + this.saved.map(r => '<span class="body-chip saved"><button data-body="loadRegion" data-id="' + esc(r.id) + '">' + esc(r.name) + '</button><button data-body="removeRegion" data-id="' + esc(r.id) + '" aria-label="Remove ' + esc(r.name) + '">✕</button></span>').join('') + '</div>' : '';
-      return '<div class="body-chips">' + chips + '</div>' + (parts.length ? '<p class="body-figures">' + this.figuresLine(parts) + '</p><div class="body-link-acts"><input type="text" data-body="regionName" maxlength="40" placeholder="' + esc(auto) + '" aria-label="Name for this region" value=""><button data-body="saveRegion">Save as region</button><button class="ghost" data-body="clearLink">Clear</button></div>' : '') + mine;
+      return '<div class="body-chips">' + chips + '</div>' + (parts.length ? '<div class="body-selection-figures">' + this.figuresLine(parts) + '</div><div class="body-link-acts"><input type="text" data-body="regionName" maxlength="40" placeholder="' + esc(auto) + '" aria-label="Name for this region" value=""><button data-body="saveRegion">Save as region</button><button class="ghost" data-body="clearLink">Clear</button></div>' : '') + mine;
     }
     if (this.mode === 'compare') {
       const a = this.compare.a, b = this.compare.b, pa = regionPartsOf(a, this.saved), pb = regionPartsOf(b, this.saved), label = k => k ? (FITDAYS_GROUPS[k]?.label || (k.startsWith('custom:') ? (this.saved.find(r => 'custom:' + r.id === k) || {}).name : this.regions[k]) || k) : '—';
       const pick = (slot, val) => '<label class="body-cmp-pick"><span class="body-swatch ' + slot + '"></span>' + slot.toUpperCase() + '<select data-body="cmp" data-slot="' + slot + '" aria-label="Compare ' + slot.toUpperCase() + '"><option value="">Choose…</option>' + this.regionOptions(val) + '</select></label>';
       let table = '';
       if (a && b) {
-        const fa = regionFigures(pa, this.fitdays), fb = regionFigures(pb, this.fitdays), cell = (f, k) => f[k] === null ? '<span class="body-na">not available at this segmentation</span>' : '<b>' + ((f.est || f.standIn.length) ? 'est. ' : '') + f[k].toFixed(1) + ' lb</b>';
+        const fa = regionFigures(pa, this.fitdays), fb = regionFigures(pb, this.fitdays), cell = (f, k) => f[k] === null ? '<span class="body-na">not available at this segmentation</span>' : '<b>' + ((f.est || f.standIn.length) ? 'est. ' : '') + bodyMass(f[k]) + '</b>';
         const size = pa.length !== pb.length ? '<p class="hint">Unequal regions: ' + esc(label(a)) + ' has ' + pa.length + ' segment' + (pa.length === 1 ? '' : 's') + ', ' + esc(label(b)) + ' has ' + pb.length + '. Shapes are comparable; the numbers cover different amounts of body.</p>' : '';
         table = '<table class="body-cmp"><thead><tr><th></th><th><span class="body-swatch a"></span>' + esc(label(a)) + '</th><th><span class="body-swatch b"></span>' + esc(label(b)) + '</th></tr></thead><tbody>' +
           '<tr><td>Fat</td><td>' + cell(fa, 'fat') + '</td><td>' + cell(fb, 'fat') + '</td></tr><tr><td>Muscle</td><td>' + cell(fa, 'muscle') + '</td><td>' + cell(fb, 'muscle') + '</td></tr><tr><td>Segments</td><td>' + pa.length + '</td><td>' + pb.length + '</td></tr></tbody></table>' + size +
@@ -277,7 +291,16 @@ class HealthBodyView extends HTMLElement {
       } else table = '<p class="hint">Click two regions on the model, or choose A and B. Compare stays separate from linking.</p>';
       return '<div class="body-cmp-picks">' + pick('a', a) + pick('b', b) + '<button class="ghost" data-body="cmpSwap"' + (a && b ? '' : ' disabled') + '>Swap</button></div>' + table;
     }
-    return '';
+    if(this.region==='all')return this.reconciliationHTML();
+    return '<div class="body-selection-figures">'+this.figuresLine(this.partsInView(this.region))+'</div>';
+  }
+  reconciliationHTML(){
+    if(!window.GlowLearn)return '';
+    const p=GlowLearn.partition(this.fitdays),old=GlowLearn.partition(this.fitdays&&this.fitdays.previous),u=window.HealthDisplayUnits||GlowLearn.units();
+    if(!p)return '<p class="hint">A complete Fitdays report is needed for regional figures.</p>';
+    const delta=(key,better)=>old&&window.GlowViews?GlowViews.delta({now:u.lb(p[key]),prev:u.lb(old[key]),better,unit:u.mass,period:'since '+this.date(old.date)}):'';
+    const line=(name,key,cls,better)=>'<div class="'+(cls||'')+'"><strong>'+name+'</strong><b>'+u.lb(p[key]).toFixed(1)+' '+u.mass+'</b><span>'+(100*p[key]/p.weight).toFixed(1)+'%</span>'+delta(key,better)+'</div>';
+    return '<section class="body-reconciliation" aria-label="Regional figures"><p class="cap">15 segments (all est.) · '+this.escape(this.date(p.date))+'</p>'+line('Total fat + lean muscle','total','',null)+line('Fat','fat','body-fat-value','down')+line('Lean muscle','muscle','body-lean-value','up')+line('Head & neck (est.)','head','',null)+(p.reconciles?line('Bones & other (residual est.)','other','',null):'<p class="hint">These estimates exceed this report’s weight. Bones & other cannot be inferred; do not combine them as a measured total.</p>')+line('Report weight','weight','body-report-total',null)+'<details class="body-help"><summary>ⓘ Figures and estimates</summary><p class="hint">Percentages use this report’s weight. The 14 limb/trunk segments share five Fitdays estimates; head & neck is 6.94% of the same weight (de Leva, male segment model). Bones & other is the remainder, not a bone-mass measurement. No newer scale reading is mixed in. '+(old?'Arrows compare the preceding dated Fitdays report.':'No previous dated report is available for change arrows.')+'</p><a href="https://doi.org/10.1016/0021-9290(95)00178-6" target="_blank" rel="noopener noreferrer">de Leva 1996 · segment parameters</a></details></section>';
   }
   partsInView(key) { return regionPartsOf(key, this.saved); }
   paintModel(key) {
@@ -352,6 +375,7 @@ class HealthBodyView extends HTMLElement {
   }
 
   compositionHeadingHTML() {
+    if(typeof window.HealthBodyFiguresHTML==='function')return window.HealthBodyFiguresHTML(this.fitdays);
     const esc = value => this.escape(value);
     const rows = this.wholeBodyFigures();
     if (!rows.length) return '';
@@ -363,21 +387,37 @@ class HealthBodyView extends HTMLElement {
   compositionHTML() {
     if (!this.fitdays) return '<div class="body-fitdays-empty"><label class="filebtn body-import">Add reviewed Fitdays report<input data-body="fitdays" type="file" accept=".zip" aria-label="Add reviewed Fitdays report ZIP"></label></div>';
     const report = this.fitdays;
-    return '<section class="body-composition" aria-label="Fitdays regional composition"><h3>Fat &amp; muscle by region</h3><p class="hint">Fitdays · '+this.escape(this.date(report.measurementDate))+' '+this.escape(report.measurementTime || '')+' · report timezone not specified. No other source measures individual regions, so these stay on the Fitdays date'+(report.measurementDate !== this.selected.captureDate ? ', shown on your '+this.escape(this.date(this.selected.captureDate))+' model' : '')+'. Fitdays-reported estimates; segment fat is inferred, and colors identify regions rather than showing fat inside your body.</p><div class="body-composition-cards">'+this.fitdays.segments.map(row => '<button data-body="composition-region" data-region="'+row.id+'" aria-pressed="false" style="--region-color:'+FITDAYS_GROUPS[row.id].color+'"><strong><i aria-hidden="true"></i>'+row.label+'</strong><span><b>'+row.fatMassLb.toFixed(1)+' lb</b> fat</span><span><b>'+row.muscleBalanceMassLb.toFixed(1)+' lb</b> muscle</span></button>').join('')+'</div><p class="hint">Whole-arm, whole-leg and trunk totals. Smaller regions are estimated from these by typical segment mass and read “est.”.</p><details class="body-composition-details"><summary>Report details & comparison percentages</summary><p class="hint">These percentages compare with the Fitdays standard range. They are not regional body-fat percentages or shares of your total. Transcribed from the saved report image.</p><table><thead><tr><th>Region</th><th>Fat comparison</th><th>Muscle comparison</th></tr></thead><tbody>'+this.fitdays.segments.map(row=>'<tr><td>'+row.label+'</td><td>'+row.fatComparisonPercent.toFixed(1)+'%</td><td>'+row.muscleComparisonPercent.toFixed(1)+'%</td></tr>').join('')+'</tbody></table><p><a class="body-export" href="'+this.asset('fitdays-source.jpg')+'" target="_blank" rel="noopener">View original Fitdays report ↗</a></p><p><a class="body-export" href="'+this.asset('fitdays-export.zip')+'" download>Export Fitdays report + values</a></p><label class="filebtn body-import">Add another reviewed Fitdays report<input data-body="fitdays" type="file" accept=".zip" aria-label="Add reviewed Fitdays report ZIP"></label><p class="hint">Fitdays reports are saved separately from your model, photos and HealthAutoExport source.</p></details></section>';
+    return '<section class="body-composition" aria-label="Fitdays regional composition"><h3>Fat &amp; muscle by region</h3><p class="hint">Fitdays · '+this.escape(this.date(report.measurementDate))+' '+this.escape(report.measurementTime || '')+' · report timezone not specified. No other source measures individual regions, so these stay on the Fitdays date'+(report.measurementDate !== this.selected.captureDate ? ', shown on your '+this.escape(this.date(this.selected.captureDate))+' model' : '')+'. Fitdays-reported estimates; segment fat is inferred, and colors identify regions rather than showing fat inside your body.</p><div class="body-composition-cards">'+this.fitdays.segments.map(row => '<button data-body="composition-region" data-region="'+row.id+'" aria-pressed="false" style="--region-color:'+FITDAYS_GROUPS[row.id].color+'"><strong><i aria-hidden="true"></i>'+row.label+'</strong><span><b>'+bodyMass(row.fatMassLb)+'</b> fat</span><span><b>'+bodyMass(row.muscleBalanceMassLb)+'</b> muscle</span></button>').join('')+'</div><p class="hint">Whole-arm, whole-leg and trunk totals. Smaller regions are estimated from these by typical segment mass and read “est.”.</p><details class="body-composition-details"><summary>Report details & comparison percentages</summary><p class="hint">These percentages compare with the Fitdays standard range. They are not regional body-fat percentages or shares of your total. Transcribed from the saved report image.</p><table><thead><tr><th>Region</th><th>Fat comparison</th><th>Muscle comparison</th></tr></thead><tbody>'+this.fitdays.segments.map(row=>'<tr><td>'+row.label+'</td><td>'+row.fatComparisonPercent.toFixed(1)+'%</td><td>'+row.muscleComparisonPercent.toFixed(1)+'%</td></tr>').join('')+'</tbody></table><p><a class="body-export" href="'+this.asset('fitdays-source.jpg')+'" target="_blank" rel="noopener">View original Fitdays report ↗</a></p><p><a class="body-export" href="'+this.asset('fitdays-export.zip')+'" download>Export Fitdays report + values</a></p><label class="filebtn body-import">Add another reviewed Fitdays report<input data-body="fitdays" type="file" accept=".zip" aria-label="Add reviewed Fitdays report ZIP"></label><p class="hint">Fitdays reports are saved separately from your model, photos and HealthAutoExport source.</p></details></section>';
+  }
+
+  refreshFigures(){
+    if(this.querySelector('.body-composition[aria-label="Body numbers"]')){this.unavailable();return;}
+    const current=this.querySelector('.body-figures');
+    if(current){const next=document.createElement('template');next.innerHTML=this.compositionHeadingHTML();current.replaceWith(next.content);}
+    const tools=this.querySelector('.body-tools');
+    if(tools){
+      const field=tools.querySelector('[data-body="regionName"]'),draft=field?{value:field.value,focused:document.activeElement===field,start:field.selectionStart,end:field.selectionEnd}:null;
+      tools.innerHTML=this.toolsHTML();
+      const next=tools.querySelector('[data-body="regionName"]');if(draft&&next){next.value=draft.value;if(draft.focused){next.focus({preventScroll:true});next.setSelectionRange(draft.start,draft.end);}}
+    }
+    const measurements=this.querySelector('.body-measurements');if(measurements){const open=measurements.open,holder=document.createElement('template');holder.innerHTML=this.measurementHTML();holder.content.firstElementChild.open=open;measurements.replaceWith(holder.content);}
+    const composition=this.querySelector('.body-composition[aria-label="Fitdays regional composition"]');if(composition){const holder=document.createElement('template');holder.innerHTML=this.compositionHTML();composition.replaceWith(holder.content);}
+    if(this.selected)this.highlight(this.region);
   }
 
   measurementHTML() {
     const esc = value => this.escape(value);
     const readings = this.measurements.readings || [];
-    return '<details class="body-measurements" open><summary>Body measurements from your export</summary><label class="filebtn body-import">Add HealthAutoExport file<input data-body="measurements" type="file" accept=".zip,.csv" aria-label="Add HealthAutoExport body measurements"></label>' +
+    return '<details class="body-measurements"><summary>Body measurements from your export</summary><label class="filebtn body-import">Add HealthAutoExport file<input data-body="measurements" type="file" accept=".zip,.csv" aria-label="Add HealthAutoExport body measurements"></label>' +
       '<p class="hint">' + (this.measurements.source ? esc(this.measurements.sourceFile) + ' · ' + readings.length + ' body readings' : 'No body-measurement export linked yet.') + '</p>' +
       (this.measurements.coverageStart ? '<p class="hint">Export coverage: '+esc(this.measurements.coverageStart)+' – '+esc(this.measurements.coverageEnd)+'. These dates may differ from the model capture date.</p>' : '') +
-      '<div class="body-readings">' + (readings.length ? readings.slice(-30).map(r=>'<p><b>'+esc(r.label)+': '+esc(r.value)+' '+esc(r.unit)+'</b><br><span class="hint">'+esc(r.region === 'whole-body' ? 'Whole body' : r.region)+' · '+esc(r.recordedAt)+' · HealthAutoExport</span></p>').join('') : '<p>Weight, body fat and lean body mass: <b>Not available in this HealthAutoExport file</b></p>') + '</div><p class="hint">Regional fat and muscle: Not available in this HealthAutoExport file. Whole-body values are not assigned to individual limbs.</p>' +
+      '<div class="body-readings">' + (readings.length ? readings.slice(-30).map(r=>'<p><b>'+esc(r.label)+': '+esc(bodyMeasurement(r))+'</b><br><span class="hint">'+esc(r.region === 'whole-body' ? 'Whole body' : r.region)+' · '+esc(r.recordedAt)+' · HealthAutoExport</span></p>').join('') : '<p>Weight, body fat and lean body mass: <b>Not available in this HealthAutoExport file</b></p>') + '</div><p class="hint">Regional fat and muscle: Not available in this HealthAutoExport file. Whole-body values are not assigned to individual limbs.</p>' +
       (this.measurements.source ? '<a class="body-export" href="'+this.asset('measurements.json')+'" download="body-measurement-source.json">Export measurement source details</a>' : '') + '</details>';
   }
 
   highlight(key) {
     this.region = key;
+    const tools=this.querySelector('.body-tools');if(tools&&this.mode==='select')tools.innerHTML=this.toolsHTML();
     const select = this.querySelector('[data-body="region"]'); if (select) select.value = key;
     const viewer = this.querySelector('model-viewer');
     const groupKey = fitdaysGroup(key);
@@ -393,8 +433,8 @@ class HealthBodyView extends HTMLElement {
       if (this.fitdays) {
         const row = this.fitdays.segments.find(item => item.id === groupKey);
         if (key === 'all') detail.textContent = 'Five colored regions · select a region to inspect its fat and muscle totals.';
-        else if (row && key !== groupKey && segmentShare(key) !== null) { const f = segmentShare(key); detail.textContent = 'est. ' + ((row.fatMassLb + row.muscleBalanceMassLb) * f).toFixed(1) + ' lb total · ' + (row.fatMassLb * f).toFixed(1) + ' lb fat · ' + (row.muscleBalanceMassLb * f).toFixed(1) + ' lb muscle · ' + Math.round(f * 100) + '% of the ' + row.label.toLowerCase() + ' (' + (row.fatMassLb + row.muscleBalanceMassLb).toFixed(1) + ' lb), by typical segment mass'; }
-        else if (row) detail.textContent = (key === groupKey ? 'Whole region' : row.label + ' total — not a separate ' + this.regions[key].toLowerCase() + ' measurement') + ': ' + (row.fatMassLb + row.muscleBalanceMassLb).toFixed(1) + ' lb total · ' + row.fatMassLb.toFixed(1) + ' lb fat · ' + row.muscleBalanceMassLb.toFixed(1) + ' lb muscle';
+        else if (row && key !== groupKey && segmentShare(key) !== null) { const f = segmentShare(key); detail.textContent = 'est. ' + bodyMass((row.fatMassLb + row.muscleBalanceMassLb) * f) + ' total · ' + bodyMass(row.fatMassLb * f) + ' fat · ' + bodyMass(row.muscleBalanceMassLb * f) + ' muscle · ' + Math.round(f * 100) + '% of the ' + row.label.toLowerCase() + ' (' + bodyMass(row.fatMassLb + row.muscleBalanceMassLb) + '), by typical segment mass'; }
+        else if (row) detail.textContent = (key === groupKey ? 'Whole region' : row.label + ' total — not a separate ' + this.regions[key].toLowerCase() + ' measurement') + ': ' + bodyMass(row.fatMassLb + row.muscleBalanceMassLb) + ' total · ' + bodyMass(row.fatMassLb) + ' fat · ' + bodyMass(row.muscleBalanceMassLb) + ' muscle';
         else detail.textContent = 'No separate head / neck composition data in this report.';
         overlay.append(detail);
         const source = document.createElement('span'); source.className = 'body-overlay-source'; source.textContent = 'Fitdays estimates · ' + this.date(this.fitdays.measurementDate) + ' · segment fat inferred'; overlay.append(source);
@@ -404,7 +444,7 @@ class HealthBodyView extends HTMLElement {
       if (matches.length) {
         const latest = new Map();
         for (const row of matches) if (!latest.has(row.metric) || row.recordedAt > latest.get(row.metric).recordedAt) latest.set(row.metric, row);
-        detail.textContent = [...latest.values()].map(row => row.label + ': ' + row.value + ' ' + row.unit + ' · ' + row.recordedAt).join(' | ') + ' · Export reported';
+        detail.textContent = [...latest.values()].map(row => row.label + ': ' + bodyMeasurement(row) + ' · ' + row.recordedAt).join(' | ') + ' · Export reported';
       } else detail.textContent = key === 'all' ? 'Body measurements: not available' : 'Regional fat / muscle: not available';
       overlay.append(detail);
     }
@@ -445,28 +485,47 @@ class HealthBodyView extends HTMLElement {
     const theta = {Front: 0, Back: 180, Left: -90, Right: 90}[name];
     const viewer = this.querySelector('model-viewer');
     this.showPhoto(name);
-    viewer.setAttribute('camera-orbit', theta + 'deg 85deg 115%');
+    viewer.setAttribute('camera-orbit', theta + 'deg 85deg ' + BODY_ZOOM.start + '%');
     viewer.setAttribute('camera-target', 'auto auto auto');
     viewer.setAttribute('field-of-view', '30deg');
+    this.zoomPct = BODY_ZOOM.start;
+    this.syncZoomControls();
+  }
+
+  syncZoomControls() {
+    this.querySelectorAll('[data-body="zoom"]').forEach(button => {
+      button.disabled = Number(button.dataset.direction) < 0 ? this.zoomPct <= BODY_ZOOM.min : this.zoomPct >= BODY_ZOOM.max;
+    });
+  }
+
+  zoomModel(direction) {
+    const viewer = this.querySelector('model-viewer');
+    if (!viewer || typeof viewer.getCameraOrbit !== 'function') return;
+    this.zoomPct = Math.max(BODY_ZOOM.min, Math.min(BODY_ZOOM.max, (this.zoomPct ?? BODY_ZOOM.start) + direction * BODY_ZOOM.step));
+    const orbit = viewer.getCameraOrbit();
+    const theta = Number.isFinite(orbit.theta) ? orbit.theta : 0, phi = Number.isFinite(orbit.phi) ? orbit.phi : 85 * Math.PI / 180;
+    viewer.setAttribute('camera-orbit', theta + 'rad ' + phi + 'rad ' + this.zoomPct + '%');
+    this.syncZoomControls();
   }
 
   render() {
+    this.zoomPct = BODY_ZOOM.start;
     const record = this.stage || this.selected;
     const esc = value => this.escape(value);
     this.innerHTML = '<section class="panelcard body-record-card" aria-label="Your body records">' +
       '<div class="ph"><div><p class="cap">Private on this Mac</p><h2>Your body view</h2></div><label class="filebtn body-import">Import body record<input type="file" accept=".zip,application/zip" aria-label="Import body record ZIP" data-body="file"></label></div>' +
       '<p class="body-status hint" role="status" aria-live="polite"></p>' +
-      (this.records.length && !this.stage ? '<label class="body-record-label">Saved record<select data-body="record" aria-label="Saved body record">' + this.records.map(r => '<option value="' + r.id + '"' + (r.id === this.selected?.id ? ' selected' : '') + '>' + esc(this.date(r.captureDate) + ' · ' + r.variantLabel) + '</option>').join('') + '</select></label>' : '') +
+      (this.records.length && !this.stage ? '<details class="body-help"><summary>ⓘ Body record history</summary><label class="body-record-label">Choose a dated view<select data-body="record" aria-label="Saved body record">' + this.records.map(r => '<option value="' + r.id + '"' + (r.id === this.selected?.id ? ' selected' : '') + '>' + esc(this.date(r.captureDate) + ' · ' + r.variantLabel) + '</option>').join('') + '</select></label></details>' : '') +
       (record ? '<div class="body-record-heading"><h3>' + esc(this.date(record.captureDate)) + '</h3><span class="chip quiet">' + (this.stage ? 'Import preview · not saved' : esc(record.variantLabel)) + '</span></div>' +
         (!this.stage ? this.compositionHeadingHTML() : '') +
         (this.stage ? '<div class="body-review"><label>Reference type<select data-body="variant" aria-label="Reference type"><option value="reconstructed-reference">Reconstructed reference</option><option value="original-photo-reference">Original-photo reference</option></select></label><p class="hint">One model and four reference images checked. Review the date, views and reference type before saving.</p><div class="acts"><button class="primary" data-body="save">Save body record</button><button data-body="cancel">Cancel import</button></div></div>' : '') +
         // Model and reference image side by side (Mintay, 2026-09-24); the image follows the model's angle.
         '<div class="body-pair"><div class="body-pane">' +
-        '<div class="body-model-stage"><model-viewer class="body-model" src="' + this.asset(!this.stage && Object.keys(this.regions).length ? 'regions.glb' : 'model.glb') + '" alt="Approximate body model. Drag to rotate; scroll to zoom." camera-controls camera-orbit="0deg 85deg 115%" field-of-view="30deg" min-camera-orbit="auto auto 20%" max-camera-orbit="auto auto 250%" interaction-prompt="none" shadow-intensity="0.4" exposure="1"></model-viewer><span class="body-load" role="status">Loading 3D view…</span>'+(!this.stage ? '<div class="body-region-overlay" aria-live="polite"></div>' : '')+'</div>' +
-        '<div class="body-angle-controls" aria-label="Model viewing angle">' + ['Front','Back','Left','Right','Reset view'].map(name => '<button data-body="angle" data-angle="' + name + '">' + name + '</button>').join('') + '<button data-body="fullscreen" aria-pressed="false">Full screen</button></div><p class="hint">Drag to rotate · scroll to zoom. The photo follows the nearest angle; Reset returns both to Front. Solid-color model; skin is shown in the reference images.</p></div>' +
+        '<div class="body-model-stage"><model-viewer class="body-model" src="' + this.asset(!this.stage && Object.keys(this.regions).length ? 'regions.glb' : 'model.glb') + '" alt="Approximate body model. Drag to rotate; use Zoom in and Zoom out. Scroll moves the page." camera-controls disable-zoom touch-action="pan-y" camera-orbit="0deg 85deg '+BODY_ZOOM.start+'%" field-of-view="30deg" min-camera-orbit="auto auto '+BODY_ZOOM.min+'%" max-camera-orbit="auto auto '+BODY_ZOOM.max+'%" interaction-prompt="none" shadow-intensity="0.4" exposure="1"></model-viewer><span class="body-load" role="status">Loading 3D view…</span>'+(!this.stage ? '<div class="body-region-overlay" aria-live="polite"></div>' : '')+'</div>' +
+        '<div class="body-angle-controls" aria-label="Model viewing controls">' + ['Front','Back','Left','Right','Reset view'].map(name => '<button data-body="angle" data-angle="' + name + '">' + name + '</button>').join('') + '<button data-body="zoom" data-direction="-1">Zoom in</button><button data-body="zoom" data-direction="1">Zoom out</button><button data-body="fullscreen" aria-pressed="false">Full screen</button></div><p class="hint">Drag to rotate · buttons zoom within fixed limits · scroll moves the page. The photo follows the nearest angle; Reset returns both to Front. Solid-color model; skin is shown in the reference images.</p></div>' +
         '<div class="body-pane body-photos"><p class="cap">Reference image</p><div class="body-photo-tabs" role="group" aria-label="Reference image">' + ['Front','Back','Left','Right'].map(name => '<button data-body="photo" data-photo="' + name + '" aria-pressed="' + (name === this.photo) + '">' + name + '</button>').join('') + '</div><a class="body-photo-link" href="' + this.asset(this.photo + '.png') + '" target="_blank" rel="noopener"><img class="body-reference" src="' + this.asset(this.photo + '.png') + '" alt="' + this.photo + ' reference image"><span>Open full-size image ↗</span></a></div></div>' +
         (!this.stage ? this.regionHTML() : '') +
-        (!this.stage ? this.compositionHTML() : '') +
+        (!this.stage ? '<details class="body-help"><summary>ⓘ Fitdays source and regional detail</summary>'+this.compositionHTML()+'</details>' : '') +
         (!this.stage ? this.measurementHTML() : '') +
         '<p class="hint body-limitation">' + (this.stage || record.variant === 'reconstructed-reference' ? 'Reconstructed reference: shape and hidden skin details may be estimated. ' : 'Original-photo references with an approximate generated model. ') + 'This view does not measure body fat, muscle or circumferences.</p>' +
         (!this.stage ? '<div class="acts"><a class="body-export" href="' + this.asset('export.zip') + '" download>Export model + four images</a><span class="hint">Saved locally · available after reopening</span></div>' : '') :
@@ -505,7 +564,7 @@ class HealthBodyView extends HTMLElement {
       this.busy = true; this.disable(true); this.status('Checking the Fitdays report and original image…');
       try {
         const result = await this.request('fitdays/' + this.selected.id, control.files[0]);
-        this.fitdays = result.report; this.region = 'all'; this.photo = 'Front'; this.render();
+        this.fitdays = await this.request('records/'+this.selected.id+'/fitdays.json'); this.region = 'all'; this.photo = 'Front'; this.publishSnapshot(); this.render();
         this.status((result.duplicate ? 'Existing Fitdays report opened. ' : 'Fitdays report saved locally. ') + 'Measurement date: ' + this.date(this.fitdays.measurementDate) + '.');
       } catch (error) { this.status(error.message, true); }
       finally { this.busy = false; this.disable(false); }
@@ -541,13 +600,17 @@ class HealthBodyView extends HTMLElement {
     const action = button.dataset.body;
     if (action === 'photo' || action === 'angle') {
       this.showAngle(action === 'photo' ? button.dataset.photo : button.dataset.angle);
+    } else if (action === 'zoom') {
+      this.zoomModel(Number(button.dataset.direction));
     } else if (action === 'fullscreen') {
       const card = this.querySelector('.body-record-card'), doc = document, active = doc.fullscreenElement || doc.webkitFullscreenElement;
       if (active) { (doc.exitFullscreen || doc.webkitExitFullscreen).call(doc); return; }
-      const viewer = this.querySelector('model-viewer'); this.savedOrbit = viewer && viewer.getCameraOrbit ? viewer.getCameraOrbit().toString() : null;
+      if (card.classList.contains('body-full')) { card.classList.remove('body-full'); this.fullListener?.(); return; }
+      const viewer = this.querySelector('model-viewer'), orbit = viewer?.getCameraOrbit?.(); this.savedZoomPct = this.zoomPct;
+      this.savedOrbit = orbit ? orbit.theta + 'rad ' + orbit.phi + 'rad ' + this.savedZoomPct + '%' : null;
       const go = card.requestFullscreen || card.webkitRequestFullscreen;
       if (go) { try { await go.call(card); } catch (_) { card.classList.add('body-full'); } } else card.classList.add('body-full');
-      if (!this.fullListener) { this.fullListener = () => { const on = !!(document.fullscreenElement || document.webkitFullscreenElement) || card.classList.contains('body-full'); const b = this.querySelector('[data-body="fullscreen"]'); if (b) { b.setAttribute('aria-pressed', String(on)); b.textContent = on ? 'Exit full screen' : 'Full screen'; } if (!on) { const v = this.querySelector('model-viewer'); if (v && this.savedOrbit) v.cameraOrbit = this.savedOrbit; this.highlight(this.region); } }; document.addEventListener('fullscreenchange', this.fullListener); document.addEventListener('webkitfullscreenchange', this.fullListener); this.keyListener = e => { if (e.key === 'Escape' && card.classList.contains('body-full')) { card.classList.remove('body-full'); this.fullListener(); } }; document.addEventListener('keydown', this.keyListener); }
+      if (!this.fullListener) { this.fullListener = () => { const on = !!(document.fullscreenElement || document.webkitFullscreenElement) || card.classList.contains('body-full'); const b = this.querySelector('[data-body="fullscreen"]'); if (b) { b.setAttribute('aria-pressed', String(on)); b.textContent = on ? 'Exit full screen' : 'Full screen'; } if (!on) { const v = this.querySelector('model-viewer'); if (v && this.savedOrbit) { v.cameraOrbit = this.savedOrbit; this.zoomPct = this.savedZoomPct; this.syncZoomControls(); } this.highlight(this.region); } }; document.addEventListener('fullscreenchange', this.fullListener); document.addEventListener('webkitfullscreenchange', this.fullListener); this.keyListener = e => { if (e.key === 'Escape' && card.classList.contains('body-full')) { card.classList.remove('body-full'); this.fullListener(); } }; document.addEventListener('keydown', this.keyListener); }
       this.fullListener();
     } else if (action === 'mode') {
       this.mode = button.dataset.mode; if (this.mode === 'select' && this.region.startsWith('custom:') && !this.saved.some(r => 'custom:' + r.id === this.region)) this.region = 'all'; this.refreshTools();

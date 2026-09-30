@@ -4,16 +4,50 @@
    Colour is always a name (red · orange · yellow · green · violet, blue for sleep, brass for a measure)
    mapped to the page's tokens, so a colour means the same thing everywhere and every scale can show a key. */
 (function(root,factory){
-  if(typeof module==='object'&&module.exports)module.exports=factory();
-  else root.GlowViews=factory();
-})(typeof globalThis!=='undefined'?globalThis:this,function(){
+  if(typeof module==='object'&&module.exports)module.exports=factory(require('./perfect-verdicts.js'));
+  else root.GlowViews=factory(root.PerfectVerdicts);
+})(typeof globalThis!=='undefined'?globalThis:this,function(Perfect){
   'use strict';
   const esc=s=>String(s===null||s===undefined?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const num=v=>typeof v==='number'&&Number.isFinite(v),clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v)),f=n=>(+n).toFixed(1);
-  const TONES={red:'var(--c-red)',orange:'var(--c-orange)',yellow:'var(--c-yellow)',green:'var(--c-green)',violet:'var(--c-violet)',purple:'var(--c-violet)',blue:'var(--sleep)',brass:'var(--brass)',neutral:'var(--muted)'};
+  const TONES={red:'var(--c-red)',orange:'var(--c-orange)',yellow:'var(--c-yellow)',green:'var(--c-green)',violet:'var(--c-violet)',purple:'var(--c-violet)',blue:'var(--sleep)',brass:'var(--brass)',neutral:'var(--muted)',loadLow:'#2458a0',loadTarget:'#18734b',loadHigh:'#a83843'};
   /* A name from the table, or a colour of the page's own continuous scales (rgb(…), a token) passed through. */
   const tone=name=>TONES[name]||(/^(#[0-9a-f]{3,8}|rgb\(|hsl\(|var\(--)/i.test(String(name||''))?String(name):'var(--muted)');
   const n0=v=>Math.round(v).toLocaleString('en-US');
+
+  // Mintay's Phase 4 scales: position against the actual target, never the chart's changing maximum.
+  const mix=(a,b,t)=>'rgb('+a.map((v,i)=>Math.round(v+(b[i]-v)*clamp(t,0,1))).join(',')+')';
+  function loadColour(value,band){
+    if(!num(value)||!band||!num(band.lo)||!num(band.hi)||band.hi<=0)return tone('neutral');
+    const blue=[36,88,160],green=[24,115,75],red=[168,56,67];
+    return value<band.lo?mix(blue,green,value/band.lo):value<=band.hi?mix(green,green,0):mix(green,red,(value-band.hi)/band.hi);
+  }
+  function sleepColour(minutes,target){
+    if(!num(minutes)||!num(target)||target<=0)return tone('neutral');
+    const r=minutes/target,red=[146,46,60],blue=[47,111,195],purple=[121,84,178];
+    return r<=.3?mix([126,36,50],red,r/.3):r<=1?mix(red,blue,(r-.3)/.7):mix(blue,purple,(r-1)/.3);
+  }
+  function loadGauge(load){
+    const b=load&&load.band;if(!b)return '<div class="load-gauge empty" role="img" aria-label="Target band not yet available"></div>';
+    const W=560,L=24,R=536,max=Math.max(b.hi*2,load.value*1.08,1),x=v=>L+clamp(v/max,0,1)*(R-L),mid=(b.lo+b.hi)/2;
+    const stops=Array.from({length:64},(_,i)=>{const v=max*i/64;return '<rect x="'+f(x(v))+'" y="36" width="'+f((R-L)/64+.1)+'" height="18" fill="'+loadColour(v,b)+'"/>';}).join('');
+    const marker=num(load.value)?'<path d="M'+f(x(load.value))+' 26l-6 -9h12Z" fill="var(--ink)"/><line x1="'+f(x(load.value))+'" x2="'+f(x(load.value))+'" y1="29" y2="60" stroke="var(--ink)" stroke-width="2"'+(load.inputs?.closed!==true?' stroke-dasharray="3 2"':'')+'/>':'';
+    return '<svg class="load-gauge" viewBox="0 0 '+W+' 104" role="img" aria-label="'+esc('Load '+(num(load.value)?load.value:'unknown')+'; target '+Math.round(b.lo)+' to '+Math.round(b.hi)+'; '+(load.label||''))+'">'+stops+'<rect x="'+f(x(b.lo))+'" y="33" width="'+f(x(b.hi)-x(b.lo))+'" height="24" rx="3" fill="none" stroke="var(--ink)" stroke-width="1.5"/>'+marker+'<text x="'+f(x(mid))+'" y="83" text-anchor="middle" fill="var(--ink)" font-size="13">Target '+Math.round(b.lo)+'–'+Math.round(b.hi)+'</text><text x="24" y="83" fill="var(--muted)" font-size="12">0 · Low</text><text x="536" y="83" text-anchor="end" fill="var(--muted)" font-size="12">'+Math.round(max)+' · High</text></svg>';
+  }
+  function sleepWeek(days,target){
+    const W=400,H=244,L=32,R=392,T=16,B=164,max=Math.max(target,...days.flatMap(d=>[d.asleep,d.inBed]).filter(num),60),top=Math.ceil(max/120)*120,step=(R-L)/Math.max(1,days.length),y=v=>B-v/top*(B-T),hours=v=>String(Math.round(v/60*10)/10)+' h';
+    let out='<svg class="sleep-week-chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Asleep and in-bed duration by night, hours; target '+hours(target)+'"><text x="2" y="10" fill="var(--muted)" font-size="11">Hours</text>';
+    for(const v of [0,top/2,top])out+='<line x1="'+L+'" x2="'+R+'" y1="'+f(y(v))+'" y2="'+f(y(v))+'" stroke="var(--line)"/><text x="24" y="'+f(y(v)+4)+'" text-anchor="end" fill="var(--muted)" font-size="12">'+Math.round(v/60)+'</text>';
+    out+='<line x1="'+L+'" x2="'+R+'" y1="'+f(y(target))+'" y2="'+f(y(target))+'" stroke="#9cc4f0" stroke-dasharray="5 4"/><text x="'+R+'" y="'+f(y(target)-5)+'" text-anchor="end" fill="var(--ink)" font-size="12">Target '+hours(target)+'</text>';
+    days.forEach((d,i)=>{
+      const x=L+step*(i+.5),wide=Math.min(32,step*.7),narrow=wide*.58,asleep=num(d.asleep),bed=num(d.inBed),title=d.date+': '+(asleep?hours(d.asleep)+' asleep':'No record')+'; '+(bed?hours(d.inBed)+' in bed':'in-bed duration unknown');
+      out+='<g data-date="'+esc(d.date)+'"><title>'+esc(title)+'</title>';
+      if(bed)out+='<rect data-kind="in-bed" x="'+f(x-wide/2)+'" y="'+f(y(d.inBed))+'" width="'+f(wide)+'" height="'+f(B-y(d.inBed))+'" rx="3" fill="none" stroke="#adc6e6" stroke-width="1.6"/>';
+      if(asleep)out+='<rect data-kind="asleep" x="'+f(x-narrow/2)+'" y="'+f(y(d.asleep))+'" width="'+f(narrow)+'" height="'+f(B-y(d.asleep))+'" rx="2" fill="'+sleepColour(d.asleep,target)+'" stroke="#dbcfad" stroke-width=".7"/>';
+      out+='<text x="'+f(x)+'" y="184" text-anchor="middle" fill="var(--ink)" font-size="13">'+esc(d.label)+'</text><text x="'+f(x)+'" y="201" text-anchor="middle" fill="var(--ink)" font-size="13">'+(asleep?hours(d.asleep):'—')+'</text><text x="'+f(x)+'" y="217" text-anchor="middle" fill="var(--muted)" font-size="12">'+(bed?hours(d.inBed):'—')+'</text></g>';
+    });
+    return out+'<text x="32" y="240" fill="var(--ink)" font-size="12">■ Asleep · □ In bed · — Unknown</text></svg>';
+  }
 
   /* ---------- the ring: spiky and segmented, the app's own style ---------- */
   const SEGMENTS=40;
@@ -44,7 +78,7 @@
     quality:[['red','0–24'],['orange','25–49'],['yellow','50–74'],['green','75–89'],['violet','90–100']],
     rungs:[['red','Poor'],['orange','Below'],['yellow','Avg'],['green','Good · Trained'],['violet','Athlete · Elite']],
     vitals:[['red','Behind'],['orange',''],['yellow',''],['green','On target'],['violet','Excellent']],
-    load:[['brass','So far'],['green','In band'],['orange','Above'],['yellow','Below (day over)'],['red','Well above 3 days']]
+    load:[['loadLow','Low'],['loadTarget','Target zone'],['loadHigh','High']]
   };
 
   /* ---------- a vital on the quality track (the approved Body look, Sept 26) ----------
@@ -66,12 +100,12 @@
   function placeTone(p,tones){const t=tones||SLOT_TONES;return t[clamp(Math.ceil(p*t.length-1e-9)-1,0,t.length-1)];}
   const track=tones=>'linear-gradient(90deg,'+tones.map((t,i)=>tone(t)+' '+f((i+.5)/tones.length*100)+'%').join(',')+')';
   function vital(o){
-    const tones=o.tones||SLOT_TONES,has=num(o.place),x=p=>f(clamp(p,0,1)*100),band=o.band&&num(o.band[0])&&num(o.band[1])?[Math.min(o.band[0],o.band[1]),Math.max(o.band[0],o.band[1])]:null;
-    const name=has?o.tone||placeTone(o.place,tones):null,colour=has?tone(name):'var(--faint)';
+    const original=o.tones||SLOT_TONES,down=o.direction==='down',tones=down?original.slice().reverse():original,has=num(o.place),x=p=>f(clamp(down?1-p:p,0,1)*100),band=o.band&&num(o.band[0])&&num(o.band[1])?[Math.min(o.band[0],o.band[1]),Math.max(o.band[0],o.band[1])]:null;
+    const name=has?o.tone||placeTone(o.place,original):null,colour=has?tone(name):'var(--faint)';
     const spoken=o.label+': '+(has?o.text+(o.word?', '+o.word:''):'no reading yet')+(band&&o.bandText?'; your typical range '+o.bandText:'');
-    return '<div class="vital'+(has?'':' empty')+'"'+(o.id?' data-vital="'+esc(o.id)+'"':'')+(has?' data-tone="'+esc(name)+'"':'')+'><div class="vital-name"><b>'+esc(o.label)+'</b><small>'+esc(o.sub||'')+'</small></div>'+
+    return '<div class="vital'+(has?'':' empty')+'"'+(o.id?' data-vital="'+esc(o.id)+'"':'')+(has?' data-tone="'+esc(name)+'"':'')+' data-direction="'+(down?'down':'up')+'"><div class="vital-name"><b>'+esc(o.label)+'</b>'+(o.info||'')+'<small>'+esc(o.sub||'')+'</small></div>'+
       '<div class="vital-track" role="img" aria-label="'+esc(spoken)+'" style="background:'+track(tones)+'">'+
-      (band?'<i class="typical" style="left:'+x(band[0])+'%;width:'+f(Math.max(3,(band[1]-band[0])*100))+'%"></i>':'')+
+      (band?'<i class="typical" style="left:'+Math.min(x(band[0]),x(band[1]))+'%;width:'+f(Math.max(3,(band[1]-band[0])*100))+'%"></i>':'')+
       (o.recent||[]).filter(num).map(p=>'<i class="dot" style="left:'+x(p)+'%"></i>').join('')+
       (has?'<i class="knob" style="left:'+x(o.place)+'%;--glow:'+colour+'"></i>':'')+'</div>'+
       '<div class="vital-now"><b style="color:'+colour+'">'+esc(has?o.text:'—')+'</b>'+(o.note?'<small>'+esc(o.note)+'</small>':'')+'</div></div>';
@@ -102,24 +136,63 @@
   }
   function ladder(e,o){
     const opt=o||{},name=esc(opt.name||e.name||e.metric),sub=opt.sub?'<small>'+esc(opt.sub)+'</small>':'';
-    if(!e||!e.rung)return '<div class="stand-row empty"'+(e&&e.metric?' data-metric="'+esc(e.metric)+'"':'')+'><div class="stand-name"><b>'+name+'</b>'+sub+'</div><div class="stand-ladder muted">'+RUNGS.map(r=>'<span>'+RUNG_LABEL[r]+'</span>').join('')+'</div><div class="stand-value"><b>—</b><small>'+esc(opt.note||(e&&e.note)||'No reading yet')+'</small></div></div>';
-    const mark=ladderMark(e),colour=tone(RUNG_TONE[e.rung]);
-    const rungs=e.order.map(r=>'<span class="'+(r===e.rung?'on':'')+'" style="--rung:'+tone(RUNG_TONE[r])+'">'+RUNG_LABEL[r]+(r==='elite'?' ✦':'')+'</span>').join('');
+    if(!e||!e.rung)return '<div class="stand-row empty"'+(e&&e.metric?' data-metric="'+esc(e.metric)+'"':'')+'><div class="stand-name"><b>'+name+'</b>'+sub+(opt.info||'')+'</div><div class="stand-ladder muted">'+RUNGS.map(r=>'<span>'+RUNG_LABEL[r]+'</span>').join('')+'</div><div class="stand-value"><b>—</b><small>'+esc(opt.note||(e&&e.note)||'No reading yet')+'</small></div></div>';
+    /* V3.3 (1.2): the bar always runs low → high, left to right. When lower is better the rungs are drawn
+       elite … poor so the numbers still rise to the right and the colours flip (purple left, red right);
+       the marker moves right as the value rises. The floors come from the score table (e.cuts), never typed. */
+    const down=e.direction==='down',shown=down?e.order.slice().reverse():e.order,mark=down?1-ladderMark(e):ladderMark(e),colour=tone(RUNG_TONE[e.rung]);
+    const rungs=shown.map(r=>'<span class="'+(r===e.rung?'on':'')+'" style="--rung:'+tone(RUNG_TONE[r])+'">'+RUNG_LABEL[r]+(r==='elite'?' ✦':'')+'</span>').join('');
     const value=opt.text||(e.unit==='steps'?n0(e.value):String(Math.round(e.value*10)/10));
-    return '<div class="stand-row" data-metric="'+esc(e.metric)+'" data-rung="'+esc(e.rung)+'"><div class="stand-name"><b>'+name+'</b>'+sub+'</div>'+
-      '<div class="stand-ladder" role="img" aria-label="'+esc((opt.name||e.metric)+': '+RUNG_LABEL[e.rung]+', '+e.gapText)+'" style="grid-template-columns:repeat('+e.order.length+',1fr)">'+rungs+'<i class="mark" style="left:'+f(mark*100)+'%"></i></div>'+
+    return '<div class="stand-row" data-metric="'+esc(e.metric)+'" data-rung="'+esc(e.rung)+'" data-direction="'+(down?'down':'up')+'"><div class="stand-name"><b>'+name+'</b>'+sub+(opt.info||'')+'</div>'+
+      '<div class="stand-ladder" role="img" aria-label="'+esc((opt.name||e.metric)+': '+RUNG_LABEL[e.rung]+', '+e.gapText)+'" style="grid-template-columns:repeat('+e.order.length+',1fr)">'+rungs+'<i class="mark" style="left:'+f(mark*100)+'%"></i></div>'+ladderAxis(e,shown)+
       '<div class="stand-value"><b>'+esc(value)+' <small>'+esc(e.unit==='steps'?'':e.unit)+'</small></b><span class="rung-chip" style="background:'+colour+'">'+RUNG_LABEL[e.rung]+(e.star?' ✦':'')+'</span>'+
       '<small>'+[e.appleLevel?'Apple: '+e.appleLevel:null,num(e.percentile)&&opt.percentile!==false?'ahead of about '+e.percentile+'%':null,opt.asOf||null].filter(Boolean).map(esc).join(' · ')+'</small>'+
       '<small class="gap" style="color:'+colour+'">'+esc(e.gapText)+(e.flag?' · at or under 12: worth a word with a doctor':'')+'</small></div></div>';
   }
+  /* The x-axis under a ladder (V3.3, 1.2): the number where each rung begins, read from the score table's
+     cuts and written at the boundary between two rung spans, low → high whatever the metric's direction. */
+  function ladderAxis(e,shown){
+    if(!e||!e.cuts||!Array.isArray(shown)||shown.length<2)return '';
+    const n=shown.length,down=e.direction==='down',ticks=[];
+    for(let i=1;i<n;i++){const r=down?shown[i-1]:shown[i],v=e.cuts[r];if(num(v))ticks.push('<em style="left:'+f(i/n*100)+'%">'+esc(axisText(v,Math.abs(v)<1000&&Math.round(v*10)/10!==Math.round(v)?1:0))+'</em>');}   // the table's floor, one decimal where it has one
+    return '<div class="stand-axis" aria-hidden="true">'+ticks.join('')+(e.unit&&e.unit!=='steps'?'<small>'+esc(e.unit)+'</small>':'')+'</div>';
+  }
+  /* ---------- the goal bar (V3.3, 1.3): the one bar whose x-axis is DATE ----------
+     o: {start:{value,date}, goal:{value,date}, now:{value,date}, checkpoints:[{date,name}], unit, digits,
+         onPace (true green, false warm, null neutral), label}. The start value sits at the left with its date, the
+         goal value at the right with its date; checkpoints are dated ticks; the marker is the latest reading,
+         placed by its date and drawn with its value. No words on the face. Dates are 'YYYY-MM-DD'. */
+  /* M/D, with /YY when the year differs from the bar's first date (9/21 → 1/7/27). */
+  const shortDate=(d,ref)=>d&&/^\d{4}-\d{2}-\d{2}$/.test(d)?(+d.slice(5,7))+'/'+(+d.slice(8,10))+(ref&&d.slice(0,4)!==ref.slice(0,4)?'/'+d.slice(2,4):''):'';
+  function goalBar(o){
+    const opt=o||{},s=opt.start||{},g=opt.goal||{},nw=opt.now||{},dg=opt.digits===undefined?1:opt.digits,fmt=v=>num(v)?(Math.round(v*10**dg)/10**dg).toLocaleString('en-US'):'—';
+    const ok=s.date&&g.date&&g.date>s.date&&num(s.value)&&num(g.value);
+    if(!ok)return '<div class="goal-bar-date empty" role="img" aria-label="'+esc((opt.label||'Goal')+': not set')+'"><div class="gb-track"></div><div class="gb-ends"><span>'+esc(fmt(s.value))+'</span><span>'+esc(fmt(g.value))+'</span></div></div>';
+    const span=between(s.date,g.date)||1,x=d=>clamp(between(s.date,d)/span,0,1),hasNow=num(nw.value)&&!!nw.date,xn=hasNow?x(nw.date):0;
+    const colour=opt.onPace===true?'green':opt.onPace===false?'orange':'neutral';
+    const ticks=(opt.checkpoints||[]).filter(c=>c&&c.date>s.date&&c.date<g.date).map(c=>'<i class="gb-tick" style="left:'+f(x(c.date)*100)+'%" title="'+esc((c.name?c.name+' · ':'')+shortDate(c.date))+'"><em>'+esc(shortDate(c.date))+'</em></i>').join('');
+    const spoken=(opt.label||'Goal')+': '+fmt(s.value)+(opt.unit?' '+opt.unit:'')+' on '+shortDate(s.date)+' to '+fmt(g.value)+(opt.unit?' '+opt.unit:'')+' by '+shortDate(g.date,s.date)+(hasNow?'; latest '+fmt(nw.value)+' on '+shortDate(nw.date,s.date):'');
+    return '<div class="goal-bar-date" role="img" aria-label="'+esc(spoken)+'" data-tone="'+colour+'">'+
+      '<div class="gb-track"><i class="gb-fill" style="width:'+f(xn*100)+'%;background:'+tone(colour)+'"></i>'+ticks+(hasNow?'<b class="gb-now" style="left:'+f(xn*100)+'%;--glow:'+tone(colour)+'"><span>'+esc(fmt(nw.value))+'</span></b>':'')+'</div>'+
+      '<div class="gb-ends"><span><b>'+esc(fmt(s.value))+'</b><small>'+esc(shortDate(s.date))+'</small></span><span><b>'+esc(fmt(g.value))+'</b><small>'+esc(shortDate(g.date,s.date))+'</small></span></div></div>';
+  }
+  /* A change arrow (V3.3, 1.4): the amount beside an arrow, green when the move is toward the goal, warm (orange)
+     when away, neutral when nothing moved. o: {now, prev, better:'down'|'up', unit, digits, period}. */
+  function delta(o){
+    const opt=o||{};if(!num(opt.now)||!num(opt.prev))return '';
+    const dg=opt.digits===undefined?1:opt.digits,d=Math.round((opt.now-opt.prev)*10**dg)/10**dg;
+    if(d===0)return chip({tone:'neutral',arrow:'→',text:'no change'+(opt.period?' '+opt.period:'')});
+    const up=d>0,toward=opt.better==='down'?!up:opt.better==='up'?up:null,name=toward===null?'neutral':toward?'green':'orange';
+    return chip({tone:name,arrow:up?'↑':'↓',text:Math.abs(d).toLocaleString('en-US')+(opt.unit?' '+opt.unit:'')+(opt.period?' '+opt.period:'')});
+  }
   function rangeRow(e,o){
     const opt=o||{},name=esc(opt.name||e.metric),sub=opt.sub?'<small>'+esc(opt.sub)+'</small>':'';
-    if(!e||!e.state)return '<div class="stand-row empty"'+(e&&e.metric?' data-metric="'+esc(e.metric)+'"':'')+'><div class="stand-name"><b>'+name+'</b>'+sub+'</div><div class="stand-range muted"></div><div class="stand-value"><b>—</b><small>'+esc(opt.note||'No reading yet')+'</small></div></div>';
+    if(!e||!e.state)return '<div class="stand-row empty"'+(e&&e.metric?' data-metric="'+esc(e.metric)+'"':'')+'><div class="stand-name"><b>'+name+'</b>'+sub+(opt.info||'')+'</div><div class="stand-range muted"></div><div class="stand-value"><b>—</b><small>'+esc(opt.note||'No reading yet')+'</small></div></div>';
     const [a,b]=e.in,span=(b-a)||1,lo=Math.min(opt.from!==undefined?opt.from:a-span*.9,e.value-span*.15),hi=Math.max(opt.to!==undefined?opt.to:b+span*1.3,e.value+span*.15),x=v=>f(clamp((v-lo)/(hi-lo)*100,0,100));
     const zone=(from,to,colour,label)=>'<i class="zone" style="left:'+x(from)+'%;width:'+f(Math.max(0,x(to)-x(from)))+'%;background:color-mix(in srgb,'+tone(colour)+' 62%,transparent)" title="'+esc(label)+'"></i>';
     const zones=zone(Math.max(a,lo),b,'green','In range')+(e.athlete&&opt.athlete!==false?zone(Math.max(e.athlete[0],lo),Math.min(e.athlete[1],b),'violet','Athlete zone'):'');
     const ticks=[a,b].filter(v=>v>lo&&v<hi).map(v=>'<em style="left:'+x(v)+'%">'+esc(opt.tick?opt.tick(v):v)+'</em>').join('');
-    return '<div class="stand-row" data-metric="'+esc(e.metric)+'" data-state="'+esc(e.state)+'"><div class="stand-name"><b>'+name+'</b>'+sub+'</div>'+
+    return '<div class="stand-row" data-metric="'+esc(e.metric)+'" data-state="'+esc(e.state)+'"><div class="stand-name"><b>'+name+'</b>'+sub+(opt.info||'')+'</div>'+
       '<div class="stand-range" role="img" aria-label="'+esc((opt.name||e.metric)+': '+e.text)+'">'+zones+'<i class="mark" style="left:'+x(e.value)+'%"></i>'+ticks+'</div>'+
       '<div class="stand-value"><b>'+esc(opt.text||String(Math.round(e.value*10)/10))+' <small>'+esc(opt.unit===undefined?e.unit:opt.unit)+'</small></b><small class="gap" style="color:'+tone(e.colour)+'">'+esc(e.text)+'</small>'+(opt.asOf?'<small>'+esc(opt.asOf)+'</small>':'')+'</div></div>';
   }
@@ -184,33 +257,17 @@
      on a weekend). Without `left` every calendar day to the window's end is taken as a chance. It is
      necessary on a day when what is still missing, counting from that morning, needs every chance left. */
   function necessary(quota,date,doneToday){
-    if(!quota||!(quota.target>0)||date<quota.from||date>quota.to)return false;
-    const before=Math.max(0,(quota.count||0)-(doneToday?1:0)),missing=quota.target-before,left=num(quota.left)?quota.left:between(date,quota.to)+1;
-    return missing>0&&missing>=left;
+    return Perfect?Perfect.necessary(quota,date,doneToday):false;
   }
   /* day: {date, items:[{id,name,fitness,done,neutral,optional,quota}], rings:{cardio:{applicable,closed},strength:{…}}} */
   function day(d){
-    const due=[],fit=[];
-    for(const it of d.items||[]){
-      if(it.neutral)continue;
-      const needed=it.quota?necessary(it.quota,d.date,!!it.done):!it.optional;
-      if(!needed)continue;
-      due.push(it);if(it.fitness)fit.push(it);
-    }
-    const rings=['cardio','strength'].map(k=>d.rings&&d.rings[k]).filter(r=>r&&r.applicable),open=due.filter(it=>!it.done);
-    const fitOpen=fit.filter(it=>!it.done).map(it=>it.name).concat(rings.filter(r=>!r.closed).map(r=>r.label||'Ring'));
-    return {date:d.date,perfect:due.length?open.length===0:null,due:due.length,done:due.length-open.length,open:open.map(it=>it.name),
-      fitness:fit.length||rings.length?fitOpen.length===0:null,fitnessDue:fit.length+rings.length,fitnessDone:fit.length+rings.length-fitOpen.length,fitnessOpen:fitOpen};
+    return Perfect?Perfect.day(d):{date:d.date,perfect:null,fitness:null,due:0,done:0,open:[],fitnessDue:0,fitnessDone:0,fitnessOpen:[],unavailable:true};
   }
   /* A span of days (a week or a month) with the quotas it judges: each {name,fitness,target,count,neutral}.
      today closes nothing early: a span still running reports what it has so far and whether it can still
      be perfect. */
   function span(days,quotas,today,track){
-    const pick=v=>track==='fitness'?v.fitness:v.perfect,judged=days.filter(v=>v.date<=today),lived=judged.filter(v=>pick(v)!==null),missed=judged.filter(v=>pick(v)===false);
-    const mine=(quotas||[]).filter(q=>!q.neutral&&(track!=='fitness'||q.fitness)),over=!days.length||days[days.length-1].date<today,short=mine.filter(q=>(q.count||0)<q.target);
-    const broken=missed.length>0||(over&&short.length>0);
-    return {perfect:lived.length===0&&!mine.length?null:over?!broken&&lived.length>0:broken?false:null,running:!over,possible:!broken,days:lived.length,perfectDays:lived.filter(v=>pick(v)===true).length,missed:missed.map(v=>v.date),
-      quotas:mine.map(q=>({name:q.name,target:q.target,count:q.count||0,met:(q.count||0)>=q.target}))};
+    return Perfect?Perfect.span(days,quotas,today,track):{perfect:null,running:true,possible:false,days:0,perfectDays:0,missed:[],quotas:[],unavailable:true};
   }
   /* Streak over verdicts oldest first: true counts, false ends it, null (nothing due, or still running) is skipped. */
   function streak(verdicts){
@@ -251,5 +308,5 @@
     return '<div class="perfect-cal" role="img" aria-label="'+esc('Perfect days in '+month)+'">'+['M','T','W','T','F','S','S'].map(h=>'<em>'+h+'</em>').join('')+(lead?'<span class="pad" style="grid-column:span '+lead+'"></span>':'')+days.map(cell).join('')+'</div>';
   }
 
-  return {esc,tone,TONES,KEYS,SEGMENTS,SLOT_TONES,PLACE,ring,key,vital,flagPlace,placeTone,rungPlace,chip,standLine,ladder,ladderMark,rangeRow,bandChart,spark,twoGroups,necessary,day,span,streak,monthDays,mondayOf,addDays,medal,MEDAL_TIERS,calendar,RUNG_LABEL,RUNG_TONE};
+  return {esc,tone,TONES,KEYS,SEGMENTS,SLOT_TONES,PLACE,ring,key,vital,flagPlace,placeTone,rungPlace,chip,standLine,ladder,ladderMark,ladderAxis,goalBar,delta,shortDate,rangeRow,bandChart,spark,twoGroups,loadColour,sleepColour,loadGauge,sleepWeek,necessary,day,span,streak,monthDays,mondayOf,addDays,medal,MEDAL_TIERS,calendar,RUNG_LABEL,RUNG_TONE};
 });
