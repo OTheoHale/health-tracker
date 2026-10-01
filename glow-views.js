@@ -10,7 +10,9 @@
   'use strict';
   const esc=s=>String(s===null||s===undefined?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const num=v=>typeof v==='number'&&Number.isFinite(v),clamp=(v,lo,hi)=>Math.min(hi,Math.max(lo,v)),f=n=>(+n).toFixed(1);
-  const TONES={red:'var(--c-red)',orange:'var(--c-orange)',yellow:'var(--c-yellow)',green:'var(--c-green)',violet:'var(--c-violet)',purple:'var(--c-violet)',blue:'var(--sleep)',brass:'var(--brass)',neutral:'var(--muted)',loadLow:'#2458a0',loadTarget:'#18734b',loadHigh:'#a83843'};
+  const TONES={red:'var(--c-red)',orange:'var(--c-orange)',yellow:'var(--c-yellow)',green:'var(--c-green)',violet:'var(--c-violet)',purple:'var(--c-violet)',blue:'var(--sleep)',brass:'var(--brass)',neutral:'var(--muted)',loadLow:'#2458a0',loadTarget:'#18734b',loadHigh:'#a83843',
+    // V3.4 (§1 tiers): the published-tier tones for body fat, BMI and waist; red is bad, purple elite, a caution tone below range
+    caution:'#8a9bb0',tierBlue:'#6fb6e0',lightRed:'#f4a095',darkRed:'#a8283a'};
   /* A name from the table, or a colour of the page's own continuous scales (rgb(…), a token) passed through. */
   const tone=name=>TONES[name]||(/^(#[0-9a-f]{3,8}|rgb\(|hsl\(|var\(--)/i.test(String(name||''))?String(name):'var(--muted)');
   const n0=v=>Math.round(v).toLocaleString('en-US');
@@ -103,12 +105,12 @@
     const original=o.tones||SLOT_TONES,down=o.direction==='down',tones=down?original.slice().reverse():original,has=num(o.place),x=p=>f(clamp(down?1-p:p,0,1)*100),band=o.band&&num(o.band[0])&&num(o.band[1])?[Math.min(o.band[0],o.band[1]),Math.max(o.band[0],o.band[1])]:null;
     const name=has?o.tone||placeTone(o.place,original):null,colour=has?tone(name):'var(--faint)';
     const spoken=o.label+': '+(has?o.text+(o.word?', '+o.word:''):'no reading yet')+(band&&o.bandText?'; your typical range '+o.bandText:'');
-    return '<div class="vital'+(has?'':' empty')+'"'+(o.id?' data-vital="'+esc(o.id)+'"':'')+(has?' data-tone="'+esc(name)+'"':'')+' data-direction="'+(down?'down':'up')+'"><div class="vital-name"><b>'+esc(o.label)+'</b>'+(o.info||'')+'<small>'+esc(o.sub||'')+'</small></div>'+
+    return '<div class="vital'+(has?'':' empty')+'"'+(o.id?' data-vital="'+esc(o.id)+'"':'')+(has?' data-tone="'+esc(name)+'"':'')+' data-direction="'+(down?'down':'up')+'"><div class="vital-name">'+(o.emoji?'<i class="vital-emo" aria-hidden="true">'+esc(o.emoji)+'</i>':'')+'<b>'+esc(o.label)+'</b>'+(o.info||'')+'<small>'+esc(o.sub||'')+'</small></div>'+
       '<div class="vital-track" role="img" aria-label="'+esc(spoken)+'" style="background:'+track(tones)+'">'+
       (band?'<i class="typical" style="left:'+Math.min(x(band[0]),x(band[1]))+'%;width:'+f(Math.max(3,(band[1]-band[0])*100))+'%"></i>':'')+
       (o.recent||[]).filter(num).map(p=>'<i class="dot" style="left:'+x(p)+'%"></i>').join('')+
-      (has?'<i class="knob" style="left:'+x(o.place)+'%;--glow:'+colour+'"></i>':'')+'</div>'+
-      '<div class="vital-now"><b style="color:'+colour+'">'+esc(has?o.text:'—')+'</b>'+(o.note?'<small>'+esc(o.note)+'</small>':'')+'</div></div>';
+      (num(o.goal)?'<i class="goal-tick" style="left:'+x(o.goal)+'%" title="'+esc(o.goalText||'Goal')+'"></i>':'')+(has?'<i class="knob" style="left:'+x(o.place)+'%;--glow:'+colour+'"></i>':'')+'</div>'+
+      '<div class="vital-now">'+(o.status&&has?'<span class="vital-status" style="color:'+colour+'">'+esc(o.status)+'</span>':'')+'<b style="color:'+colour+'">'+esc(has?o.text:'—')+'</b>'+(o.note?'<small>'+esc(o.note)+'</small>':'')+'</div></div>';
   }
   /* A small coloured note beside a figure: "▼ 1.2 this month", "5 over the healthy range", "steady". */
   function chip(o){return '<span class="trend-chip" data-tone="'+esc(o.tone||'neutral')+'" style="color:'+tone(o.tone||'neutral')+'">'+(o.arrow?'<i aria-hidden="true">'+esc(o.arrow)+'</i> ':'')+esc(o.text)+'</span>';}
@@ -173,7 +175,7 @@
     const ticks=(opt.checkpoints||[]).filter(c=>c&&c.date>s.date&&c.date<g.date).map(c=>'<i class="gb-tick" style="left:'+f(x(c.date)*100)+'%" title="'+esc((c.name?c.name+' · ':'')+shortDate(c.date))+'"><em>'+esc(shortDate(c.date))+'</em></i>').join('');
     const spoken=(opt.label||'Goal')+': '+fmt(s.value)+(opt.unit?' '+opt.unit:'')+' on '+shortDate(s.date)+' to '+fmt(g.value)+(opt.unit?' '+opt.unit:'')+' by '+shortDate(g.date,s.date)+(hasNow?'; latest '+fmt(nw.value)+' on '+shortDate(nw.date,s.date):'');
     return '<div class="goal-bar-date" role="img" aria-label="'+esc(spoken)+'" data-tone="'+colour+'">'+
-      '<div class="gb-track"><i class="gb-fill" style="width:'+f(xn*100)+'%;background:'+tone(colour)+'"></i>'+ticks+(hasNow?'<b class="gb-now" style="left:'+f(xn*100)+'%;--glow:'+tone(colour)+'"><span>'+esc(fmt(nw.value))+'</span></b>':'')+'</div>'+
+      '<div class="gb-track"><i class="gb-fill" style="width:'+f(xn*100)+'%;background:'+tone(colour)+'"></i>'+ticks+(hasNow?'<b class="gb-now" style="left:'+f(xn*100)+'%;--glow:'+tone(colour)+'">'+(opt.quietNow?'':'<span>'+esc(fmt(nw.value))+'</span>')+'</b>':'')+(num(opt.longTerm)?'<i class="gb-long" title="Long term '+esc(fmt(opt.longTerm))+'"></i>':'')+'</div>'+
       '<div class="gb-ends"><span><b>'+esc(fmt(s.value))+'</b><small>'+esc(shortDate(s.date))+'</small></span><span><b>'+esc(fmt(g.value))+'</b><small>'+esc(shortDate(g.date,s.date))+'</small></span></div></div>';
   }
   /* A change arrow (V3.3, 1.4): the amount beside an arrow, green when the move is toward the goal, warm (orange)

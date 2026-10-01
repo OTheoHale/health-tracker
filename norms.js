@@ -65,13 +65,27 @@
           '40-59':{in:[11,21],over:[22,27],high:28,athlete:[6,13],source:GALLAGHER,tags:{in:'R'}},
           '60-79':{in:[13,24],over:[25,29],high:30,athlete:[6,13],source:GALLAGHER,tags:{in:'R'}}
         }},
-      waist_circumference:{label:'Waist',unit:'cm',dir:'range',kind:'target',sd:15.2,weight:2,
-        male:{all:{in:[0,94],over:[94,102],high:102,source:'IDF / ATP III',tags:{in:'R'}}}},
+      // V3.4 (B11, his decision Sept 30): one waist standard, waist-to-height (NICE NG246). The value is the ratio of
+      // waist to height; the page prints the distance in inches. The IDF / ATP III centimetre cut-offs are gone.
+      waist_circumference:{label:'Waist',unit:'ratio',ratio:'height',dir:'range',kind:'target',sd:0.06,weight:2,
+        male:{all:{in:[0.4,0.49],over:[0.5,0.59],high:0.6,source:'NICE NG246 · waist-to-height ratio',tags:{in:'V'}}}},
       walking_speed:{label:'Walking speed',unit:'m/s',kind:'floor',floor:1.0,warn:0.8,source:'Studenski 2011; Bohannon 2011',tags:{floor:'R'}},
       six_minute_walking_test_distance:{label:'Six-minute walk',unit:'m',kind:'floor',source:'Enright & Sherrill 1998',tags:{floor:'V'}},
       respiratory_rate:{label:'Breathing rate',unit:'per min',kind:'flag'},
       apple_sleeping_wrist_temperature:{label:'Wrist temperature',unit:'°',kind:'flag'},
       blood_oxygen_saturation:{label:'Blood oxygen',unit:'%',kind:'flag'}
+    },
+    /* V3.4 (§1 Bars, B11): colour tiers that rest on published break points. A row is [upper limit, tone, word]; a value
+       sits in the first row whose limit it is under. `convention` names the cut-offs no source publishes (his rule: the
+       ⓘ says so). Body fat for men: Gallagher 2000's 8/20/25 per cent cuts for ages 20–39 (shifted with age by the same
+       paper), ACE's athlete and fitness bands for purple and blue; the 30 and 35 reds are stated conventions. */
+    tiers:{
+      body_fat_percentage:{source:'Gallagher 2000 (healthy and obese cut-offs, by age); ACE (athlete, fitness)',convention:'The light-red, red and dark-red split above the obese cut-off (Obese I, II, III) is a convention, five points apart; no study publishes body-fat obesity classes.',
+        male:{'20-39':[[6,'caution','Very low'],[14,'purple','Elite'],[18,'blue','Fit'],[20,'green','Healthy'],[25,'yellow','Slightly over'],[30,'lightRed','Obese I'],[35,'red','Obese II'],[Infinity,'darkRed','Obese III']],
+              '40-59':[[6,'caution','Very low'],[14,'purple','Elite'],[18,'blue','Fit'],[22,'green','Healthy'],[28,'yellow','Slightly over'],[33,'lightRed','Obese I'],[38,'red','Obese II'],[Infinity,'darkRed','Obese III']],
+              '60-79':[[6,'caution','Very low'],[14,'purple','Elite'],[18,'blue','Fit'],[25,'green','Healthy'],[30,'yellow','Slightly over'],[35,'lightRed','Obese I'],[40,'red','Obese II'],[Infinity,'darkRed','Obese III']]}},
+      bmi:{source:'WHO BMI classes',convention:null,all:[[18.5,'caution','Under'],[25,'green','Healthy'],[30,'yellow','Over'],[35,'lightRed','Obesity I'],[40,'red','Obesity II'],[Infinity,'darkRed','Obesity III']]},
+      waist_to_height:{source:'NICE NG246',convention:null,all:[[0.4,'caution','Low'],[0.5,'green','Healthy'],[0.6,'yellow','Increased'],[Infinity,'red','High']]}
     },
     // Fitness age: FRIEND 2015 male medians at decade midpoints (one yardstick; no HUNT).
     fitnessAge:{anchors:[[25,48.0],[35,42.4],[45,37.8],[55,32.6],[65,28.2],[75,24.4]],min:20,max:80,source:FRIEND,tag:'V'}

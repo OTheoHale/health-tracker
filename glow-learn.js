@@ -6,7 +6,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(Scores,Norms){
   'use strict';
   const num=v=>typeof v==='number'&&Number.isFinite(v),round=v=>Math.round(v*10)/10;
-  const ESTIMATES={vo2:{factor:15.3,hrIntercept:208,hrAge:0.7,minAge:18,maxAge:100,minRest:30,maxRest:120},forbes:{constantKg:10.4,sensitivity:0.2},headNeckShare:0.0694};
+  const ESTIMATES={vo2:{factor:15.3,hrIntercept:208,hrAge:0.7,minAge:18,maxAge:100,minRest:30,maxRest:120},forbes:{constantKg:10.4,sensitivity:0.2}};   // V3.4: the de Leva head share is gone (B7)
   const REFERENCES={bmi:[18.5,25,30]};
   // The adapter stores waist in inches; the score-range engine expects centimetres.
   const teachingValue=(metric,value)=>metric==='waist_circumference'&&num(value)?value*2.54:value;
@@ -43,11 +43,17 @@
     const present=(rows||[]).filter(r=>r.tone),steady=r=>r.ranked?!['red','orange'].includes(r.tone):r.tone==='green',calm=present.filter(steady).length;
     return {count:present.length,calm,share:present.length?calm/present.length:null,colour:!present.length?'neutral':calm===present.length?'green':calm===present.length-1?'yellow':'orange',outside:present.filter(r=>!steady(r)).map(r=>r.label)};
   }
+  /* V3.4 (B7): the parts add up from the report itself. The five segments carry most of the fat and the muscle; the
+     unsegmented remainder (head, neck and what Fitdays does not allocate) is (whole-body fat − segment fat) + (whole-body
+     muscle − segment muscle); bone is its own line (fat-free weight − muscle mass). Fitdays' parts differ from its own
+     weight by rounding (about a third of a pound); `other` absorbs it. This replaces the V3.3 de Leva head share. */
   function partition(report){
-    const w=report&&report.wholeBody&&report.wholeBody.weight,rows=report&&report.segments;
+    const wb=report&&report.wholeBody,w=wb&&wb.weight,rows=report&&report.segments,val=k=>wb&&wb[k]&&num(wb[k].value)?wb[k].value:null;
     if(!w||w.unit!=='lb'||!num(w.value)||w.value<=0||!Array.isArray(rows)||rows.length!==5||rows.some(r=>!num(r.fatMassLb)||r.fatMassLb<0||!num(r.muscleBalanceMassLb)||r.muscleBalanceMassLb<0))return null;
-    const fat=rows.reduce((a,r)=>a+r.fatMassLb,0),muscle=rows.reduce((a,r)=>a+r.muscleBalanceMassLb,0),total=fat+muscle,head=w.value*ESTIMATES.headNeckShare,other=w.value-total-head;
-    return {weight:w.value,fat,muscle,total,head,other,reconciles:other>=0,date:report.measurementDate};
+    const fat=rows.reduce((a,r)=>a+r.fatMassLb,0),muscle=rows.reduce((a,r)=>a+r.muscleBalanceMassLb,0),total=fat+muscle,pct=val('bodyFatPercentage'),wholeFat=val('fatMass')!==null?val('fatMass'):pct!==null?w.value*pct/100:null,wholeMuscle=val('muscleMass'),ffw=val('fatFreeWeight');
+    if(wholeFat===null||wholeMuscle===null)return {weight:w.value,fat,muscle,total,wholeFat,wholeMuscle,remainder:null,bone:null,other:null,reconciles:false,date:report.measurementDate};
+    const remainder=(wholeFat-fat)+(wholeMuscle-muscle),bone=ffw===null?null:ffw-wholeMuscle,other=w.value-total-remainder-(bone||0);
+    return {weight:w.value,fat,muscle,total,wholeFat,wholeMuscle,remainder,bone,other,reconciles:remainder>=-0.5&&(bone===null||bone>=0)&&Math.abs(other)<=1.5,date:report.measurementDate};
   }
   const SOURCES={
     friend:['FRIEND 2015 · treadmill reference standards','https://pubmed.ncbi.nlm.nih.gov/26455884/'],
@@ -102,7 +108,6 @@
       const food=num(i.outer),water=food?t.fuel.waterWeight:1,protein=(1-water)*t.fuel.proteinShare,calories=(1-water)*(1-t.fuel.proteinShare);
       return [row('water','Water',num(i.inner)?i.inner*water*100:null,water*100),row('protein','Protein',food?i.protein*protein*100:null,protein*100),row('calories','Calories',food?i.calories*calories*100:null,calories*100)];
     }
-    if(id==='daylight')return Object.entries(t.daylight.weights).map(([k,w])=>row(k,{light:'Daylight',morning:'Morning light',rhythm:'Sleep clock'}[k],i[k],w));
     if(id==='mobility'){const subs=i.subs||{},keys=Object.keys(subs);return keys.map(k=>row(k,{speed:'Walking speed',asymmetry:'Asymmetry',doubleSupport:'Double support',sixMinute:'Six-minute walk'}[k],subs[k]/keys.length,100/keys.length));}
     return [];
   }
@@ -127,7 +132,6 @@
       recovery:['Recovery Speed','the first minute after a qualifying workout','A recency-weighted 60-second heart-rate drop over '+t.recovery.windowDays+' days. Hard finishes qualify at '+round(t.recovery.hardShare*100)+'% of HRmax, not heart-rate reserve. The easier-finish fallback is never ranked.','Primary: weighted mean(end HR − interpolated HR at 60 s), in bpm. Easier-finish fallback: weighted mean of 100 × (end HR − HR60)/(end HR − resting HR), in % of reserve recovered, not graded. Weight = 0.5^(days ago ÷ '+t.recovery.halfLifeDays+'); at least '+t.recovery.minSessions+' sessions.','The source protocol and Glow’s Watch protocol differ; ladder boundaries beyond the clinical flag are estimates.'],
       readiness:['Readiness','today against your own baseline','Glow blends HRV, resting heart rate, sleep and prior-day load, then applies personal-vitals caps. This is a training heuristic, not a medical clearance.','Nominal weights: '+weighted(t.readiness.weights)+'. Centre '+t.readiness.centre+'; '+t.readiness.perZ+' points per standardized deviation. Missing components lower confidence.','Use the score with how you feel and with the component breakdown.'],
       strength:['Strength Balance','how regularly you include strength days','Counts qualifying strength days, not workout count or strength performance.','100 × min(1, strength days ÷ '+t.strength.targetDays+') across '+t.strength.window+' days.','Glow’s target is '+t.strength.targetDays+' days in '+t.strength.window+' days; it is routine balance, not measured strength.'],
-      daylight:['Daylight & Rhythm','morning light and a steadier sleep clock','Glow combines daylight duration, mornings with light, and variation in sleep midpoint. The weights are app heuristics.',t.daylight.weights.light+' × min(1, mean daylight ÷ '+t.daylight.target+') + '+t.daylight.weights.morning+' × qualifying mornings/'+t.daylight.days+' + '+t.daylight.weights.rhythm+' × clamp(('+t.daylight.rhythm[0]+' − midpoint SD)/'+t.daylight.rhythm[1]+', 0, 1). Morning needs '+t.daylight.morning+' minutes before '+t.daylight.before+':00.','No clinical optimal score has been validated. Read the component coverage first.'],
       mobility:['Mobility','walking speed and steadiness, not a diagnosis','Averages whichever walking components are available; at least two are needed. The six-minute-walk prediction is a reference, not an individualized prescription.','Each component is 100 × clamp(ratio, 0, 1); average at least two. Speed ratio = (m/s − '+t.mobility.speed[0]+')/('+t.mobility.speed[1]+' − '+t.mobility.speed[0]+'); asymmetry = ('+t.mobility.asymmetry[0]+' − value)/'+t.mobility.asymmetry[1]+'; double support = ('+t.mobility.doubleSupport[0]+' − value)/'+t.mobility.doubleSupport[1]+'; six-minute walk = (distance − LLN)/'+t.mobility.walkSpan+'. LLN = 7.57 × height cm − 5.02 × max(age,40) − 1.76 × weight kg − 309 − '+t.mobility.walkSpan+' metres (Enright male reference).','A floor check is not a population percentile. Individual limitations deserve clinical context.']
     };
     for(const [id,[name,line,how,formula,optimal]] of Object.entries(extra))catalog[id]={name,line,what:line.charAt(0).toUpperCase()+line.slice(1)+'. This view summarizes eligible readings, not missing data.',how,formula,optimal,why:'Compare like-for-like records over time. The score is a prompt to inspect its inputs, not proof of a cause or a promised outcome.',improve:['Check the weakest available component above.','Build a repeatable, sustainable routine.','Review unusual changes with appropriate clinical advice.'],related:['growth','health-age'],sources:source(id==='sleep'?['sleep']:id==='recovery'?['cole']:['activity'])};

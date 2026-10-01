@@ -761,15 +761,25 @@ function reviewFor(state, periodStart){ return state.reviews.find(x => x.periodS
 
 /* ---- Undo restores the record; claimed credit and evidence reservations
    survive so undo/recomplete can never become another reward. ---- */
-let undoEntry = null;
-function stage(state, label){
+/* V3.4 (S7): a stack, not one snapshot. Each reversible action pushes the record as it was before it; Cmd/Ctrl+Z or
+   the toast's Undo pops one step. A change that is not itself undoable (an intake file, typing, a restore) clears the
+   stack, because an older snapshot would also rewind that change. */
+const UNDO_DEPTH = 25;
+let undoStack = [];
+function undoSnapshot(state, label){
   // Frozen source rows cannot change in place, so the undo copy keeps them by reference (V3.0).
   const shared = Array.isArray(state.sourceRecords) && sealedRows(state.sourceRecords) ? state.sourceRecords : null;
-  undoEntry = { label, snap: JSON.stringify(shared ? Object.assign({}, state, {sourceRecords: []}) : state), sources: shared };
+  return { label, snap: JSON.stringify(shared ? Object.assign({}, state, {sourceRecords: []}) : state), sources: shared };
 }
-function canUndo(){ return !!undoEntry; }
-function undoLabel(){ return undoEntry ? undoEntry.label : ''; }
+let undoSeq = 0;
+function pushUndo(entry){ entry.seq = ++undoSeq; undoStack.push(entry); if (undoStack.length > UNDO_DEPTH) undoStack.shift(); }
+function undoTopSeq(){ return undoStack.length ? undoStack[undoStack.length - 1].seq : 0; }   // identifies the newest entry; depth alone repeats (review finding, Oct 1)
+function stage(state, label){ pushUndo(undoSnapshot(state, label)); }
+function canUndo(){ return undoStack.length > 0; }
+function undoDepth(){ return undoStack.length; }
+function undoLabel(){ return undoStack.length ? undoStack[undoStack.length - 1].label : ''; }
 function undo(state){
+  const undoEntry = undoStack[undoStack.length - 1];
   if (!undoEntry) return false;
   const prev = JSON.parse(undoEntry.snap);
   if (undoEntry.sources) prev.sourceRecords = undoEntry.sources;
@@ -784,10 +794,11 @@ function undo(state){
   prev.revision=state.revision||0;
   for (const k of Object.keys(state)) delete state[k];
   Object.assign(state, prev);
-  undoEntry = null;
+  undoStack.pop();
   return true;
 }
-function dropUndo(){ undoEntry = null; }
+function dropUndo(){ undoStack = []; }   // a change that cannot be undone: older snapshots would revert it too
+function popUndo(){ undoStack.pop(); }   // a staged action that was refused drops only its own snapshot (review finding, Oct 1)
 
 /* ---- starting point and phase: what the user reported, what is proposed,
         what is unknown. Never a measurement. ---- */
@@ -1358,6 +1369,8 @@ async function actionTransaction(state, change, options){
     // made while an earlier one was saving is not refused; the engine's compare-and-swap still
     // refuses a change made in another window.
     if(!opts.rebase&&(current.revision||0)!==revision)return {ok:false,error:'This action changed in another window. Reload and review again.'};
+    // V3.4 (S7): opts.undo names an undoable tap (Done, Skip, an add); the record before it joins the undo stack.
+    const before=opts.undo?undoSnapshot(current,opts.undo):null;
     const draft=cloneRecord(current), result=change(draft);
     if(result && result.ok===false)return result;
     const problem=validateState(draft);if(problem)return {ok:false,error:problem};
@@ -1369,7 +1382,7 @@ async function actionTransaction(state, change, options){
     // by another window is still replaced whole.
     if(typeof opts.inPlace==='function'&&same&&opts.persist!==false){opts.inPlace(state,draft);state.revision=draft.revision;state.rewardGeneration=draft.rewardGeneration;}
     else replaceState(state,draft);
-    dropUndo();return {ok:true,result};
+    if(before)pushUndo(before);else dropUndo();return {ok:true,result};
   };
   if(opts.persist===false)return run();
   if(typeof navigator==='undefined'||!navigator.locks)return {ok:false,error:'Safe saving needs Web Locks. Your prior record is unchanged.'};
@@ -3373,6 +3386,15 @@ function wsSlots(state,rows,date,options){
   });
   return decorated.map(({row,plannedTime,angle})=>{const status=wsState(state,row,date,options),o=state.occurrences[row.key];return {id:row.key,seriesId:row.seriesId,occurrenceKey:row.key,title:row.name,groupId:row.group,state:status,confirmed:status==='closed',plannedTime,period:plannedTime?null:row.anchor||'untimed',angle:angle%360,width,actualTime:o?.loggedAt||null,positionBasis:plannedTime?'approximate planned hour':'untimed list position; not a clock time'};});
 }
+/* V3.4 (Q10, Mintay Sept 30): one Workout target replaces the Cardio and Strength pair: 45 total minutes of recorded
+   workouts in the day, any type (steps and incidental movement do not count), from the date he adopts it
+   (prefs.workoutTarget = {from, minutes}, additive). Every earlier day keeps the two-ring rule, so history never moves. */
+function wsWorkoutTarget(state,date){const t=state.prefs&&state.prefs.workoutTarget;return t&&validCalendarDate(t.from)&&date>=t.from?{from:t.from,minutes:Number(t.minutes)>0?Number(t.minutes):45}:null;}
+function wsWorkoutRing(state,date,today){
+  const t=wsWorkoutTarget(state,date);if(!t)return null;
+  const minutes=Math.round(workoutSessionsInRange(state,date,date).reduce((n,w)=>n+(Number(w.minutes)||0),0)*10)/10;
+  return {id:'workout',label:'Workout',unit:'minutes',target:t.minutes,value:minutes,minimum:0,applicable:true,closed:minutes>=t.minutes,status:date>(today||todayYmd())?'future':minutes>=t.minutes?'closed':minutes>0?'partial':'open'};
+}
 function wsRings(state,date,options={}){
   const all=flatPlanFor(state,date).filter(r=>!r.demo&&(!options.groupId||r.group===options.groupId)&&(!options.includeRow||options.includeRow(r)));
   const required=all.filter(r=>wsRequired(state,r)),routineRows=required.filter(r=>!['cardio','strength'].includes(r.workspaceKind));
@@ -3386,7 +3408,8 @@ function wsRings(state,date,options={}){
   };
   const cardio=exercise('cardio'),strength=exercise('strength'),rings=[routine,cardio,strength],applicable=rings.filter(r=>r.applicable).length,closed=rings.filter(r=>r.closed).length;
   const displayedIds=rings.map(r=>r.id),displayedCount=displayedIds.length;
-  return {date,routine,cardio,strength,closed,applicable,displayedIds,displayedCount,percent:closed/displayedCount*100,noTargets:rings.every(r=>!(r.target>0))};
+  const workout=wsWorkoutRing(state,date,options.today);
+  return {date,routine,cardio,strength,workout,closed,applicable,displayedIds,displayedCount,percent:closed/displayedCount*100,noTargets:rings.every(r=>!(r.target>0))};
 }
 
 function quarterProgression(state){return state.rewards?.progression?.rule==='quarter-v1';}
@@ -3549,12 +3572,12 @@ function wsQuotaChances(state,seriesId,from,to){
 }
 function wsPerfectVerdict(state,date){
   if(typeof PerfectVerdicts==='undefined')return {date,perfect:null,fitness:null,due:0,done:0,open:[],fitnessDue:0,fitnessDone:0,fitnessOpen:[],unavailable:true};
-  const rows=flatPlanFor(state,date).filter(r=>!r.demo&&wsPerfectIncluded(state,r,date));
+  const workout=wsWorkoutTarget(state,date),rows=flatPlanFor(state,date).filter(r=>!r.demo&&wsPerfectIncluded(state,r,date)&&!(workout&&['cardio','strength'].includes(r.workspaceKind)));   // from its start the Workout ring stands for Cardio and Strength (Q10)
   const rings=wsRings(state,date,wsPerfectPolicy(state,date)?{includeRow:r=>wsPerfectIncluded(state,r,date)}:{});
   const items=rows.map(r=>{const o=state.occurrences[r.key]||{},q=r.targetProgress,parent=r.parentId&&state.series.find(s=>s.id===r.parentId),name=parent&&versionFor(parent,date)?.name;
     return {id:r.seriesId,name:(name?name+' · ':'')+r.name,fitness:wsPerfectFitness(r),done:r.status==='done',neutral:o.disposition==='excused'||o.disposition==='rest',optional:!!r.optional,quota:q?{from:q.from,to:q.to,target:q.target,count:q.count,left:wsQuotaChances(state,r.seriesId,date,q.to)}:null};});
   const ring=r=>r?{applicable:!!r.applicable&&!rings.noTargets,closed:!!r.closed,label:(r.label||'Ring')+' ring'}:null;
-  return PerfectVerdicts.day({date,items,rings:{cardio:ring(rings.cardio),strength:ring(rings.strength)}});
+  return PerfectVerdicts.day({date,items,rings:rings.workout?{cardio:{applicable:true,closed:rings.workout.closed,label:'Workout ring'},strength:null}:{cardio:ring(rings.cardio),strength:ring(rings.strength)}});
 }
 function wsPerfectQuotas(state,from,to,monthly,today=todayYmd()){
   const out=[];

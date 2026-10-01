@@ -27,7 +27,6 @@
     hrMax:{minSessions:10,days:365},
     mobility:{speed:[0.8,1.43],asymmetry:[15,12],doubleSupport:[40,12],walkSpan:153,mphToMs:0.44704},
     strength:{targetDays:8,window:28,types:['Traditional Strength Training','Functional Strength Training','Core Training']},
-    daylight:{target:60,morning:10,before:10,rhythm:[75,60],minNights:7,nights:14,minDays:4,weights:{light:40,morning:20,rhythm:40},days:7},
     run:{minMin:20,minM:3000,easy:[0.60,0.80],skip:5,window:28,minRuns:3,trendPct:2},
     durability:{minMin:50,skip:10,maxGapMin:2,steadyCv:0.08,window:60,minRuns:2,bands:[5,8,12]},
     // D5 Fast Resilience (V3.3 Phase 2, 7.1): a 180-day window (the spec's 90 is the alternative), the 8-and-8 floor, and
@@ -372,8 +371,14 @@
   }
   /* Target-range metrics: in range, or the distance to the nearest edge (§C.7). */
   function range(metric,value,options){
-    const def=NORMS.metrics[metric],w=who(options);
+    const def=NORMS.metrics[metric],w=who(options),o=options||{};
     if(!def||def.kind!=='target'||!num(value))return {metric,value:null,state:null,colour:null,missing:[def?def.label:metric]};
+    // Waist (V3.4): one standard, waist-to-height. `value` is the waist in centimetres; the height comes with the person.
+    // Like every other metric, the band, the high cut and the distance are in the value's unit (cm); the page converts once.
+    if(def.ratio==='height'){if(!num(o.heightCm)||o.heightCm<=0)return {metric,value:null,state:null,colour:null,missing:['Height']};
+      const t=def.male.all,ratio=value/o.heightCm,[lo,hi]=t.in,state=ratio<lo?'under':ratio>hi?'over':'in',edge=state==='under'?lo:state==='over'?hi:ratio,cm=Math.abs(ratio-edge)*o.heightCm,inches=cm/2.54;
+      return {metric,value,ratio,unit:'cm',state,distance:cm,colour:state==='in'?'green':state==='under'?'yellow':ratio>=t.high?'orange':'yellow',text:state==='in'?'In range':(Math.round(inches*10)/10).toLocaleString('en-US')+' in'+(state==='over'?' over the range':' under'),
+        in:[lo*o.heightCm,hi*o.heightCm],over:null,high:t.high*o.heightCm,athlete:null,band:'all',source:t.source,tags:t.tags||{},gapSD:Math.abs(ratio-edge)/def.sd,weight:def.weight,note:null};}
     const bands=def[w.sex]||def.male,band=bandFor(bands,w.age),t=bands[band],[lo,hi]=t.in;
     const state=value<lo?'under':value>hi?'over':'in',distance=state==='under'?lo-value:state==='over'?value-hi:0;
     let colour='green';
@@ -382,6 +387,13 @@
     const amount=metric==='sleep_duration'?clock(distance):(Math.round(distance*10)/10).toLocaleString('en-US')+' '+def.unit;
     return {metric,value,unit:def.unit,state,distance,colour,text:state==='in'?'In range':amount+(state==='over'?' over the range':' under'),
       in:t.in,over:t.over||null,high:t.high===undefined?null:t.high,athlete:t.athlete||null,band,source:t.source,tags:t.tags||{},gapSD:distance/def.sd,weight:def.weight,note:def.note||null};
+  }
+  /* V3.4 (B11): the published tier a value sits in, for a colour bar or a tier word. Returns
+     {tone, word, index, count, cuts, source, convention}; null without a value. */
+  function tier(metric,value,options){
+    const def=NORMS.tiers&&NORMS.tiers[metric],w=who(options);if(!def||!num(value))return null;
+    const rows=def.all||(def[w.sex]||def.male)[bandFor(def[w.sex]||def.male,w.age)],i=rows.findIndex(r=>value<r[0]);
+    return {tone:rows[i][1],word:rows[i][2],index:i,count:rows.length,cuts:rows.map(r=>r[0]).filter(Number.isFinite),source:def.source,convention:def.convention};
   }
   function floorCheck(metric,value,options){
     const def=NORMS.metrics[metric],o=options||{};
@@ -519,13 +531,6 @@
     const i=input||{},days=num(i.strengthDays)?i.strengthDays:0,value=Math.round(100*Math.min(1,days/TABLE.strength.targetDays));
     return {value,label:'Cardio '+(i.cardioDays||0)+' · Strength '+days,colour:goalColour(value,true),confidence:'High',inputs:{strengthDays:days,cardioDays:i.cardioDays||0,target:TABLE.strength.targetDays},missing:[]};
   }
-  /* ---- D6 Daylight & Rhythm (stretch) ---- */
-  function daylightRhythm(input){
-    const D=TABLE.daylight,i=input||{};
-    if(!num(i.daylightMean)||!num(i.midpointSd)||(num(i.nights)&&i.nights<D.minNights))return {value:null,label:null,colour:null,confidence:null,inputs:{},missing:[...(num(i.daylightMean)?[]:['Time in daylight']),...(num(i.midpointSd)&&!(num(i.nights)&&i.nights<D.minNights)?[]:['Seven nights of sleep'])]};
-    const light=D.weights.light*Math.min(1,i.daylightMean/D.target),morning=D.weights.morning*(num(i.mornings)?i.mornings:0)/D.days,rhythm=D.weights.rhythm*clamp((D.rhythm[0]-i.midpointSd)/D.rhythm[1],0,1),value=Math.round(light+morning+rhythm);
-    return {value,label:null,colour:qualityColour(value,true),confidence:num(i.mornings)?'High':'Medium',inputs:{light,morning,rhythm},missing:[]};
-  }
   /* ---- D1 Run Efficiency and D2 Durability (shown once history brings the runs in) ---- */
   function metresPerBeat(distanceM,hr,from){
     let metres=0,beats=0;for(let k=from||0;k<Math.min((distanceM||[]).length,(hr||[]).length);k++)if(num(distanceM[k])&&num(hr[k])){metres+=distanceM[k];beats+=hr[k];}
@@ -586,7 +591,6 @@
       const end=row.end?Date.parse(row.end):NaN,day=Number.isFinite(end)?localClock(end,x.zone).day:m.day,n=x.nights.get(day);
       return !!n&&!n.history;
     }
-    if(m.metric==='time_in_daylight'){const d=x.daylight.get(m.day);return !!d&&d.known;}
     if(TOTALS.has(m.metric)){const t=x.live.get(m.metric);return !!t&&t.has(m.day);}
     if(SPARSE.has(m.metric)){const name=m.metric==='weight_&_body_mass'?'weight_body_mass':m.metric,s=x.samples.get(name);return !!s&&s.has(m.day);}
     return null;
@@ -597,7 +601,7 @@
     const o=options||{},zone=o.timeZone||TABLE.zone;
     // Pairs of workout ids he set by hand: `join` makes two entries one session, `split` keeps two apart.
     const pairs=list=>(Array.isArray(list)?list:[]).filter(p=>Array.isArray(p)&&p.length===2&&p.every(v=>typeof v==='string'));
-    const x={zone,links:{join:pairs(o.links&&o.links.join),split:pairs(o.links&&o.links.split)},samples:new Map(),approx:new Map(),totals:new Map(),live:new Map(),nights:new Map(),workouts:[],effort:new Map(),effortRolled:new Map(),heartDays:new Set(),daylight:new Map(),water:new Map(),memo:new Map(),rows:0};
+    const x={zone,links:{join:pairs(o.links&&o.links.join),split:pairs(o.links&&o.links.split)},samples:new Map(),approx:new Map(),totals:new Map(),live:new Map(),nights:new Map(),workouts:[],effort:new Map(),effortRolled:new Map(),heartDays:new Set(),water:new Map(),memo:new Map(),rows:0};
     const put=(map,metric,day,value)=>{let m=map.get(metric);if(!m){m=new Map();map.set(metric,m);}let list=m.get(day);if(!list){list=[];m.set(day,list);}list.push(value);};
     for(const r of rows||[]){
       const m=metaOf(r);if(!m||(r.clashes||[]).length)continue;
@@ -613,15 +617,6 @@
         continue;
       }
       if(metric==='dietary_water'){if(rep===SAMPLE&&value!==null&&r.sourceApp==='Bevel')x.water.set(day,(x.water.get(day)||0)+value);continue;}   // Bevel only, each drink once
-      if(metric==='time_in_daylight'){
-        // A rolled-up day stands for its minutes: minute rows of that day that arrive again are not added on top.
-        const d=x.daylight.get(day)||{total:0,morning:0,known:false,approx:false,rolled:false};
-        if(rep===SAMPLE&&value!==null){if(d.rolled)continue;const at=textMinutes(r.start);if(d.approx){d.total=0;d.morning=0;d.approx=false;}d.total+=value;if(at!==null&&at<TABLE.daylight.before*60)d.morning+=value;d.known=true;}
-        else if(rep===ROLLUP&&Array.isArray(m.hours)){d.total=sum(m.hours.map(h=>num(h)?h:0));d.morning=sum(m.hours.slice(0,TABLE.daylight.before).map(h=>num(h)?h:0));d.known=true;d.rolled=true;d.approx=false;}
-        else if(rep===HISTORY&&value!==null&&!d.known){d.total=value;d.morning=null;d.approx=true;}
-        else continue;
-        x.daylight.set(day,d);continue;
-      }
       if(TOTALS.has(metric)){
         if(rep===HISTORY&&value!==null)put(x.totals,metric,day,value);
         // The day's own total from the rows the page hands over (the projection's figure wins when the page supplies it).
@@ -874,7 +869,7 @@
     push(range('body_fat_percentage',fat?fat.value:null,who),fat?(fat.age<=30?'High':'Medium'):null,{group:'body',asOf:fat?fat.day:null});
     push(range('sleep_duration',nights.length?mean(nights):null,who),nights.length>=10?'High':nights.length>=5?'Medium':nights.length?'Low':null,{group:'body',days:nights.length});
     const waist=latestReading(x,'waist_circumference',day,180);
-    if(waist)push(range('waist_circumference',waist.value*2.54,who),'Medium',{group:'body',asOf:waist.day});
+    if(waist)push(range('waist_circumference',waist.value*2.54,{...who,heightCm:o.heightCm}),'Medium',{group:'body',asOf:waist.day});
     const walk=values('walking_speed'),six=latestReading(x,'six_minute_walking_test_distance',day,90);
     const floors=[floorCheck('walking_speed',walk.length?median(walk)*TABLE.mobility.mphToMs:null),floorCheck('six_minute_walking_test_distance',six?six.value:null,{heightCm:o.heightCm,weightKg:o.weightKg,age:o.age})];
     return {rows,gains:biggestGains(rows),floors,warning:warningFor(x,day),asOf:day,band:cutsFor('vo2_max',who).band};
@@ -888,20 +883,6 @@
     const from=addDays(day,-(TABLE.strength.window-1)),strength=new Set(),cardio=new Set(),types=TABLE.strength.types.map(t=>t.toLowerCase());
     for(const s of sessions(x)){if(s.day<from||s.day>day)continue;(types.some(t=>String(s.type).toLowerCase().includes(t.replace(' training',''))||String(s.type).toLowerCase()===t)?strength:cardio).add(s.day);}
     return strengthBalance({strengthDays:strength.size,cardioDays:cardio.size});
-  }
-  /* A day counts when the Watch was worn: it has daylight rows, or heart-rate rows and so a true zero. A
-     day without the Watch is missing, not dark; the mean is over the days that count, and four of the seven
-     are needed. Mornings are counted against the same days. */
-  function daylightFor(x,day){
-    const days=[];let mornings=0,morningKnown=0;
-    for(let k=0;k<7;k++){const at=addDays(day,-k),d=x.daylight.get(at);
-      if(d){days.push(d.total);if(d.morning!==null){morningKnown++;if(d.morning>=TABLE.daylight.morning)mornings++;}}
-      else if(x.heartDays.has(at)){days.push(0);morningKnown++;}}
-    const mids=[];for(let k=0;k<TABLE.daylight.nights;k++){const n=night(x,addDays(day,-k));if(n&&num(n.midAfterNoon))mids.push(n.midAfterNoon);}
-    const enough=days.length>=TABLE.daylight.minDays;
-    const r=daylightRhythm({daylightMean:enough?sum(days)/days.length:null,mornings:enough&&morningKnown?mornings*7/morningKnown:null,midpointSd:mids.length?sd(mids):null,nights:mids.length});
-    r.inputs.days=days.length;if(!enough&&r.value===null)r.missing=['Four days with the Watch in the last seven ('+days.length+'/'+TABLE.daylight.minDays+')'].concat(r.missing.filter(m=>m!=='Time in daylight'));
-    return r;
   }
   function runsFor(x,day,options){
     const o=options||{},R=TABLE.run,D=TABLE.durability,hrMax=o.hrMax,runs=sessions(x).filter(s=>/run/i.test(s.type)&&s.day<=day&&s.hr&&s.distanceM);
@@ -921,10 +902,10 @@
   return {TABLE,NORMS,
     // formulas
     readiness,readinessLabel,readinessColour,zScores,sleepScore,sleepBand,sleepBank,clock,timeOfDay,bedtime,zoneWeight,sessionLoad,everydayLoad,everydayLoadFromBands,loadTrend,loadBand,load,fuel,faith,
-    fitnessAge,healthAge,healthAgeWindow,ageOn,bandFor,cutsFor,stand,range,floorCheck,appleLevel,biggestGains,mergeSessions,hrMaxOf,hrAt60,endHr,recoverySpeed,earlyWarning,momentum,
-    mobility,walkLowerLimit,strengthBalance,daylightRhythm,runEfficiency,cardiacDrift,driftColour,goalColour,qualityColour,ageColour,fastResilience,fastResilienceLabel,
+    fitnessAge,healthAge,healthAgeWindow,ageOn,bandFor,cutsFor,stand,range,tier,floorCheck,appleLevel,biggestGains,mergeSessions,hrMaxOf,hrAt60,endHr,recoverySpeed,earlyWarning,momentum,
+    mobility,walkLowerLimit,strengthBalance,runEfficiency,cardiacDrift,driftColour,goalColour,qualityColour,ageColour,fastResilience,fastResilienceLabel,
     // rows
-    readable,select,holds,index,sessions,night,overnight,restingHr,baseline,series,latestReading,sleepFor,bedtimeFor,hrMaxFor,effortFor,loadOf,loadFor,wellAboveRun,warningFor,readinessFor,healthAgeFor,healthAgeTrend,fitnessAgeFor,recoveryFor,standFor,momentumFor,mobilityFor,strengthFor,daylightFor,runsFor,stepsOn,fastResilienceFor,
+    readable,select,holds,index,sessions,night,overnight,restingHr,baseline,series,latestReading,sleepFor,bedtimeFor,hrMaxFor,effortFor,loadOf,loadFor,wellAboveRun,warningFor,readinessFor,healthAgeFor,healthAgeTrend,fitnessAgeFor,recoveryFor,standFor,momentumFor,mobilityFor,strengthFor,runsFor,stepsOn,fastResilienceFor,
     // helpers the page shares
     addDays,daysBetween,mondayOf,median,mean,sd,robustSd,stepDown};
 });
