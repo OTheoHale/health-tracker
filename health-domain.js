@@ -137,6 +137,16 @@ function pacificTime(value, style='stamp'){
   }
   return pacificFormats.get(style).format(date);
 }
+/* V3.5 K8: the Pacific calendar day of a stamped instant. A suggestion written at 6 PM on Oct 1 is Oct 2 in UTC, and
+   cutting the ISO string (`at.slice(0,10)`) printed and grouped it one day late. For printed and grouped stamps only;
+   scoring and feed days keep their own rules. */
+function pacificDay(value){
+  if(value===null||value===undefined||value===''||(typeof value==='string'&&!/(?:Z|[+-]\d{2}:?\d{2})$/i.test(value)))return null;
+  const date=new Date(value);if(!Number.isFinite(date.getTime()))return null;
+  if(!pacificFormats.has('ymd'))pacificFormats.set('ymd',new Intl.DateTimeFormat('en-US',{year:'numeric',month:'2-digit',day:'2-digit',timeZone:'America/Los_Angeles'}));
+  const p={};for(const x of pacificFormats.get('ymd').formatToParts(date))p[x.type]=x.value;
+  return p.year+'-'+p.month+'-'+p.day;
+}
 function freshnessAge(value, now=Date.now()){
   const at=value?Date.parse(value):NaN,age=now-at;
   if(!Number.isFinite(age)||age<0)return {tone:'none',word:'unknown freshness',ago:'unknown',at:null};
@@ -797,6 +807,17 @@ function undo(state){
   undoStack.pop();
   return true;
 }
+/* V3.5 F2 (V34-I16): the days an undo would change that have closed since (a snapshot taken before a day auto-closed
+   would otherwise reopen it silently); the caller refuses the undo and says which day. */
+function undoTouches(state, isClosed){
+  const e = undoStack[undoStack.length - 1]; if (!e) return [];
+  const prev = JSON.parse(e.snap).occurrences || {}, cur = state.occurrences || {}, out = new Set();
+  for (const k of new Set(Object.keys(prev).concat(Object.keys(cur)))){
+    if (JSON.stringify(prev[k]) === JSON.stringify(cur[k])) continue;
+    const d = (prev[k] || cur[k]).date || String(k).split('|')[1]; if (d && isClosed(d)) out.add(d);
+  }
+  return [...out].sort();
+}
 function dropUndo(){ undoStack = []; }   // a change that cannot be undone: older snapshots would revert it too
 function popUndo(){ undoStack.pop(); }   // a staged action that was refused drops only its own snapshot (review finding, Oct 1)
 
@@ -869,7 +890,9 @@ function groupsOf(state){ return state.groups.slice().sort((a, b) => a.order - b
 // A group the V2 structure retired stays for earlier days but leaves today's lists once it is empty.
 function visibleGroups(state, date){ const d = date || todayYmd(); return groupsOf(state).filter(g => !g.hidden && !(g.retiredFrom && d >= g.retiredFrom)); }
 function groupById(state, id){ return state.groups.find(g => g.id === id) || null; }
-function setGroupHidden(state, id, hidden){ const g = groupById(state, id); if (!g) return null; g.hidden = !!hidden; g.updatedAt = nowIso(); return g; }
+// V3.5 (review S2): a hide is dated, so earlier days keep the group in their lists and Perfect verdicts; a Show keeps the
+// stretch it was hidden as a range (hiddenRanges, additive) so those days stay as they were.
+function setGroupHidden(state, id, hidden, from){ const g = groupById(state, id); if (!g) return null; g.hidden = !!hidden; if (g.hidden){ if (!g.hiddenFrom) g.hiddenFrom = /^\d{4}-\d{2}-\d{2}$/.test(from || '') ? from : todayYmd(); } else if (g.hiddenFrom){ const to = addDays(todayYmd(), -1); if (g.hiddenFrom <= to) g.hiddenRanges = (Array.isArray(g.hiddenRanges) ? g.hiddenRanges : []).concat({from:g.hiddenFrom, to}); delete g.hiddenFrom; } g.updatedAt = nowIso(); return g; }
 function addGroup(state, name){
   const n = String(name || '').trim().slice(0, 40); if (!n) return null;
   const g = { id: newId('g'), name: n, icon:'star', order: state.groups.length + 1, hidden:false, custom:true, createdAt: nowIso(), updatedAt: nowIso() };
@@ -998,7 +1021,8 @@ const RANK_SECTIONS_V2=['faith','health','hygiene','relationship','career'];
 const RANK_SLOTS_V2={faith:['faith'],health:['personal-health','fitness','food','health-mental','wellbeing','health-physical','personal-care','hygiene','care'],hygiene:['trash-day','laundry','cleaning','home'],relationship:['relationship'],career:['work']};
 const RANK_WEIGHTS_V2={faith:10,health:9,hygiene:9,relationship:9,career:9};
 function rankLetter(pct){return Number.isFinite(pct)?RANK_CUTOFFS.find(([c])=>pct>=c)[1]:null;}
-function overallRankReport(state,today,windowKind,range){
+
+function overallRankReport(state,today,windowKind,range,sections){
   // Window (Mintay, Sept 24 evening): the last 28 complete days by default, or this week so far.
   // V2.0 adds Day (today so far) and weeks that start Monday unless he chose Sunday.
   const start=state.rewards&&state.rewards.progression&&state.rewards.progression.effectiveFrom;let to=windowKind==='day'?today:addDays(today,-1),from=windowKind==='day'?today:windowKind==='week'?weekStartOf(today,state.prefs&&state.prefs.weekStart===0?0:1):addDays(to,-27);
@@ -1006,15 +1030,15 @@ function overallRankReport(state,today,windowKind,range){
   if(start&&start>from)from=start;if(to<from){from=today;to=today;}
   // A weekly goal (prayer 3 days a week, church once in four weeks) counts against its goal, pro-rated
   // to the days counted and capped there, so meeting the goal is 100 % rather than 3 of 7.
-  const v2=(state.workspace?.migrations||[]).some(m=>m.status==='active'&&m.structureV2),SLOTS=v2?RANK_SLOTS_V2:RANK_SLOTS;
+  const v2=(state.workspace?.migrations||[]).some(m=>m.status==='active'&&m.structureV2),SLOTS=sections?sections.slots:v2?RANK_SLOTS_V2:RANK_SLOTS;
   // A card he made himself (V3.2) is graded with its umbrella; Hobbies stays outside the rank, as its own card does.
   const UMBRELLA_SLOT=v2?{faith:'faith',health:'health','home-care':'hygiene',relationship:'relationship',career:'career'}:{faith:'faith',health:'care','home-care':'care',relationship:'care',career:'work'};
-  const tally={},goals={},slotOf=c=>Object.keys(SLOTS).find(k=>SLOTS[k].includes(c))||UMBRELLA_SLOT[((state.groups||[]).find(g=>g.id===c)||{}).umbrella],span=calendarDistance(from,to)+1;
+  const tally={},goals={},unassigned=[],slotOf=c=>Object.keys(SLOTS).find(k=>SLOTS[k].includes(c))||(sections?null:UMBRELLA_SLOT[((state.groups||[]).find(g=>g.id===c)||{}).umbrella]),span=calendarDistance(from,to)+1;
   // Scoring V2: a measured item counts by its share of the target, not all or nothing.
   const share=(r,d)=>{if(r.status!=='done'||typeof v5Rule!=='function')return r.status==='done'?1:0;const t=v5Rule(state,d),series=t&&state.series.find(x=>x.id===r.seriesId);if(!series||!v5Kind(versionFor(series,d)))return 1;const m=v5Inputs(state,series,state.occurrences[occKey(r.seriesId,d)]||{seriesId:r.seriesId,date:d},t);return m?m.credit.n/m.credit.d:1;};
   for(let d=from;d<=to;d=addDays(d,1))for(const r of allRows(planFor(state,d))){
     if(r.children&&r.children.length)continue;
-    const slot=slotOf(r.category);if(!slot)continue;
+    const slot=slotOf(r.category);if(!slot){unassigned.push({seriesId:r.seriesId,name:r.name,date:d,category:r.category||null});continue;}   // V3.5 G6 (V35-I8): never silently dropped; reported
     const series=state.series.find(x=>x.id===r.seriesId),rec=series&&versionFor(series,d)?.recurrence;
     if(rec&&rec.kind==='target'&&rec.count>0){const g=goals[r.seriesId]=goals[r.seriesId]||{slot,count:rec.count,weeks:rec.weeks||1,done:0};if(r.status==='done')g.done++;continue;}
     if(r.optional)continue;
@@ -1022,9 +1046,121 @@ function overallRankReport(state,today,windowKind,range){
   }
   for(const g of Object.values(goals)){const expected=g.count*span/(7*g.weeks),t=tally[g.slot]=tally[g.slot]||{planned:0,done:0};t.planned+=expected;t.done+=Math.min(g.done,expected);}
   const settings=state.grades||defaultGradeSettings();let weights=0,sum=0;
-  const slots=(v2?RANK_SECTIONS_V2:GRADE_CATEGORIES).map(gid=>{const t=tally[gid],pct=t&&t.planned?100*t.done/t.planned:null,w=v2?(settings.included[gid]===false?0:settings.weights[gid]??RANK_WEIGHTS_V2[gid]):settings.included[gid]?settings.weights[gid]:0;if(pct!==null&&w){weights+=w;sum+=pct*w;}return {gid,planned:t?t.planned:0,done:t?t.done:0,pct,letter:rankLetter(pct),weight:w,included:v2?settings.included[gid]!==false:!!settings.included[gid]};});
+  const slots=(sections?sections.order:v2?RANK_SECTIONS_V2:GRADE_CATEGORIES).map(gid=>{const t=tally[gid],pct=t&&t.planned?100*t.done/t.planned:null,w=sections?sections.weights[gid]:v2?(settings.included[gid]===false?0:settings.weights[gid]??RANK_WEIGHTS_V2[gid]):settings.included[gid]?settings.weights[gid]:0;if(pct!==null&&w){weights+=w;sum+=pct*w;}return {gid,planned:t?t.planned:0,done:t?t.done:0,pct,letter:rankLetter(pct),weight:w,included:sections?true:v2?settings.included[gid]!==false:!!settings.included[gid]};});
   const overall=weights?sum/weights:null;
-  return {from,to,slots,overall,letter:rankLetter(overall),sections:v2?'v2':'v1'};
+  return {from,to,slots,overall,letter:rankLetter(overall),sections:sections?'body':v2?'v2':'v1',unassigned};
+}
+
+/* ---- V3.5 G1, the grade engine (brief §1.3, "Faith counts once"). One module every grade card calls; scores are
+   computed on each draw and never stored. Item = its done share over its due days (weekly targets pro-rated, measured
+   items by their credit, as overallRankReport does); group = importance-weighted mean of its items; umbrella own =
+   importance-weighted mean of its groups; Overall = importance-weighted mean of the umbrellas' own scores. Anything
+   with nothing due in the period is skipped, never counted as zero. The 🙏 blend on an umbrella card is display only:
+   displayed = (1 − s) × own + s × Faith; it never changes the Overall. Additive store: `state.gradeConfig` holds
+   importance (0–10) and include flags per umbrella, group and item, the 🙏 toggle and share per umbrella, and whether
+   Hobbies is graded; stored umbrella ids never change (home-care shows as Home, relationship as Social). ---- */
+const GRADE_UMBRELLAS=[
+  {id:'faith',name:'Faith',emoji:'🙏',importance:10,stored:['faith']},
+  {id:'health',name:'Health',emoji:'💪',importance:8,stored:['health']},
+  {id:'family',name:'Family',emoji:'👪',importance:7,stored:['family']},
+  {id:'career',name:'Career',emoji:'💼',importance:6,stored:['career']},
+  {id:'home',name:'Home',emoji:'🏠',importance:6,stored:['home-care','home']},
+  {id:'social',name:'Social',emoji:'🤝',importance:6,stored:['relationship','social']},
+  {id:'hobbies',name:'Hobbies',emoji:'🎨',importance:4,stored:['hobbies']}
+];
+const GRADE_ITEM_IMPORTANCE=5,GRADE_GROUP_IMPORTANCE=5,GRADE_FAITH_SHARE=.2,GRADE_PROGRAM_START='2026-09-21';
+// Groups from before the V2 structure carry no umbrella field; the V2 card order already says where they belong.
+const GRADE_GROUP_FALLBACK={fitness:'health',food:'health','health-physical':'health','personal-care':'health',hygiene:'health','health-mental':'health',wellbeing:'health','personal-health':'health',home:'home','trash-day':'home',laundry:'home',cleaning:'home',faith:'faith',work:'career',relationship:'social',interests:'hobbies'};
+const gradeUmbrellaOfStored=u=>(GRADE_UMBRELLAS.find(x=>x.stored.includes(u))||{}).id||null;
+// The stored id a canonical umbrella is written as when a group moves (an id already in the store wins).
+const gradeStoredUmbrella=id=>({home:'home-care',social:'relationship'})[id]||id;
+function gradeConfig(state){
+  const c=state&&state.gradeConfig&&typeof state.gradeConfig==='object'?state.gradeConfig:{};
+  return {umbrellas:c.umbrellas||{},groups:c.groups||{},items:c.items||{},hobbies:c.hobbies===true};
+}
+function gradeGroupUmbrella(state,gid){
+  const g=(state.groups||[]).find(x=>x.id===gid);
+  if(g&&g.umbrella)return gradeUmbrellaOfStored(g.umbrella);
+  if(gid==='care')return (state.workspace?.migrations||[]).some(m=>m.status==='active'&&m.structureV2)?'health':'home';
+  return GRADE_GROUP_FALLBACK[gid]||null;
+}
+const gradeUmbrellaSettings=(cfg,id)=>{const u=GRADE_UMBRELLAS.find(x=>x.id===id),c=cfg.umbrellas[id]||{};
+  return {importance:Number.isFinite(c.importance)?c.importance:u.importance,included:id==='hobbies'?cfg.hobbies&&c.included!==false:c.included!==false,faith:id!=='faith'&&c.faith!==false,faithShare:Number.isFinite(c.faithShare)?c.faithShare:GRADE_FAITH_SHARE};};
+function gradePeriod(state,today,period,range){
+  const prog=(()=>{const s=state.prefs?.goalsV2?.startDate;return validCalendarDate(s)&&s<=today?s:GRADE_PROGRAM_START;})();
+  let from=today,to=today;
+  if(period==='week')from=weekStartOf(today,state.prefs&&state.prefs.weekStart===0?0:1);
+  else if(period==='month')from=today.slice(0,8)+'01';
+  else if(period==='all')from=prog;
+  else if(period==='custom'&&range&&validCalendarDate(range.from)&&validCalendarDate(range.to)){from=range.from<range.to?range.from:range.to;to=range.from<range.to?range.to:range.from;}
+  if(to>today)to=today;
+  if(['week','month','all'].includes(period)&&to===today&&from<today)to=addDays(today,-1);   // review: closed days only, as the old rank did; Day is today so far
+  if(from>to)from=to;
+  return {from,to,program:prog};
+}
+// The rows a grade reads: every leaf due in the window, with its done share. Weekly targets are one row each, pro-rated.
+function gradeRows(state,from,to){
+  const share=(r,d)=>{if(r.status!=='done'||typeof v5Rule!=='function')return r.status==='done'?1:0;const t=v5Rule(state,d),series=t&&state.series.find(x=>x.id===r.seriesId);if(!series||!v5Kind(versionFor(series,d)))return 1;const m=v5Inputs(state,series,state.occurrences[occKey(r.seriesId,d)]||{seriesId:r.seriesId,date:d},t);return m?m.credit.n/m.credit.d:1;};
+  const items=new Map(),goals=new Map(),span=calendarDistance(from,to)+1;
+  for(let d=from;d<=to;d=addDays(d,1))for(const r of allRows(planFor(state,d))){
+    if(r.children&&r.children.length)continue;
+    const gid=r.category||r.group||null,series=state.series.find(x=>x.id===r.seriesId),rec=series&&versionFor(series,d)?.recurrence;
+    if(rec&&rec.kind==='target'&&rec.count>0){const g=goals.get(r.seriesId)||{seriesId:r.seriesId,name:r.name,gid,count:rec.count,weeks:rec.weeks||1,done:0};if(r.status==='done')g.done++;goals.set(r.seriesId,g);continue;}
+    if(r.optional)continue;
+    const it=items.get(r.seriesId)||{seriesId:r.seriesId,name:r.name,gid,planned:0,done:0};it.planned++;it.done+=share(r,d);items.set(r.seriesId,it);
+  }
+  // Review S3: pro-rated over the days the target existed in this window (from its first version to its archive), not since the window began.
+  const liveSpan=g=>{const s=state.series.find(x=>x.id===g.seriesId),starts=(s&&s.versions||[]).filter(v=>v.recurrence&&v.recurrence.kind==='target').map(v=>v.effectiveFrom).filter(validCalendarDate).sort(),a=starts[0]&&starts[0]>from?starts[0]:from,end=s&&validCalendarDate(String(s.archivedAt||'').slice(0,10))&&s.archivedAt.slice(0,10)<=to?addDays(s.archivedAt.slice(0,10),-1):to;return end<a?1:calendarDistance(a,end)+1;};
+  // An item that was daily before it became a weekly target keeps its daily days; the target adds its share (review re-check).
+  for(const g of goals.values()){const expected=g.count*liveSpan(g)/(7*g.weeks),prev=items.get(g.seriesId);items.set(g.seriesId,{seriesId:g.seriesId,name:g.name,gid:g.gid,planned:(prev?prev.planned:0)+expected,done:(prev?prev.done:0)+Math.min(g.done,expected),target:true});}
+  return [...items.values()];
+}
+const gradeMean=list=>{let w=0,s=0;for(const x of list)if(x.score!==null&&x.included&&x.importance>0){w+=x.importance;s+=x.score*x.importance;}return w?s/w:null;};
+/* umbrellaGradeReport(state, today, period, range): {from, to, overall, letter, umbrellas:[{id, name, own, displayed, faithOn,
+   faithShare, importance, included, share (of the Overall, %), groups:[{gid, name, score, importance, included,
+   items:[…]}]}], unassigned:[items], counted, listed, due}. Percentages are 0–100. */
+function umbrellaGradeReport(state,today,period,range){
+  const {from,to,program}=gradePeriod(state,today,period||'day',range),cfg=gradeConfig(state),rows=gradeRows(state,from,to);
+  const groupName=gid=>((state.groups||[]).find(g=>g.id===gid)||{}).name||gid||'No card';
+  const item=r=>{const c=cfg.items[r.seriesId]||{};return {...r,score:r.planned?100*Math.min(1,r.done/r.planned):null,importance:Number.isFinite(c.importance)?c.importance:GRADE_ITEM_IMPORTANCE,included:c.included!==false};};
+  const umbrellas=GRADE_UMBRELLAS.map(u=>{
+    const set=gradeUmbrellaSettings(cfg,u.id),byGroup=new Map();
+    for(const r of rows){if(gradeGroupUmbrella(state,r.gid)!==u.id)continue;if(!byGroup.has(r.gid))byGroup.set(r.gid,[]);byGroup.get(r.gid).push(item(r));}
+    const groups=[...byGroup].map(([gid,list])=>{const c=cfg.groups[gid]||{};return {gid,name:groupName(gid),items:list,score:gradeMean(list),importance:Number.isFinite(c.importance)?c.importance:GRADE_GROUP_IMPORTANCE,included:c.included!==false};});
+    return {id:u.id,name:u.name,emoji:u.emoji,groups,own:gradeMean(groups),importance:set.importance,included:set.included,faithOn:set.faith,faithShare:set.faithShare};
+  });
+  const faith=umbrellas.find(u=>u.id==='faith').own;
+  for(const u of umbrellas){u.displayed=u.own!==null&&u.faithOn&&faith!==null?(1-u.faithShare)*u.own+u.faithShare*faith:u.own;u.letter=rankLetter(u.displayed);u.ownLetter=rankLetter(u.own);}
+  const live=umbrellas.filter(u=>u.included&&u.own!==null&&u.importance>0),wsum=live.reduce((n,u)=>n+u.importance,0);
+  const overall=wsum?live.reduce((n,u)=>n+u.own*u.importance,0)/wsum:null;
+  for(const u of umbrellas)u.share=wsum&&live.includes(u)?100*u.importance/wsum:0;
+  const unassigned=rows.filter(r=>!gradeGroupUmbrella(state,r.gid)).map(item),counted=rows.length-unassigned.length;
+  return {from,to,program,period:period||'day',overall,letter:rankLetter(overall),umbrellas,unassigned,counted,listed:unassigned.length,due:rows.length};
+}
+// The one way settings change: kind is umbrellas, groups or items; field is importance, included, faith or faithShare.
+function setGradeConfig(state,kind,id,field,value){
+  if(!['umbrellas','groups','items'].includes(kind)||typeof id!=='string'||!id)return null;
+  if(kind==='umbrellas'&&!GRADE_UMBRELLAS.some(u=>u.id===id)&&!(id==='fitness'&&['faith','faithShare'].includes(field)))return null;   // the Fitness Grade card keeps its own 🙏 blend
+  const ok={importance:v=>Number.isFinite(+v)&&+v>=0&&+v<=10,included:v=>typeof v==='boolean',faith:v=>typeof v==='boolean'&&kind==='umbrellas'&&id!=='faith',faithShare:v=>Number.isFinite(+v)&&+v>=0&&+v<=.5&&kind==='umbrellas'};
+  if(!ok[field]||!ok[field](value))return null;
+  if(!state.gradeConfig||typeof state.gradeConfig!=='object')state.gradeConfig={version:1};
+  const bag=state.gradeConfig[kind]=state.gradeConfig[kind]||{},entry=bag[id]=Object.assign({},bag[id]);
+  entry[field]=field==='importance'?Math.round(+value):field==='faithShare'?Math.round(+value*100)/100:value;
+  return entry;
+}
+function setHobbiesGraded(state,on){if(!state.gradeConfig||typeof state.gradeConfig!=='object')state.gradeConfig={version:1};state.gradeConfig.hobbies=!!on;return state.gradeConfig.hobbies;}
+// Reset to default: one entry, or a whole kind (an umbrella's reset also clears its groups and items).
+function resetGradeConfig(state,kind,id){
+  const c=state.gradeConfig;if(!c||typeof c!=='object')return false;
+  if(kind&&id){if(c[kind])delete c[kind][id];return true;}
+  delete c.umbrellas;delete c.groups;delete c.items;return true;
+}
+function gradeConfigProblem(c){
+  if(c===undefined)return null;if(!c||typeof c!=='object'||Array.isArray(c))return 'The grade settings are malformed.';
+  for(const kind of ['umbrellas','groups','items']){const bag=c[kind];if(bag===undefined)continue;if(!bag||typeof bag!=='object'||Array.isArray(bag))return 'The grade settings are malformed.';
+    for(const e of Object.values(bag)){if(!e||typeof e!=='object')return 'A grade setting is malformed.';if(e.importance!==undefined&&!(Number.isFinite(e.importance)&&e.importance>=0&&e.importance<=10))return 'A grade importance is out of range.';if(e.included!==undefined&&typeof e.included!=='boolean')return 'A grade setting is malformed.';if(e.faith!==undefined&&typeof e.faith!=='boolean')return 'A grade setting is malformed.';if(e.faithShare!==undefined&&!(Number.isFinite(e.faithShare)&&e.faithShare>=0&&e.faithShare<=.5))return 'A Faith share is out of range.';}}
+  if(c.hobbies!==undefined&&typeof c.hobbies!=='boolean')return 'The grade settings are malformed.';
+  return null;
 }
 function gradeReport(state, exampleScores){
   const settings = state.grades || defaultGradeSettings();
@@ -1047,7 +1183,7 @@ function gradeReport(state, exampleScores){
 /* S1 action scoring and S1.1 levels share the existing occurrence identity.
    Old epochs are immutable history, never silently converted to confirmed XP. */
 
-function addPlanIdea(state,text,extra){const value=String(text||'').trim().slice(0,300);if(!value)return null;const e=extra||{},category=String(e.category||'').trim().slice(0,40),idea={id:newId('idea'),text:value,at:nowIso(),status:'idea',...(category?{category}:{}),...(e.kind==='note'?{kind:'note'}:{})};state.planIdeas.push(idea);if(category)addIdeaCategory(state,category);return idea;}
+function addPlanIdea(state,text,extra){const value=String(text||'').trim().slice(0,NOTE_MAX);if(!value)return null;const e=extra||{},category=String(e.category||'').trim().slice(0,40),idea={id:newId('idea'),text:value,at:nowIso(),status:'idea',...(category?{category}:{}),...(e.kind==='note'?{kind:'note'}:{})};state.planIdeas.push(idea);if(category)addIdeaCategory(state,category);return idea;}
 function ideaCategories(state){const own=Array.isArray(state.prefs&&state.prefs.ideaCategories)?state.prefs.ideaCategories.filter(x=>typeof x==='string'&&x.trim()):[];const used=(state.planIdeas||[]).map(i=>i.category).filter(x=>typeof x==='string'&&x.trim());return [...new Set(['General',...own,...used])];}
 function addIdeaCategory(state,name){const n=String(name||'').trim().slice(0,40);if(!n)return null;const list=Array.isArray(state.prefs.ideaCategories)?state.prefs.ideaCategories:[];if(!list.some(x=>x.toLowerCase()===n.toLowerCase())&&n.toLowerCase()!=='general')state.prefs.ideaCategories=list.concat(n);return n;}
 function mergeActionAlias(state,duplicateKey,keptKey){
@@ -1950,12 +2086,56 @@ function addWater(state, date, delta){
 }
 function waterOn(state, date){ return (state.hydration && state.hydration[date]) || 0; }
 
+/* ---- V3.5 K7: a night he types (Settings → Sleep → Add a night), marked self-entered. The Watch's night for the same
+        day still fills the ring and wins; a typed night only fills a day the Watch left empty. Additive:
+        `state.sleepManual`, one entry per wake day; an earlier build ignores it. ---- */
+function pacificInstant(day, hhmm){
+  const m = /^(\d{2}):(\d{2})$/.exec(String(hhmm || '')); if (!m || !/^\d{4}-\d{2}-\d{2}$/.test(day || '')) return null;
+  let t = Date.UTC(+day.slice(0,4), +day.slice(5,7) - 1, +day.slice(8,10), +m[1], +m[2]) + 8 * 3600000;
+  for (let i = 0; i < 2; i++){ const p = {}; for (const x of new Intl.DateTimeFormat('en-US', {timeZone:'America/Los_Angeles', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hourCycle:'h23'}).formatToParts(new Date(t))) p[x.type] = x.value;
+    const shown = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute), want = Date.UTC(+day.slice(0,4), +day.slice(5,7) - 1, +day.slice(8,10), +m[1], +m[2]); t += want - shown; }
+  return new Date(t).toISOString();
+}
+function addManualNight(state, f){
+  const day = String(f && f.day || ''), wake = pacificInstant(day, f && f.wake), bedDay = f && f.bed && f.wake && f.bed > f.wake ? addDays(day, -1) : day, bed = pacificInstant(bedDay, f && f.bed);
+  if (!wake || !bed || Date.parse(bed) >= Date.parse(wake)) return {ok:false, error:'Enter a bedtime and a wake time.'};
+  const span = (Date.parse(wake) - Date.parse(bed)) / 60000; if (span > 18 * 60) return {ok:false, error:'A night is at most 18 hours.'};
+  const typed = f.asleep === '' || f.asleep === undefined || f.asleep === null ? null : Number(f.asleep), asleepMin = typed === null ? Math.round(span) : Math.round(typed * 60);
+  if (!Number.isFinite(asleepMin) || asleepMin < 30 || asleepMin > span) return {ok:false, error:'Time asleep must fit between bedtime and wake time.'};
+  if (!Array.isArray(state.sleepManual)) state.sleepManual = [];
+  const prior = state.sleepManual.find(n => n.day === day), entry = {id:prior ? prior.id : newId('night'), day, bed, wake, asleepMin, at:nowIso(), source:'self-entered'};
+  if (prior) Object.assign(prior, entry); else state.sleepManual.push(entry);
+  return {ok:true, night:prior || entry};
+}
+function removeManualNight(state, id){ const list = state.sleepManual || [], i = list.findIndex(n => n.id === id); if (i < 0) return false; list.splice(i, 1); return true; }
+
+/* ---- V3.5 T1: burn and food he types on Today's Fuel card, in kilocalories, for one day; additive
+        (`state.energyTyped[date] = {food, burn, at}`); an empty value returns that side to the data. ---- */
+function setEnergyTyped(state, date, field, value){
+  if (!['food', 'burn'].includes(field) || !/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return null;
+  const v = value === '' || value === null || value === undefined ? null : Math.round(Number(value));
+  if (v !== null && !(v >= 0 && v <= 20000)) return null;
+  if (!state.energyTyped || typeof state.energyTyped !== 'object') state.energyTyped = {};
+  const d = Object.assign({}, state.energyTyped[date] || {}); if (v === null) delete d[field]; else d[field] = v;
+  if (!Number.isFinite(d.food) && !Number.isFinite(d.burn)) { delete state.energyTyped[date]; return {date, cleared:true}; }
+  d.at = nowIso(); state.energyTyped[date] = d; return d;
+}
+
 /* ---- improvement notes: user-written suggestions stay separate from
         health records and journals in the manually shared brief. ---- */
+/* V3.5 K4: no silent cut on his words. The 300-character slice (and maxlength on the fields) cut three notes
+   mid-sentence; 20,000 is a guard against a runaway paste, not a limit he meets (ASSUMED 8). */
+const NOTE_MAX = 20000, NOTE_HEAD = 300;
+/* The stored record keeps the first 300 characters in `text` and the rest in `more`, because V3.4's validator refuses a
+   note longer than 300 and would then refuse the whole record (V35-I11; an earlier build must still open it). Read a
+   note's words with noteText(). */
+function noteText(n){ return n ? String(n.text || '') + (typeof n.more === 'string' ? n.more : '') : ''; }
+// His exact words are kept; only a head of spaces alone (which would fail approval) loses its leading spaces; never split inside an emoji: V3.4 reads `text` alone (review notes).
+function setNoteText(x, t){ t = String(t || ''); if (!t.slice(0, NOTE_HEAD).trim()) t = t.trimStart(); let cut = NOTE_HEAD; if (t.length > cut){ const c = t.charCodeAt(cut - 1); if (c >= 0xD800 && c <= 0xDBFF) cut--; } x.text = t.slice(0, cut); if (t.length > cut) x.more = t.slice(cut); else delete x.more; return x; }
 function addNote(state, text, area){
-  const t = String(text || '').trim().slice(0, 300); if (!t) return null;
+  const t = String(text || '').trim().slice(0, NOTE_MAX); if (!t) return null;
   if (!state.notes) state.notes = [];
-  const n = { id: newId('n'), text: t, area: String(area || ''), at: nowIso(), done: false };
+  const n = setNoteText({ id: newId('n'), text: '', area: String(area || ''), at: nowIso(), done: false }, t);
   if (typeof stampedBuildId === 'function') n.build = stampedBuildId();   // V3.3 (3.6): the build the suggestion was written on
   state.notes.push(n); return n;
 }
@@ -1970,24 +2150,25 @@ function setNoteDone(state, id, done){
 function resolveNote(state, id){ return setNoteDone(state, id, true); }
 function reopenNote(state, id){ return setNoteDone(state, id, false); }
 function saveFeedbackDraft(state, fields){
-  const f = fields || {}, text = String(f.text || '').slice(0,300);
+  const f = fields || {}, text = String(f.text || '').slice(0,NOTE_MAX);
   if (!Array.isArray(state.feedbackDrafts)) state.feedbackDrafts = [];
   let d = f.id ? state.feedbackDrafts.find(x => x.id === f.id) : state.feedbackDrafts.find(x => x.cardId === f.cardId && x.status === 'draft');
   if (f.id && !d) return null;
   if (d && d.status === 'approved') return d;
   if (d){
-    if (d.text !== text){ d.text = text; d.updatedAt = new Date(Math.max(Date.now(), noteChangedAt(d) + 1)).toISOString(); }
+    if (noteText(d) !== text){ setNoteText(d, text); d.updatedAt = new Date(Math.max(Date.now(), noteChangedAt(d) + 1)).toISOString(); }
     return d;
   }
   if (!text.trim() || typeof f.cardId !== 'string' || !f.cardId || typeof f.cardLabel !== 'string' || !f.cardLabel) return null;
   const at = nowIso();
-  d = {id:newId('feedback'),cardId:f.cardId,cardLabel:f.cardLabel,area:String(f.area || ''),text,at,updatedAt:at,status:'draft',
+  d = {id:newId('feedback'),cardId:f.cardId,cardLabel:f.cardLabel,area:String(f.area || ''),text:'',at,updatedAt:at,status:'draft',
     ...(f.page ? {page:String(f.page)} : {}), ...(f.item ? {item:String(f.item)} : {}), ...(f.day ? {day:String(f.day)} : {}), build:typeof stampedBuildId === 'function' ? stampedBuildId() : undefined};   // V3.3 (3.6): where it was written
+  setNoteText(d, text);   // review: the first save trims and splits like every later one
   state.feedbackDrafts.push(d); return d;
 }
 function promoteFeedbackDraft(state, id){
   const d = (state.feedbackDrafts || []).find(x => x.id === id);
-  if (!d || !d.text.trim()) return null;
+  if (!d || !noteText(d).trim()) return null;
   if (!Array.isArray(state.planIdeas)) state.planIdeas=[];
   if (!Array.isArray(state.learning)) state.learning=[];
   if (!Array.isArray(state.notes)) state.notes = [];
@@ -1995,7 +2176,7 @@ function promoteFeedbackDraft(state, id){
   if (existing && (existing.sourceDraftId !== d.id || !existing.sourceCard || existing.sourceCard.id !== d.cardId)) return null;
   if (d.status === 'approved') return existing || null;
   const at = new Date(Math.max(Date.now(), noteChangedAt(d) + 1)).toISOString();
-  const n = existing || {id:noteId,text:d.text.trim(),area:d.area,at,done:false,sourceCard:{id:d.cardId,label:d.cardLabel,area:d.area,...(d.page ? {page:d.page} : {}),...(d.item ? {item:d.item} : {}),...(d.day ? {day:d.day} : {})},sourceDraftId:d.id,...(d.build ? {build:d.build} : {})};
+  const n = existing || {id:noteId,...setNoteText({}, noteText(d).trim()),area:d.area,at,done:false,sourceCard:{id:d.cardId,label:d.cardLabel,area:d.area,...(d.page ? {page:d.page} : {}),...(d.item ? {item:d.item} : {}),...(d.day ? {day:d.day} : {})},sourceDraftId:d.id,...(d.build ? {build:d.build} : {})};
   if (!existing) state.notes.push(n);
   d.status = 'approved'; d.approvedNoteId = n.id; d.approvedAt = at; d.updatedAt = at;
   return n;
@@ -2012,9 +2193,63 @@ function buildBrief(state, today){
     'This brief includes the open suggestions and areas written below. It does not automatically include health records, journal entries, routine details, or measurements. Suggestions may contain personal details you wrote; review before sharing.',
     '',
     open.length ? 'Open suggestions (' + open.length + '):' : 'No open suggestions.',
-  ].concat(open.map(n => '[' + n.id + '] ' + n.text + (n.area ? ' [' + n.area + ']' : '') + (n.sourceCard ? ' (Card: ' + n.sourceCard.label + '; ' + n.sourceCard.id + ')' : '')));
+  ];
+  // V3.5 K1/K8: grouped under the day each was written (Pacific), newest first; each line keeps its id first and
+  // carries its time, build and item.
+  for (const [day, list] of notesByDay(open)){
+    lines.push('', noteDayLabel(day) + ' (' + list.length + ')');
+    for (const n of list) lines.push('[' + n.id + '] ' + noteText(n) + (n.area ? ' [' + n.area + ']' : '') + (n.sourceCard ? ' (Card: ' + n.sourceCard.label + '; ' + n.sourceCard.id + (n.sourceCard.item ? '; item ' + n.sourceCard.item : '') + ')' : '') + ' · ' + pacificTime(n.at) + (n.build ? ' · build ' + n.build : ''));
+  }
   lines.push('', 'Use the stable suggestion IDs when discussing changes. After reviewing an update, mark its suggestion resolved manually in Lessons. Reopen it there if more work is needed.');
   return lines.join('\n');
+}
+
+/* ---- V3.5 K1 to K3: the suggestion list's model. ---- */
+// Newest day first, newest note first inside a day; the day is the Pacific day it was written.
+function notesByDay(list){
+  const days = new Map();
+  for (const n of list.slice().sort((a, b) => (Date.parse(b.at) || 0) - (Date.parse(a.at) || 0))){ const k = pacificDay(n.at) || 'undated'; if (!days.has(k)) days.set(k, []); days.get(k).push(n); }
+  return [...days.entries()];
+}
+function noteDayLabel(day){
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return 'Undated';
+  return new Date(day + 'T12:00:00Z').toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric', year:'numeric', timeZone:'UTC'});
+}
+/* A suggestion moves Open → Planned (a release brief schedules it) → Shipped (a release built it; it waits for his
+   look) → Resolved (he confirmed). The planned and shipped maps come from delivery.js (note id → release); the older
+   `resolved` map now counts as shipped, because nothing resolves by itself (K3). "Not fixed" records the release he
+   rejected, so the note is open again until a later release ships it. */
+function noteRelease(n, delivery){
+  const d = delivery || {}, shipped = Object.assign({}, d.resolved || {}, d.shipped || {}), planned = d.planned || {};
+  if (shipped[n.id] && n.notFixed !== String(shipped[n.id])) return {status:'shipped', release:String(shipped[n.id])};
+  if (planned[n.id] && !shipped[n.id]) return {status:'planned', release:String(planned[n.id])};
+  return null;
+}
+function noteStatus(n, delivery){ if (!n) return 'open'; if (n.done) return 'resolved'; const r = noteRelease(n, delivery); return r ? r.status : 'open'; }
+function markNotFixed(state, id, text, release){
+  const n = (state.notes || []).find(x => x.id === id); if (!n || n.done) return null;
+  n.notFixed = String(release || ''); n.notFixedText = setNoteText({}, text).text;
+  n.updatedAt = new Date(Math.max(Date.now(), noteChangedAt(n) + 1)).toISOString();
+  return n;
+}
+function notePage(n){ const c = n.sourceCard || null; return c && c.page ? c.page : null; }
+/* The export (Copy all open, Copy all including resolved, Copy on a day or a page): each suggestion on its own entry
+   with the date and time it was written in Pacific time, its build, page, card and item, its id and his full text,
+   grouped under day headers. */
+function notesExport(list, title, delivery){
+  const out = ['Glow suggestions · ' + title + ' · copied ' + pacificTime(nowIso()) + (typeof stampedBuildId === 'function' ? ' (build ' + stampedBuildId() + ')' : ''), 'Times are Pacific. Use the ids when discussing changes; only Mintay resolves a suggestion.'];
+  let i = 0;
+  for (const [day, ns] of notesByDay(list)){
+    out.push('', '## ' + noteDayLabel(day) + ' (' + ns.length + ')');
+    for (const n of ns){
+      const c = n.sourceCard || null, r = noteRelease(n, delivery), where = [n.area || 'General'].concat(c ? [c.label + ' (' + c.id + ')'] : [], c && c.item ? ['item ' + c.item] : []).join(' › ');
+      out.push((++i) + '. [' + n.id + '] ' + pacificTime(n.at) + ' · ' + where + (n.build ? ' · build ' + n.build : '') + ' · ' + (n.done ? 'Resolved' + (n.doneAt ? ' ' + pacificTime(n.doneAt) : '') : r ? (r.status === 'shipped' ? 'Shipped ' : 'Planned ') + r.release : 'Open'));
+      out.push(noteText(n));
+      if (n.notFixed && !n.done) out.push('Not fixed in ' + n.notFixed + (n.notFixedText ? ': ' + n.notFixedText : ''));
+    }
+  }
+  if (!i) out.push('', 'No suggestions.');
+  return out.join('\n') + '\n';
 }
 
 /* ---- food log: what you say you ate, when. No calories, no database. ---- */
@@ -2254,7 +2489,7 @@ function validateState(x){
     if (!Array.isArray(x.notes)) return 'The note list is malformed.';
     const ids = new Set(), timestamp = t => typeof t === 'string' && Number.isFinite(Date.parse(t));
     for (const n of x.notes){
-      if (!n || typeof n.id !== 'string' || !n.id || ids.has(n.id) || typeof n.text !== 'string' || !n.text.trim() || n.text.length > 300 || (n.area !== undefined && typeof n.area !== 'string') || typeof n.done !== 'boolean' || !timestamp(n.at) || (n.doneAt !== undefined && !timestamp(n.doneAt)) || (n.updatedAt !== undefined && !timestamp(n.updatedAt))) return 'An improvement note is malformed.';
+      if (!n || typeof n.id !== 'string' || !n.id || ids.has(n.id) || typeof n.text !== 'string' || !n.text.trim() || n.text.length > 300 || (n.more !== undefined && typeof n.more !== 'string') || (n.area !== undefined && typeof n.area !== 'string') || typeof n.done !== 'boolean' || !timestamp(n.at) || (n.doneAt !== undefined && !timestamp(n.doneAt)) || (n.updatedAt !== undefined && !timestamp(n.updatedAt))) return 'An improvement note is malformed.';
       if ((n.sourceCard !== undefined && (!n.sourceCard || ['id','label','area'].some(k => typeof n.sourceCard[k] !== 'string') || !n.sourceCard.id || !n.sourceCard.label)) || (n.sourceDraftId !== undefined && (typeof n.sourceDraftId !== 'string' || !n.sourceDraftId))) return 'An improvement note source is malformed.';
       ids.add(n.id);
     }
@@ -2263,7 +2498,7 @@ function validateState(x){
     if (!Array.isArray(x.feedbackDrafts)) return 'The feedback draft list is malformed.';
     const ids = new Set(), timestamp = t => typeof t === 'string' && Number.isFinite(Date.parse(t));
     for (const d of x.feedbackDrafts){
-      if (!d || ['id','cardId','cardLabel','area','text'].some(k => typeof d[k] !== 'string') || !d.id || !d.cardId || !d.cardLabel || ids.has(d.id) || d.text.length > 300 || !timestamp(d.at) || !timestamp(d.updatedAt) || !['draft','approved'].includes(d.status)) return 'A feedback draft is malformed.';
+      if (!d || ['id','cardId','cardLabel','area','text'].some(k => typeof d[k] !== 'string') || !d.id || !d.cardId || !d.cardLabel || ids.has(d.id) || d.text.length > 300 || (d.more !== undefined && typeof d.more !== 'string') || !timestamp(d.at) || !timestamp(d.updatedAt) || !['draft','approved'].includes(d.status)) return 'A feedback draft is malformed.';
       if (d.status === 'approved' ? (!d.text.trim() || d.approvedNoteId !== 'n-' + d.id || !timestamp(d.approvedAt)) : (d.approvedNoteId !== undefined || d.approvedAt !== undefined)) return 'A feedback draft approval is malformed.';
       ids.add(d.id);
     }
@@ -2285,6 +2520,7 @@ function validateState(x){
     if (!Array.isArray(x.sourceRecords)) return 'The source record list is malformed.';
     for (const r of x.sourceRecords){ if (!r || typeof r.id !== 'string' || typeof r.start !== 'string' || typeof r.sourceApp !== 'string') return 'A source record is malformed.'; }
   }
+  { const gp = gradeConfigProblem(x.gradeConfig); if (gp) return gp; }   // V3.5 G1, additive
   if (x.grades !== undefined){
     const g = x.grades;
     if (!g || typeof g !== 'object' || !g.weights || !g.included || GRADE_CATEGORIES.some(id => !Number.isFinite(g.weights[id]) || g.weights[id] < 0 || g.weights[id] > 10 || typeof g.included[id] !== 'boolean')) return 'The category grade settings are malformed.';
@@ -3154,6 +3390,24 @@ function wsSyncMembership(state,parentIds,from){
    workspace stores: the total is re-derived from the day's buckets on every projection. Evidence
    lookups therefore see the current projection as well as stored rows. (Mintay, 2026-09-23) */
 const WS_NIGHT_HOUR=15;
+/* V3.5 Q5, the brush rule (brief §1, ASSUMED reading of his note C-18): from BRUSH_RULE_FROM the day's first brush is the
+   Morning Brush when it starts before 7 pm; any later brush that day is the Night Brush; a first brush at or after 7 pm
+   is the Night Brush and leaves the morning open. A brush is a run of brushing minutes with no gap over 20 minutes.
+   Days before keep the 3 pm rule, so a check-off already made keeps its evidence (history never moves). */
+const BRUSH_RULE_FROM='2026-10-03',BRUSH_EVENING_HOUR=19,BRUSH_GAP_MS=20*60000;
+function brushFirstRun(state,date){
+  return rowMemo(state,'brushRuns',()=>{
+    const by=new Map();
+    for(const r of haeRowsFor(state,['toothbrushing'])){const m=r.unmapped?.healthAutoExport;if(!m||m.metric!=='toothbrushing'||m.representation!=='minute aggregate'||!(r.value>0)||(r.clashes||[]).length)continue;const d=sourceLocalDay(r.start);if(!by.has(d))by.set(d,[]);by.get(d).push(r);}
+    const out=new Map();
+    for(const [d,list] of by){list.sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));const run=new Set([list[0].id]);let end=Date.parse(list[0].start);for(const r of list.slice(1)){const t=Date.parse(r.start);if(t-end>BRUSH_GAP_MS)break;run.add(r.id);end=t;}out.set(d,{hour:sourceLocalHour(list[0].start),run});}
+    return out;
+  }).get(date)||null;
+}
+function brushSlot(state,record,date){
+  if(date<BRUSH_RULE_FROM)return sourceLocalHour(record.start)>=WS_NIGHT_HOUR?'night':'morning';
+  const f=brushFirstRun(state,date);return f&&f.run.has(record.id)&&f.hour<BRUSH_EVENING_HOUR?'morning':'night';
+}
 function sourceLocalHour(instant){const zone=/([+-])(\d{2}):(\d{2})$/.exec(instant),offset=zone?(zone[1]==='-'?-1:1)*(Number(zone[2])*60+Number(zone[3])):0;return new Date(Date.parse(instant)+offset*60000).getUTCHours();}
 function wsProjectedRecord(state,id){const projected=sourceProjection(state);return projected?projected.records.find(r=>r.id===id)||null:null;}
 function wsSourceRecord(state,id){
@@ -3221,7 +3475,12 @@ function wsEvidenceProblem(state,record,series,date){
     if((record.clashes||[]).length)return 'Review the source correction first.';
     if(sourceLocalDay(record.start)!==date)return 'The source-local date differs from this action.';
     if(!(record.value>0))return 'No brushing time was recorded in this minute.';
-    const night=['evening','night'].includes(v.anchor),late=sourceLocalHour(record.start)>=WS_NIGHT_HOUR;
+    const night=['evening','night'].includes(v.anchor);
+    if(date>=BRUSH_RULE_FROM){const occ=state.occurrences[occKey(series.id,date)],eid=occ&&rewardIdentity(state,occ);if(eid&&Object.values(state.rewards?.evidence||{}).some(e=>e.eventId===eid&&e.sourceId===record.id&&!e.retractedAt))return null;   // review S6: a confirmed brush keeps its slot when an earlier minute syncs late
+      const slot=brushSlot(state,record,date);
+      if(night!==(slot==='night'))return night?'This was the day’s first brush, before 7 pm, so it is the Morning Brush.':brushFirstRun(state,date)?.run.has(record.id)?'The day’s first brush came at or after 7 pm, so it is the Night Brush.':'The day’s first brush came earlier, so this one is the Night Brush.';
+      return null;}
+    const late=sourceLocalHour(record.start)>=WS_NIGHT_HOUR;
     if(night!==late)return night?'This brushing was recorded before 3 pm, so it belongs to the morning routine.':'This brushing was recorded after 3 pm, so it belongs to the night routine.';
     return null;
   }
@@ -3556,7 +3815,8 @@ function wsPerfectSleepOn(state,date){
   if(!rule||date<rule.effectiveFrom)return true; // Earlier verdicts retain the pre-adoption requirement.
   return (rule.sleep||[]).filter(t=>t.effectiveFrom<=date).sort((a,b)=>b.effectiveFrom.localeCompare(a.effectiveFrom))[0]?.enabled!==false;
 }
-function wsPerfectVisible(state,group,date){return !(state.groups||[]).some(g=>g.id===group&&g.hidden&&(!g.hiddenFrom||date>=g.hiddenFrom));}
+function groupHiddenOn(g,date){return !!g&&((g.hidden&&(!g.hiddenFrom||date>=g.hiddenFrom))||(Array.isArray(g.hiddenRanges)&&g.hiddenRanges.some(r=>r&&date>=r.from&&date<=r.to)));}   // V3.5: a dated hide, and the stretches it was hidden before a Show
+function wsPerfectVisible(state,group,date){return !(state.groups||[]).some(g=>g.id===group&&groupHiddenOn(g,date));}
 function wsPerfectIncluded(state,row,date){return wsPerfectVisible(state,row.group,date)&&(wsPerfectSleepOn(state,date)||row.matching?.kind!=='sleep');}
 function wsPerfectFitness(row){return row.group==='fitness'||['cardio','strength','steps'].includes(row.workspaceKind);}
 function wsQuotaChances(state,seriesId,from,to){
@@ -4174,11 +4434,14 @@ Workspace.energyBalance=function(state,date,dayRecords){
   // Food logged here adds on top of the imported total by default (Mintay, Sept 24 late); a day he
   // marks "Replace Apple Health" counts only what he logged. An entry without calories blanks the day.
   const importedFood=source('dietaryEnergy','dietary_energy'),replaceDay=!!state.prefs?.foodReplacesImported?.[date],overridden=replaceDay&&foods.length>0&&manualFood!==null,mixedFood=foods.length>0&&manualFood===null,food=mixedFood?null:foods.length?(replaceDay||importedFood===null?manualFood:manualFood+importedFood):importedFood,resting=source('restingEnergy','basal_energy_burned'),active=source('activeEnergy');
+  // V3.5 T1: a burn or a food total he types on Today's Fuel card wins for that day (self-reported); burn is resting plus active.
+  const typed=state.energyTyped&&state.energyTyped[date]||null,foodT=typed&&Number.isFinite(typed.food)?typed.food:food,burnData=Number.isFinite(resting)&&Number.isFinite(active)?resting+active:null,burn=typed&&Number.isFinite(typed.burn)?typed.burn:burnData;
+  if(typed&&(Number.isFinite(typed.food)||Number.isFinite(typed.burn))){const ok=Number.isFinite(foodT)&&Number.isFinite(burn);return {date,food:foodT,resting,active,burn,signature:wsSignature([date,foods,day,typed]),balance:ok?foodT-burn:null,available:ok,provisional:true,complete:ok&&foodT>0&&burn>0,reviewed:false,scoring:false,unit:'kcal',typed:{food:Number.isFinite(typed.food),burn:Number.isFinite(typed.burn)},foodSource:Number.isFinite(typed.food)?'typed':food===null?null:!foods.length?'imported':'logged',note:'Typed on Today: your number is used for this day and marked self-reported.',missing:[foodT===null?'Food':null,burn===null?'Burn':null].filter(Boolean)};}
   const available=[food,resting,active].every(Number.isFinite),coverage=state.energyCoverage?.[date]||{},signature=wsSignature([date,foods,day]),reviewed=date<todayYmd()&&available&&coverage.signature===signature&&coverage.food===true&&coverage.resting===true&&coverage.active===true;
   // V3.3 Phase 2 (7.2): complete once food, resting and active energy are all there (live on the day itself); a reviewed
   // coverage that a source correction has since invalidated keeps the day provisional.
   const complete=available&&[food,resting,active].every(v=>v>0)&&(!coverage.signature||coverage.signature===signature);
-  return {date,food,resting,active,signature,balance:available?food-resting-active:null,available,provisional:!reviewed,complete,reviewed,scoring:false,unit:'kcal',foodSource:food===null?null:!foods.length?'imported':replaceDay||importedFood===null?'logged':'logged+imported',note:mixedFood?'A logged food has no calories, so the day\'s food is unknown.':overridden?'Your logged food replaces the imported total for this day.':reviewed?'Explicitly reviewed coverage; workouts are already included in active energy.':'Coverage is incomplete or unverified. Missing values stay unavailable; no deficit award.'};
+  return {date,food,resting,active,burn:burnData,signature,balance:available?food-resting-active:null,available,provisional:!reviewed,complete,reviewed,scoring:false,unit:'kcal',foodSource:food===null?null:!foods.length?'imported':replaceDay||importedFood===null?'logged':'logged+imported',note:mixedFood?'A logged food has no calories, so the day\'s food is unknown.':overridden?'Your logged food replaces the imported total for this day.':reviewed?'Explicitly reviewed coverage; workouts are already included in active energy.':'Coverage is incomplete or unverified. Missing values stay unavailable; no deficit award.'};
 };
 Workspace.syntheticPreview=function(date,prefs){
   const state=freshState();state.seeded=true;state.demo=false;state.syntheticWorkspace=true;if(prefs)state.prefs={...state.prefs,...wsClone(prefs)};

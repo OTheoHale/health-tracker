@@ -98,33 +98,118 @@ function regionAutoName(parts, regions) {
 }
 /* V3.4 (B6): turns the lines read from a Fitdays report into its numbers. Lines are grouped into rows by height; a row's
    label decides the field, its numbers fill it (a glued "3.0lb" still reads). What it cannot find is listed in
-   `missing`, so the confirm screen asks for it; nothing is guessed. Pounds only: a kilogram report is converted. */
+   `missing`, so the confirm screen asks for it; nothing is guessed. Pounds only: a kilogram report is converted.
+   V3.5 (B6), the real layouts: the date may be written with a month name ("Sep.25,2026 09:11", "Sep 25, 2026",
+   "September 25, 2026 9:11 AM"); a whole-body label takes the value beside it on its row, or the one under it (a tile);
+   and Fitdays prints no segment names, so the five pairs are read BY POSITION inside the "Segmental fat analysis" block
+   (fat) and the "Muscle balance" block (muscle): top row the two arms, middle the trunk, bottom row the two legs, in lb
+   (a percent-of-standard figure beside or under each is ignored here). Blocks may be stacked (phone) or side by side
+   (A4). The side of each value is the side of the nearest L or R marker; with no marker the figure is taken to face the
+   viewer, so the value on the viewer's left is the person's RIGHT. A glued unit read as "1b", "Ib" or "16" ("9.116")
+   is the lb unit after Fitdays' one decimal. */
 const REPORT_SEGMENTS = [['left-arm', /^left\s*arm/i], ['right-arm', /^right\s*arm/i], ['trunk', /^trunk/i], ['left-leg', /^left\s*leg/i], ['right-leg', /^right\s*leg/i]];
 const REPORT_WHOLE = [['weight', /^(body\s*)?weight\b/i, 'lb'], ['bmi', /^bmi\b/i, null], ['bodyFatPercentage', /^body\s*fat(?!\s*mass)(\s*(rate|percentage|%))?\b/i, '%'], ['fatMass', /^(body\s*)?fat\s*mass/i, 'lb'], ['fatFreeWeight', /^fat[\s-]*free/i, 'lb'], ['muscleMass', /^muscle\s*mass/i, 'lb']];
+const REPORT_BLOCKS = [['fat', /^segment(al)?\s*fat(\s*(analysis|mass))?\s*$/i], ['muscle', /^((segment(al)?\s*)?muscle\s*balance(\s*analysis)?|segment(al)?\s*muscle(\s*(analysis|mass))?)\s*$/i]];
+const REPORT_MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+const REPORT_MASS = /(\d{1,4}(?:[.,]\d{1,2})?)\s*(lbs?|[1Il|]bs?|kg)(?![a-z])|(\d{1,4}[.,]\d)16(?![\d%])/gi;
+function reportMasses(text) {
+  return [...String(text).matchAll(REPORT_MASS)].map(m => { const raw = m[1] || m[3], kg = /kg/i.test(m[2] || ''), v = parseFloat(raw.replace(',', '.')); return {v: kg ? Math.round(v / .45359237 * 10) / 10 : v, index: m.index, length: m[0].length}; });
+}
+function reportClock(h, m, ap) {
+  let hour = Number(h); const min = Number(m); if (!(hour >= 0 && hour < 24 && min >= 0 && min < 60)) return null;
+  if (ap) { const pm = /p/i.test(ap); if (hour < 1 || hour > 12) return null; hour = hour % 12 + (pm ? 12 : 0); }
+  return String(hour).padStart(2, '0') + ':' + String(min).padStart(2, '0');
+}
+function reportDate(t) {
+  const iso = t.match(/(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})(?:\D+(\d{1,2}):(\d{2}))?/);
+  if (iso) return {date: iso[1] + '-' + iso[2].padStart(2, '0') + '-' + iso[3].padStart(2, '0'), time: iso[4] ? reportClock(iso[4], iso[5]) : null};
+  const mon = '(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\\.?';
+  let m = t.match(new RegExp('\\b' + mon + '\\s*(\\d{1,2})(?:st|nd|rd|th)?\\s*[,.]?\\s*(\\d{4})', 'i')), day, month, year;
+  if (m) { month = m[1]; day = m[2]; year = m[3]; }
+  else { m = t.match(new RegExp('\\b(\\d{1,2})[\\s.\\-]*' + mon + '\\s*[,.\\-]?\\s*(\\d{4})', 'i')); if (m) { day = m[1]; month = m[2]; year = m[3]; } }
+  if (!m) return null;
+  const mi = REPORT_MONTHS.indexOf(month.toLowerCase().slice(0, 3)), d = Number(day);
+  if (mi < 0 || d < 1 || d > 31) return null;
+  const clock = t.slice(m.index + m[0].length).match(/^[^\d]{0,4}(\d{1,2}):(\d{2})(?:\s*([ap])\.?\s*m\b\.?)?/i);
+  return {date: year + '-' + String(mi + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0'), time: clock ? reportClock(clock[1], clock[2], clock[3]) : null};
+}
 function parseFitdaysReport(lines) {
+  const items = (lines || []).filter(l => l && typeof l.text === 'string').map(l => ({text: l.text.trim(), x: +l.x || 0, y: +l.y || 0, w: +l.w || 0, h: +l.h || 0})).filter(l => l.text).sort((a, b) => a.y - b.y || a.x - b.x);
   const rows = [];
-  for (const l of (lines || []).filter(l => l && typeof l.text === 'string').sort((a, b) => (a.y || 0) - (b.y || 0))) {
-    const row = rows.find(r => Math.abs(r.y - (l.y || 0)) < 0.012); if (row) row.items.push(l); else rows.push({y: l.y || 0, items: [l]});
-  }
-  const texts = rows.map(r => r.items.sort((a, b) => (a.x || 0) - (b.x || 0)).map(i => i.text).join('  ').trim());
+  for (const l of items) { const row = rows.find(r => Math.abs(r.y - l.y) < 0.012); if (row) row.items.push(l); else rows.push({y: l.y, items: [l]}); }
+  const texts = rows.map(r => r.items.slice().sort((a, b) => a.x - b.x).map(i => i.text).join('  ').trim());
   const nums = t => [...t.matchAll(/(\d+(?:[.,]\d+)?)\s*(lb|lbs|kg|%)?/gi)].map(m => ({v: parseFloat(m[1].replace(',', '.')), unit: (m[2] || '').toLowerCase()}));
   const toLb = n => n.unit === 'kg' ? Math.round(n.v / .45359237 * 10) / 10 : n.v;
   const out = {measurementDate: null, measurementTime: null, wholeBody: {}, segments: [], missing: []};
+  const segment = id => { let s = out.segments.find(r => r.id === id); if (!s) { s = {id, fatMassLb: null, muscleBalanceMassLb: null}; out.segments.push(s); } return s; };
+  /* the date, and labelled segment rows ("Left arm 3.0 lb 8.7 lb", the V3.4 shape) */
   for (const t of texts) {
-    const iso = t.match(/(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})(?:\D+(\d{1,2}):(\d{2}))?/);
-    if (iso && !out.measurementDate) { out.measurementDate = iso[1] + '-' + iso[2].padStart(2, '0') + '-' + iso[3].padStart(2, '0'); if (iso[4]) out.measurementTime = iso[4].padStart(2, '0') + ':' + iso[5]; continue; }
+    const when = !out.measurementDate && reportDate(t);
+    if (when) { out.measurementDate = when.date; out.measurementTime = when.time; continue; }
     const seg = REPORT_SEGMENTS.find(([, re]) => re.test(t));
-    if (seg) { const values = nums(t.replace(seg[1], '')).filter(n => n.unit !== '%'); if (values.length >= 2 && !out.segments.some(s => s.id === seg[0])) out.segments.push({id: seg[0], fatMassLb: toLb(values[0]), muscleBalanceMassLb: toLb(values[1])}); continue; }
-    const whole = REPORT_WHOLE.find(([, re]) => re.test(t));
-    if (whole && !out.wholeBody[whole[0]]) { const values = nums(t.replace(whole[1], '')); if (values.length) out.wholeBody[whole[0]] = {value: whole[2] === 'lb' ? toLb(values[0]) : values[0].v, unit: whole[2]}; }
+    if (seg) { const values = nums(t.replace(seg[1], '')).filter(n => n.unit !== '%'); const s = out.segments.find(r => r.id === seg[0]); if (values.length >= 2 && !s) out.segments.push({id: seg[0], fatMassLb: toLb(values[0]), muscleBalanceMassLb: toLb(values[1])}); }
+  }
+  /* whole-body figures: the value in the label's own line, else beside it on its row, else under it */
+  const sameRow = (a, b) => Math.abs(a.y - b.y) < (a.h && b.h ? 0.6 * Math.max(a.h, b.h) : 0.012);
+  const isValue = l => /^[\d]/.test(l.text) && !REPORT_WHOLE.some(([, re]) => re.test(l.text));
+  const valueOf = (text, unit) => { if (unit === 'lb') { const m = reportMasses(text); if (m.length) return m[0].v; } const n = nums(text); return n.length ? (unit === 'lb' ? toLb(n[0]) : n[0].v) : null; };
+  for (const l of items) {
+    const whole = REPORT_WHOLE.find(([, re]) => re.test(l.text)); if (!whole || out.wholeBody[whole[0]]) continue;
+    let v = valueOf(l.text.replace(whole[1], ''), whole[2]);
+    if (v === null) { const right = items.filter(o => o !== l && o.x > l.x && sameRow(o, l) && isValue(o)).sort((a, b) => a.x - b.x)[0]; if (right) v = valueOf(right.text, whole[2]); }
+    if (v === null) { const lh = l.h || 0.015, under = items.filter(o => o.y > l.y + lh * 0.5 && o.y < l.y + lh * 3.5 && Math.abs(o.x - l.x) < Math.max(0.03, (l.w || 0) * 0.5) && isValue(o)).sort((a, b) => a.y - b.y)[0]; if (under) v = valueOf(under.text, whole[2]); }
+    if (v !== null) out.wholeBody[whole[0]] = {value: v, unit: whole[2]};
+  }
+  /* the segment blocks, by position */
+  const heads = items.map(l => ({l, kind: (REPORT_BLOCKS.find(([, re]) => re.test(l.text)) || [])[0]})).filter(h => h.kind);
+  const at = (l, i, n) => l.x + (l.w || 0) * ((i + n / 2) / Math.max(1, l.text.length));
+  const status = /^(standard|normal|high|low|over|under|excellent|insufficient|healthy|fat|muscle)$/i;
+  for (const head of heads) {
+    const H = head.l, sib = heads.filter(o => sameRow(o.l, H) || Math.abs(o.l.y - H.y) < 0.02).map(o => o.l).sort((a, b) => a.x - b.x), k = sib.indexOf(H);
+    const x0 = k > 0 ? sib[k].x - 0.02 : 0, x1 = k < sib.length - 1 ? sib[k + 1].x - 0.02 : 1;
+    const inCol = l => l.x < x1 && l.x + (l.w || 0) > x0;
+    const below = items.filter(l => l.y > H.y + (H.h || 0.01) * 0.5 && inCol(l));
+    const stop = below.find(l => heads.some(o => o.l === l) || (/[a-z]{4,}/i.test(l.text) && !l.text.split(/\s+/).every(w => status.test(w) || !/[a-z]{4,}/i.test(w))));
+    const yEnd = stop ? stop.y : Infinity, inside = below.filter(l => l.y < yEnd);
+    const tokens = [], markers = [];
+    for (const l of inside) {
+      for (const m of reportMasses(l.text)) { const x = at(l, m.index, m.length); if (x >= x0 && x < x1) tokens.push({v: m.v, x, y: l.y, h: l.h}); }
+      let pos = 0; for (const word of l.text.split(/\s+/)) { const i = l.text.indexOf(word, pos); pos = i + word.length; const side = /^(L|left)$/i.test(word) ? 'left' : /^(R|right)$/i.test(word) ? 'right' : null; if (side && (word.length > 1 || word === word.toUpperCase())) markers.push({side, x: at(l, i, word.length)}); }
+    }
+    if (tokens.length < 2) continue;
+    const xs = tokens.map(t => t.x), cx = (Math.min(...xs) + Math.max(...xs)) / 2, spread = Math.max(...xs) - Math.min(...xs) || 1;
+    const lines2 = []; for (const t of tokens.sort((a, b) => a.y - b.y)) { const r = lines2.find(r => Math.abs(r.y - t.y) < (t.h ? 0.6 * t.h : 0.008)); if (r) r.t.push(t); else lines2.push({y: t.y, t: [t]}); }
+    const sideOf = t => { const L = markers.filter(m => m.side === 'left'), R = markers.filter(m => m.side === 'right'); const d = ms => ms.length ? Math.min(...ms.map(m => Math.abs(m.x - t.x))) : Infinity;
+      if (L.length || R.length) return d(L) <= d(R) ? 'left' : 'right'; return t.x < cx ? 'right' : 'left'; };
+    const put = (part, t) => { const s = segment(part); const f = head.kind === 'fat' ? 'fatMassLb' : 'muscleBalanceMassLb'; if (s[f] === null) s[f] = t.v; };
+    const limbs = (row, limb, rest) => { const r = row.t.slice().sort((a, b) => a.x - b.x);
+      if (r.length >= 2) { const a = r[0], b = r[r.length - 1], sa = sideOf(a), sb = sideOf(b); rest.push(...r.slice(1, -1)); if (sa !== sb) { put(sa + '-' + limb, a); put(sb + '-' + limb, b); } return; }
+      if (Math.abs(r[0].x - cx) < 0.2 * spread) rest.push(r[0]); else put(sideOf(r[0]) + '-' + limb, r[0]); };
+    const middle = [];
+    if (lines2.length >= 2) { limbs(lines2[0], 'arm', middle); limbs(lines2[lines2.length - 1], 'leg', middle); }
+    for (const r of lines2.slice(1, -1)) middle.push(...r.t);
+    const trunk = middle.sort((a, b) => Math.abs(a.x - cx) - Math.abs(b.x - cx))[0]; if (trunk) put('trunk', trunk);
   }
   for (const [k] of REPORT_WHOLE) if (!out.wholeBody[k]) out.missing.push(k);
-  for (const [k] of REPORT_SEGMENTS) if (!out.segments.some(s => s.id === k)) out.missing.push(k);
+  for (const [k] of REPORT_SEGMENTS) { const s = out.segments.find(r => r.id === k); if (!s || s.fatMassLb === null || s.muscleBalanceMassLb === null) out.missing.push(k); }
+  out.segments = REPORT_SEGMENTS.map(([k]) => out.segments.find(r => r.id === k)).filter(Boolean);
   if (!out.measurementDate) out.missing.push('measurementDate');
   return out;
 }
 window.HealthBodyRegionMath = {partsOf: regionPartsOf, figures: regionFigures, autoName: regionAutoName, share: segmentShare, parseReport: parseFitdaysReport};
 const BODY_ZOOM = {min:20, max:250, start:115, step:20};
+/* V3.5 (B1, B10 to B12). The model and the photo share one framing: the body fills the box less this margin at the top
+   and the bottom, so head and feet line up between them. Short labels for the Parts popover; Other is head and neck,
+   bone and what the report's five regions leave over, worked out from the latest weigh-in, so every segment plus Other
+   adds up to the weigh-in (ASSUMED V35-A3). */
+const BODY_MARGIN = 0.04, BODY_FRAME = {min: 35, max: 220, step: 15};
+const SEG_SHORT = {head: 'Head', chest: 'Chest', abdomen: 'Abs', back: 'Back', pelvis: 'Hips', 'left-upper-arm': 'L bicep', 'right-upper-arm': 'R bicep', 'left-forearm': 'L forearm', 'right-forearm': 'R forearm',
+  'left-thigh': 'L thigh', 'right-thigh': 'R thigh', 'left-calf': 'L calf', 'right-calf': 'R calf', 'left-foot': 'L foot', 'right-foot': 'R foot', other: 'Other'};
+const REGION_SHORT = {trunk: 'Trunk', 'right-arm': 'R arm', 'left-arm': 'L arm', 'right-leg': 'R leg', 'left-leg': 'L leg'};
+const BC_TONE = {better: 'var(--c-violet,#b394ff)', average: 'var(--c-green,#79d6a9)', poor: 'var(--c-orange,#f0a058)', none: '#ffffff'};
+const bodyIcon = (d, size) => '<svg viewBox="0 0 24 24" width="' + (size || 16) + '" height="' + (size || 16) + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
+const BODY_ICONS = {zoomIn: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4M8 11h6M11 8v6"/>', zoomOut: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4M8 11h6"/>', reset: '<path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/>',
+  expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>', shrink: '<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>', report: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M12 11v6M9 14h6"/>', down: '<path d="M6 9l6 6 6-6"/>'};
 class HealthBodyView extends HTMLElement {
   connectedCallback() {
     this.records = [];
@@ -136,7 +221,7 @@ class HealthBodyView extends HTMLElement {
     this.regions = {};
     this.measurements = {readings: []};
     this.fitdays = null;
-    this.mode = 'select'; this.linked = new Set(); this.compare = {a: null, b: null, next: 'a'};
+    this.mode = 'select'; this.linked = new Set(); this.compare = {a: null, b: null, next: 'a'}; this.sel = null; this.startPct = BODY_ZOOM.start;   // sel null = Whole Body (V3.5 B11)
     this.saved = []; try { this.saved = JSON.parse(localStorage.getItem('glow-body-regions') || '[]'); } catch (_) { this.saved = []; }
     if (!Array.isArray(this.saved)) this.saved = [];
     if (!BODY_AVAILABLE) { this.unavailable(); return; }
@@ -286,16 +371,10 @@ class HealthBodyView extends HTMLElement {
       this.regionChipsHTML() + '<div class="body-tools">' + this.toolsHTML() + '</div></div>';
   }
   figuresLine(parts) {
-    const f = regionFigures(parts, this.fitdays), esc = v => this.escape(v), name = k => this.regions[k] || FITDAYS_GROUPS[k]?.label || k;
-    if (f.fat === null) return '<span class="body-na">Not available at this segmentation' + (f.missing.length ? ' (' + esc(f.missing.map(name).join(', ')) + ')' : '') + '</span>';
-    const u=window.HealthDisplayUnits||{mass:'lb',lb:v=>v},old=regionFigures(parts,this.fitdays&&this.fitdays.previous),pct=n=>f.total>0?(100*n/f.total).toFixed(1)+'%':'—';
-    const change=(key,better)=>old[key]===null?'':window.GlowViews?GlowViews.delta({now:u.lb(f[key]),prev:u.lb(old[key]),unit:u.mass,better,period:'since '+this.date(this.fitdays.previous.measurementDate)}):'';
-    let out = '<b>'+parts.length+' segments (all est.)</b><span><strong>Total</strong> '+u.lb(f.total).toFixed(1)+' '+u.mass+' · 100% '+change('total','')+'</span><span class="body-fat-value"><strong>Fat</strong> '+u.lb(f.fat).toFixed(1)+' '+u.mass+' · '+pct(f.fat)+' '+change('fat','down')+'</span><span class="body-lean-value"><strong>Lean muscle</strong> '+u.lb(f.muscle).toFixed(1)+' '+u.mass+' · '+pct(f.muscle)+' '+change('muscle','up')+'</span>';
-    const notes = [];
-    if (f.est) notes.push('parts split by typical segment mass');
-    if (f.standIn.length) notes.push(f.standIn.map(g => FITDAYS_GROUPS[g].label.toLowerCase() + ' total stands in').join(', ') + ' (no separate measurement)');
-    if (f.missing.length) notes.push('no reading for ' + f.missing.map(name).join(', '));
-    return out + (notes.length ? '<small>' + esc(notes.join(' · ')) + '</small>' : '');
+    const f = this.figuresOf(parts.flatMap(k => this.keyParts(k))), esc = v => this.escape(v), name = k => this.regions[k] || FITDAYS_GROUPS[k]?.label || (k === 'other' ? 'Other' : k);
+    if (f.total === null) return '<span class="body-na">Not available at this segmentation' + (f.missing.length ? ' (' + esc(f.missing.map(name).join(', ')) + ')' : '') + '</span>';
+    const u = window.HealthDisplayUnits || {mass:'lb', lb:v => v}, pct = n => f.total > 0 ? (100 * n / f.total).toFixed(1) + '%' : '—';
+    return '<b>' + parts.length + ' part' + (parts.length === 1 ? '' : 's') + (f.est ? ' (est.)' : '') + '</b><span><strong>Total</strong> ' + u.lb(f.total).toFixed(1) + ' ' + u.mass + '</span><span class="body-fat-value"><strong>Fat</strong> ' + u.lb(f.fat).toFixed(1) + ' ' + u.mass + ' · ' + pct(f.fat) + '</span><span class="body-lean-value"><strong>Muscle</strong> ' + u.lb(f.lean).toFixed(1) + ' ' + u.mass + ' · ' + pct(f.lean) + '</span>' + (f.missing.length ? '<small>' + esc('no reading for ' + f.missing.map(name).join(', ')) + '</small>' : '');
   }
   toolsHTML() {
     const esc = v => this.escape(v), name = k => this.regions[k] || FITDAYS_GROUPS[k]?.label || k;
@@ -306,15 +385,15 @@ class HealthBodyView extends HTMLElement {
       return '<div class="body-chips">' + chips + '</div>' + (parts.length ? '<div class="body-selection-figures">' + this.figuresLine(parts) + '</div><div class="body-link-acts"><input type="text" data-body="regionName" maxlength="40" placeholder="' + esc(auto) + '" aria-label="Name for this region" value=""><button data-body="saveRegion">Save as region</button><button class="ghost" data-body="clearLink">Clear</button></div>' : '') + mine;
     }
     if (this.mode === 'compare') {
-      const a = this.compare.a, b = this.compare.b, pa = regionPartsOf(a, this.saved), pb = regionPartsOf(b, this.saved), label = k => k ? (FITDAYS_GROUPS[k]?.label || (k.startsWith('custom:') ? (this.saved.find(r => 'custom:' + r.id === k) || {}).name : this.regions[k]) || k) : '—';
+      const a = this.compare.a, b = this.compare.b, pa = a ? this.keyParts(a) : [], pb = b ? this.keyParts(b) : [], label = k => k ? (k === 'all' ? 'Whole Body' : k === 'other' ? 'Other' : FITDAYS_GROUPS[k]?.label || (k.startsWith('custom:') ? (this.saved.find(r => 'custom:' + r.id === k) || {}).name : this.regions[k]) || k) : '—';   // V3.5 B11: Whole Body and Other compare too
       const pick = (slot, val) => '<span class="body-cmp-pick' + (this.compare.next === slot ? ' next' : '') + '"><span class="body-swatch ' + slot + '"></span>' + slot.toUpperCase() + ' <b>' + esc(label(val)) + '</b></span>';
       let table = '';
       if (a && b) {
-        const fa = regionFigures(pa, this.fitdays), fb = regionFigures(pb, this.fitdays), cell = (f, k) => f[k] === null ? '<span class="body-na">not available at this segmentation</span>' : '<b>' + ((f.est || f.standIn.length) ? 'est. ' : '') + bodyMass(f[k]) + '</b>';
-        const size = pa.length !== pb.length ? '<p class="hint">Unequal regions: ' + esc(label(a)) + ' has ' + pa.length + ' segment' + (pa.length === 1 ? '' : 's') + ', ' + esc(label(b)) + ' has ' + pb.length + '. Shapes are comparable; the numbers cover different amounts of body.</p>' : '';
+        const fa = this.figuresOf(pa), fb = this.figuresOf(pb), cell = (f, k) => f[k] === null ? '<span class="body-na">not available at this segmentation</span>' : '<b>' + (f.est ? 'est. ' : '') + bodyMass(f[k]) + '</b>';
+        const size = pa.filter(k => k !== 'head').length !== pb.filter(k => k !== 'head').length ? '<p class="hint">Unequal regions: ' + esc(label(a)) + ' has ' + pa.length + ' segment' + (pa.length === 1 ? '' : 's') + ', ' + esc(label(b)) + ' has ' + pb.length + '. Shapes are comparable; the numbers cover different amounts of body.</p>' : '';
         table = '<table class="body-cmp"><thead><tr><th></th><th><span class="body-swatch a"></span>' + esc(label(a)) + '</th><th><span class="body-swatch b"></span>' + esc(label(b)) + '</th></tr></thead><tbody>' +
-          '<tr><td>Fat</td><td>' + cell(fa, 'fat') + '</td><td>' + cell(fb, 'fat') + '</td></tr><tr><td>Muscle</td><td>' + cell(fa, 'muscle') + '</td><td>' + cell(fb, 'muscle') + '</td></tr><tr><td>Segments</td><td>' + pa.length + '</td><td>' + pb.length + '</td></tr></tbody></table>' + size +
-          ((fa.est || fb.est) ? '<p class="hint">est.: parts are split from the Fitdays total of their limb or of the trunk by typical segment mass (de Leva).</p>' : '') + ((fa.standIn.length || fb.standIn.length) ? '<p class="hint">A trunk part shows the trunk total standing in; Fitdays does not split the trunk.</p>' : '');
+          '<tr><td>Fat</td><td>' + cell(fa, 'fat') + '</td><td>' + cell(fb, 'fat') + '</td></tr><tr><td>Muscle</td><td>' + cell(fa, 'lean') + '</td><td>' + cell(fb, 'lean') + '</td></tr><tr><td>Total</td><td>' + cell(fa, 'total') + '</td><td>' + cell(fb, 'total') + '</td></tr><tr><td>Segments</td><td>' + pa.filter(k => k !== 'head').length + '</td><td>' + pb.filter(k => k !== 'head').length + '</td></tr></tbody></table>' + size +
+          ((fa.est || fb.est) ? '<p class="hint">est.: parts are split from the Fitdays total of their limb or of the trunk by typical segment mass (de Leva).</p>' : '');
       } else table = '<p class="hint">Click two regions on the model, or choose A and B. Compare stays separate from linking.</p>';
       return '<div class="body-cmp-picks">' + pick('a', a) + pick('b', b) + '<button class="ghost" data-body="cmpSwap"' + (a && b ? '' : ' disabled') + '>Swap</button></div>' + table;
     }
@@ -330,43 +409,105 @@ class HealthBodyView extends HTMLElement {
     if(p.remainder===null)return '<section class="body-reconciliation" aria-label="Regional figures" data-parity="BODY-29"><p class="cap">Parts of '+this.escape(this.date(p.date))+'’s report</p>'+line('Five regions, fat','fat','body-fat-value','down')+line('Five regions, muscle','muscle','body-lean-value','up')+line('Report weight','weight','body-report-total',null)+'<p class="hint">This report has no whole-body '+(p.wholeFat===null?'fat and muscle':'muscle')+' mass, so the head, neck, bone and other parts cannot be worked out. '+(old?'Arrows compare the preceding dated report.':'No earlier report for change arrows.')+'</p></section>';
     return '<section class="body-reconciliation" aria-label="Regional figures" data-parity="BODY-29"><p class="cap">Parts of '+this.escape(this.date(p.date))+'’s report</p>'+line('Five regions, fat','fat','body-fat-value','down')+line('Five regions, muscle','muscle','body-lean-value','up')+line('Head, neck and unsegmented','remainder','',null)+(p.bone!==null?line('Bone','bone','',null):'')+line('Other (rounding)','other','',null)+line('Report weight','weight','body-report-total',null)+'<p class="hint">From the report itself: the unsegmented part is its whole-body fat and muscle less the five regions’; bone is its fat-free weight less its muscle; “other” is Fitdays’ own rounding, about a third of a pound. '+(p.reconciles?'':'These parts do not add up to the report weight; check the report. ')+(old?'Arrows compare the preceding dated report.':'No earlier report for change arrows.')+'</p></section>';
   }
-  /* V3.4 (B3): the selection panel, five lines. The name; Total in bold; Fat and Muscle, each in pounds and as a share of
-     the selection (of the weight for Whole Body, so it matches the Body Fat tile), with an arrow against the previous
-     report that hides when the change is tiny; and the source with its date and age in the freshness colour. Whole Body
-     reads the latest weigh-in (B2); segments read the last Fitdays report and are never summed with it. */
+  /* V3.4 (B3) kept: the freshness tone, the source line and the change arrows. */
   freshTone(date) { const d = Math.max(0, Math.round((Date.now() - new Date(date + 'T12:00:00').getTime()) / 864e5)); const h = d <= 3 ? 140 : d <= 6 ? 140 + (52 - 140) * (d - 3) / 3 : d <= 10 ? 52 + (4 - 52) * (d - 6) / 4 : 4; return {days: d, colour: 'hsl(' + Math.round(h) + ' 68% 62%)', words: d === 0 ? 'Today' : d === 1 ? '1 day ago' : d + ' days ago'}; }
   sourceLine(source, date, est) { if (!date) return ''; const f = this.freshTone(date); return '<span class="body-sel-src"><i style="background:' + f.colour + '" aria-hidden="true"></i>' + this.escape(source + (est ? ' (est)' : '')) + ' · ' + this.escape(this.date(date, true)) + ' · ' + f.words + '</span>'; }
   arrowHTML(now, prev, better, unit) { if (!Number.isFinite(now) || !Number.isFinite(prev)) return ''; const d = now - prev; if (Math.abs(d) < 0.3) return ''; const good = better === null ? null : (d < 0) === (better === 'down'); return ' <span class="body-arrow" style="color:' + (good === null ? 'var(--muted)' : good ? 'var(--c-green,#79d6a9)' : 'var(--c-orange,#f0a058)') + '">' + (d < 0 ? '↓' : '↑') + Math.abs(d).toFixed(1) + (unit ? ' ' + unit : '') + '</span>'; }
-  selectionHTML() {
-    const u = window.HealthDisplayUnits || {mass: 'lb', lb: v => v}, esc = v => this.escape(v), tier = window.HealthFatTier || (() => null);
-    const line = (name, total, fat, muscle, base, source, date, est, prev) => {
-      const pct = n => base > 0 ? (100 * n / base).toFixed(1) + '%' : '—', t = tier(base > 0 ? 100 * fat / base : null);
-      return '<div class="body-sel" data-parity="BODY-26"><b class="body-sel-name">' + esc(name) + '</b><span class="body-sel-total"><strong>Total:</strong> ' + u.lb(total).toFixed(1) + ' ' + u.mass + '</span>' +
-        '<span class="body-sel-fat"><strong style="color:' + (t ? t.colour : 'inherit') + '">Fat:</strong> <span style="color:' + (t ? t.colour : 'inherit') + '">' + u.lb(fat).toFixed(1) + ' ' + u.mass + ' | ' + pct(fat) + '</span>' + (prev ? this.arrowHTML(u.lb(fat), u.lb(prev.fat), 'down', u.mass) : '') + '</span>' +
-        '<span class="body-sel-muscle" data-parity="BODY-27"><strong>Muscle:</strong> ' + u.lb(muscle).toFixed(1) + ' ' + u.mass + ' | ' + pct(muscle) + (prev ? this.arrowHTML(u.lb(muscle), u.lb(prev.muscle), 'up', u.mass) : '') + '</span>' + this.sourceLine(source, date, est) + '</div>';
-    };
-    const key = this.mode === 'link' && this.linked.size ? null : this.region;
-    if (key === 'all' || !key && !this.linked.size) {
-      const w = window.HealthWholeBody || {}, wt = w.weight, bf = w.bodyFat;
-      if (wt && bf && Number.isFinite(wt.value) && Number.isFinite(bf.value)) {
-        const lb = wt.unit === 'kg' ? wt.value / .45359237 : wt.value, fat = lb * bf.value / 100;
-        return line('Whole Body', lb, fat, lb - fat, lb, wt.source || 'Apple Health', wt.date, false, null);
-      }
-      const p = window.GlowLearn && GlowLearn.partition(this.fitdays);
-      return p && Number.isFinite(p.wholeFat) && Number.isFinite(p.wholeMuscle) ? line('Whole Body', p.weight, p.wholeFat, p.weight - p.wholeFat, p.weight, 'Fitdays', p.date, false, null) : '<div class="body-sel"><b class="body-sel-name">Whole Body</b><span class="hint">No weigh-in yet.</span></div>';
-    }
-    const parts = key ? this.partsInView(key) : [...this.linked], f = regionFigures(parts, this.fitdays), old = this.fitdays && this.fitdays.previous ? regionFigures(parts, this.fitdays.previous) : null;
-    const custom = key && key.startsWith('custom:') ? this.saved.find(r => 'custom:' + r.id === key) : null, name = custom ? custom.name : parts.length > 1 ? (FITDAYS_GROUPS[key] ? FITDAYS_GROUPS[key].label : parts.length + ' Segments') : (this.regions[parts[0]] || FITDAYS_GROUPS[parts[0]]?.label || parts[0]);
-    if (f.fat === null) return '<div class="body-sel"><b class="body-sel-name">' + esc(name) + '</b><span class="body-na">Not available at this segmentation</span></div>';
-    return line(name, f.total, f.fat, f.muscle, f.total, 'Fitdays', this.fitdays.measurementDate, f.est || f.standIn.length > 0, old && old.fat !== null ? old : null);
+  /* V3.5 (B11): what can be selected. Every model segment and Other; head and neck have no report row, so they travel
+     with Other (selecting one selects both). Whole Body is all of them. */
+  allKeys() { const ks = new Set(Object.keys(this.regions || {}).concat(...Object.values(FITDAYS_GROUPS).map(g => g.parts))); ks.delete('head'); ks.delete('other'); return [...ks].concat(['head', 'other']); }   // the report's 14 parts, head and Other, whatever the model's own map holds
+  selParts() { return this.sel ? [...this.sel] : this.allKeys(); }
+  isWhole(parts) { const all = this.allKeys(), set = new Set(parts); return all.every(k => set.has(k)); }
+  keyParts(key) { if (key === 'all') return this.allKeys(); if (key === 'other' || key === 'head') return ['head', 'other']; return regionPartsOf(key, this.saved).flatMap(k => k === 'other' || k === 'head' ? ['head', 'other'] : [k]); }
+  /* The weigh-in the whole body reads (V3.4 B2): Apple Health's latest weight and body fat; else the report's own. */
+  weighIn() {
+    const w = window.HealthWholeBody || {}, wt = w.weight, bf = w.bodyFat;
+    if (wt && bf && Number.isFinite(wt.value) && Number.isFinite(bf.value)) { const lb = wt.unit === 'kg' ? wt.value / .45359237 : wt.value, fat = lb * bf.value / 100; return {weight: lb, fat, lean: lb - fat, date: wt.date, source: wt.source || 'Apple Health'}; }
+    const p = window.GlowLearn && GlowLearn.partition(this.fitdays);
+    return p && Number.isFinite(p.wholeFat) ? {weight: p.weight, fat: p.wholeFat, lean: p.weight - p.wholeFat, date: p.date, source: 'Fitdays'} : null;
   }
+  otherFigures(report, W) {
+    const rows = (report && report.segments) || []; if (!W || Object.keys(FITDAYS_GROUPS).some(g => !rows.some(r => r.id === g))) return null;
+    const fat = rows.filter(r => FITDAYS_GROUPS[r.id]).reduce((n, r) => n + r.fatMassLb, 0), muscle = rows.filter(r => FITDAYS_GROUPS[r.id]).reduce((n, r) => n + r.muscleBalanceMassLb, 0);
+    return {fat: W.fat - fat, lean: W.lean - muscle};
+  }
+  /* Figures for any set of parts: segments from the report (a part of a limb or the trunk by its typical share, "est."),
+     Other from the weigh-in. Comparison percentages (Fitdays' percent of standard) are averaged by mass for the colours. */
+  figuresOf(parts, report, W) {
+    report = report === undefined ? this.fitdays : report; W = W === undefined ? this.weighIn() : W;
+    const rows = new Map(((report && report.segments) || []).map(r => [r.id, r]));
+    let fat = 0, lean = 0, est = false, cf = 0, cfw = 0, cm = 0, cmw = 0, other = null; const missing = [], seen = new Set();
+    for (const k of parts) {
+      if (k === 'head' || k === 'other') { if (seen.has('other')) continue; seen.add('other'); other = this.otherFigures(report, W); if (other) { fat += other.fat; lean += other.lean; } else missing.push('other'); continue; }
+      const g = fitdaysGroup(k), row = g && rows.get(g); if (!row) { missing.push(k); continue; }
+      const share = k === g ? 1 : segmentShare(k); if (share === null) { missing.push(k); continue; }
+      if (k !== g && !FITDAYS_GROUPS[g].parts.every(q => parts.includes(q))) est = true;   // a whole region is exact; a part of one is its typical share
+      const f = row.fatMassLb * share, m = row.muscleBalanceMassLb * share; fat += f; lean += m;
+      if (Number.isFinite(row.fatComparisonPercent)) { cf += row.fatComparisonPercent * f; cfw += f; }
+      if (Number.isFinite(row.muscleComparisonPercent)) { cm += row.muscleComparisonPercent * m; cmw += m; }
+    }
+    const total = fat + lean, any = parts.length > missing.length;
+    return {fat: any ? fat : null, lean: any ? lean : null, total: any ? total : null, other, est, missing, fatStd: cfw ? cf / cfw : null, muscleStd: cmw ? cm / cmw : null, weight: W ? W.weight : null, eq: !!W && any && Math.abs(total - W.weight) < 0.05};
+  }
+  /* B10 colours (ASSUMED 24): purple better than average for age, sex and height, green average, orange not good, never red.
+     Whole-body fat by the body-fat tier table; a region by Fitdays' percent of standard (fat: lower is better, muscle:
+     higher; 90 to 110 is the average band, ASSUMED V35-A4); white where no reference exists. */
+  fatTone(f, wholeFat) {
+    if (wholeFat) { const t = window.HealthFatTier && window.HealthFatTier(100 * f.fat / f.total); if (!t) return 'none'; return ['violet', 'purple', 'blue', 'tierBlue'].includes(t.tone) ? 'better' : t.tone === 'green' ? 'average' : 'poor'; }
+    return f.fatStd === null ? 'none' : f.fatStd < 90 ? 'better' : f.fatStd <= 110 ? 'average' : 'poor';
+  }
+  muscleTone(f) { return f.muscleStd === null || f.other ? 'none' : f.muscleStd > 110 ? 'better' : f.muscleStd >= 90 ? 'average' : 'poor'; }
+  selectionName(parts, key) {
+    if (this.isWhole(parts)) return 'Whole Body';
+    const custom = key && key.startsWith && key.startsWith('custom:') ? this.saved.find(r => 'custom:' + r.id === key) : null; if (custom) return custom.name;
+    const set = new Set(parts), group = Object.entries(FITDAYS_GROUPS).find(([, g]) => g.parts.length === set.size && g.parts.every(p => set.has(p)));
+    if (group) return group[1].label;
+    if (set.has('other') && set.size <= 2) return 'Other';
+    const n = parts.filter(k => k !== 'head').length;   // head travels with Other
+    return n === 1 ? (this.regions[parts[0]] || SEG_SHORT[parts[0]] || parts[0]) : n + ' Segments';
+  }
+  /* B10: the Body Composition card. Rows Other, Fat, Muscle, then Total under a thin rule as their sum; a fixed grid of
+     name, pounds and percent; the legend behind ⓘ. Docked over the model's top-left corner, larger in full screen. */
+  selectionHTML() {
+    const u = window.HealthDisplayUnits || {mass: 'lb', lb: v => v}, esc = v => this.escape(v), W = this.weighIn();
+    const linkPick = this.mode === 'link' && this.linked.size, parts = linkPick ? [...this.linked].flatMap(k => this.keyParts(k)) : this.selParts();
+    const f = this.figuresOf(parts), whole = this.isWhole(parts), name = this.selectionName(parts, this.mode === 'select' ? this.region : null), report = this.fitdays;
+    const head = '<div class="bc-head"><span class="bc-title">Body Composition</span><details class="bc-info"><summary aria-label="About Body Composition" title="About Body Composition">ⓘ</summary><div class="bc-pop">' +
+      '<p class="bc-legt">Compared with men your age and height</p><p><i style="background:' + BC_TONE.better + '"></i>Better than average</p><p><i style="background:' + BC_TONE.average + '"></i>Average</p><p><i style="background:' + BC_TONE.poor + '"></i>Not good</p>' +
+      (f.total !== null && W ? '<p class="bc-sub">Selected ' + parts.filter(k => k !== 'head').length + ' of ' + this.allKeys().filter(k => k !== 'head').length + ' · ' + u.lb(f.total).toFixed(1) + ' of ' + u.lb(W.weight).toFixed(1) + ' ' + u.mass + (f.eq ? ' ✓' : '') + '</p>' : '') +
+      (W ? '<p class="bc-sub">Whole Body: ' + esc(W.source) + ', ' + esc(this.date(W.date, true)) + '. Segments: Fitdays, ' + (report && report.measurementDate ? esc(this.date(report.measurementDate, true)) : 'no report yet') + (report && W.date && report.measurementDate && report.measurementDate !== W.date ? ' (different dates)' : '') + '.</p>' : '') +
+      '<p class="bc-sub">Muscle is everything that is not fat (lean mass: water, organs and bone included). Other is head and neck, bone and what the report’s five regions leave over, from your latest weigh-in, so every part plus Other adds up to your weight. A part of a limb or of the trunk is its typical share of that region (est.).</p>' + this.reconciliationHTML() + '</div></details></div>';
+    if (f.total === null) return '<section class="bc-card" data-parity="V35-B10-01" aria-label="Body Composition">' + head + '<b class="bc-name">' + esc(name) + '</b><span class="body-na">' + (W || report ? 'Not available at this segmentation' : 'No weigh-in yet.') + '</span></section>';
+    const prevReport = report && report.previous, old = !whole && !f.other && prevReport ? this.figuresOf(parts, prevReport, null) : null;
+    const pct = n => f.total > 0 ? (100 * n / f.total).toFixed(1) + '%' : '—', row = (cls, label, value, p, tone, extra, parity) => '<span class="bc-n ' + cls + '"' + (parity ? ' data-parity="' + parity + '"' : '') + '>' + label + '</span><span class="bc-v ' + cls + '" style="color:' + BC_TONE[tone] + '">' + u.lb(value).toFixed(1) + ' ' + u.mass + '</span><span class="bc-p ' + cls + '" style="color:' + BC_TONE[tone] + '">' + p + (extra || '') + '</span>';
+    const left = W && !f.eq && f.other ? '<span class="bc-left" data-parity="V35-B11-03">' + u.lb(Math.max(0, W.weight - f.total)).toFixed(1) + ' ' + u.mass + ' left out</span>' : '';
+    const src = whole || f.other ? this.sourceLine(W ? W.source : 'Fitdays', W ? W.date : report && report.measurementDate, false) : this.sourceLine(report && report.extraction === 'self-entered' ? 'Self-entered' : 'Fitdays', report && report.measurementDate, f.est);
+    return '<section class="bc-card" data-parity="V35-B10-01" aria-label="Body Composition">' + head + '<b class="bc-name">' + esc(name) + '</b><div class="bc-grid" data-parity="BODY-26">' +
+      (f.other ? row('other', 'Other', f.other.fat + f.other.lean, pct(f.other.fat + f.other.lean), 'none') : '') +
+      row('fat', 'Fat', f.fat, pct(f.fat), this.fatTone(f, whole || !!f.other), old && old.fat !== null ? this.arrowHTML(u.lb(f.fat), u.lb(old.fat), 'down', '') : '') +
+      row('muscle', 'Muscle', f.lean, pct(f.lean), this.muscleTone(f), old && old.lean !== null ? this.arrowHTML(u.lb(f.lean), u.lb(old.lean), 'up', '') : '', 'BODY-27') +
+      '<i class="bc-rule" aria-hidden="true"></i>' + row('total', 'Total', f.total, W ? (f.eq ? '100%' : (100 * f.total / W.weight).toFixed(1) + '%') : '100%', 'none', f.eq ? '<em class="bc-eq" data-parity="V35-B11-02" title="Equals your weight" aria-label="Equals your weight">✓</em>' : '') +
+      '</div>' + left + src + '</section>';
+  }
+  /* B12: short labels in a Parts popover. Regions read Trunk, R arm, L arm, R leg, L leg; segments read Head, Chest, Abs,
+     R bicep and so on, and Other; Select all is Whole Body. In Inspect a part toggles in or out of the selection. */
   regionChipsHTML() {
-    const esc = v => this.escape(v), on = k => this.mode === 'select' ? this.region === k : this.mode === 'link' ? this.partsInView(k).every(p => this.linked.has(p)) && this.partsInView(k).length > 0 : this.compare.a === k ? 'a' : this.compare.b === k ? 'b' : false;
-    const chip = (k, label) => { const s = on(k); return '<button type="button" class="body-rchip' + (s === 'a' ? ' slot-a' : s === 'b' ? ' slot-b' : '') + '" data-body="chip" data-region="' + esc(k) + '" aria-pressed="' + !!s + '">' + esc(label) + '</button>'; };
-    const groups = this.fitdays ? Object.entries(FITDAYS_GROUPS).map(([k, g]) => chip(k, g.label)).join('') : '';
+    const esc = v => this.escape(v), sel = new Set(this.selParts());
+    const on = k => this.mode === 'select' ? (k === 'all' ? this.isWhole([...sel]) : this.keyParts(k).every(p => sel.has(p))) : this.mode === 'link' ? this.keyParts(k).length > 0 && this.keyParts(k).every(p => this.linked.has(p)) : this.compare.a === k ? 'a' : this.compare.b === k ? 'b' : false;
+    const chip = (k, label, title) => { const s = on(k); return '<button type="button" class="body-rchip' + (s === 'a' ? ' slot-a' : s === 'b' ? ' slot-b' : '') + '" data-body="chip" data-region="' + esc(k) + '" aria-pressed="' + !!s + '"' + (title ? ' title="' + esc(title) + '"' : '') + '>' + esc(label) + '</button>'; };
+    const groups = this.fitdays ? ['trunk', 'right-arm', 'left-arm', 'right-leg', 'left-leg'].map(k => chip(k, REGION_SHORT[k], FITDAYS_GROUPS[k].label)).join('') : '';
     const mine = this.saved.map(r => chip('custom:' + r.id, r.name)).join('');
-    const segs = Object.entries(this.regions).sort((a, b) => a[1].localeCompare(b[1])).map(([k, n]) => chip(k, n)).join('');
-    return '<div class="body-rchips" data-parity="BODY-37">' + (groups ? '<div class="body-rgroup">' + groups + '</div>' : '') + (mine ? '<div class="body-rgroup">' + mine + '</div>' : '') + (segs ? '<div class="body-rgroup segs">' + segs + '</div>' : '') + '</div>';
+    const order = ['head', 'chest', 'abdomen', 'back', 'pelvis', 'right-upper-arm', 'left-upper-arm', 'right-forearm', 'left-forearm', 'right-thigh', 'left-thigh', 'right-calf', 'left-calf', 'right-foot', 'left-foot'];
+    const keys = this.allKeys().filter(k => k !== 'other').sort((a, b) => (order.indexOf(a) + 99) % 99 - (order.indexOf(b) + 99) % 99);
+    const segs = keys.map(k => chip(k, SEG_SHORT[k] || this.regions[k] || k, this.regions[k] || SEG_SHORT[k])).join('') + chip('other', 'Other', 'Head and neck, bone and the rest: what the report’s five regions leave over');
+    return '<div class="body-rchips" data-parity="V35-B12-01">' + (this.mode !== 'link' ? '<div class="body-rgroup"><button type="button" class="body-rchip all" data-body="chip" data-region="all" aria-pressed="' + !!on('all') + '">Select all</button></div>' : '') + (groups ? '<div class="body-rgroup">' + groups + '</div>' : '') + (mine ? '<div class="body-rgroup">' + mine + '</div>' : '') + '<div class="body-rgroup segs">' + segs + '</div></div>';
+  }
+  regionHTML() {
+    const modes = [['select','Inspect'],['link','Link'],['compare','Compare']], whole = this.mode === 'select' && this.isWhole(this.selParts());
+    return '<div class="bs-bar"><button type="button" class="body-rchip wb" data-body="chip" data-region="all" aria-pressed="' + whole + '" data-parity="BODY-30"><span data-parity="V35-B11-01">Whole Body</span></button>' +
+      '<details class="bs-parts" data-parity="BODY-37"><summary class="bs-btn" aria-label="Parts">Parts' + bodyIcon(BODY_ICONS.down, 13) + '</summary><div class="bs-pop">' + this.regionChipsHTML() + '</div></details>' +
+      '<div class="body-modes k-seg" role="group" aria-label="Region tool">' + modes.map(([m,l]) => '<button data-body="mode" data-mode="' + m + '" aria-pressed="' + (this.mode === m) + '">' + l + '</button>').join('') + '</div>' +
+'</div>';
   }
   partsInView(key) { return regionPartsOf(key, this.saved); }
   paintModel(key) {
@@ -378,22 +519,17 @@ class HealthBodyView extends HTMLElement {
       if (this.mode === 'link') color = this.linked.has(n) ? '#ddb864' : '#5e7472';
       else if (this.mode === 'compare') color = A.has(n) ? (B.has(n) ? '#a3b79a' : '#ddb864') : B.has(n) ? '#6fa8dc' : '#5e7472';
       else {
-        const custom = key && key.startsWith('custom:') ? new Set(this.partsInView(key)) : null;
-        color = key === 'all' ? '#72a2a3' : (custom ? custom.has(n) : n === key) ? '#ddb864' : '#667d7d';
-        if (this.fitdays && !custom) {
-          const group = fitdaysGroup(n);
-          const selected = key === 'all' || n === key || (FITDAYS_GROUPS[key] && group === key);
-          color = selected && group ? FITDAYS_GROUPS[group].color : '#667d7d';
-        }
+        const parts = new Set(this.selParts()), whole = this.isWhole([...parts]), on = parts.has(n) || (n === 'head' && parts.has('other')), group = fitdaysGroup(n);   // V3.5 B11: Inspect paints its selection
+        color = whole ? (this.fitdays && group ? FITDAYS_GROUPS[group].color : '#72a2a3') : on ? (this.fitdays && group ? FITDAYS_GROUPS[group].color : '#ddb864') : '#4f6160';
       }
       material.pbrMetallicRoughness.setBaseColorFactor(color);
     }
   }
   /* The selection panel, the chips and the mode switch follow every pick (B3, B5). */
   refreshSide() {
-    const sel = this.querySelector('.body-sel'); if (sel) { const t = document.createElement('template'); t.innerHTML = this.selectionHTML(); sel.replaceWith(t.content); }
+    const sel = this.querySelector('.bc-card'); if (sel) { const open = !!sel.querySelector('.bc-info[open]'), t = document.createElement('template'); t.innerHTML = this.selectionHTML(); if (open) t.content.querySelector('.bc-info').open = true; sel.replaceWith(t.content); }
     const chips = this.querySelector('.body-rchips'); if (chips) { const t = document.createElement('template'); t.innerHTML = this.regionChipsHTML(); chips.replaceWith(t.content); }
-    const wb = this.querySelector('.body-rchip.wb'); if (wb) wb.setAttribute('aria-pressed', String(this.mode === 'select' && this.region === 'all'));
+    const wb = this.querySelector('.body-rchip.wb'); if (wb) wb.setAttribute('aria-pressed', String(this.mode === 'select' && this.isWhole(this.selParts())));
   }
   refreshTools() {
     const tools = this.querySelector('.body-tools'); if (tools) tools.innerHTML = this.toolsHTML();
@@ -412,12 +548,13 @@ class HealthBodyView extends HTMLElement {
   /* One entry for every way a region gets chosen: the model, the dropdown, a composition card. */
   pick(key) {
     if (this.mode === 'link') { if (key === 'all') return; for (const p of this.partsInView(key)) { if (this.linked.has(p) && this.partsInView(key).length === 1) this.linked.delete(p); else this.linked.add(p); } this.refreshTools(); return; }
-    if (this.mode === 'compare') { if (key === 'all') return; const slot = this.compare.next; this.compare[slot] = key; this.compare.next = slot === 'a' ? 'b' : 'a'; this.refreshTools(); return; }
+    if (this.mode === 'compare') { const slot = this.compare.next; this.compare[slot] = key; this.compare.next = slot === 'a' ? 'b' : 'a'; this.refreshTools(); return; }
     this.highlight(key);
   }
   /* Cmd-, Ctrl- or Shift-click on the model (V3.2): the segment joins what is selected, without choosing Link
      first. What was highlighted comes along, so two clicks make a region of two. */
   addToSelection(key) {
+    if (this.mode === 'select') { const s = new Set(this.selParts()), ks = this.keyParts(key), all = ks.every(k => s.has(k)); for (const k of ks) { if (all) s.delete(k); else s.add(k); } this.sel = this.isWhole([...s]) ? null : s; this.highlight('sel'); return; }   // V3.5 B11: Cmd-click toggles a part in Inspect
     if (this.mode !== 'link') { this.linked = new Set(this.region && this.region !== 'all' ? this.partsInView(this.region) : []); this.mode = 'link'; }
     if (this.linked.has(key)) this.linked.delete(key); else this.linked.add(key);
     this.refreshTools();
@@ -489,6 +626,7 @@ class HealthBodyView extends HTMLElement {
   }
 
   highlight(key) {
+    if (this.mode === 'select' && key !== 'sel') this.sel = key === 'all' ? null : new Set(this.keyParts(key));   // V3.5 B11
     this.region = key;
     const tools=this.querySelector('.body-tools');if(tools&&this.mode==='select')tools.innerHTML=this.toolsHTML();
     this.refreshSide();
@@ -559,66 +697,77 @@ class HealthBodyView extends HTMLElement {
     const theta = {Front: 0, Back: 180, Left: -90, Right: 90}[name];
     const viewer = this.querySelector('model-viewer');
     this.showPhoto(name);
-    viewer.setAttribute('camera-orbit', theta + 'deg 85deg ' + BODY_ZOOM.start + '%');
+    viewer.setAttribute('camera-orbit', theta + 'deg 90deg ' + this.rad(this.startPct));
     viewer.setAttribute('camera-target', 'auto auto auto');
     viewer.setAttribute('field-of-view', '30deg');
-    this.zoomPct = BODY_ZOOM.start;
+    this.zoomPct = this.startPct;
     this.syncZoomControls();
   }
 
   syncZoomControls() {
     this.querySelectorAll('[data-body="zoom"]').forEach(button => {
-      button.disabled = Number(button.dataset.direction) < 0 ? this.zoomPct <= BODY_ZOOM.min : this.zoomPct >= BODY_ZOOM.max;
+      const Z = this.frameR ? BODY_FRAME : BODY_ZOOM; button.disabled = Number(button.dataset.direction) < 0 ? this.zoomPct <= Z.min : this.zoomPct >= Z.max;
     });
   }
 
   zoomModel(direction) {
     const viewer = this.querySelector('model-viewer');
     if (!viewer || typeof viewer.getCameraOrbit !== 'function') return;
-    this.zoomPct = Math.max(BODY_ZOOM.min, Math.min(BODY_ZOOM.max, (this.zoomPct ?? BODY_ZOOM.start) + direction * BODY_ZOOM.step));
+    const Z = this.frameR ? BODY_FRAME : BODY_ZOOM; this.zoomPct = Math.max(Z.min, Math.min(Z.max, (this.zoomPct ?? this.startPct) + direction * Z.step));
     const orbit = viewer.getCameraOrbit();
     const theta = Number.isFinite(orbit.theta) ? orbit.theta : 0, phi = Number.isFinite(orbit.phi) ? orbit.phi : 85 * Math.PI / 180;
-    viewer.setAttribute('camera-orbit', theta + 'rad ' + phi + 'rad ' + this.zoomPct + '%');
+    viewer.setAttribute('camera-orbit', theta + 'rad ' + phi + 'rad ' + this.rad(this.zoomPct));
     this.syncZoomControls();
   }
 
   render() {
-    this.zoomPct = BODY_ZOOM.start;
+    if (!this.escBound) { this.escBound = true; document.addEventListener('keydown', e => { const st = this.querySelector('.body-stage35'); if (e.key === 'Escape' && st && st.classList.contains('body-full')) { st.classList.remove('body-full'); if (this.fullListener) this.fullListener(); else { st.classList.remove('is-full'); const c = this.querySelector('.bc-card'); if (c) c.classList.remove('full'); } } }); }
+    this.zoomPct = this.startPct;
     const record = this.stage || this.selected;
     const esc = value => this.escape(value);
-    const icon = (body, label, extra, glyph) => '<button type="button" class="body-ibtn" data-body="' + body + '"' + (extra || '') + ' aria-label="' + label + '" title="' + label + '">' + glyph + '</button>';
-    // V3.4 (B4): the options sit beside the model; the reference photo and the model stay side by side at one height, in
-    // Full Screen too (the whole card goes full screen, panel and Add Report included); the capture date sits under the model.
+    const icon = (body, label, extra, glyph, parity) => '<button type="button" class="body-ibtn" data-body="' + body + '"' + (extra || '') + (parity ? ' data-parity="' + parity + '"' : '') + ' aria-label="' + label + '" title="' + label + '">' + glyph + '</button>';
+    // V3.5 (B1 to B3, B12 to B14): the model and the photo each take half of the stage at one height; the Body Composition
+    // card is docked over the model's top-left corner; a slim icon strip on the model's edge; Front, Back, Left, Right at
+    // the top; Whole Body, Parts, the region tool and Add Report along the bottom. Full screen is the stage alone.
     const weighIn = (window.HealthWholeBody || {}).weight, fd = this.fitdays, stale = !this.stage && fd && weighIn && weighIn.date && fd.measurementDate && fd.measurementDate < weighIn.date;
-    const stageHTML = record ? '<div class="body-stage3">' +
-        (!this.stage ? '<div class="body-side">' + this.selectionHTML() + this.regionHTML() + '</div>' : '') +
-        '<div class="body-pane"><div class="body-angles k-seg" role="group" aria-label="Model angle" data-parity="BODY-31">' + ['Front','Back','Left','Right'].map(name => '<button data-body="angle" data-angle="' + name + '" aria-pressed="' + (name === this.photo) + '">' + name + '</button>').join('') + '</div>' +
-        '<div class="body-model-row"><div class="body-model-stage"><model-viewer class="body-model" src="' + this.asset(!this.stage && Object.keys(this.regions).length ? 'regions.glb' : 'model.glb') + '" alt="Approximate body model. Drag to rotate; the wheel zooms within limits, then scrolls the page." camera-controls disable-zoom touch-action="pan-y" camera-orbit="0deg 85deg '+BODY_ZOOM.start+'%" field-of-view="30deg" min-camera-orbit="auto auto '+BODY_ZOOM.min+'%" max-camera-orbit="auto auto '+BODY_ZOOM.max+'%" interaction-prompt="none" shadow-intensity="0.4" exposure="1"></model-viewer><span class="body-load" role="status">Loading 3D view…</span>'+(!this.stage ? '<div class="body-region-overlay" aria-live="polite"></div>' : '')+'</div>' +
-        '<div class="body-angle-controls" aria-label="Model viewing controls">' + icon('zoom', 'Zoom in', ' data-direction="-1"', '＋') + icon('zoom', 'Zoom out', ' data-direction="1"', '－') + icon('angle', 'Reset view', ' data-angle="Reset view"', '⟲') + icon('fullscreen', 'Full screen', ' aria-pressed="false"', '⛶') +
-        '<details class="body-help icon"><summary aria-label="About model controls" title="About model controls">ⓘ</summary><p class="hint">Drag to rotate. The wheel zooms inside its limits; at a limit, after a short pause, it scrolls the page. Front, Back, Left and Right turn the model and the photo together; Reset returns both to Front. Solid-colour model; skin is in the reference photos. ' + (record.variant === 'reconstructed-reference' ? 'Reconstructed reference: shape and hidden skin details may be estimated. ' : '') + 'This view does not measure body fat, muscle or circumferences.</p></details></div>' + '<div class="body-photos" data-parity="BODY-34"><span class="body-photo-badge">Reference Photo</span><a class="body-photo-link" href="' + this.asset(this.photo + '.png') + '" target="_blank" rel="noopener" title="Open full-size image"><img class="body-reference" src="' + this.asset(this.photo + '.png') + '" alt="' + this.photo + ' reference image"></a><div class="body-photo-tabs" role="group" aria-label="Reference image" hidden>' + ['Front','Back','Left','Right'].map(name => '<button data-body="photo" data-photo="' + name + '" aria-pressed="' + (name === this.photo) + '">' + name + '</button>').join('') + '</div>' + '</div>' +
-        (stale ? '<p class="body-stale" data-parity="BODY-39">A newer weigh-in has no segment report yet</p>' : '') +
-        (!this.stage ? '<button type="button" class="k-btn body-add-report" data-body="addReport" data-parity="BODY-38">＋ Add Report</button>' : '') +
-        '<p class="body-captured">Model captured ' + esc(this.date(record.captureDate, true)) + '</p></div>' +
-        '</div></div>' : '';
+    const stageHTML = record ? '<div class="body-stage35" data-parity="V35-B1-01">' +
+        '<div class="bs-model body-model-stage">' +
+          '<model-viewer class="body-model" src="' + this.asset(!this.stage && Object.keys(this.regions).length ? 'regions.glb' : 'model.glb') + '" alt="Approximate body model. Drag to rotate; the wheel zooms within limits, then scrolls the page." camera-controls disable-zoom touch-action="pan-y" camera-orbit="0deg 90deg ' + this.startPct + '%" field-of-view="30deg" min-camera-orbit="auto auto ' + BODY_ZOOM.min + '%" max-camera-orbit="auto auto ' + BODY_ZOOM.max + '%" interaction-prompt="none" shadow-intensity="0.4" exposure="1"></model-viewer><span class="body-load" role="status">Loading 3D view…</span>' +
+          (!this.stage ? this.selectionHTML() + '<div class="body-region-overlay" aria-live="polite" hidden></div>' : '') +
+          '<div class="body-angles k-seg" role="group" aria-label="Model angle" data-parity="BODY-31">' + ['Front','Back','Left','Right'].map(name => '<button data-body="angle" data-angle="' + name + '" aria-pressed="' + (name === this.photo) + '">' + name + '</button>').join('') + '</div>' +
+          '<div class="body-angle-controls bs-strip" aria-label="Model viewing controls" data-parity="V35-B1-02">' + icon('zoom', 'Zoom in', ' data-direction="-1"', bodyIcon(BODY_ICONS.zoomIn)) + icon('zoom', 'Zoom out', ' data-direction="1"', bodyIcon(BODY_ICONS.zoomOut)) + icon('angle', 'Reset view', ' data-angle="Reset view"', bodyIcon(BODY_ICONS.reset)) + icon('fullscreen', 'Full screen', ' aria-pressed="false"', bodyIcon(BODY_ICONS.expand), 'V35-B13-01') +
+            (!this.stage ? '<button type="button" class="body-ibtn bs-add" data-body="addReport" data-parity="BODY-38" aria-label="Add a Fitdays report" title="Add a Fitdays report">' + bodyIcon(BODY_ICONS.report, 16) + '</button>' : '') +
+            '<details class="body-help icon"><summary aria-label="About model controls" title="About model controls">ⓘ</summary><p class="hint">Drag to rotate. The wheel zooms inside its limits; at a limit, after a short pause, it scrolls the page. Front, Back, Left and Right turn the model and the photo together; Reset returns both to Front. Whole Body selects every part and Other; Parts picks any set (Cmd or Shift-click on the model adds one). Solid-colour model; skin is in the reference photos. ' + (record.variant === 'reconstructed-reference' ? 'Reconstructed reference: shape and hidden skin details may be estimated. ' : '') + 'This view does not measure body fat, muscle or circumferences.</p></details></div>' +
+          (!this.stage ? this.regionHTML() : '') +
+        '</div>' +
+        '<div class="bs-photo body-photos" data-parity="BODY-34"><span class="body-photo-badge">Photo</span><a class="body-photo-link" href="' + this.asset(this.photo + '.png') + '" target="_blank" rel="noopener" title="Open full-size image" data-parity="V35-B14-01"><img class="body-reference" src="' + this.asset(this.photo + '.png') + '" alt="' + this.photo + ' reference image"></a><div class="body-photo-tabs" role="group" aria-label="Reference image" hidden>' + ['Front','Back','Left','Right'].map(name => '<button data-body="photo" data-photo="' + name + '" aria-pressed="' + (name === this.photo) + '">' + name + '</button>').join('') + '</div></div>' +
+        '<button type="button" class="bs-exit" data-body="fullscreen" data-parity="V35-B13-02" aria-label="Exit full screen" title="Exit full screen (Esc)">' + bodyIcon(BODY_ICONS.shrink, 18) + '</button>' +
+        (!this.stage ? '<div class="body-report-sheet" hidden></div>' : '') +
+      '</div>' +
+      '<div class="bs-foot">' + (stale ? '<p class="body-stale" data-parity="BODY-39">A newer weigh-in has no segment report yet</p>' : '') + '<p class="body-captured">Model captured ' + esc(this.date(record.captureDate, true)) + '</p></div>' +
+      (!this.stage ? '<div class="body-tools">' + this.toolsHTML() + '</div>' : '') : '';
     this.innerHTML = '<section class="panelcard body-record-card" aria-label="Your body records">' +
       '<p class="body-status hint" role="status" aria-live="polite"></p>' +
       (record ? (this.stage ? '<div class="body-record-heading"><h3>' + esc(this.date(record.captureDate)) + '</h3><span class="chip quiet">Import preview · not saved</span></div><div class="body-review"><label>Reference type<select data-body="variant" aria-label="Reference type"><option value="reconstructed-reference">Reconstructed reference</option><option value="original-photo-reference">Original-photo reference</option></select></label><p class="hint">One model and four reference images checked. Review the date, views and reference type before saving.</p><div class="acts"><button class="primary" data-body="save">Save body record</button><button data-body="cancel">Cancel import</button></div></div>' : '') +
-        stageHTML + (!this.stage ? '<div class="body-report-sheet" hidden></div>' : '') +
+        stageHTML +
         (!this.stage ? '<details class="body-more"><summary>More · records, Fitdays detail, measurements, export</summary>' +
           '<div class="body-more-row"><span class="cap" data-parity="BODY-43">Private on this Mac</span><label class="filebtn body-import">Import body record<input type="file" accept=".zip,application/zip" aria-label="Import body record ZIP" data-body="file"></label>' +
           (this.records.length ? '<label class="body-record-label">Choose a dated view<select data-body="record" aria-label="Saved body record">' + this.records.map(r => '<option value="' + r.id + '"' + (r.id === this.selected?.id ? ' selected' : '') + '>' + esc(this.date(r.captureDate) + ' · ' + r.variantLabel) + '</option>').join('') + '</select></label>' : '') + '</div>' +
           '<div data-parity="BODY-40">' + this.compositionHTML() + '</div><div data-parity="BODY-42">' + this.measurementHTML() + '</div>' +
           '<div class="acts" data-parity="BODY-44"><a class="body-export" href="' + this.asset('export.zip') + '" download>Export model + four images</a></div><p class="hint body-limitation" data-parity="BODY-45">' + (record.variant === 'reconstructed-reference' ? 'Reconstructed reference: shape and hidden skin details may be estimated. ' : 'Original-photo references with an approximate generated model. ') + 'This view does not measure body fat, muscle or circumferences.</p></details>' : '')
       : '<div class="body-empty"><details class="body-help inline"><summary aria-label="About your body view">ⓘ</summary><p class="hint">Your 3D model, its four reference photos and your Fitdays reports stay on this Mac. Import the ZIP the body tool makes; you review it before it is saved.</p></details><h3>Keep a dated view of your body</h3><p>Import a ZIP containing your 3D model, its details and four reference images.</p><label class="filebtn body-import">Import body record<input type="file" accept=".zip,application/zip" aria-label="Import body record ZIP" data-body="file"></label></div>') + '</section>';
+    // V3.5 K5: the page adds its one note control to each card; this card is drawn here, after the page's pass.
+    this.dispatchEvent(new CustomEvent('bodyrender', {bubbles: true}));
     const viewer = this.querySelector('model-viewer');
     if (viewer) {
-      viewer.addEventListener('load', () => { const label = this.querySelector('.body-load'); if (label) label.hidden = true; if (this.mode === 'select') this.highlight(this.region); else this.refreshTools(); });
+      viewer.addEventListener('load', () => { const label = this.querySelector('.body-load'); if (label) label.hidden = true; this.frameModel(); if (this.mode === 'select') this.highlight(this.sel ? 'sel' : 'all'); else this.refreshTools(); });
       viewer.addEventListener('camera-change', () => {
         const quarter = Math.round(viewer.getCameraOrbit().theta / (Math.PI / 2));
         const angle = ['Front', 'Right', 'Back', 'Left'][((quarter % 4) + 4) % 4];
         if (this.photo !== angle) this.showPhoto(angle);
       });
       this.showPhoto(this.photo);
+      const img = this.querySelector('.body-reference'); if (img) { img.addEventListener('load', () => this.fitPhoto()); if (img.complete) this.fitPhoto(); }
       viewer.addEventListener('error', () => { const label = this.querySelector('.body-load'); if (label) label.textContent = 'The 3D view could not load. Your saved files are available through Export.'; });
       viewer.addEventListener('pointerdown', event => { this.pointerStart = [event.clientX, event.clientY]; });
       viewer.addEventListener('click', event => {
@@ -628,7 +777,47 @@ class HealthBodyView extends HTMLElement {
         if ((event.metaKey || event.ctrlKey || event.shiftKey) && this.mode !== 'compare') this.addToSelection(material.name); else this.pick(material.name);
       });
       this.wheelZoom(this.querySelector('.body-model-stage'));
+      if (!this.resizeWatch && typeof ResizeObserver === 'function') { this.resizeWatch = new ResizeObserver(() => this.fitPhoto()); }
+      const stage = this.querySelector('.body-stage35'); if (this.resizeWatch && stage) { this.resizeWatch.disconnect(); this.resizeWatch.observe(stage); }
     }
+  }
+  /* B1: frame the model so its height fills the box less BODY_MARGIN at the top and the bottom, level (90°), and make
+     that the start and Reset zoom. model-viewer's 100% radius frames the whole bounding sphere; this scales it. */
+  frameModel() {
+    const v = this.querySelector('model-viewer'); if (!v || typeof v.getDimensions !== 'function') return;
+    try {
+      const d = v.getDimensions(), vfov = 30 * Math.PI / 180;   // field-of-view is vertical, in a portrait box too (measured)
+      const need = (d.y / 2) / Math.tan(vfov / 2) / (1 - 2 * BODY_MARGIN) + d.z / 2; if (!(need > 0)) return;
+      // The radius is set in metres: model-viewer's own 100% moves as it settles, so a percentage drifted. Zoom is a
+      // percentage of this framed radius from here on (100 = head and feet at the margin).
+      this.frameR = need; this.startPct = 100; this.zoomPct = 100;
+      v.setAttribute('min-camera-orbit', 'auto auto ' + this.rad(BODY_FRAME.min)); v.setAttribute('max-camera-orbit', 'auto auto ' + this.rad(BODY_FRAME.max));
+      const o = {Front: 0, Back: 180, Left: -90, Right: 90}[this.photo] || 0;
+      v.cameraOrbit = o + 'deg 90deg ' + this.rad(100); v.cameraTarget = 'auto auto auto'; if (v.jumpCameraToGoal) v.jumpCameraToGoal();
+      this.syncZoomControls();
+    } catch (_) { /* the default framing stays */ }
+  }
+  zoomLimits() { const Z = this.frameR ? BODY_FRAME : BODY_ZOOM; return {min: Z.min, max: Z.max, step: Z.step, start: this.frameR ? 100 : BODY_ZOOM.start}; }
+  rad(pct) { return this.frameR ? (this.frameR * pct / 100).toFixed(3) + 'm' : pct + '%'; }
+  /* B1 and B14: the photo is cropped to the body plus the same margin, kept to its aspect ratio (never stretched), and
+     centred in its half; the box takes the photo's own corner colour, so the picture meets the card's edge with no frame.
+     The body's rows are the rows that differ from the corner colour. */
+  fitPhoto() {
+    const img = this.querySelector('.body-reference'), box = this.querySelector('.bs-photo'); if (!img || !box || !img.naturalWidth) return;
+    let top = 0, bottom = img.naturalHeight, corner = null;
+    try {
+      const w = Math.min(240, img.naturalWidth), h = Math.round(img.naturalHeight * w / img.naturalWidth), c = document.createElement('canvas'); c.width = w; c.height = h;
+      const g = c.getContext('2d', {willReadFrequently: true}); g.drawImage(img, 0, 0, w, h); const px = g.getImageData(0, 0, w, h).data, at = (x, y) => (y * w + x) * 4;
+      corner = [px[0], px[1], px[2]]; const far = (x, y) => { const i = at(x, y); return Math.abs(px[i] - corner[0]) + Math.abs(px[i + 1] - corner[1]) + Math.abs(px[i + 2] - corner[2]) > 60; };
+      const rowHas = y => { let n = 0; for (let x = 0; x < w; x += 2) if (far(x, y)) n++; return n >= 2; };
+      let t = 0; while (t < h && !rowHas(t)) t++; let b = h - 1; while (b > t && !rowHas(b)) b--;
+      if (b - t > h * 0.2) { top = t * img.naturalHeight / h; bottom = (b + 1) * img.naturalHeight / h; }
+    } catch (_) { /* a picture the canvas cannot read keeps its full frame */ }
+    if (corner) { box.style.background = 'rgb(' + corner.join(',') + ')'; box.dataset.corner = corner.join(','); }
+    const H = box.clientHeight, W = box.clientWidth; if (!H || !W) return;
+    const scale = H * (1 - 2 * BODY_MARGIN) / Math.max(1, bottom - top), dh = img.naturalHeight * scale, dw = img.naturalWidth * scale;
+    Object.assign(img.style, {position: 'absolute', height: dh + 'px', width: dw + 'px', maxWidth: 'none', left: ((W - dw) / 2) + 'px', top: (H * BODY_MARGIN - top * scale) + 'px', objectFit: 'fill'});
+    box.dataset.bodyTop = String(Math.round(H * BODY_MARGIN)); box.dataset.bodyBottom = String(Math.round(H * (1 - BODY_MARGIN)));
   }
   /* V3.4 (B4): the wheel zooms inside the limits. At a limit it hands the wheel to the page, but only after the wheel has
      been quiet for 250 ms, so trackpad momentum from the zoom cannot throw the page (the kit's zoomWithHandoff). */
@@ -636,16 +825,16 @@ class HealthBodyView extends HTMLElement {
     if (!el) return; let last = 0, latched = false;
     el.addEventListener('wheel', event => {
       const now = performance.now(); if (now - last > 250) latched = false; last = now;
-      const dy = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY, z = this.zoomPct ?? BODY_ZOOM.start, atLimit = (z <= BODY_ZOOM.min && dy < 0) || (z >= BODY_ZOOM.max && dy > 0);
+      const dy = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY, z = this.zoomPct ?? this.startPct, Z = this.frameR ? BODY_FRAME : BODY_ZOOM, atLimit = (z <= Z.min && dy < 0) || (z >= Z.max && dy > 0);
       if (!atLimit) { event.preventDefault(); latched = true; this.setZoom(z * Math.exp(dy * 0.0022)); }
       else if (latched) event.preventDefault();
     }, {passive: false});
   }
   setZoom(pct) {
     const viewer = this.querySelector('model-viewer'); if (!viewer || typeof viewer.getCameraOrbit !== 'function') return;
-    this.zoomPct = Math.max(BODY_ZOOM.min, Math.min(BODY_ZOOM.max, pct));
+    const Z = this.frameR ? BODY_FRAME : BODY_ZOOM; this.zoomPct = Math.max(Z.min, Math.min(Z.max, pct));
     const orbit = viewer.getCameraOrbit(), theta = Number.isFinite(orbit.theta) ? orbit.theta : 0, phi = Number.isFinite(orbit.phi) ? orbit.phi : 85 * Math.PI / 180;
-    viewer.setAttribute('camera-orbit', theta + 'rad ' + phi + 'rad ' + this.zoomPct + '%');
+    viewer.setAttribute('camera-orbit', theta + 'rad ' + phi + 'rad ' + this.rad(this.zoomPct));
     this.syncZoomControls();
   }
 
@@ -681,11 +870,13 @@ class HealthBodyView extends HTMLElement {
     if (file.size > 25 * 1024 * 1024) { box.innerHTML = '<p class="body-error hint">Choose a report under 25 MB.</p>'; return; }
     const bytes = new Uint8Array(await file.arrayBuffer()), base64 = toBase64(bytes.buffer), pdf = /pdf$/i.test(file.type) || /\.pdf$/i.test(file.name);
     this.reportImage = pdf ? null : base64;
-    const picture = pdf ? '<div class="rep-pdf">PDF · ' + this.escape(file.name) + '</div>' : '<img alt="The report you chose" src="data:' + (file.type || 'image/png') + ';base64,' + base64 + '">';
+    let picture = pdf ? '<div class="rep-pdf">PDF · ' + this.escape(file.name) + '</div>' : '<img alt="The report you chose" src="data:' + (file.type || 'image/png') + ';base64,' + base64 + '">';
     box.innerHTML = '<p class="hint">Reading the report on this Mac…</p>';
     let values = null;
     if (window.HealthNativeRequest && BODY_TRANSPORT) {
-      try { const reply = await window.HealthNativeRequest('readReport', {base64}); if (reply && reply.ok && Array.isArray(reply.lines)) values = parseFitdaysReport(reply.lines); } catch (_) { values = null; }
+      try { const reply = await window.HealthNativeRequest('readReport', {base64}); if (reply && reply.ok && Array.isArray(reply.lines)) { values = parseFitdaysReport(reply.lines);
+        /* V3.5 (B6): for a HEIC or an image-only PDF the wrapper sends back a JPEG of what it read; it is shown and saved */
+        if (typeof reply.imageBase64 === 'string' && reply.imageBase64) { this.reportImage = reply.imageBase64; picture = '<img alt="The report you chose" src="data:image/jpeg;base64,' + reply.imageBase64 + '">'; } } } catch (_) { values = null; }
     }
     box.innerHTML = values ? this.reportFormHTML(values, 'read', picture) : '<p class="hint">This surface cannot read reports; type the numbers beside the picture.</p>' + this.reportFormHTML(null, 'self-entered', picture);
   }
@@ -760,14 +951,29 @@ class HealthBodyView extends HTMLElement {
     } else if (action === 'zoom') {
       this.zoomModel(Number(button.dataset.direction));
     } else if (action === 'fullscreen') {
-      const card = this.querySelector('.body-record-card'), doc = document, active = doc.fullscreenElement || doc.webkitFullscreenElement;
+      // V3.5 (B2, B13): full screen is the stage alone (the model and the photo, half each, the docked card and Add Report);
+      // the controls are icon-only; Esc or the round exit button leaves it.
+      const stage = this.querySelector('.body-stage35'), doc = document, active = doc.fullscreenElement || doc.webkitFullscreenElement;
+      if (!stage) return;
       if (active) { (doc.exitFullscreen || doc.webkitExitFullscreen).call(doc); return; }
-      if (card.classList.contains('body-full')) { card.classList.remove('body-full'); this.fullListener?.(); return; }
+      if (stage.classList.contains('body-full')) { stage.classList.remove('body-full'); this.fullListener?.(); return; }
       const viewer = this.querySelector('model-viewer'), orbit = viewer?.getCameraOrbit?.(); this.savedZoomPct = this.zoomPct;
-      this.savedOrbit = orbit ? orbit.theta + 'rad ' + orbit.phi + 'rad ' + this.savedZoomPct + '%' : null;
-      const go = card.requestFullscreen || card.webkitRequestFullscreen;
-      if (go) { try { await go.call(card); } catch (_) { card.classList.add('body-full'); } } else card.classList.add('body-full');
-      if (!this.fullListener) { this.fullListener = () => { const on = !!(document.fullscreenElement || document.webkitFullscreenElement) || card.classList.contains('body-full'); const b = this.querySelector('[data-body="fullscreen"]'); if (b) { b.setAttribute('aria-pressed', String(on)); b.textContent = on ? 'Exit full screen' : 'Full screen'; } if (!on) { const v = this.querySelector('model-viewer'); if (v && this.savedOrbit) { v.cameraOrbit = this.savedOrbit; this.zoomPct = this.savedZoomPct; this.syncZoomControls(); } this.highlight(this.region); } }; document.addEventListener('fullscreenchange', this.fullListener); document.addEventListener('webkitfullscreenchange', this.fullListener); this.keyListener = e => { if (e.key === 'Escape' && card.classList.contains('body-full')) { card.classList.remove('body-full'); this.fullListener(); } }; document.addEventListener('keydown', this.keyListener); }
+      this.savedOrbit = orbit ? orbit.theta + 'rad ' + orbit.phi + 'rad ' + this.rad(this.savedZoomPct) : null;
+      const go = stage.requestFullscreen || stage.webkitRequestFullscreen;
+      if (go) { try { await go.call(stage); } catch (_) { stage.classList.add('body-full'); } } else stage.classList.add('body-full');
+      if (!this.fullListener) {
+        this.fullListener = () => {
+          const st = this.querySelector('.body-stage35'), on = !!(document.fullscreenElement || document.webkitFullscreenElement) || !!(st && st.classList.contains('body-full'));
+          if (st) st.classList.toggle('is-full', on);
+          const b = this.querySelector('.bs-strip [data-body="fullscreen"]'); if (b) { b.setAttribute('aria-pressed', String(on)); b.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen'); b.title = on ? 'Exit full screen (Esc)' : 'Full screen'; b.innerHTML = bodyIcon(on ? BODY_ICONS.shrink : BODY_ICONS.expand); }
+          const card = this.querySelector('.bc-card'); if (card) card.classList.toggle('full', on);
+          this.fitPhoto(); this.frameModel();
+          if (!on) { const v = this.querySelector('model-viewer'); if (v && this.savedOrbit) { v.cameraOrbit = this.savedOrbit; this.zoomPct = this.savedZoomPct; this.syncZoomControls(); } this.highlight(this.sel ? 'sel' : 'all'); }
+        };
+        document.addEventListener('fullscreenchange', this.fullListener); document.addEventListener('webkitfullscreenchange', this.fullListener);
+        this.keyListener = e => { const st = this.querySelector('.body-stage35'); if (e.key === 'Escape' && st && st.classList.contains('body-full')) { st.classList.remove('body-full'); this.fullListener(); } };
+        document.addEventListener('keydown', this.keyListener);
+      }
       this.fullListener();
     } else if (action === 'mode') {
       this.mode = button.dataset.mode; if (this.mode === 'select' && this.region.startsWith('custom:') && !this.saved.some(r => 'custom:' + r.id === this.region)) this.region = 'all'; this.refreshTools();
@@ -782,7 +988,8 @@ class HealthBodyView extends HTMLElement {
     } else if (action === 'removeRegion') { this.saved = this.saved.filter(x => x.id !== button.dataset.id); this.saveRegions(); if (this.region === 'custom:' + button.dataset.id) this.region = 'all'; this.refreshTools();
     } else if (action === 'cmpSwap') { const t = this.compare.a; this.compare.a = this.compare.b; this.compare.b = t; this.refreshTools();
     } else if (action === 'composition-region' || action === 'chip') {
-      const key = button.dataset.region; if (key === 'all') { if (this.mode !== 'select') { this.mode = 'select'; this.linked.clear(); } this.region = 'all'; this.refreshTools(); return; }
+      const key = button.dataset.region; if (key === 'all' && this.mode === 'compare' && button.classList.contains('all')) { this.pick('all'); this.refreshSide(); return; }   // V3.5 B11: Compare A or B may be Whole Body
+      if (key === 'all') { if (this.mode !== 'select') { this.mode = 'select'; this.linked.clear(); } this.region = 'all'; this.refreshTools(); return; }
       if ((event.metaKey || event.ctrlKey || event.shiftKey) && this.mode !== 'compare' && this.regions[key]) this.addToSelection(key); else this.pick(key);
       this.refreshSide();
     } else if (action === 'addReport') {

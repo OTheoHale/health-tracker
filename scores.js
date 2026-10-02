@@ -7,7 +7,7 @@
    detail; value null means "—", never zero. */
 (function(root,factory){
   if(typeof module==='object'&&module.exports)module.exports=factory(require('./norms.js'),require('./workout-sessions.js'));
-  else root.Scores=factory(root.Norms,root.WorkoutSessions);
+  else root.Scores=root.Norms&&root.WorkoutSessions?factory(root.Norms,root.WorkoutSessions):undefined;   // V3.5 review: without norms.js or workout-sessions.js the app runs as without scores, never half-loaded
 })(typeof globalThis!=='undefined'?globalThis:this,function(NORMS,WORKOUTS){
   'use strict';
   const TABLE=Object.freeze({
@@ -661,6 +661,15 @@
   }
   const memo=(x,key,make)=>{if(!x.memo.has(key))x.memo.set(key,make());return x.memo.get(key);};
   const night=(x,day)=>x.nights.get(day)||null;
+  /* V3.5 K7: nights he typed fill only the days the Watch left empty (the Watch's night wins). */
+  function addManualNights(x,list,zone){
+    for(const n of list||[]){
+      if(!n||x.nights.has(n.day))continue;const start=Date.parse(n.bed),end=Date.parse(n.wake);if(!Number.isFinite(start)||!Number.isFinite(end)||!(n.asleepMin>0))continue;
+      const s=localClock(start,zone).minutes,e=localClock(end,zone).minutes;
+      x.nights.set(n.day,{day:n.day,tst:n.asleepMin/60,awake:null,core:null,deep:null,rem:null,inBed:(end-start)/3600000,start,end,startAfterNoon:afterNoon(s),endAfterNoon:afterNoon(e),midAfterNoon:afterNoon(Math.round(localClock((start+end)/2,zone).minutes)),history:false,source:'Self-entered',self:true});
+    }
+    return x;
+  }
   /* C3: the overnight value of a sparse metric is the median of its samples timed inside the night. */
   function overnight(x,metric,day){
     return memo(x,'o|'+metric+'|'+day,()=>{
@@ -905,7 +914,7 @@
     fitnessAge,healthAge,healthAgeWindow,ageOn,bandFor,cutsFor,stand,range,tier,floorCheck,appleLevel,biggestGains,mergeSessions,hrMaxOf,hrAt60,endHr,recoverySpeed,earlyWarning,momentum,
     mobility,walkLowerLimit,strengthBalance,runEfficiency,cardiacDrift,driftColour,goalColour,qualityColour,ageColour,fastResilience,fastResilienceLabel,
     // rows
-    readable,select,holds,index,sessions,night,overnight,restingHr,baseline,series,latestReading,sleepFor,bedtimeFor,hrMaxFor,effortFor,loadOf,loadFor,wellAboveRun,warningFor,readinessFor,healthAgeFor,healthAgeTrend,fitnessAgeFor,recoveryFor,standFor,momentumFor,mobilityFor,strengthFor,runsFor,stepsOn,fastResilienceFor,
+    readable,select,holds,index,addManualNights,sessions,night,overnight,restingHr,baseline,series,latestReading,sleepFor,bedtimeFor,hrMaxFor,effortFor,loadOf,loadFor,wellAboveRun,warningFor,readinessFor,healthAgeFor,healthAgeTrend,fitnessAgeFor,recoveryFor,standFor,momentumFor,mobilityFor,strengthFor,runsFor,stepsOn,fastResilienceFor,
     // helpers the page shares
     addDays,daysBetween,mondayOf,median,mean,sd,robustSd,stepDown};
 });
