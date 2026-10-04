@@ -858,8 +858,12 @@
     return recoverySpeed(list,{hrMax:o.hrMax,rhr:rhr?rhr.value:o.rhr});
   }
   /* Where I Stand: current values (30-day window; VO₂ max the latest within 60 days), graded. */
+  /* V3.6 G1: options.window = {from, agg:'latest'|'mean'} reads the ladders over the chosen period (Day the latest reading,
+     Week and Month the mean of 7 and 30 days, All the mean since the program start). Without it, the 30-day view as before
+     (medians for resting HR and HRV, means for steps and sleep). */
   function standFor(x,day,options){
-    const o=options||{},from=addDays(day,-29),who={sex:o.sex,age:o.age},rows=[];
+    const o=options||{},win=o.window||null,from=win&&win.from?win.from:addDays(day,-29),agg=win?win.agg:null,who={sex:o.sex,age:o.age},rows=[];
+    const pick=(a,dflt)=>!a.length?null:agg==='latest'?a[a.length-1]:agg==='mean'?mean(a):dflt(a);
     const values=(metric,kind)=>series(x,metric,from,day,kind).map(p=>p.v),fromFile=metric=>series(x,metric,from,day).filter(p=>p.approx).length;
     const vo2=latestReading(x,'vo2_max',day,TABLE.vo2.staleDays);
     const push=(entry,confidence,extra)=>rows.push({...entry,confidence,...(extra||{})});
@@ -870,13 +874,13 @@
     const recovery=o.recovery||recoveryFor(x,day,o);
     push(recovery.mode==='primary'?stand('heart_rate_recovery',recovery.value,who):{metric:'heart_rate_recovery',value:null,rung:null,label:null,colour:null,note:recovery.mode==='fallback'?recovery.gradeNote:null,fallback:recovery.mode==='fallback'?recovery:null,missing:recovery.missing},recovery.mode==='primary'?recovery.confidence:null,{group:'fitness'});
     const rhr=values('resting_heart_rate'),hrv=values('heart_rate_variability','overnight');
-    push(stand('resting_heart_rate',rhr.length?median(rhr):null,who),rhr.length>=10?'High':rhr.length>=5?'Medium':rhr.length?'Low':null,{group:'fitness',days:rhr.length,historyDays:fromFile('resting_heart_rate')});
-    push(stand('heart_rate_variability',hrv.length?median(hrv):null,who),hrv.length>=10?'High':hrv.length>=5?'Medium':hrv.length?'Low':null,{group:'fitness',days:hrv.length});
+    push(stand('resting_heart_rate',pick(rhr,median),who),rhr.length>=10?'High':rhr.length>=5?'Medium':rhr.length?'Low':null,{group:'fitness',days:rhr.length,historyDays:fromFile('resting_heart_rate')});
+    push(stand('heart_rate_variability',pick(hrv,median),who),hrv.length>=10?'High':hrv.length>=5?'Medium':hrv.length?'Low':null,{group:'fitness',days:hrv.length});
     const steps=[],nights=[];for(let d=from;d<=day;d=addDays(d,1)){const s=stepsOn(x,d,o.steps);if(s!==null&&d<day)steps.push(s);const n=night(x,d);if(n)nights.push(n.tst);}
-    push(stand('step_count',steps.length?mean(steps):null,who),steps.length>=10?'High':steps.length>=5?'Medium':steps.length?'Low':null,{group:'body',days:steps.length});
+    push(stand('step_count',pick(steps,mean),who),steps.length>=10?'High':steps.length>=5?'Medium':steps.length?'Low':null,{group:'body',days:steps.length});
     const fat=latestReading(x,'body_fat_percentage',day,90);
     push(range('body_fat_percentage',fat?fat.value:null,who),fat?(fat.age<=30?'High':'Medium'):null,{group:'body',asOf:fat?fat.day:null});
-    push(range('sleep_duration',nights.length?mean(nights):null,who),nights.length>=10?'High':nights.length>=5?'Medium':nights.length?'Low':null,{group:'body',days:nights.length});
+    push(range('sleep_duration',pick(nights,mean),who),nights.length>=10?'High':nights.length>=5?'Medium':nights.length?'Low':null,{group:'body',days:nights.length});
     const waist=latestReading(x,'waist_circumference',day,180);
     if(waist)push(range('waist_circumference',waist.value*2.54,{...who,heightCm:o.heightCm}),'Medium',{group:'body',asOf:waist.day});
     const walk=values('walking_speed'),six=latestReading(x,'six_minute_walking_test_distance',day,90);

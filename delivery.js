@@ -3,7 +3,7 @@
    ship.sh stamps BUILD here and in sw.js together: if they drift, an updated page keeps being
    served the previous shell out of the old cache. */
 window.HealthDelivery = (() => {
-  const BUILD = '2026-10-02-V3.5';
+  const BUILD = '2026-10-03-V3.6';
   const host = location.hostname;
   const local = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(host);
   const wrapper = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.native);
@@ -52,6 +52,17 @@ window.HealthDelivery = (() => {
       'n-feedback-muq8y5pk-31d6g':'V3.5',
       'n-feedback-muqc42uz-72kq4':'V3.5',
       'n-feedback-muqc5v8k-mseos':'V3.5',
+      'n-feedback-murnqjqc-ap3j2':'V3.6',
+      'n-feedback-murnt7pa-m6rs5':'V3.6',
+      'n-feedback-murnzsjy-nmq7y':'V3.6',
+      'n-feedback-muru2p6s-2upjo':'V3.6',
+      'n-feedback-murule97-e1urt':'V3.6',
+      'n-feedback-muruss8c-fb920':'V3.6',
+      'n-feedback-muruu7kq-598ug':'V3.6',
+      'n-feedback-muruvpls-r2f96':'V3.6',
+      'n-feedback-murv1ws4-gunab':'V3.6',
+      'n-feedback-murv2xjj-jztzw':'V3.6',
+      'n-feedback-murv5xaz-atdb9':'V3.6',
       'n-mufzjey8-4dal3':'V3.4',
       'n-muq6yob9-qw1rh':'V3.5',
       'n-muq6z863-nekak':'V3.5',
@@ -62,7 +73,8 @@ window.HealthDelivery = (() => {
       'n-muq8cr1n-bp5fg':'V3.5',
       'n-muq8dvd2-dhfwq':'V3.5',
       'n-muq92tdq-41bh1':'V3.5'
-    },   // V3.5 release (Oct 2): 41 of his 46 suggestions; O-07, O-09, O-10, O-12 and C-05 stay Open for his look on the Mac
+    },   // V3.5 release (Oct 2): 41 of his 46 suggestions; O-07, O-09, O-10, O-12 and C-05 stay Open for his look on the Mac.
+    // V3.6 release (Oct 3): NEW notes 1 to 11 of the V3.6 brief §2.1 shipped; only he resolves them, in Lessons
     resolved: {}
   };
 })();

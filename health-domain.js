@@ -158,6 +158,218 @@ function targetParts(value,target){
   return {known:true,done:Math.min(target,Math.max(0,value)),left:Math.max(0,target-value),extra:Math.max(0,value-target)};
 }
 function newId(prefix){ return prefix + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7); }
+/* V3.6 Block 5 (M1 to M5, Mintay Oct 3): the goal builder's engine. A goal is an ADDITIVE object on a series version,
+   {v:1, measure, source, target, period, when, credit}, and its hand entries live in state.goalEntries (seriesId -> list).
+   The version's `recurrence` stays an old kind with a valid `days` list (V3.5's validator requires it on every non-once
+   kind and refuses the record otherwise: V36-I25), so an older build opens the record and shows a plain item. A revision
+   is a new dated version, so an earlier day's evaluation never moves (ASSUMED A10). Pure: nothing here writes the store
+   except the entry functions, which change state.goalEntries only. */
+const GOAL_KM_PER_MI=1.609344;
+const GOAL_UNITS={mi:1,km:1/GOAL_KM_PER_MI,m:1/1609.344,meter:1/1609.344,meters:1/1609.344,mile:1,miles:1,kilometer:1/GOAL_KM_PER_MI,kilometers:1/GOAL_KM_PER_MI,yd:1/1760,ft:1/5280};   // to miles; anything else is unreadable (ASSUMED A12)
+const GOAL_MEASURES=['check','count','sum','average','latest'],GOAL_OPS=['atLeast','atMost','between','exactly'],GOAL_PERIODS=['day','week','month','everyN','range','rolling'],GOAL_WHENS=['any','days','by','monthday','nthweekday','after','season','deadline'],GOAL_CREDITS=['all','proportional','half'];
+let goalReadings=null;   // V3.6 M4: the page supplies daily readings the domain does not hold (sleep hours, water)
+function setGoalReadings(fn){goalReadings=typeof fn==='function'?fn:null;}
+const GoalEngine={
+  // A goal as stored: every field checked; an unknown future version is kept as it is and never refused.
+  normalize(g){
+    if(!g||typeof g!=='object')return null;if(Number.isFinite(g.v)&&g.v>1)return JSON.parse(JSON.stringify(g));
+    const num=(x,lo,hi)=>Number.isFinite(+x)?Math.max(lo,Math.min(hi,+x)):null,day=x=>Number.isInteger(+x)&&+x>=0&&+x<=6?+x:null,days=a=>[...new Set((Array.isArray(a)?a:[]).map(Number).filter(d=>Number.isInteger(d)&&d>=0&&d<=6))].sort();
+    const m=g.measure||{},s=g.source||{},t=g.target||{},p=g.period||{},w=g.when||{};
+    const out={v:1,
+      measure:{kind:GOAL_MEASURES.includes(m.kind)?m.kind:'check',unit:String(m.unit||'').trim().slice(0,14),...(m.reading?{reading:String(m.reading).slice(0,24)}:{})},
+      source:{kind:s.kind==='auto'?'auto':'manual',...(s.kind==='auto'?{metric:String(s.metric||''),types:Array.isArray(s.types)?s.types.map(String).slice(0,40):[],field:['distance','minutes','energy','count'].includes(s.field)?s.field:'distance',unit:String(s.unit||'').slice(0,14)}:{})},
+      target:{op:GOAL_OPS.includes(t.op)?t.op:'atLeast',value:num(t.value,0,1e7),...(t.op==='between'?{value2:num(t.value2,0,1e7)}:{})},
+      period:{kind:GOAL_PERIODS.includes(p.kind)?p.kind:'day',...(p.kind==='week'&&(p.weekStart===0||p.weekStart===1)?{weekStart:p.weekStart}:{}),...(p.kind==='everyN'||p.kind==='rolling'?{n:num(p.n,1,366)||7}:{}),...(p.kind==='range'?(()=>{const a=validCalendarDate(p.from)?p.from:null,b=validCalendarDate(p.to)?p.to:null;return a&&b&&a>b?{from:b,to:a}:{from:a,to:b};})():{})},   // a range typed backwards is put in order (review F5)
+      when:{kind:GOAL_WHENS.includes(w.kind)?w.kind:'any'},
+      credit:GOAL_CREDITS.includes(g.credit)?g.credit:'all'};
+    const W=out.when;
+    if(W.kind==='days')W.days=days(w.days).length?days(w.days):[0,1,2,3,4,5,6];
+    if(W.kind==='by')W.by=day(w.by)??5;
+    if(W.kind==='monthday')W.monthday=num(w.monthday,1,31)||1;
+    if(W.kind==='nthweekday'){W.nth=w.nth==='last'||+w.nth===-1?-1:num(w.nth,1,5)||1;W.weekday=day(w.weekday)??0;}   // -1 = the last such weekday
+    if(W.kind==='after')W.after=num(w.after,1,366)||7;
+    if(W.kind==='season')W.seasons=(Array.isArray(w.seasons)?w.seasons:[]).filter(r=>r&&validCalendarDate(r.from)&&validCalendarDate(r.to)&&r.from<=r.to).slice(0,6).map(r=>({from:r.from,to:r.to,days:days(r.days)}));
+    if(W.kind==='deadline')W.date=validCalendarDate(w.date)?w.date:null;
+    if(out.measure.kind==='check'&&out.credit==='proportional')out.credit='all';
+    return out;
+  },
+  /* The `recurrence` stored beside a goal, which an older build reads: a weekly kind with a valid days list (it shows a
+     plain item), or, for "N times a week" (with or without a due day), the existing weekly target, so the grade, Perfect's
+     quota and the Template keep their one rule for N-a-week items (V36-I25: never a new recurrence kind). */
+  legacyRecurrence(g,from){const w=(g&&g.when)||{},t=(g&&g.target)||{},all=[0,1,2,3,4,5,6],days=w.kind==='days'?w.days.slice():w.kind==='season'&&w.seasons&&w.seasons[0]?w.seasons[0].days.slice():all;
+    if(g&&g.measure&&g.measure.kind==='check'&&g.period&&g.period.kind==='week'&&t.op==='atLeast'&&Number.isFinite(t.value)&&t.value>=1&&['any','by'].includes(w.kind)&&validCalendarDate(from))return {kind:'target',count:Math.min(100,Math.round(t.value)),weeks:1,mode:'fixed',startDate:weekStartOf(from,1),days};   // Monday weeks, as the weekly target's reward identity counts them (review N3); the card follows this target (window)
+    return {kind:'weekly',days};},
+  validate(g){
+    if(g===undefined||g===null)return null;if(typeof g!=='object'||Array.isArray(g))return 'A goal is malformed.';
+    if(Number.isFinite(g.v)&&g.v>1)return null;   // a goal from a later build is kept and never refused
+    if(g.v!==1||!g.measure||!GOAL_MEASURES.includes(g.measure.kind)||!g.target||!GOAL_OPS.includes(g.target.op)||!g.period||!GOAL_PERIODS.includes(g.period.kind)||!g.when||!GOAL_WHENS.includes(g.when.kind)||!GOAL_CREDITS.includes(g.credit))return 'A goal is malformed.';
+    return null;
+  },
+  validateEntries(map){
+    if(map===undefined)return null;if(!map||typeof map!=='object'||Array.isArray(map))return 'The goal entries are malformed.';
+    for(const list of Object.values(map)){if(!Array.isArray(list))return 'The goal entries are malformed.';for(const e of list)if(!e||typeof e.id!=='string'||!validCalendarDate(e.date)||!['added','edited','merged'].includes(e.origin)||(e.origin!=='merged'&&!(Number.isFinite(e.value)&&e.value>=0)))return 'A goal entry is malformed.';}
+    return null;
+  },
+  /* M2: the day rules no recurrence kind can say. Stateless kinds here (scheduledOn reads this); "N days after the last
+     one done" also needs the record, so planFor asks afterDue. A day outside the version's own days is never due. */
+  dueOn(g,date,ver){
+    const w=g.when||{},d=dow(date),start=ver&&ver.effectiveFrom||date;
+    if(g.period&&g.period.kind==='range'&&((g.period.from&&date<g.period.from)||(g.period.to&&date>g.period.to)))return false;
+    switch(w.kind){
+      case 'days':return w.days.includes(d);
+      case 'monthday':{const last=new Date(+date.slice(0,4),+date.slice(5,7),0).getDate();return +date.slice(8)===Math.min(w.monthday,last);}   // the 31st falls on a short month's last day
+      case 'nthweekday':{if(d!==w.weekday)return false;const dom=+date.slice(8),last=new Date(+date.slice(0,4),+date.slice(5,7),0).getDate();return w.nth===-1?dom+7>last:Math.ceil(dom/7)===w.nth;}   // a 5th weekday a month lacks is not due that month; -1 = the last
+      case 'season':{const r=(w.seasons||[]).find(x=>x.from<=date&&date<=x.to);return !!r&&r.days.includes(d);}
+      case 'deadline':return !w.date||date<=w.date;
+      default:return date>=start;
+    }
+  },
+  /* "N days after the last one done": due from the last done day + N; before the first done, due from the version's start.
+     It moves when a done is recorded or edited and never re-opens a past day (a past day keeps what it had). */
+  afterDue(state,series,ver,date,memo,asOf){
+    const g=ver.goal,n=(g.when&&g.when.after)||7,last=GoalEngine.lastDone(state,series.id,date,memo,asOf);
+    return last?calendarDistance(last,date)>=n:date>=ver.effectiveFrom;
+  },
+  /* A series' done dates, sorted, kept for one grading call (review N1: no full scan per day); the last one before a date,
+     counting only dones recorded by asOf, so a later done never moves how an earlier range was planned (review N2). */
+  doneDates(state,sid,memo){const c=memo?(memo.__done=memo.__done||new Map()):null;if(c&&c.has(sid))return c.get(sid);const a=[];for(const o of Object.values(state.occurrences))if(o.seriesId===sid&&o.status==='done')a.push(o.date);a.sort();if(c)c.set(sid,a);return a;},
+  lastDone(state,sid,date,memo,asOf){
+    const a=GoalEngine.doneDates(state,sid,memo),below=x=>{let lo=0,hi=a.length;while(lo<hi){const m=(lo+hi)>>1;if(a[m]<x)lo=m+1;else hi=m;}return lo;};
+    let i=below(date)-1;if(asOf){const j=below(addDays(asOf,1))-1;if(j<i)i=j;}return i>=0?a[i]:null;
+  },
+  /* One due rule for every list (review F2, F3): the version's own days, a date range's bounds for every goal, "N days
+     after the last done", and a one-off deadline check that stops being due once it is done. */
+  dueFor(state,series,ver,date,memo,asOf){
+    if(!ver||!scheduledOn(ver,date))return false;const g=ver.goal;if(!g||g.v!==1)return true;
+    if(g.when&&g.when.kind==='after'&&!GoalEngine.afterDue(state,series,ver,date,memo,asOf))return false;
+    if(g.when&&g.when.kind==='deadline'&&g.measure.kind==='check'){const l=GoalEngine.lastDone(state,series.id,date,memo,asOf);if(l&&l>=ver.effectiveFrom)return false;}
+    return true;
+  },
+  // Is this version graded once per window (an amount, count or reading; a check over a week, month or range; a one-off deadline)?
+  windowed(ver){const g=ver&&ver.goal;return !!g&&g.v===1&&(g.measure.kind!=='check'||(g.period.kind!=='day'||g.when.kind==='deadline')&&ver.recurrence.kind!=='target'&&g.when.kind!=='after');},
+  /* M3 (review F1, F4, F5): a windowed goal counts once per window in the grade and the rank: each due day of the window
+     carries 1/(the window's due days), paid the credit the window holds at its last day inside the graded range. The due
+     days are counted as the plan stood on the range's last day (review N2): a later done never re-weighs a closed range. */
+  gradeShare(state,series,ver,d,to,memo){
+    const g=ver.goal,w=GoalEngine.window(g,d,ver,state),k=series.id+'|'+w.from+'|'+w.to+'|'+to;
+    if(!memo[k]){let due=0;for(let x=w.from;x<=w.to;x=addDays(x,1))if(GoalEngine.dueFor(state,series,versionFor(series,x),x,memo,to))due++;const at=w.to<to?w.to:to;memo[k]={due:Math.max(1,due),credit:(GoalEngine.progress(state,series,at,goalReadings)||{}).credit??0};}
+    return {planned:1/memo[k].due,done:memo[k].credit/memo[k].due};
+  },
+  // M3: the window a period means on a date (weeks start Monday unless he chose Sunday).
+  window(g,date,ver,state){
+    const p=g.period||{},ws=state&&state.prefs&&state.prefs.weekStart===0?0:1;
+    if(ver&&ver.recurrence&&ver.recurrence.kind==='target'&&g.measure.kind==='check'){const rw=recurrenceWindow(ver,date);if(rw)return {from:rw.from,to:rw.to};}   // "N times a week": the stored target's own week (review F9)
+    if(g.when&&g.when.kind==='deadline'&&g.when.date&&p.kind==='day')return {from:ver&&ver.effectiveFrom<g.when.date?ver.effectiveFrom:g.when.date,to:g.when.date};   // a one-off deadline is one window (review F2)
+    if(p.kind==='week'){const a=weekStartOf(date,p.weekStart===0||p.weekStart===1?p.weekStart:ws);return {from:a,to:addDays(a,6)};}
+    if(p.kind==='month')return {from:date.slice(0,8)+'01',to:addDays(date.slice(0,8)+'01',new Date(+date.slice(0,4),+date.slice(5,7),0).getDate()-1)};
+    if(p.kind==='everyN'){const start=ver&&ver.effectiveFrom||date,k=Math.floor(Math.max(0,calendarDistance(start,date))/p.n),a=addDays(start,k*p.n);return {from:a,to:addDays(a,p.n-1)};}
+    if(p.kind==='range')return {from:p.from||date,to:p.to||date};
+    if(p.kind==='rolling')return {from:addDays(date,-(p.n-1)),to:date};
+    return {from:date,to:date};
+  },
+  /* M4: automatic values per day for a source, in the goal's unit. Workouts by type and field; the unit is read from each
+     record and converted at read time (stored values are never rewritten); a record with no readable unit or no distance
+     contributes nothing and is listed. Daily walking + running distance: the day's rollup where it exists, else the sum
+     of its buckets. A goal reads ONE source for a quantity, never workouts and daily totals together. */
+  autoRecords(state,src,from,to){
+    const out=[],skipped=[],types=src.types&&src.types.length?new Set(src.types):null;
+    if(src.metric==='workouts'){
+      for(const r of state.sourceRecords||[]){if(r.kind!=='workout')continue;const d=sourceLocalDay(r.start);if(d<from||d>to)continue;if(types&&!types.has(r.type))continue;const m=r.unmapped&&r.unmapped.healthAutoExport||{};
+        let v=null;if(src.field==='minutes')v=Number.isFinite(r.durationSec)?r.durationSec/60:null;else if(src.field==='count')v=1;else if(src.field==='energy'){const q=m.activeEnergy;v=q&&Number.isFinite(+q.qty)?+q.qty*(/kj/i.test(q.units||'')?.239006:1):null;}
+        else{const q=m.distance;if(!q||!Number.isFinite(+q.qty)){skipped.push({id:r.id,date:d,type:r.type,why:'no distance'});continue;}const f=GOAL_UNITS[String(q.units||'').toLowerCase()];if(!f){skipped.push({id:r.id,date:d,type:r.type,why:'unit unknown'});continue;}v=+q.qty*f*(src.unit==='km'?GOAL_KM_PER_MI:1);}
+        if(v===null){skipped.push({id:r.id,date:d,type:r.type,why:'no '+src.field});continue;}
+        out.push({sourceId:r.id,date:d,ts:Date.parse(r.start),type:r.type,value:v});}
+    }else if(src.metric==='walking_running_distance'){
+      const days=new Map();for(const r of haeRowsFor(state,['walking_running_distance'])){const d=sourceLocalDay(r.start);if(d<from||d>to||!Number.isFinite(r.value))continue;const f=GOAL_UNITS[String(r.unit||'').toLowerCase()];if(!f){skipped.push({id:r.id,date:d,why:'unit unknown'});continue;}const rep=(r.unmapped&&r.unmapped.healthAutoExport||{}).representation||'',x=days.get(d)||{roll:null,sum:0};const v=r.value*f*(src.unit==='km'?GOAL_KM_PER_MI:1);if(/daily|rollup|summary/i.test(rep))x.roll=Math.max(x.roll||0,v);else x.sum+=v;days.set(d,x);}
+      for(const [d,x] of days)out.push({sourceId:'wrd:'+d,date:d,ts:Date.parse(d+'T12:00:00'),type:'Daily distance',value:x.roll!==null?x.roll:x.sum});
+    }
+    return {records:out.sort((a,b)=>a.ts-b.ts),skipped};
+  },
+  // The sources that exist for what is measured, with counts (the builder lists only these).
+  sources(state,measure,unit){
+    const out=[],wk=(state.sourceRecords||[]).filter(r=>r.kind==='workout'),typeCount=new Map();
+    for(const r of wk){const t=typeCount.get(r.type)||{type:r.type,records:0,distance:0};t.records++;const q=r.unmapped&&r.unmapped.healthAutoExport&&r.unmapped.healthAutoExport.distance;if(q&&Number.isFinite(+q.qty)&&GOAL_UNITS[String(q.units||'').toLowerCase()])t.distance++;typeCount.set(r.type,t);}
+    const types=[...typeCount.values()].sort((a,b)=>b.records-a.records);
+    if(measure==='sum'&&['mi','km'].includes(unit)){if(wk.length)out.push({metric:'workouts',field:'distance',count:types.reduce((n,t)=>n+t.distance,0),types});const days=new Set(haeRowsFor(state,['walking_running_distance']).map(r=>sourceLocalDay(r.start)));if(days.size)out.push({metric:'walking_running_distance',count:days.size});}
+    else if(measure==='sum'&&unit==='min'&&wk.length)out.push({metric:'workouts',field:'minutes',count:wk.length,types});
+    else if(measure==='sum'&&unit==='kcal'&&wk.length)out.push({metric:'workouts',field:'energy',count:wk.length,types});
+    else if(measure==='count'&&wk.length)out.push({metric:'workouts',field:'count',count:wk.length,types});
+    return out;
+  },
+  // The entries a goal counts in a window: automatic ones (an edit overrides one, Restore removes the edit), then his own.
+  entries(state,series,ver,from,to){
+    const g=ver.goal,own=(state.goalEntries&&state.goalEntries[series.id])||[],edits=new Map(own.filter(e=>e.origin==='edited'&&e.sourceId).map(e=>[e.sourceId,e])),merged=new Set(own.filter(e=>e.origin==='merged').map(e=>e.sourceId));
+    const auto=g.source&&g.source.kind==='auto'?GoalEngine.autoRecords(state,g.source,from,to):{records:[],skipped:[]};
+    const list=auto.records.map(r=>{const e=edits.get(r.sourceId);return {id:'auto:'+r.sourceId,sourceId:r.sourceId,date:r.date,ts:r.ts,type:r.type,origin:e?'edited':'auto',value:e?e.value:r.value,original:r.value,merged:merged.has(r.sourceId)};});
+    for(const e of own)if(e.origin==='added'&&e.date>=from&&e.date<=to)list.push({id:e.id,date:e.date,ts:e.ts||Date.parse(e.date+'T12:00:00'),type:e.type||'',origin:'added',value:e.value,note:e.note||''});
+    return {list:list.sort((a,b)=>a.ts-b.ts),skipped:auto.skipped};
+  },
+  /* M3: progress on a date: value, target, share, state (open, met, over, short) and credit, for every measure x target x
+     period. `readings(metric, from, to)` supplies daily readings the page owns (sleep hours, water); weight is read here. */
+  progress(state,series,date,readings){
+    readings=readings||goalReadings;
+    const ver=versionFor(series,date);if(!ver||!ver.goal||ver.goal.v!==1)return null;const g=ver.goal,w=GoalEngine.window(g,date,ver,state),upto=w.to<date?w.to:date,closed=date>=w.to;
+    let value=0,known=true,count=0;const kind=g.measure.kind;
+    if(kind==='check'){for(let d=w.from;d<=upto;d=addDays(d,1)){const o=state.occurrences[occKey(series.id,d)];if(o&&o.status==='done')value+=1;else if(o&&o.status==='partial')value+=.5;}}
+    else if(kind==='count'||kind==='sum'){const e=GoalEngine.entries(state,series,ver,w.from,upto);for(const x of e.list)value+=kind==='count'&&x.origin==='added'?(Number.isFinite(x.value)?x.value:1):x.value;count=e.list.length;}
+    else{const rows=GoalEngine.readings(state,g.measure.reading,w.from,upto,readings);if(!rows.length){known=false;value=null;}else if(kind==='average'){value=rows.reduce((n,r)=>n+r.value,0)/rows.length;}else value=rows[rows.length-1].value;count=rows.length;}
+    const t=g.target||{},tv=kind==='check'?(g.period.kind==='day'?1:Math.max(1,t.value||1)):t.value;
+    let share=0,met=false,over=false;
+    if(value!==null){
+      if(kind==='average'||kind==='latest'){met=t.op==='atMost'?value<=tv:t.op==='between'?value>=tv&&value<=t.value2:t.op==='exactly'?Math.abs(value-tv)<1e-9:value>=tv;share=met?1:t.op==='atMost'||(t.op==='between'&&value>t.value2)?(value>0?Math.min(1,(t.op==='between'?t.value2:tv)/value):0):(tv?Math.min(1,value/tv):0);}   // a reading against its target: never a limit, never "over"
+      else if(t.op==='atMost'){met=value<=tv;over=value>tv;share=tv>0?Math.min(1,value/tv):value>0?1:0;}
+      else if(t.op==='between'){met=value>=tv&&value<=t.value2;over=value>t.value2;share=value<tv?(tv?value/tv:0):over?0:1;}
+      else if(t.op==='exactly'){met=Math.abs(value-tv)<1e-9;share=tv?Math.min(1,value/tv):0;over=value>tv;}
+      else{met=value>=tv;share=tv?Math.min(1,value/tv):met?1:0;}
+    }
+    // Credit at the period's end: a limit pays only if it held; proportional pays the share; half pays ½ for a start.
+    const reading=kind==='average'||kind==='latest',cr=reading?(g.credit==='proportional'?share:met?1:0):t.op==='atMost'||t.op==='between'||t.op==='exactly'?(met?1:0):g.credit==='proportional'?share:g.credit==='half'?(met?1:value>0?.5:0):(met?1:0);
+    // "3 times a week by Friday": after the due day an unmet target is overdue (it still counts if he finishes it).
+    const byDay=g.when.kind==='by'?addDays(w.from,(g.when.by-dow(w.from)+7)%7):null,overdue=!!byDay&&!met&&date>byDay;   // after the due day inside its own window (review F9)
+    const state1=value===null?'open':over&&t.op==='atMost'&&!reading?'over':met?'met':overdue?'overdue':closed?'short':'open';
+    return {value,target:tv,target2:t.value2,op:t.op,unit:g.measure.unit,share,met,over,state:state1,credit:t.op==='atMost'&&!reading?(closed?cr:over?0:1):cr,known,count,window:w,closed,measure:kind};
+  },
+  readings(state,reading,from,to,provider){
+    if(reading==='weight')return weightRowsLb(state,to).filter(r=>r.date>=from).map(r=>({date:r.date,value:r.lb}));
+    const m=provider?provider(reading,from,to):null;return m?[...m].filter(([d,v])=>d>=from&&d<=to&&Number.isFinite(v)).sort(([a],[b])=>a.localeCompare(b)).map(([date,value])=>({date,value})):[];
+  },
+  /* M5: a hand entry adds to the total. Within 20 minutes of a watch workout the same day it asks "Same run? Merge"
+     (ASSUMED A13): the caller passes decide:'merge' (the watch's run counts once) or 'keep' (both count). */
+  addEntry(state,series,entry,decide){
+    const ver=versionFor(series,entry.date);if(!ver||!ver.goal)return {ok:false,error:'This item has no goal.'};
+    if(!validCalendarDate(entry.date)||!(Number.isFinite(+entry.value)&&+entry.value>0))return {ok:false,error:'Enter an amount above zero and a real date.'};
+    const ts=Number.isFinite(entry.ts)?entry.ts:Date.parse(entry.date+'T12:00:00');
+    if(!decide&&ver.goal.source&&ver.goal.source.kind==='auto'&&ver.goal.source.metric==='workouts'){const same=GoalEngine.entries(state,series,ver,entry.date,entry.date).list.find(x=>x.origin!=='added'&&!x.merged&&Math.abs(x.ts-ts)<=20*60000);if(same)return {ok:false,ask:'merge',match:same};}
+    state.goalEntries=state.goalEntries||{};const list=state.goalEntries[series.id]=state.goalEntries[series.id]||[];
+    if(decide==='merge'){const m=GoalEngine.entries(state,series,ver,entry.date,entry.date).list.find(x=>x.origin!=='added'&&!x.merged&&Math.abs(x.ts-ts)<=20*60000);if(m){list.push({id:newId('ge'),origin:'merged',sourceId:m.sourceId,date:entry.date,ts});return {ok:true,merged:m.sourceId};}}
+    const e={id:newId('ge'),origin:'added',date:entry.date,ts,value:Math.round(+entry.value*1000)/1000,unit:ver.goal.measure.unit||'',...(entry.type?{type:String(entry.type).slice(0,40)}:{}),...(entry.note?{note:String(entry.note).slice(0,200)}:{})};
+    list.push(e);return {ok:true,entry:e};
+  },
+  // Any automatic entry can be edited (the original is kept; Restore puts it back); a hand entry can be edited or removed.
+  editEntry(state,series,id,value){
+    if(!(Number.isFinite(+value)&&+value>=0))return {ok:false,error:'Enter an amount of zero or more.'};
+    state.goalEntries=state.goalEntries||{};const list=state.goalEntries[series.id]=state.goalEntries[series.id]||[];
+    if(id.startsWith('auto:')){const sid=id.slice(5),e=list.find(x=>x.origin==='edited'&&x.sourceId===sid);if(e){e.value=+value;return {ok:true};}const r=(state.sourceRecords||[]).find(x=>x.id===sid),date=r?sourceLocalDay(r.start):/^wrd:/.test(sid)?sid.slice(4):null;if(!validCalendarDate(date))return {ok:false,error:'That record is gone.'};list.push({id:newId('ge'),origin:'edited',sourceId:sid,date,value:+value});return {ok:true};}
+    const e=list.find(x=>x.id===id&&x.origin==='added');if(!e)return {ok:false,error:'That entry is gone.'};e.value=+value;return {ok:true};
+  },
+  restoreEntry(state,series,id){const list=(state.goalEntries||{})[series.id]||[],sid=id.replace(/^auto:/,''),i=list.findIndex(x=>x.origin==='edited'&&x.sourceId===sid);if(i<0)return {ok:false,error:'Nothing to restore.'};list.splice(i,1);return {ok:true};},
+  removeEntry(state,series,id){const list=(state.goalEntries||{})[series.id]||[],i=list.findIndex(x=>x.id===id&&x.origin==='added');if(i<0)return {ok:false,error:'Only your own entries can be removed.'};list.splice(i,1);return {ok:true};},
+  // The plain-language summary the builder ends in (the Draft's words).
+  summary(g,auto){
+    const RD={sleep:'sleep hours',weight:'weight',rhr:'resting heart rate',hrv:'hrv'},WD=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],ord=n=>n+(['th','st','nd','rd'][(n%100-20)%10]||['th','st','nd','rd'][n%100]||'th'),md=s=>{const d=parseYmd(s);return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});};
+    const u=g.measure.unit?' '+g.measure.unit:'',t=g.target||{},nf=v=>(Math.round(v*100)/100).toLocaleString('en-US');
+    const tt=t.op==='atMost'?'at most '+nf(t.value)+u:t.op==='between'?'between '+nf(t.value)+' and '+nf(t.value2)+u:t.op==='exactly'?'exactly '+nf(t.value)+u:'at least '+nf(t.value)+u;
+    const p=g.period,pt={day:'each day',week:'each week',month:'each month',everyN:'every '+p.n+' days',range:p.from&&p.to?'between '+md(p.from)+' and '+md(p.to):'in a date range',rolling:'in any rolling '+p.n+' days'}[p.kind];
+    const w=g.when,wt=w.kind==='days'?'on '+(w.days.length===1?WD[w.days[0]]+'s':w.days.map(d=>WD[d].slice(0,3)).join(', ')):w.kind==='by'?'done by '+WD[w.by]+'; it turns overdue after '+WD[w.by]:w.kind==='monthday'?'on the '+ord(w.monthday)+' of the month':w.kind==='nthweekday'?'on the '+(w.nth===-1?'last':ord(w.nth))+' '+WD[w.weekday]+' of the month':w.kind==='after'?w.after+' days after you last did it':w.kind==='season'?(w.seasons||[]).map(r=>r.days.map(d=>WD[d].slice(0,3)).join(', ')+' from '+md(r.from)+' to '+md(r.to)).join('; then '):w.kind==='deadline'&&w.date?'due '+md(w.date):'';
+    const cap=s=>s.charAt(0).toUpperCase()+s.slice(1),m=g.measure.kind;let s;
+    if(m==='check')s=w.kind==='after'?'Check it off '+w.after+' days after you last did it; the clock restarts each time you finish it':w.kind==='deadline'?'Check it off once, '+wt:'Check it off '+(p.kind==='day'?'every day':p.kind==='week'?'once each week':p.kind==='month'?'once each month':pt)+(wt&&w.kind!=='any'?', '+wt:'');
+    else if(m==='count'||m==='sum')s=cap(tt)+' '+pt+(m==='sum'?', adding up what '+(g.source.kind==='auto'?'comes in':'you enter'):'')+(t.op==='atMost'?' (a limit)':'')+(w.kind==='any'?', any day':wt?', '+wt:'');
+    else if(m==='average')s='Average '+(RD[g.measure.reading]||g.measure.reading||'reading')+' '+tt+' '+pt+(wt?', '+wt:'');
+    else s='Latest '+(RD[g.measure.reading]||g.measure.reading||'reading')+' '+tt+' '+(w.kind==='deadline'&&w.date?'by '+md(w.date):pt);
+    if(g.source&&g.source.kind==='auto'&&auto)s+='; automatic from '+auto;
+    return s+'. '+({all:'All or nothing.',proportional:'Credit in proportion to the share reached.',half:'Half credit when partly done.'})[g.credit];
+  }
+};
 
 /* ---- template versions are append-only. A date resolves to the version
         that was in force on that date, so editing the future can never
@@ -173,6 +385,8 @@ function latestVersion(series){
   return series.versions.reduce((a, v) => (!a || v.version > a.version) ? v : a, null);
 }
 function scheduledOn(ver, date){
+  if (ver.goal && ver.goal.v === 1 && ver.goal.period && ver.goal.period.kind === 'range' && ((ver.goal.period.from && date < ver.goal.period.from) || (ver.goal.period.to && date > ver.goal.period.to))) return false;   // V3.6 M2 (review F3)
+  if (ver.goal && ver.goal.v === 1 && typeof GoalEngine !== 'undefined' && ver.goal.when && ver.goal.when.kind !== 'any' && ver.goal.when.kind !== 'days') return date >= ver.effectiveFrom && GoalEngine.dueOn(ver.goal, date, ver);   // V3.6 M2
   const r = ver.recurrence || {};
   if (r.kind === 'once') return r.date === date;
   if (r.startDate && date < r.startDate) return false;
@@ -204,7 +418,7 @@ function legacyPlanFor(state, date){
     if (!ver) continue;
     const occ = state.occurrences[occKey(s.id, date)] || null;
     if (occ && occ.removed) continue;
-    const scheduled = scheduledOn(ver, date);
+    const scheduled = GoalEngine.dueFor(state, s, ver, date);   // V3.6 M2
     if (!scheduled && !(occ && (occ.added || occ.status !== null)) && !ver.childIds) continue;
     const ov = (occ && occ.override) || {};
     const variant = recurrenceVariant(ver, date);
@@ -547,6 +761,7 @@ function versionFrom(f, version, effectiveFrom){
     matching: f.matching ? JSON.parse(JSON.stringify(f.matching)) : null,
   };
   for(const key of ['parentId','category','workspaceKind','budgetQ','deadlineDay'])if(Object.prototype.hasOwnProperty.call(f,key))out[key]=f[key];
+  if (f.goal && typeof GoalEngine !== 'undefined'){ const g = GoalEngine.normalize(f.goal); if (g){ out.goal = g; if (g.v === 1 && !(f.recurrence && f.recurrence.kind === 'once')) out.recurrence = normalizeRecurrence(GoalEngine.legacyRecurrence(g, effectiveFrom), effectiveFrom); } }   // V3.6 M1
   if (Array.isArray(f.childIds)) out.childIds = [...new Set(f.childIds)];
   return out;
 }
@@ -1033,14 +1248,16 @@ function overallRankReport(state,today,windowKind,range,sections){
   const v2=(state.workspace?.migrations||[]).some(m=>m.status==='active'&&m.structureV2),SLOTS=sections?sections.slots:v2?RANK_SLOTS_V2:RANK_SLOTS;
   // A card he made himself (V3.2) is graded with its umbrella; Hobbies stays outside the rank, as its own card does.
   const UMBRELLA_SLOT=v2?{faith:'faith',health:'health','home-care':'hygiene',relationship:'relationship',career:'career'}:{faith:'faith',health:'care','home-care':'care',relationship:'care',career:'work'};
-  const tally={},goals={},unassigned=[],slotOf=c=>Object.keys(SLOTS).find(k=>SLOTS[k].includes(c))||(sections?null:UMBRELLA_SLOT[((state.groups||[]).find(g=>g.id===c)||{}).umbrella]),span=calendarDistance(from,to)+1;
+  const tally={},goals={},goalMemo={},unassigned=[],slotOf=c=>Object.keys(SLOTS).find(k=>SLOTS[k].includes(c))||(sections?null:UMBRELLA_SLOT[((state.groups||[]).find(g=>g.id===c)||{}).umbrella]),span=calendarDistance(from,to)+1;
   // Scoring V2: a measured item counts by its share of the target, not all or nothing.
-  const share=(r,d)=>{if(r.status!=='done'||typeof v5Rule!=='function')return r.status==='done'?1:0;const t=v5Rule(state,d),series=t&&state.series.find(x=>x.id===r.seriesId);if(!series||!v5Kind(versionFor(series,d)))return 1;const m=v5Inputs(state,series,state.occurrences[occKey(r.seriesId,d)]||{seriesId:r.seriesId,date:d},t);return m?m.credit.n/m.credit.d:1;};
+  const share=(r,d)=>{if(r.status==='partial')return .5;   /* V3.6 I2 (V36-I19): half credit, as Rank history counted it */
+    if(r.status!=='done'||typeof v5Rule!=='function')return r.status==='done'?1:0;const t=v5Rule(state,d),series=t&&state.series.find(x=>x.id===r.seriesId);if(!series||!v5Kind(versionFor(series,d)))return 1;const m=v5Inputs(state,series,state.occurrences[occKey(r.seriesId,d)]||{seriesId:r.seriesId,date:d},t);return m?m.credit.n/m.credit.d:1;};
   for(let d=from;d<=to;d=addDays(d,1))for(const r of allRows(planFor(state,d))){
     if(r.children&&r.children.length)continue;
     const slot=slotOf(r.category);if(!slot){unassigned.push({seriesId:r.seriesId,name:r.name,date:d,category:r.category||null});continue;}   // V3.5 G6 (V35-I8): never silently dropped; reported
     const series=state.series.find(x=>x.id===r.seriesId),rec=series&&versionFor(series,d)?.recurrence;
-    if(rec&&rec.kind==='target'&&rec.count>0){const g=goals[r.seriesId]=goals[r.seriesId]||{slot,count:rec.count,weeks:rec.weeks||1,done:0};if(r.status==='done')g.done++;continue;}
+    { const gv=series&&versionFor(series,d); if(GoalEngine.windowed(gv)&&!r.optional){ const sh=GoalEngine.gradeShare(state,series,gv,d,to,goalMemo),t=tally[slot]=tally[slot]||{planned:0,done:0}; t.planned+=sh.planned; t.done+=sh.done; continue; } }   // V3.6 M3: the rank counts a goal as the grade does (review F1)
+    if(rec&&rec.kind==='target'&&rec.count>0){const g=goals[r.seriesId]=goals[r.seriesId]||{slot,count:rec.count,weeks:rec.weeks||1,done:0};if(r.status==='done')g.done++;else if(r.status==='partial')g.done+=.5;continue;}
     if(r.optional)continue;
     const t=tally[slot]=tally[slot]||{planned:0,done:0};t.planned++;t.done+=share(r,d);
   }
@@ -1087,7 +1304,7 @@ function gradeGroupUmbrella(state,gid){
 const gradeUmbrellaSettings=(cfg,id)=>{const u=GRADE_UMBRELLAS.find(x=>x.id===id),c=cfg.umbrellas[id]||{};
   return {importance:Number.isFinite(c.importance)?c.importance:u.importance,included:id==='hobbies'?cfg.hobbies&&c.included!==false:c.included!==false,faith:id!=='faith'&&c.faith!==false,faithShare:Number.isFinite(c.faithShare)?c.faithShare:GRADE_FAITH_SHARE};};
 function gradePeriod(state,today,period,range){
-  const prog=(()=>{const s=state.prefs?.goalsV2?.startDate;return validCalendarDate(s)&&s<=today?s:GRADE_PROGRAM_START;})();
+  const prog=programStartOf(state,today);   // V3.6 S5: the one Program start (V36-I17)
   let from=today,to=today;
   if(period==='week')from=weekStartOf(today,state.prefs&&state.prefs.weekStart===0?0:1);
   else if(period==='month')from=today.slice(0,8)+'01';
@@ -1100,12 +1317,16 @@ function gradePeriod(state,today,period,range){
 }
 // The rows a grade reads: every leaf due in the window, with its done share. Weekly targets are one row each, pro-rated.
 function gradeRows(state,from,to){
-  const share=(r,d)=>{if(r.status!=='done'||typeof v5Rule!=='function')return r.status==='done'?1:0;const t=v5Rule(state,d),series=t&&state.series.find(x=>x.id===r.seriesId);if(!series||!v5Kind(versionFor(series,d)))return 1;const m=v5Inputs(state,series,state.occurrences[occKey(r.seriesId,d)]||{seriesId:r.seriesId,date:d},t);return m?m.credit.n/m.credit.d:1;};
-  const items=new Map(),goals=new Map(),span=calendarDistance(from,to)+1;
+  const share=(r,d)=>{if(r.status==='partial')return .5;   /* V3.6 I2 (V36-I19): half credit, as Rank history counted it */
+    if(r.status!=='done'||typeof v5Rule!=='function')return r.status==='done'?1:0;const t=v5Rule(state,d),series=t&&state.series.find(x=>x.id===r.seriesId);if(!series||!v5Kind(versionFor(series,d)))return 1;const m=v5Inputs(state,series,state.occurrences[occKey(r.seriesId,d)]||{seriesId:r.seriesId,date:d},t);return m?m.credit.n/m.credit.d:1;};
+  const items=new Map(),goals=new Map(),span=calendarDistance(from,to)+1,goalMemo={};
   for(let d=from;d<=to;d=addDays(d,1))for(const r of allRows(planFor(state,d))){
     if(r.children&&r.children.length)continue;
     const gid=r.category||r.group||null,series=state.series.find(x=>x.id===r.seriesId),rec=series&&versionFor(series,d)?.recurrence;
-    if(rec&&rec.kind==='target'&&rec.count>0){const g=goals.get(r.seriesId)||{seriesId:r.seriesId,name:r.name,gid,count:rec.count,weeks:rec.weeks||1,done:0};if(r.status==='done')g.done++;goals.set(r.seriesId,g);continue;}
+    // V3.6 M3: an amount, count or reading goal counts once per its window (1/L a day over a window of L days), paid the
+    // credit it holds at the latest day of the window inside the graded range; a check goal stays occurrence-based.
+    const gv=series&&versionFor(series,d);if(GoalEngine.windowed(gv)&&!r.optional){const sh=GoalEngine.gradeShare(state,series,gv,d,to,goalMemo);const it=items.get(r.seriesId)||{seriesId:r.seriesId,name:r.name,gid,planned:0,done:0,goal:true};it.planned+=sh.planned;it.done+=sh.done;items.set(r.seriesId,it);continue;}
+    if(rec&&rec.kind==='target'&&rec.count>0){const g=goals.get(r.seriesId)||{seriesId:r.seriesId,name:r.name,gid,count:rec.count,weeks:rec.weeks||1,done:0};if(r.status==='done')g.done++;else if(r.status==='partial')g.done+=.5;goals.set(r.seriesId,g);continue;}
     if(r.optional)continue;
     const it=items.get(r.seriesId)||{seriesId:r.seriesId,name:r.name,gid,planned:0,done:0};it.planned++;it.done+=share(r,d);items.set(r.seriesId,it);
   }
@@ -1119,7 +1340,11 @@ const gradeMean=list=>{let w=0,s=0;for(const x of list)if(x.score!==null&&x.incl
 /* umbrellaGradeReport(state, today, period, range): {from, to, overall, letter, umbrellas:[{id, name, own, displayed, faithOn,
    faithShare, importance, included, share (of the Overall, %), groups:[{gid, name, score, importance, included,
    items:[…]}]}], unassigned:[items], counted, listed, due}. Percentages are 0–100. */
-function umbrellaGradeReport(state,today,period,range){
+/* V3.6 R5 (ASSUMED A34): a measured contributor, such as the Nutrition Grade, joins its umbrella as a group whose score the
+   page supplies ({health:[{id, name, score}]}); its include and importance live under gradeConfig.groups['measured:<id>'],
+   which an earlier build reads as an unknown group and ignores. It is off until he turns it on, so the Overall does not
+   move on release day. */
+function umbrellaGradeReport(state,today,period,range,measured){
   const {from,to,program}=gradePeriod(state,today,period||'day',range),cfg=gradeConfig(state),rows=gradeRows(state,from,to);
   const groupName=gid=>((state.groups||[]).find(g=>g.id===gid)||{}).name||gid||'No card';
   const item=r=>{const c=cfg.items[r.seriesId]||{};return {...r,score:r.planned?100*Math.min(1,r.done/r.planned):null,importance:Number.isFinite(c.importance)?c.importance:GRADE_ITEM_IMPORTANCE,included:c.included!==false};};
@@ -1127,6 +1352,7 @@ function umbrellaGradeReport(state,today,period,range){
     const set=gradeUmbrellaSettings(cfg,u.id),byGroup=new Map();
     for(const r of rows){if(gradeGroupUmbrella(state,r.gid)!==u.id)continue;if(!byGroup.has(r.gid))byGroup.set(r.gid,[]);byGroup.get(r.gid).push(item(r));}
     const groups=[...byGroup].map(([gid,list])=>{const c=cfg.groups[gid]||{};return {gid,name:groupName(gid),items:list,score:gradeMean(list),importance:Number.isFinite(c.importance)?c.importance:GRADE_GROUP_IMPORTANCE,included:c.included!==false};});
+    for(const m of (measured&&measured[u.id])||[]){const gid='measured:'+m.id,c=cfg.groups[gid]||{};groups.push({gid,name:m.name,items:[],score:Number.isFinite(m.score)?m.score:null,importance:Number.isFinite(c.importance)?c.importance:GRADE_GROUP_IMPORTANCE,included:c.included===true,measured:true,note:m.note||''});}
     return {id:u.id,name:u.name,emoji:u.emoji,groups,own:gradeMean(groups),importance:set.importance,included:set.included,faithOn:set.faith,faithShare:set.faithShare};
   });
   const faith=umbrellas.find(u=>u.id==='faith').own;
@@ -1890,10 +2116,12 @@ function checkpointsOf(state){const g=goalsV2(state),main={id:'main',name:'Goal 
 function nextCheckpoint(state,today){const t=today||todayYmd();return checkpointsOf(state).find(c=>c.date>=t)||null;}
 /* Where the plan says his weight should be on a date: a straight line from the start to the goal. */
 function weightPaceLb(state,date){const g=goalsV2(state),goalDate=validCalendarDate(state.prefs?.checkpoint)?state.prefs.checkpoint:g.goalDate;if(!g.startDate||!Number.isFinite(g.startWeightLb)||!Number.isFinite(g.weightLb.jan7)||!validCalendarDate(goalDate))return null;const span=calendarDistance(g.startDate,goalDate),at=Math.max(0,Math.min(span,calendarDistance(g.startDate,date)));return span>0?g.startWeightLb+(g.weightLb.jan7-g.startWeightLb)*at/span:g.weightLb.jan7;}
-function latestWeightLb(state,before){
+function latestWeightLb(state,before){const rows=weightRowsLb(state,before);return rows.length?rows[rows.length-1]:null;}
+// Every weigh-in in pounds (imported rows and his own entries), oldest first; `before` keeps those on or before a day.
+function weightRowsLb(state,before){
   const rows=[];for(const r of haeRowsFor(state,['weight_body_mass','weight_&_body_mass'])){const m=r.unmapped?.healthAutoExport;if(!m||!['weight_body_mass','weight_&_body_mass'].includes(m.metric)||!Number.isFinite(r.value)||(r.clashes||[]).length)continue;const lb=r.unit==='kg'?r.value/0.45359237:r.unit==='lb'||r.unit==='lbs'?r.value:null;if(lb===null)continue;const d=sourceLocalDay(r.start);if(!before||d<=before)rows.push({date:d,lb});}
   for(const [d,o] of Object.entries(state.observations||{}))if(o&&Number.isFinite(o.weight)&&(!before||d<=before))rows.push({date:d,lb:(o.weightUnit||state.prefs?.units)==='kg'?o.weight/0.45359237:o.weight});
-  rows.sort((a,b)=>a.date.localeCompare(b.date));return rows.length?rows[rows.length-1]:null;
+  rows.sort((a,b)=>a.date.localeCompare(b.date));return rows;
 }
 function weightTrend(state,today){
   const t=today||todayYmd(),g=goalsV2(state),now=latestWeightLb(state,t);if(!now)return null;
@@ -1909,6 +2137,68 @@ function deficitSuggestion(state,today){
   const daily=g.deficit.daily,next=tr.vsPace>1?Math.min(1100,daily+100):tr.vsPace<-2?Math.max(500,daily-100):daily;
   return next===daily?null:{week,from:daily,to:next,vsPace:tr.vsPace,reason:tr.vsPace>1?'behind':'ahead'};
 }
+/* V3.6 S5 (V36-I17): one Program start for every reader (the grade's All, Fitness Trends, Fuel, Sleep Credit). */
+// review F5: Settings writes prefs.programStart (its own value; goalsV2.startDate is also the weight plan's start), read first
+function programStartOf(state,today){const t=today||todayYmd(),p=state.prefs?.programStart,s=state.prefs?.goalsV2?.startDate;return validCalendarDate(p)&&p<=t?p:validCalendarDate(s)&&s<=t?s:GRADE_PROGRAM_START;}
+/* V3.6 N1 to N3 (Mintay, Oct 2 and 3): ONE Net Energy convention. net = food minus burn; a deficit is negative.
+   The goal is stored once and positive (goalsV2.deficit.daily, so V3.5 and older read it unchanged) and is read
+   negative through goal(); "on track" is its own named threshold. A day counts in a net figure only with a full
+   record (food, resting and active energy); otherwise it names the missing input. */
+const NET_KCAL_PER_LB=3500;
+const NetEnergy={
+  goal(state){const d=goalsV2(state).deficit;return -Math.abs(Number(d.daily)||GOAL_DEFAULTS_V2.deficit.daily);},
+  onTrack(state){const d=goalsV2(state).deficit;return -Math.abs(Number(d.onTrack)||GOAL_DEFAULTS_V2.deficit.onTrack);},
+  // One day as every surface reads it. `missing` names the inputs a full record lacks, in his words.
+  day(state,date,eb){
+    const e=eb||Workspace.energyBalance(state,date)||{},typedBurn=!!(e.typed&&e.typed.burn);
+    const food=Number.isFinite(e.food)?e.food:null,burn=Number.isFinite(e.burn)?e.burn:null;
+    const missing=[food===null||food<=0?'food':null,typedBurn?null:!(e.resting>0)?'resting':null,typedBurn?null:!(e.active>0)?'active':null,typedBurn&&!(burn>0)?'burn':null].filter(Boolean);
+    const full=!missing.length&&e.complete!==false&&burn!==null;
+    return {date,food,burn,resting:Number.isFinite(e.resting)?e.resting:null,active:Number.isFinite(e.active)?e.active:null,net:full?food-burn:null,full,missing,typed:!!e.typed};
+  },
+  missingText(missing){const w={food:'no food logged',resting:'no resting energy',active:'no active energy',burn:'no burn'};return (missing||[]).length===3?'no data':(missing||[]).map(k=>w[k]).join(', ');},
+  // Days from..to (inclusive) with their records, the total and average of the full days, and pounds at 3,500 kcal.
+  summary(state,from,to){
+    const bal=Workspace.energyBalances(state,from,to),days=[];for(let d=from;d<=to;d=addDays(d,1))days.push(NetEnergy.day(state,d,bal.get(d)));
+    // The average is the mean of the displayed (rounded) daily nets, rounded once more at display (the Learn rule).
+    const ok=days.filter(x=>x.full),total=ok.reduce((n,x)=>n+x.net,0);
+    return {from,to,days,logged:ok.length,of:days.length,total,avg:ok.length?ok.reduce((n,x)=>n+Math.round(x.net),0)/ok.length:null,pounds:total/NET_KCAL_PER_LB,burn:ok.length?ok.reduce((n,x)=>n+x.burn,0)/ok.length:null,food:ok.length?ok.reduce((n,x)=>n+x.food,0)/ok.length:null,missing:days.filter(x=>!x.full)};
+  },
+  // Trailing windows ending on `day` (A30): Day = that day, Week = 7 days, Month = 30 days, All = Program start.
+  window(state,period,day,range){const t=day||todayYmd();if(period==='custom'&&range&&validCalendarDate(range.from)&&validCalendarDate(range.to)){const a=range.from<range.to?range.from:range.to,b=range.from<range.to?range.to:range.from;return {from:a,to:b>t?t:b};}
+    const from=period==='week'?addDays(t,-6):period==='month'?addDays(t,-29):period==='all'?programStartOf(state,t):t;return {from:from>t?t:from,to:t};},
+  // The net used by the weight estimate (his rule, Oct 3): an unlogged day counts as food 0; a day without resting or
+  // active energy is not food 0, so it is skipped and named (ASSUMED A3); today counts once it has a full record.
+  estimateDays(state,from,to,today){
+    const t=today||todayYmd(),bal=Workspace.energyBalances(state,from,to),used=[],skipped=[];let net=0,zeroFood=0,logged=0;
+    for(let d=from;d<=to;d=addDays(d,1)){const x=NetEnergy.day(state,d,bal.get(d));
+      if(d>=t&&!x.full)continue;
+      if(x.burn===null||x.missing.some(k=>k!=='food')){skipped.push({date:d,missing:x.missing});continue;}
+      const food=x.missing.includes('food')?0:x.food;if(food===0)zeroFood++;if(x.full)logged++;net+=food-x.burn;used.push(d);}
+    return {net,used,skipped,zeroFood,logged,of:used.length+skipped.length};
+  },
+  /* N3: last weigh-in + the sum of (food - resting - active) over every day since, divided by 3,500. No range. */
+  weightEstimate(state,asOf){
+    const t=asOf||todayYmd(),w=latestWeightLb(state,t);if(!w)return null;
+    const x=NetEnergy.estimateDays(state,w.date,t,todayYmd());
+    return {point:w.lb+x.net/NET_KCAL_PER_LB,from:w.lb,since:w.date,net:x.net,logged:x.logged,of:x.of,zeroFood:x.zeroFood,skipped:x.skipped,used:x.used.length};
+  },
+  /* N8 (ASSUMED A6): the daily deficit the scale implies between two days at least 10 days apart, from the mean of the
+     weigh-ins in the 7 days ending at each end (a light smoothing); null without a reading at both ends. */
+  scaleDeficit(state,from,to){
+    if(calendarDistance(from,to)<10)return null;const rows=weightRowsLb(state,to),at=d=>{const v=rows.filter(r=>r.date<=d&&r.date>addDays(d,-7)).map(r=>r.lb);return v.length?v.reduce((n,x)=>n+x,0)/v.length:null;};
+    const a=at(from),b=at(to);if(a===null||b===null)return null;return {deficit:-(b-a)*NET_KCAL_PER_LB/calendarDistance(from,to),from,to,startLb:a,endLb:b};
+  },
+  /* N3: the logging gap = scale minus estimate, from the weigh-in before the last to the last one. A scale above the
+     estimate means food was not logged; below, more was burned than recorded or food was logged twice. */
+  loggingGap(state,asOf){
+    const t=asOf||todayYmd(),w=latestWeightLb(state,t);if(!w)return null;const p=latestWeightLb(state,addDays(w.date,-1));if(!p)return null;
+    const x=NetEnergy.estimateDays(state,p.date,addDays(w.date,-1),todayYmd()),est=p.lb+x.net/NET_KCAL_PER_LB,diff=w.lb-est,a=Math.abs(diff);
+    const level=a<.5?'Aligned':a<1.2?'Watch':'Big gap';   // ASSUMED A7: the Draft's words and 0 to 2 lb meter, a display choice
+    const sentence=a<.05?'The scale matches the estimate':'Scale is '+a.toFixed(1)+' lb '+(diff>0?'above the estimate: probably food you did not log':'below the estimate: more burned than recorded, or food logged twice');
+    return {est,measured:w.lb,diff,abs:a,level,sentence,from:p.date,to:w.date,fromWeight:p.lb,logged:x.logged,of:x.of,skipped:x.skipped,max:2};
+  }
+};
 /* The newest reading per metric from every imported row, in the metric's canonical unit, with its
    own date. Rows dated before the feed's start are shadowed for scoring, not for "what is my latest
    weight": Whole Body, Measured Fitness and Vitals read this (V1.12). Rows with an open clash are
@@ -1937,6 +2227,58 @@ function importedNutrition(state,date){
   const out={};for(const r of relayedRecords(state,'other')){const metric=r.unmapped?.healthAutoExport?.metric;if(!metric||sourceLocalDay(r.start)!==date||!Number.isFinite(r.value)||(r.clashes||[]).length)continue;if(['dietary_energy','protein','carbohydrates','total_fat','dietary_water','dietary_sugar','alcohol_consumption','caffeine'].includes(metric))out[metric]={value:(out[metric]?.value||0)+r.value,unit:r.unit,source:r.sourceApp};}
   return out;
 }
+/* V3.6 R3 (draft for Block 6; goes into health-domain.js next to importedNutrition): the day's nutrient totals in the
+   adapter's canonical units (g, mg, mcg). The relay projection already pools a day's writers for the metrics
+   POOLED_SUMS names; R3 adds MUFA, PUFA, potassium, calcium, iron, magnesium, zinc and the vitamins to that set so a
+   two-writer day sums each nutrient the way it sums dietary energy (one food log per app, the kcal denominator and the
+   nutrient numerator from the same rows), and the same row delivered twice still counts once (row ids). A metric
+   absent, zero or held (an unresolved revision) is "not reported", never 0 intake. */
+const NUTRIENT_KEYS={kcal:'dietary_energy',protein:'protein',carbs:'carbohydrates',fat:'total_fat',sat:'saturated_fat',mufa:'monounsaturated_fat',pufa:'polyunsaturated_fat',
+  fibre:'fiber',sugar:'dietary_sugar',sodium:'sodium',potassium:'potassium',calcium:'calcium',fe:'iron',mg:'magnesium',zn:'zinc',vitA:'vitamin_a',vitC:'vitamin_c',
+  vitD:'vitamin_d',vitE:'vitamin_e',vitK:'vitamin_k',b6:'vitamin_b6',b12:'vitamin_b12',cholesterol:'cholesterol',caffeine:'caffeine',water:'dietary_water'};
+function nutrientDays(state){return rowMemo(state,'nutrient-days',()=>{
+  const H=globalThis.HealthAutoExport,out=new Map(),seen=new Set();
+  const key=Object.fromEntries(Object.entries(NUTRIENT_KEYS).map(([k,m])=>[m,k]));
+  for(const r of relayedRecords(state,'other')){const m=r.unmapped&&r.unmapped.healthAutoExport;if(!m||!key[m.metric]||!Number.isFinite(r.value)||(r.clashes||[]).length||seen.has(r.id))continue;seen.add(r.id);
+    const def=H&&H.metric?H.metric(m.metric):null,f=def&&def.units?def.units[r.unit]:1;if(!Number.isFinite(f))continue;   // a unit the adapter does not declare is not read (R3: mcg vs IU)
+    const d=sourceLocalDay(r.start),x=out.get(d)||{date:d};x[key[m.metric]]=(x[key[m.metric]]||0)+r.value*f;out.set(d,x);}
+  return out;});}
+function nutrientTotals(state,date){const x=nutrientDays(state).get(date);return x?{...x}:{date};}
+/* V3.6 P9: What Helps Me. For each habit (a series) with 60 or more resolved days in the window (due and either done or
+   not), the next morning's readings after kept days are compared with those after missed days. A row is drawn only when
+   the difference is clear (|t| of 2 or more with 15 or more mornings each side); three dots at |t| 3 and an effect of half
+   a standard deviation, two otherwise. A habit kept mostly on one weekday carries a "Weekday caution": the morning after
+   may reflect the weekday, not the habit. Pure: readings(metric) -> Map(date -> value) is supplied by the page. It is an
+   association on his own record, never a cause (ASSUMED A37: his OK is owed before a counts-only look at his habits). */
+const WHAT_HELPS={minDays:60,minEach:15,metrics:[['readiness','Readiness',1],['hrv','HRV',1],['rhr','Resting heart rate',-1],['sleep','Sleep',1]]};
+function whatHelps(state,from,to,readings){
+  const rows=[],short=[],mean=a=>a.reduce((n,v)=>n+v,0)/a.length,vari=(a,m)=>a.reduce((n,v)=>n+(v-m)*(v-m),0)/Math.max(1,a.length-1);
+  const R=Object.fromEntries(WHAT_HELPS.metrics.map(([k])=>[k,(readings&&readings(k))||new Map()])),memo={};
+  for(const series of state.series||[]){
+    if(series.demo||series.archivedAt&&series.archivedAt<=from)continue;
+    const kept=[],missed=[];
+    for(let d=from;d<=to;d=addDays(d,1)){const v=versionFor(series,d);if(!v||v.childIds||!GoalEngine.dueFor(state,series,v,d,memo))continue;const o=state.occurrences[occKey(series.id,d)];if(o&&o.status==='done')kept.push(d);else if(!o||!o.status||o.status==='skipped')missed.push(d);}
+    const n=kept.length+missed.length,name=(latestVersion(series)||{}).name||'Habit';
+    if(n<WHAT_HELPS.minDays){if(n>0)short.push({seriesId:series.id,name,days:n});continue;}
+    const wd=Array(7).fill(0);kept.forEach(d=>wd[dow(d)]++);const top=Math.max(...wd),caution=kept.length>=7&&top/kept.length>=.6?dow(kept.find(d=>wd[dow(d)]===top)):null;
+    for(const [k,label,better] of WHAT_HELPS.metrics){
+      const a=kept.map(d=>R[k].get(addDays(d,1))).filter(Number.isFinite),b=missed.map(d=>R[k].get(addDays(d,1))).filter(Number.isFinite);
+      if(a.length<WHAT_HELPS.minEach||b.length<WHAT_HELPS.minEach)continue;
+      const ma=mean(a),mb=mean(b),va=vari(a,ma),vb=vari(b,mb),se=Math.sqrt(va/a.length+vb/b.length),sd=Math.sqrt((va+vb)/2),diff=ma-mb;
+      if(!(se>0)||!(sd>0))continue;const t=diff/se,eff=diff/sd;if(Math.abs(t)<2)continue;
+      rows.push({seriesId:series.id,name,metric:k,label,diff,effect:eff,t,dots:Math.abs(t)>=3&&Math.abs(eff)>=.5?3:2,helps:diff*better>0,kept:a.length,missed:b.length,days:n,caution});
+    }
+  }
+  rows.sort((x,y)=>Math.abs(y.effect)-Math.abs(x.effect));
+  return {rows,short:short.sort((x,y)=>y.days-x.days),minDays:WHAT_HELPS.minDays};
+}
+/* V3.6 R7: one rule for a graded food day, read by the Fitness Grade's protein and the Nutrition Grade alike: the day's
+   food energy (NetEnergy.day, the figure Net Fuel uses) is at least 800 kcal. A no-food day is never a zero: the weight
+   estimate counts it at food 0 (N3), Net Fuel, protein and the Nutrition Grade skip it. */
+const FOOD_GRADED_KCAL=800;
+function foodGraded(state,date,eb){const x=NetEnergy.day(state,date,eb);return Number.isFinite(x.food)&&x.food>=FOOD_GRADED_KCAL;}
+// The Nutrition Grade's day: the food energy of that rule and the nutrients of the reader (closed days only).
+function nutritionDay(state,date,eb){const n=nutrientTotals(state,date),x=NetEnergy.day(state,date,eb);return {...n,date,kcal:Number.isFinite(x.food)?x.food:null};}
 function relayedRecords(state,kind){const projected=sourceProjection(state);return (projected?projected.records:(state.sourceRecords||[]).filter(r=>sourceIsActive(state,r.id,r))).filter(r=>!kind||r.kind===kind).sort((a,b)=>Date.parse(b.start)-Date.parse(a.start));}
 function relaySourceMatches(id, record){
   const app = String(record.sourceApp || '');
@@ -2466,6 +2808,8 @@ function validateState(x){
       if (!v || typeof v.version !== 'number' || typeof v.effectiveFrom !== 'string' || typeof v.name !== 'string') return 'A routine version is malformed.';
     }
   }
+  for (const s of x.series) for (const v of s.versions){ const e = typeof GoalEngine !== 'undefined' ? GoalEngine.validate(v.goal) : null; if (e) return e; }   // V3.6 M1
+  { const e = typeof GoalEngine !== 'undefined' ? GoalEngine.validateEntries(x.goalEntries) : null; if (e) return e; }
   if (!x.occurrences || typeof x.occurrences !== 'object' || Array.isArray(x.occurrences)) return 'The record has no occurrence map.';
   for (const [k, o] of Object.entries(x.occurrences)){
     if (!o || typeof o.seriesId !== 'string' || typeof o.date !== 'string' || occKey(o.seriesId, o.date) !== k) return 'An occurrence is malformed.';
@@ -2962,6 +3306,7 @@ function mergeState(cur, inc){
   c.importReceipts = 0;
   for (const r of inc.importReceipts) if (!cur.importReceipts.some(x => x.id === r.id)){ cur.importReceipts.push(JSON.parse(JSON.stringify(r))); c.importReceipts++; }
   if (typeof mergeJournals === 'function') c.journal = mergeJournals(cur,inc);
+  { let n = 0; for (const [sid, list] of Object.entries(inc.goalEntries || {})){ if (!Array.isArray(list)) continue; cur.goalEntries = cur.goalEntries || {}; const mine = cur.goalEntries[sid] = cur.goalEntries[sid] || []; for (const e of list) if (e && e.id && !mine.some(x => x.id === e.id)){ mine.push(JSON.parse(JSON.stringify(e))); n++; } } if (n) c.goalEntries = n; }   // V3.6 M1: hand entries merge by id
   for (const g of inc.groups){
     const i = cur.groups.findIndex(x => x.id === g.id);
     if (i < 0){ cur.groups.push(JSON.parse(JSON.stringify(g))); c.groups++; }
@@ -3256,7 +3601,8 @@ function planForUncached(state,date){
     if(series.archivedAt&&series.archivedAt<=date)continue;
     const v=versionFor(series,date);if(!v)continue;
     const o=state.occurrences[occKey(series.id,date)]||null;if(o?.removed)continue;
-    if(!scheduledOn(v,date)&&!(o&&(o.added||o.status!==null||o.committed))&&!v.childIds)continue;
+    const due=GoalEngine.dueFor(state,series,v,date);   // V3.6 M2: one due rule (scheduledOn, after, a done deadline)
+    if(!due&&!(o&&(o.added||o.status!==null||o.committed))&&!v.childIds)continue;
     const ov=o?.override||{},variant=recurrenceVariant(v,date),normal=ov.normal||variant?.normal||v.normal,minimum=ov.minimum||variant?.minimum||v.minimum,selected=o?o.selected:'normal';
     rows.push({key:occKey(series.id,date),seriesId:series.id,date,name:ov.name||wsDayName(v,date),category:v.category||series.category,anchor:ov.anchor||v.anchor,window:ov.window!==undefined?ov.window:v.window||'',order:ov.order??v.order,version:v.version,demo:!!series.demo,targets:{normal,minimum},selected,target:selected==='minimum'?minimum:normal,status:o&&o.status==='done'&&confirmedProgression(state)&&!actionConfirmation(state,o).confirmed?'tentative':o?o.status:null,confirmation:o?.aliasOf?'Same action · linked in Log':o?actionConfirmation(state,o).label:'No entry',completedVersion:o?.completedVersion||null,actualMinutes:o?.actualMinutes??null,note:o?.note||'',corrections:o?.corrections?.length||0,added:!!o?.added,addedFrom:o?.addedFrom||null,overridden:!!o?.override,aliasOf:o?.aliasOf||null,optional:!!v.optional,once:v.recurrence?.kind==='once',group:wsGroup(series,date),parentId:wsHas(ov,'parentId')?ov.parentId:parentFor(series,date),childIds:v.childIds||null,session:v.recurrence?.session||'',variant:variant?.label||'',recurrence:v.recurrence,matching:v.matching||null,targetProgress:null,workspaceKind:wsKind(series,date),budgetQ:v.budgetQ??null,occurrence:o});
   }
@@ -3595,11 +3941,12 @@ function wsAutoEvidence(state,options={}){
    alone. The check is his own confirmation made by the data (`auto`), so his later edit still wins. */
 function wsAutoDeficit(state,series,date,v,today){
   // 7.2: the day itself only. The sweep walks the last week, and a past day's record never moves (P2-13).
-  if(date!==(today||todayYmd()))return null;
+  // V3.6 N7 (ASSUMED A5): also yesterday, once, when its food synced after midnight; two or more days back never changes.
+  const t0=today||todayYmd();if(date!==t0&&date!==addDays(t0,-1))return null;
   if(series.demo||(series.archivedAt&&series.archivedAt<=date)||!scheduledOn(v,date))return null;
   const o=state.occurrences[occKey(series.id,date)];if(o&&(o.status||o.removed||o.disposition||o.autoDeclined))return null;
   const eb=Workspace.energyBalance(state,date);if(!eb||!eb.complete)return null;
-  const need=Number(v.matching.onTrack)||Number(v.matching.target)||0;if(-eb.balance<need)return null;
+  const need=-NetEnergy.onTrack(state);if(-eb.balance<need)return null;   // V3.6 N1: the one stored threshold, not the series' copy
   const r=confirmAction(state,series.id,date,{});if(!r.ok||!r.occurrence)return null;
   r.occurrence.confirmation={...r.occurrence.confirmation,made:'data',deficit:Math.round(-eb.balance)};   // a data-made confirmation: not a source record (`auto` means source-linked to V3.2.2), not self-reported
   return {seriesId:series.id,date,name:v.name,sourceIds:[],minutes:null};
@@ -3835,7 +4182,8 @@ function wsPerfectVerdict(state,date){
   const workout=wsWorkoutTarget(state,date),rows=flatPlanFor(state,date).filter(r=>!r.demo&&wsPerfectIncluded(state,r,date)&&!(workout&&['cardio','strength'].includes(r.workspaceKind)));   // from its start the Workout ring stands for Cardio and Strength (Q10)
   const rings=wsRings(state,date,wsPerfectPolicy(state,date)?{includeRow:r=>wsPerfectIncluded(state,r,date)}:{});
   const items=rows.map(r=>{const o=state.occurrences[r.key]||{},q=r.targetProgress,parent=r.parentId&&state.series.find(s=>s.id===r.parentId),name=parent&&versionFor(parent,date)?.name;
-    return {id:r.seriesId,name:(name?name+' · ':'')+r.name,fitness:wsPerfectFitness(r),done:r.status==='done',neutral:o.disposition==='excused'||o.disposition==='rest',optional:!!r.optional,quota:q?{from:q.from,to:q.to,target:q.target,count:q.count,left:wsQuotaChances(state,r.seriesId,date,q.to)}:null};});
+    const gv=(state.series.find(x=>x.id===r.seriesId)||null),gver=gv&&versionFor(gv,date),gp=GoalEngine.windowed(gver)?GoalEngine.progress(state,gv,date,goalReadings):null,dl=gp&&gver.goal.measure.kind==='check'&&gver.goal.when.kind==='deadline'&&!gp.met&&date<gver.goal.when.date;   // V3.6 M3: a goal counts when met (a limit while it holds, review F6, F7); a deadline check is neutral until its day (F2)
+    return {id:r.seriesId,name:(name?name+' · ':'')+r.name,fitness:wsPerfectFitness(r),done:gp?gp.met:r.status==='done',neutral:dl||o.disposition==='excused'||o.disposition==='rest',optional:!!r.optional,quota:q?{from:q.from,to:q.to,target:q.target,count:q.count,left:wsQuotaChances(state,r.seriesId,date,q.to)}:null};});
   const ring=r=>r?{applicable:!!r.applicable&&!rings.noTargets,closed:!!r.closed,label:(r.label||'Ring')+' ring'}:null;
   return PerfectVerdicts.day({date,items,rings:rings.workout?{cardio:{applicable:true,closed:rings.workout.closed,label:'Workout ring'},strength:null}:{cardio:ring(rings.cardio),strength:ring(rings.strength)}});
 }
@@ -4419,14 +4767,22 @@ function energyDeficitPoints(deficit){if(!Number.isFinite(deficit))return 0;for(
 /* One day's energy records in projection order; the range reader (V2.0 Fitness) buckets them in one pass. */
 const WS_ENERGY_KINDS=['dietaryEnergy','restingEnergy','activeEnergy'],WS_ENERGY_METRICS=['dietary_energy','basal_energy_burned'];
 function wsEnergyRecord(r){return WS_ENERGY_KINDS.includes(r.kind)||WS_ENERGY_METRICS.includes(r.unmapped?.healthAutoExport?.metric);}
+// V3.6: the energy rows by day, kept per committed row set (rowMemo), so a draw that reads Net Energy several times (Fuel,
+// the estimate, the gap, the item bar) filters and sorts the source rows once, not once per read.
+function wsEnergyByDay(state){return rowMemo(state,'energy-by-day',()=>{const m=new Map();for(const r of relayedRecords(state)){if(!wsEnergyRecord(r))continue;const d=sourceLocalDay(r.start);if(!m.has(d))m.set(d,[]);m.get(d).push(r);}return m;});}
 Workspace.energyBalances=function(state,from,to){
-  const byDay=new Map(),out=new Map();
-  for(const r of relayedRecords(state)){if(!wsEnergyRecord(r))continue;const d=sourceLocalDay(r.start);if(d<from||d>to)continue;if(!byDay.has(d))byDay.set(d,[]);byDay.get(d).push(r);}
+  const byDay=wsEnergyByDay(state),out=new Map();
   for(let d=from;d<=to;d=addDays(d,1))out.set(d,Workspace.energyBalance(state,d,byDay.get(d)||[]));
   return out;
 };
+// V3.6 F1 timing: within one screen draw (withDrawMemo) a day's balance is worked out once; V3.6 reads the same days from
+// several places (Fuel, the Net Energy summary, the estimate, the gap, Nutrition), and each read hashed the day's rows again.
 Workspace.energyBalance=function(state,date,dayRecords){
-  const day=dayRecords||relayedRecords(state).filter(r=>sourceLocalDay(r.start)===date&&wsEnergyRecord(r));
+  if(drawMemo&&drawMemo.state===state){const m=drawMemo.eb||(drawMemo.eb=new Map());if(!m.has(date))m.set(date,wsEnergyBalanceOf(state,date,dayRecords));return m.get(date);}
+  return wsEnergyBalanceOf(state,date,dayRecords);
+};
+function wsEnergyBalanceOf(state,date,dayRecords){
+  const day=dayRecords||wsEnergyByDay(state).get(date)||[];
   // Imported food and resting energy arrive as kind 'other' named by metric (V1.12), so each side
   // reads its own kind and its metric; the day's projected total is one record.
   const source=(kind,metric)=>{const records=day.filter(r=>r.kind===kind||(metric&&r.kind==='other'&&r.unmapped?.healthAutoExport?.metric===metric)).filter(r=>!r.clashes?.length&&r.unit==='kcal'&&Number.isFinite(r.value)&&r.value>=0);const signatures=new Map();for(const record of records){const key=JSON.stringify([record.sourceRecordId||null,record.sourceApp,record.start,record.end,record.value]);if(!signatures.has(key))signatures.set(key,record);}const distinct=[...signatures.values()];if(new Set(distinct.map(r=>r.sourceApp)).size>1)return null;if(distinct.some((r,i)=>distinct.slice(0,i).some(other=>evidenceOverlaps(r,other))))return null;return distinct.length?distinct.reduce((n,r)=>n+r.value,0):null;};
@@ -4441,7 +4797,7 @@ Workspace.energyBalance=function(state,date,dayRecords){
   // V3.3 Phase 2 (7.2): complete once food, resting and active energy are all there (live on the day itself); a reviewed
   // coverage that a source correction has since invalidated keeps the day provisional.
   const complete=available&&[food,resting,active].every(v=>v>0)&&(!coverage.signature||coverage.signature===signature);
-  return {date,food,resting,active,burn:burnData,signature,balance:available?food-resting-active:null,available,provisional:!reviewed,complete,reviewed,scoring:false,unit:'kcal',foodSource:food===null?null:!foods.length?'imported':replaceDay||importedFood===null?'logged':'logged+imported',note:mixedFood?'A logged food has no calories, so the day\'s food is unknown.':overridden?'Your logged food replaces the imported total for this day.':reviewed?'Explicitly reviewed coverage; workouts are already included in active energy.':'Coverage is incomplete or unverified. Missing values stay unavailable; no deficit award.'};
+  return {date,food,resting,active,burn:burnData,signature,balance:available?food-resting-active:null,available,provisional:date>=todayYmd(),complete,reviewed,scoring:false,unit:'kcal',foodSource:food===null?null:!foods.length?'imported':replaceDay||importedFood===null?'logged':'logged+imported',note:mixedFood?'A logged food has no calories, so the day\'s food is unknown.':overridden?'Your logged food replaces the imported total for this day.':reviewed?'Explicitly reviewed coverage; workouts are already included in active energy.':'Coverage is incomplete or unverified. Missing values stay unavailable; no deficit award.'};
 };
 Workspace.syntheticPreview=function(date,prefs){
   const state=freshState();state.seeded=true;state.demo=false;state.syntheticWorkspace=true;if(prefs)state.prefs={...state.prefs,...wsClone(prefs)};

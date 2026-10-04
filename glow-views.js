@@ -24,11 +24,20 @@
     const blue=[36,88,160],green=[24,115,75],red=[168,56,67];
     return value<band.lo?mix(blue,green,value/band.lo):value<=band.hi?mix(green,green,0):mix(green,red,(value-band.hi)/band.hi);
   }
+  // V3.6 H4 (decided Sept 30): hours against the sleep need (Settings, 7 h by default) to a hue, interpolated, never an RGB
+  // mix: red at 4 h or more under, orange, yellow, green at 1 h under, blue-green within 30 minutes of the need, blue, then
+  // purple (extra) from 1 h over. Every sleep chart carries the one-line key (sleepKey).
+  const SLEEP_HUE=[[-4,2],[-3,28],[-2,50],[-1,128],[-0.5,165],[0.5,165],[1,272]];
+  function piecewise(stops,x){if(x<=stops[0][0])return stops[0][1];for(let i=1;i<stops.length;i++)if(x<=stops[i][0]){const a=stops[i-1],b=stops[i];return a[1]+(b[1]-a[1])*(x-a[0])/(b[0]-a[0]);}return stops[stops.length-1][1];}
   function sleepColour(minutes,target){
     if(!num(minutes)||!num(target)||target<=0)return tone('neutral');
-    const r=minutes/target,red=[146,46,60],blue=[47,111,195],purple=[121,84,178];
-    return r<=.3?mix([126,36,50],red,r/.3):r<=1?mix(red,blue,(r-.3)/.7):mix(blue,purple,(r-1)/.3);
+    return 'hsl('+Math.round(piecewise(SLEEP_HUE,(minutes-target)/60)*10)/10+' 68% 62%)';
   }
+  function sleepKey(target){
+    const sw=[-4,-3,-2,-1,0,0.75,1].map(h=>'<i style="background:'+sleepColour(target+h*60,target)+'"></i>').join('');
+    return '<p class="sleep-key" data-parity="V36-H4-01" role="img" aria-label="Sleep colours: red at 4 hours or more under your need, orange, yellow, green at 1 hour under, blue-green at the need, blue, purple from 1 hour over"><span>−4 h</span>'+sw+'<span>goal</span><span>+1 h</span></p>';
+  }
+
   function loadGauge(load){
     const b=load&&load.band;if(!b)return '<div class="load-gauge empty" role="img" aria-label="Target band not yet available"></div>';
     const W=560,L=24,R=536,max=Math.max(b.hi*2,load.value*1.08,1),x=v=>L+clamp(v/max,0,1)*(R-L),mid=(b.lo+b.hi)/2;
@@ -221,7 +230,10 @@
     const opt=o||{},axis=opt.axis||null,ref=opt.reference&&num(opt.reference.value)?opt.reference:null,W=opt.width||260,H=opt.height||(axis?120:70),known=values.filter(num);if(!known.length)return '';
     let lo=Math.min(...known,...(ref?[ref.value]:[])),hi=Math.max(...known,...(ref?[ref.value]:[]));if(hi-lo<1e-9){lo-=1;hi+=1;}const pad=(hi-lo)*.15,d0=lo,d1=hi;lo-=pad;hi+=pad;
     const L=axis?38:6,R=axis?10:6,T=axis?14:6,B=axis?22:6;
-    const x=i=>f(values.length===1?(L+W-R)/2:L+i*(W-L-R)/(values.length-1)),y=v=>f(H-B-(v-lo)/(hi-lo)*(H-B-T));
+    // V3.6 H2: with `xs` (a day number for each value) a point sits at its date inside `domain` (default: the first and last
+    // xs), so readings that arrive in clusters look clustered; without it, values are evenly spaced (a daily series).
+    const xs=Array.isArray(opt.xs)&&opt.xs.length===values.length?opt.xs:null,x0=xs?(opt.domain?opt.domain[0]:Math.min(...xs)):0,x1=xs?(opt.domain?opt.domain[1]:Math.max(...xs)):0;
+    const x=i=>f(xs?L+(xs[i]-x0)/((x1-x0)||1)*(W-L-R):values.length===1?(L+W-R)/2:L+i*(W-L-R)/(values.length-1)),y=v=>f(H-B-(v-lo)/(hi-lo)*(H-B-T));
     let d='',pen=false;values.forEach((v,i)=>{if(!num(v)){pen=false;return;}d+=(pen?'L':'M')+x(i)+' '+y(v);pen=true;});
     const last=values.map((v,i)=>[v,i]).filter(p=>num(p[0])).pop();
     let frame='';
@@ -233,7 +245,43 @@
     }
     if(ref)frame+='<line class="ref" x1="'+L+'" x2="'+(W-R)+'" y1="'+y(ref.value)+'" y2="'+y(ref.value)+'" stroke="'+tone(ref.colour||'neutral')+'"/>'+(ref.label?'<text class="axis ref-label" x="'+(W-R)+'" y="'+f(+y(ref.value)-4)+'" text-anchor="end" fill="'+tone(ref.colour||'neutral')+'">'+esc(ref.label)+'</text>':'');
     return '<svg class="spark'+(axis?' with-axis':'')+'" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(opt.label||'Trend')+'">'+frame+'<path d="'+d+'" fill="none" stroke="'+tone(opt.colour||'brass')+'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'+
-      values.map((v,i)=>num(v)?'<circle cx="'+x(i)+'" cy="'+y(v)+'" r="'+(i===last[1]?3.4:1.8)+'" fill="'+tone(opt.colour||'brass')+'"/>':'').join('')+'</svg>';
+      values.map((v,i)=>num(v)?'<circle'+(xs?' data-x="'+xs[i]+'"':'')+' cx="'+x(i)+'" cy="'+y(v)+'" r="'+(i===last[1]?3.4:opt.dots?2.2:1.8)+'" fill="'+tone(opt.colour||'brass')+'"/>':'').join('')+'</svg>';
+  }
+  /* V3.6 H1 (Mintay, Oct 3): THE one line chart. An x axis (the first, a middle and the last date; months for a span over 60
+     days) and a y axis (the min, middle and max in the metric's unit): a few labels, never every number. Every point carries
+     its date and value; the page's one delegated handler (health-tracker.html, `lcPick`) shows the popover (date, value,
+     change from the previous reading, source) and moves an open metric drawer to that day ("On this day"). Pure: a string.
+     o: {points:[{d,v}], domain:[from,to], w, h, unit, digits, colour, band:[lo,hi], hlines:[{v,cls,label}], plan:[{d,v}],
+     metric, source, name, selected, small, fmt:'signed'} */
+  const MON3=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dnum=s=>{const q=String(s).split('-').map(Number);return Date.UTC(q[0],q[1]-1,q[2])/864e5;},dstr=n=>new Date(Math.round(n)*864e5).toISOString().slice(0,10),dlab=s=>MON3[+s.slice(5,7)-1]+' '+(+s.slice(8));
+  function lcNum(v,digits,signed){const t=Math.abs(v)>=1000?Math.round(Math.abs(v)).toLocaleString('en-US'):(digits?Math.abs(v).toFixed(digits):String(Math.round(Math.abs(v))));return (v<0?'−':signed&&v>0?'+':'')+t;}
+  function lineChart(o){
+    const W=o.w||268,H=o.h||132,small=!!o.small,pl=o.pl!=null?o.pl:small?28:34,pr=6,pt=8,pb=small?14:18,digits=o.digits||0,signed=o.fmt==='signed';
+    const all=(o.points||[]).filter(p=>p&&num(p.v)&&/^\d{4}-\d{2}-\d{2}$/.test(p.d)).sort((a,b)=>a.d.localeCompare(b.d));
+    const d0=o.domain?o.domain[0]:all.length?all[0].d:null,d1=o.domain?o.domain[1]:all.length?all[all.length-1].d:null;if(!d0||!d1)return '';
+    const t0=dnum(d0),t1=Math.max(dnum(d1),t0+1),pts=all.filter(p=>dnum(p.d)>=t0&&dnum(p.d)<=t1),plan=(o.plan||[]).filter(p=>num(p.v));
+    const ext=pts.map(p=>p.v).concat(o.band||[],(o.hlines||[]).map(l=>l.v),plan.map(p=>p.v),(o.marks||[]).map(m=>m.v)).filter(num);if(!ext.length)return '';
+    const lo0=Math.min(...ext),hi0=Math.max(...ext),span=(hi0-lo0)||Math.max(1,Math.abs(hi0)*.1),lo=lo0-span*.1,hi=hi0+span*.1;
+    const x=t=>pl+(t-t0)/(t1-t0)*(W-pl-pr),y=v=>pt+(1-(v-lo)/(hi-lo))*(H-pt-pb);
+    const pv=pts.map(p=>p.v),yMin=pv.length?Math.min(...pv):lo0,yMax=pv.length?Math.max(...pv):hi0,ys=yMin===yMax?[yMin]:[yMin,(yMin+yMax)/2,yMax];
+    const col=o.colour||'var(--verd,#79d6a9)';let g='';
+    ys.forEach(v=>{g+='<line class="lc-grid" x1="'+pl+'" x2="'+(W-pr)+'" y1="'+f(y(v))+'" y2="'+f(y(v))+'"/>';});
+    if(o.band&&num(o.band[0])&&num(o.band[1])){const by=y(Math.min(hi,o.band[1])),bh=Math.max(2,y(Math.max(lo,o.band[0]))-by);g+='<rect class="lc-band" x="'+pl+'" y="'+f(by)+'" width="'+(W-pl-pr)+'" height="'+f(bh)+'" rx="6"/>';}
+    (o.hlines||[]).forEach(l=>{g+='<line class="lc-h '+(l.cls||'')+'" data-v="'+l.v+'" x1="'+pl+'" x2="'+(W-pr)+'" y1="'+f(y(l.v))+'" y2="'+f(y(l.v))+'"/>';});
+    if(plan.length>1)g+='<path class="lc-plan"'+(o.planAttrs||'')+' d="'+plan.map((p,i)=>(i?'L':'M')+f(x(dnum(p.d)))+' '+f(y(p.v))).join('')+'"/>';
+    if(pts.length>1)g+='<path class="lc-line" stroke="'+col+'" d="'+pts.map((p,i)=>(i?'L':'M')+f(x(dnum(p.d)))+' '+f(y(p.v))).join('')+'"/>';
+    pts.forEach((p,i)=>{const last=i===pts.length-1;g+='<circle class="'+(last?'lc-last':'lc-pt')+'" data-d="'+p.d+'" data-v="'+p.v+'"'+(p.attrs||'')+' cx="'+f(x(dnum(p.d)))+'" cy="'+f(y(p.v))+'" r="'+(last?(small?3:4.5):(small?1.8:2.4))+'" fill="'+(last?'#ece6d6':col)+'"'+(last?' stroke="'+col+'" stroke-width="2"':'')+'>'+(p.title?'<title>'+esc(p.title)+'</title>':'')+'</circle>';});
+    (o.marks||[]).forEach(m=>{if(num(m.v))g+='<circle class="lc-mark"'+(m.attrs||'')+' cx="'+f(x(dnum(m.d)))+'" cy="'+f(y(m.v))+'" r="'+(m.r||3.6)+'" fill="'+(m.colour||'#cfae63')+'"'+(m.stroke?' stroke="'+m.stroke+'" stroke-width="2"':'')+'>'+(m.title?'<title>'+esc(m.title)+'</title>':'')+'</circle>';});
+    let labs='';const lab=(c,t,xx,yy,tf,a)=>'<span class="lc-ax '+c+'" '+(a||'')+' style="left:'+f(xx/W*100)+'%;top:'+f(yy/H*100)+'%;transform:'+tf+'">'+esc(t)+'</span>';
+    ys.forEach((v,i)=>{labs+=lab('y',lcNum(v,digits,signed),pl-4,y(v),'translate(-100%,-50%)','data-y="'+(ys.length===1?'one':['min','mid','max'][i])+'"');});
+    const long=t1-t0>60,ticks=o.xTicks||[t0,(t0+t1)/2,t1].map(t=>({d:dstr(t),label:long?MON3[new Date(Math.round(t)*864e5).getUTCMonth()]:dlab(dstr(t))}));
+    ticks.forEach((tk,i)=>{labs+=lab('x',tk.label,x(dnum(tk.d)),H-pb+3,i===0?'none':i===ticks.length-1?'translate(-100%,0)':'translate(-50%,0)','data-x="'+(['first','mid','last'][Math.min(i,2)])+'" data-d="'+tk.d+'"');});
+    (o.hlines||[]).forEach(l=>{if(l.label)labs+=lab('hl '+(l.cls||''),l.label,W-pr,y(l.v)-2,'translate(-100%,-100%)','data-hl="'+l.v+'"');});
+    (o.pointLabels||[]).forEach(p=>{if(num(p.v))labs+=lab('pl',p.label,x(dnum(p.d))+(p.left?-6:6),y(p.v),p.left?'translate(-100%,-50%)':'translate(0,-50%)','data-pl="'+p.d+'"');});
+    const name=o.name||o.metric||'Trend';
+    return '<div class="lc'+(small?' small':'')+'" data-lc="'+esc(o.metric||'')+'" data-unit="'+esc(o.unit||'')+'" data-digits="'+digits+'" data-source="'+esc(o.source||'')+'" data-name="'+esc(name)+'" data-fmt="'+(signed?'signed':'')+'" data-n="'+pts.length+'"'+(o.parity?' data-parity="'+o.parity+'"':'')+'>'+
+      '<svg class="lc-svg'+(o.svgClass?' '+o.svgClass:'')+'" viewBox="0 0 '+W+' '+H+'" tabindex="0" role="img" aria-label="'+esc(name+' over time, '+dlab(dstr(t0))+' to '+dlab(dstr(t1))+'. Tap a point for the day; arrow keys move between points, Enter opens one.')+'">'+g+'<line class="lc-guide" y1="'+pt+'" y2="'+(H-pb)+'" visibility="hidden"/><circle class="lc-sel" r="5.5" visibility="hidden"/></svg>'+labs+'</div>';
   }
   /* Two groups of one outcome side by side, each value a dot and the mean a bar (Faith × Readiness). */
   function twoGroups(a,b,o){
@@ -310,5 +358,5 @@
     return '<div class="perfect-cal" role="img" aria-label="'+esc('Perfect days in '+month)+'">'+['M','T','W','T','F','S','S'].map(h=>'<em>'+h+'</em>').join('')+(lead?'<span class="pad" style="grid-column:span '+lead+'"></span>':'')+days.map(cell).join('')+'</div>';
   }
 
-  return {esc,tone,TONES,KEYS,SEGMENTS,SLOT_TONES,PLACE,ring,key,vital,flagPlace,placeTone,rungPlace,chip,standLine,ladder,ladderMark,ladderAxis,goalBar,delta,shortDate,rangeRow,bandChart,spark,twoGroups,loadColour,sleepColour,loadGauge,sleepWeek,necessary,day,span,streak,monthDays,mondayOf,addDays,medal,MEDAL_TIERS,calendar,RUNG_LABEL,RUNG_TONE};
+  return {lineChart,sleepKey,esc,tone,TONES,KEYS,SEGMENTS,SLOT_TONES,PLACE,ring,key,vital,flagPlace,placeTone,rungPlace,chip,standLine,ladder,ladderMark,ladderAxis,goalBar,delta,shortDate,rangeRow,bandChart,spark,twoGroups,loadColour,sleepColour,loadGauge,sleepWeek,necessary,day,span,streak,monthDays,mondayOf,addDays,medal,MEDAL_TIERS,calendar,RUNG_LABEL,RUNG_TONE};
 });

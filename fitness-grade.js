@@ -62,6 +62,10 @@
     const avg=k=>{const v=blocks.map(b=>b[k]).filter(x=>x!==null&&Number.isFinite(x));return v.length?mean(v):null;};
     const body=bodyScore(o.body),vo2=o.vo2?vo2Score(o.vo2.value,o.vo2.points):null;
     const score={movement:avg('movement'),strength:avg('strength'),sleep:avg('sleep'),vo2,body:body?body.score:null,protein:avg('protein'),net:avg('net')};
+    // V3.6 N8 (ASSUMED A6): Net Fuel's credit is capped by what the scale confirms, min(logged, scale), the scale score on the
+    // same 250 and 750 band from the deficit the smoothed weight implies; with no qualifying pair it is not capped and says so.
+    const sc=o.scale&&Number.isFinite(o.scale.deficit)&&score.net!==null?netScore(o.scale.deficit,o.plan):null,netLogged=score.net;
+    if(sc!==null&&sc<score.net)score.net=sc;
     // Each component is shown as a whole number and the grade is the mean of what is shown (the research file's worked example).
     const components=COMPONENTS.map(c=>({...c,score:score[c.id]===null?null:Math.round(score[c.id]),detail:c.id==='body'&&body?body.by:null}));
     const present=components.filter(c=>c.score!==null),percent=present.length?mean(present.map(c=>c.score)):null;
@@ -70,9 +74,118 @@
     let letter=eligible?letterOf(percent):null;const capped=!!letter&&present.length<7&&['S','SS','SSS'].includes(letter);if(capped)letter='A';
     const groupMean=g=>{const v=present.filter(c=>c.group===g).map(c=>c.score);return v.length?mean(v):null;};
     return {window:w,components,present:present.length,percent,shown:percent===null?null:Math.round(percent),letter,capped,provisional:!eligible&&present.length>0,
+      net:netLogged===null?null:{logged:Math.round(netLogged),scale:sc===null?null:Math.round(sc),confirmed:sc!==null,capped:sc!==null&&sc<netLogged},
       habits:groupMean('habits'),measured:groupMean('measured'),blocks:blocks.length,foodDays:blocks.reduce((n,b)=>n+b.foodDays,0),days:use.length};
   }
   // The "+ Faith" row: a displayed blend only; the pure Fitness Grade never changes.
   const blend=(fitness,faith,share)=>fitness===null||faith===null||!Number.isFinite(faith)?fitness:(1-share)*fitness+share*faith;
   return {COMPONENTS,grade,blend,letterOf,minutesScore,stepsScore,sleepScore,vo2Score,bodyScore,netScore};
+});
+
+/* V3.6 R1: the Nutrition Grade lives in this file beside the Fitness Grade (both pure grade engines), so the Mac wrapper's
+   local server serves it with no native change; it exports NutritionGrade (require('./fitness-grade.js').NutritionGrade). */
+/* Glow V3.6 R1, the Nutrition Grade (docs/research/nutrition-grade-method-2026-10-03.md §2, the build brief's R1). A
+   nutrient profile of what was logged, not "diet quality": Glow receives nutrient totals per day, never foods, food
+   groups or added sugar. Seven components scored 0 to 100 (HEI-2020's method: proportional between published standards,
+   by density per 1,000 kcal; DRI adequacy as percent of the RDA or AI, capped, with a UL guard), the unweighted mean of
+   those present, the letter from Glow's ladder (Life's Essential 8's shape). Pure: days in, scores out.
+   Days: a graded day has dietary energy of at least 800 kcal; a day with no food is not graded, never zero. A block is 7
+   closed days with at least 4 graded. Each component reads the block's pooled intake over the graded days that report
+   that nutrient; zero or absent is "not reported", never zero intake. Day = the trailing 7 closed days ("7-day grade as
+   of D"), Week = the last 7, Month = the last 28 (a letter needs 2 of the 4 blocks), All = the complete blocks since the
+   program start. No single-day grade. A letter needs 5 of 7 components and one block; S, SS and SSS need all 7 and 6 of
+   7 graded days in every counted block, otherwise the letter caps at A. Sex unset: potassium and the basket are missing
+   ("set sex in Settings"; no male fallback). The RDA, AI and UL values were verified at the NASEM summary tables (below). */
+(function(root,factory){
+  if(typeof module==='object'&&module.exports)module.exports.NutritionGrade=factory();
+  else root.NutritionGrade=factory();
+})(typeof globalThis!=='undefined'?globalThis:this,function(){
+  'use strict';
+  const CUTS=[[95,'SSS'],[90,'SS'],[85,'S'],[80,'A'],[70,'B'],[55,'C'],[40,'D'],[0,'F']];   // RANK_CUTOFFS, unchanged
+  const letterOf=p=>Number.isFinite(p)?CUTS.find(([c])=>p>=c)[1]:null;
+  const FLOOR_KCAL=800,MIN_DAYS=4,LOW_KCAL=1500;
+  const COMPONENTS=[
+    {id:'satfat',name:'Saturated fat',group:'limits'},{id:'sodium',name:'Sodium',group:'limits'},{id:'fatq',name:'Fat quality',group:'limits'},
+    {id:'fibre',name:'Fibre',group:'adequacy'},{id:'potassium',name:'Potassium',group:'adequacy'},{id:'calcium',name:'Calcium',group:'adequacy'},{id:'basket',name:'Vitamins and minerals',group:'adequacy',low:true}];
+  const BASKET=['mg','zn','fe','vitA','vitC','vitE','vitK','b6'];
+  // Age bands 19-30, 31-50, 51-70, 71+. Verified Oct 3, 2026 (R4) against the Food and Nutrition Board, NASEM, DRI summary
+  // tables (RDA and AI, vitamins and elements; prepublication copy): nationalacademies.org/cdn/materials/9fb9fae8-82dc-4e60-8521-30dd740d1b5e
+  const band=age=>age>=71?3:age>=51?2:age>=31?1:0;
+  const RDA={   // male, female per band (vitamin K and potassium are AIs)
+    mg:{m:[400,420,420,420],f:[310,320,320,320]},zn:{m:[11,11,11,11],f:[8,8,8,8]},fe:{m:[8,8,8,8],f:[18,18,8,8]},
+    vitA:{m:[900,900,900,900],f:[700,700,700,700]},vitC:{m:[90,90,90,90],f:[75,75,75,75]},vitE:{m:[15,15,15,15],f:[15,15,15,15]},
+    vitK:{m:[120,120,120,120],f:[90,90,90,90]},b6:{m:[1.3,1.3,1.7,1.7],f:[1.3,1.3,1.5,1.5]},
+    calcium:{m:[1000,1000,1000,1200],f:[1000,1000,1200,1200]},potassium:{m:[3400,3400,3400,3400],f:[2600,2600,2600,2600]}};
+  /* Tolerable upper levels, verified Oct 3, 2026 against the same tables (UL, vitamins and elements):
+     nationalacademies.org/cdn/materials/9fb9faeb-1faf-41d1-b2f7-381c9b8bdbef. Magnesium's UL is for a pharmacological agent only
+     and vitamin E's for supplements and fortified foods; vitamin A's is for preformed vitamin A only, which a food total that
+     includes carotenoids cannot show: none of the three is applied to food totals. */
+  const UL={calcium:[2500,2500,2000,2000],zn:[40,40,40,40],fe:[45,45,45,45],vitC:[2000,2000,2000,2000],b6:[100,100,100,100]};
+  const mean=a=>a.length?a.reduce((n,v)=>n+v,0)/a.length:null,sum=a=>a.reduce((n,v)=>n+v,0);
+  const clamp=v=>Math.max(0,Math.min(100,v));
+  const has=v=>Number.isFinite(v)&&v>0;   // zero or absent = not reported
+  const graded=d=>!!d&&Number.isFinite(d.kcal)&&d.kcal>=FLOOR_KCAL;
+  /* The limits' standards are HEI-2020's, verified Oct 3, 2026 at its Table 1 (epi.grants.cancer.gov/hei/hei-2020-table1.html):
+     saturated fat 8 to 16 % of energy, sodium 1.1 to 2.0 g per 1,000 kcal, (PUFA + MUFA) / SFA 2.5 to 1.2. Fibre's 14 g per
+     1,000 kcal is the Dietary Guidelines' figure, still [R] (its PDF was not reachable); no info text quotes it. */
+  // Linear between a best and a worst point (either direction).
+  const between=(x,best,worst)=>clamp(100*(worst-x)/(worst-best));
+  // Adequacy with the UL guard: min(100, intake/target), and above the UL 100 - 100 x (intake - UL) / (0.5 x UL), floor 0.
+  function adequacy(intake,target,ul){
+    let s=clamp(100*intake/target),flag=false;
+    if(Number.isFinite(ul)&&intake>ul){s=Math.min(s,clamp(100-100*(intake-ul)/(0.5*ul)));flag=true;}
+    return {score:s,ul:flag};
+  }
+  /* One block of 7 closed days: [{kcal, sat, mufa, pufa, fibre, sodium, potassium, calcium, mg, zn, fe, vitA, vitC, vitE,
+     vitK, b6}] (g, mg, mcg as the adapter declares). Returns each component's score or null, the graded-day count and why. */
+  function block(days,o){
+    const g=days.filter(graded),sex=o.sex==='male'?'m':o.sex==='female'?'f':null,age=Number.isFinite(o.age)?o.age:null,b=age===null?null:band(age);
+    const out={graded:g.length,kcal:g.length?mean(g.map(d=>d.kcal)):null,scores:{},vals:{},ul:[],why:{}};
+    if(g.length<MIN_DAYS){out.why.block='needs '+MIN_DAYS+' of 7 days logged';return out;}
+    const rep=k=>g.filter(d=>has(d[k])),pool=k=>{const r=rep(k);return r.length>=MIN_DAYS?{n:r.length,sum:sum(r.map(d=>d[k])),kcal:sum(r.map(d=>d.kcal)),mean:mean(r.map(d=>d[k]))}:null;};
+    const s=out.scores,v=out.vals;   // v: the working values the drawer prints
+    const sf=pool('sat');s.satfat=sf?between(100*sf.sum*9/sf.kcal,8,16):null;if(sf)v.satfat={pctKcal:100*sf.sum*9/sf.kcal,days:sf.n};
+    const na=pool('sodium');s.sodium=na?between(na.sum/(na.kcal/1000),1100,2000):null;if(na)v.sodium={per1000:na.sum/(na.kcal/1000),mean:na.mean,days:na.n};
+    const fb=pool('fibre');s.fibre=fb?clamp(100*(fb.sum/(fb.kcal/1000))/14):null;if(fb)v.fibre={per1000:fb.sum/(fb.kcal/1000),mean:fb.mean,days:fb.n};
+    const fq=g.filter(d=>has(d.sat)&&has(d.mufa)&&has(d.pufa));
+    const ratio=fq.length?(sum(fq.map(d=>d.mufa))+sum(fq.map(d=>d.pufa)))/sum(fq.map(d=>d.sat)):null;s.fatq=fq.length>=MIN_DAYS?between(ratio,2.5,1.2):null;if(fq.length>=MIN_DAYS)v.fatq={ratio,days:fq.length};
+    const k=pool('potassium');s.potassium=k&&sex?adequacy(k.mean,RDA.potassium[sex][b===null?1:b]).score:null;if(k)v.potassium={mean:k.mean,target:sex?RDA.potassium[sex][b===null?1:b]:null,days:k.n};
+    if(k&&!sex)out.why.potassium='set sex in Settings';
+    const ca=pool('calcium'),caT=b===null?null:sex?RDA.calcium[sex][b]:RDA.calcium.m[b]===RDA.calcium.f[b]?RDA.calcium.m[b]:null;   // calcium needs sex only where the RDA differs (51 to 70)
+    if(ca)v.calcium={mean:ca.mean,target:caT,days:ca.n};
+    if(ca&&caT!==null){const a=adequacy(ca.mean,caT,UL.calcium[b]);s.calcium=a.score;if(a.ul)out.ul.push('calcium');}else{s.calcium=null;if(ca)out.why.calcium=b===null?'set birth year in Settings':'set sex in Settings';}
+    if(sex&&b!==null){
+      const parts=[];for(const n of BASKET){const p=pool(n);if(!p)continue;const a=adequacy(p.mean,RDA[n][sex][b],UL[n]?UL[n][b]:undefined);parts.push(a.score);if(a.ul)out.ul.push(n);}
+      s.basket=parts.length>=4?mean(parts):null;out.basketN=parts.length;v.basket={n:parts.length,of:BASKET.length};if(parts.length<4)out.why.basket='needs 4 nutrients reported on 4 days';
+    }else{s.basket=null;out.why.basket=sex?'set birth year in Settings':'set sex in Settings';}
+    for(const c of COMPONENTS)if(s[c.id]===undefined)s[c.id]=null;
+    return out;
+  }
+  /* grade({days (oldest first, closed days only), window:'day'|'week'|'month'|'all', sex:'male'|'female'|null, age}) */
+  function grade(input){
+    const o=input||{},w=o.window||'week',days=(o.days||[]).slice();
+    const want=w==='month'?28:w==='all'?Math.floor(days.length/7)*7:7,use=days.slice(Math.max(0,days.length-want));
+    const empty=note=>({window:w,components:COMPONENTS.map(c=>({...c,score:null})),present:0,percent:null,shown:null,letter:null,capped:false,blocks:0,qualifying:0,graded:use.filter(graded).length,days:use.length,note});
+    if(use.length<7)return empty('Building '+days.length+' of 7 days');
+    const blocks=[];for(let i=use.length;i-7>=0;i-=7)blocks.unshift(block(use.slice(i-7,i),o));
+    const q=blocks.filter(b=>b.graded>=MIN_DAYS);
+    if(!q.length)return {...empty('needs '+MIN_DAYS+' of 7 days logged'),blocks:blocks.length};
+    const avg=id=>{const v=q.map(b=>b.scores[id]).filter(x=>x!==null&&Number.isFinite(x));return v.length?mean(v):null;};
+    // Each component is shown as a whole number and the grade is the mean of what is shown (the research's worked example).
+    const components=COMPONENTS.map(c=>{const v=avg(c.id);return {...c,score:v===null?null:Math.round(v),why:v===null?(q.map(b=>b.why[c.id]).find(Boolean)||'not reported on 4 graded days'):null};});
+    const present=components.filter(c=>c.score!==null);
+    const percent=present.length?(w==='month'||w==='all'?mean(q.map(b=>{const v=COMPONENTS.map(c=>b.scores[c.id]).filter(x=>x!==null);return v.length?mean(v.map(Math.round)):null;}).filter(x=>x!==null)):mean(present.map(c=>c.score))):null;
+    const eligible=present.length>=5&&(w==='month'?q.length>=2:true);
+    let letter=eligible?letterOf(percent):null;
+    const tier=present.length===7&&q.every(b=>b.graded>=6),capped=!!letter&&['S','SS','SSS'].includes(letter)&&!tier;if(capped)letter='A';
+    const gmean=g=>{const v=present.filter(c=>c.group===g).map(c=>c.score);return v.length?mean(v):null;};
+    const kcal=mean(q.map(b=>b.kcal).filter(Number.isFinite));
+    return {window:w,components,present:present.length,percent,shown:percent===null?null:Math.round(percent),letter,capped,provisional:!eligible&&present.length>0,
+      limits:gmean('limits'),adequacy:gmean('adequacy'),blocks:blocks.length,qualifying:q.length,graded:q.reduce((n,b)=>n+b.graded,0),gradedOf:q.length*7,days:use.length,
+      lowIntake:Number.isFinite(kcal)&&kcal<LOW_KCAL,vals:q[q.length-1].vals,kcal,ul:[...new Set(q.flatMap(b=>b.ul))],coverage:present.length+' of 7 components, '+(q.length===1?q[0].graded+' of 7 days graded':q.reduce((n,b)=>n+b.graded,0)+' of '+q.length*7+' days graded')};
+  }
+  // The nutrients shown, not scored: the days each was reported over the window's days.
+  const SHOWN=[['sugar','Total sugar'],['cholesterol','Cholesterol'],['caffeine','Caffeine'],['water','Water'],['vitD','Vitamin D'],['b12','Vitamin B12']];
+  function shown(days){const d=(days||[]).slice(-7);return SHOWN.map(([k,name])=>({id:k,name,days:d.filter(x=>has(x&&x[k])).length,of:d.length}));}
+  return {COMPONENTS,BASKET,RDA,UL,FLOOR_KCAL,MIN_DAYS,grade,block,shown,letterOf,graded,adequacy,between};
 });

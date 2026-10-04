@@ -154,7 +154,10 @@ function weeklyGrouped(rows){
   return true;
 }
 // Nutrition sums that apps such as Grow, Bevel and MyFitnessPal write together (V1.12, ASSUMED).
-const POOLED_SUMS=new Set(['dietary_energy','dietary_water','protein','carbohydrates','total_fat','dietary_sugar','caffeine','alcohol_consumption','fiber','saturated_fat','sodium','cholesterol']);
+const POOLED_SUMS=new Set(['dietary_energy','dietary_water','protein','carbohydrates','total_fat','dietary_sugar','caffeine','alcohol_consumption','fiber','saturated_fat','sodium','cholesterol',
+  // V3.6 R3 (V36-I20): every nutrient pools a day's writers as dietary energy does (one food log per app), so the kcal
+  // and the nutrient of a density come from the same rows; a nutrient outside this set was held on a two-writer day
+  'monounsaturated_fat','polyunsaturated_fat','potassium','calcium','iron','magnesium','zinc','vitamin_a','vitamin_c','vitamin_d','vitamin_e','vitamin_k','vitamin_b6','vitamin_b12']);
 function hae(r){const m=r&&r.unmapped&&r.unmapped.healthAutoExport;return m&&m.format==='JSON'&&m.adapterVersion===1?m:null;}
 // V3.1 one-year storage (Mintay, Sept 26): the all-day minute streams roll up once a day is old enough.
 // A day's minute rows of one metric become one "daily rollup" row that keeps the day's projected
