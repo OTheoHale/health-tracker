@@ -3,7 +3,7 @@
    ship.sh stamps BUILD here and in sw.js together: if they drift, an updated page keeps being
    served the previous shell out of the old cache. */
 window.HealthDelivery = (() => {
-  const BUILD = '2026-10-03-V3.6';
+  const BUILD = '2026-10-05-V3.7';
   const host = location.hostname;
   const local = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(host);
   const wrapper = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.native);
@@ -72,9 +72,41 @@ window.HealthDelivery = (() => {
       'n-muq8a88s-frd87':'V3.5',
       'n-muq8cr1n-bp5fg':'V3.5',
       'n-muq8dvd2-dhfwq':'V3.5',
-      'n-muq92tdq-41bh1':'V3.5'
+      'n-muq92tdq-41bh1':'V3.5',
+      'n-muudpz30-c0rex':'V3.7',
+      'n-muudpe5n-madmc':'V3.7',
+      'n-muudhwi8-a4i0i':'V3.7',
+      'n-muudf7ml-ip5xk':'V3.7',
+      'n-muuda7cz-hvcij':'V3.7',
+      'n-muud65qo-4powt':'V3.7',
+      'n-muucopvn-ln8gy':'V3.7',
+      'n-feedback-muud53ui-usqo3':'V3.7',
+      'n-feedback-muud29vy-xjh5u':'V3.7',
+      'n-feedback-muud0go3-wwez9':'V3.7',
+      'n-feedback-muucye9e-wqkoq':'V3.7',
+      'n-feedback-muucsvy6-p2wlq':'V3.7',
+      'n-muuck8av-wlyx0':'V3.7',
+      'n-muuch1mb-6n45k':'V3.7',
+      'n-feedback-muuci6vx-n5a0h':'V3.7',
+      'n-feedback-muuceh7k-lgd8v':'V3.7',
+      'n-feedback-muucazoy-urumx':'V3.7',
+      'n-feedback-muuc9fbb-67lel':'V3.7',
+      'n-feedback-muuc5yxw-pok8j':'V3.7',
+      'n-feedback-muuc3622-2abwn':'V3.7',
+      'n-feedback-muuc1vzf-94huy':'V3.7',
+      'n-feedback-muub94h7-8f3ph':'V3.7',
+      'n-feedback-muu7iajy-oddqw':'V3.7',
+      'n-feedback-muu6kfxl-3ymon':'V3.7',
+      'n-feedback-muu6gapk-4not0':'V3.7',
+      'n-feedback-muu6a251-9108b':'V3.7',
+      'n-feedback-muu66z5c-8kumx':'V3.7',
+      'n-feedback-muu60747-kp3a1':'V3.7',
+      'n-feedback-muru5grf-y22z8':'V3.7',
+      'n-feedback-muu5hujo-x05it':'V3.7',
+      'n-feedback-muu589z9-glwzt':'V3.7'
     },   // V3.5 release (Oct 2): 41 of his 46 suggestions; O-07, O-09, O-10, O-12 and C-05 stay Open for his look on the Mac.
     // V3.6 release (Oct 3): NEW notes 1 to 11 of the V3.6 brief §2.1 shipped; only he resolves them, in Lessons
+    // V3.7 release (Oct 5): his 27 NEW notes of the V3.7 brief §2.1 (31 ids) shipped; the optional drag to reorder (note 4) was dropped on his word; only he resolves them, in Lessons
     resolved: {}
   };
 })();

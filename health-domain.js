@@ -167,6 +167,9 @@ function newId(prefix){ return prefix + '-' + Date.now().toString(36) + '-' + Ma
 const GOAL_KM_PER_MI=1.609344;
 const GOAL_UNITS={mi:1,km:1/GOAL_KM_PER_MI,m:1/1609.344,meter:1/1609.344,meters:1/1609.344,mile:1,miles:1,kilometer:1/GOAL_KM_PER_MI,kilometers:1/GOAL_KM_PER_MI,yd:1/1760,ft:1/5280};   // to miles; anything else is unreadable (ASSUMED A12)
 const GOAL_MEASURES=['check','count','sum','average','latest'],GOAL_OPS=['atLeast','atMost','between','exactly'],GOAL_PERIODS=['day','week','month','everyN','range','rolling'],GOAL_WHENS=['any','days','by','monthday','nthweekday','after','season','deadline'],GOAL_CREDITS=['all','proportional','half'];
+/* V3.7: the day the release's dated rules start (A59 Required and Stretch, A44 goal points). Days before keep the rule
+   they were graded and paid under. Set to the ship day at release. */
+const V37_RULE_DAY='2026-10-05';
 let goalReadings=null;   // V3.6 M4: the page supplies daily readings the domain does not hold (sleep hours, water)
 function setGoalReadings(fn){goalReadings=typeof fn==='function'?fn:null;}
 const GoalEngine={
@@ -177,7 +180,9 @@ const GoalEngine={
     const m=g.measure||{},s=g.source||{},t=g.target||{},p=g.period||{},w=g.when||{};
     const out={v:1,
       measure:{kind:GOAL_MEASURES.includes(m.kind)?m.kind:'check',unit:String(m.unit||'').trim().slice(0,14),...(m.reading?{reading:String(m.reading).slice(0,24)}:{})},
-      source:{kind:s.kind==='auto'?'auto':'manual',...(s.kind==='auto'?{metric:String(s.metric||''),types:Array.isArray(s.types)?s.types.map(String).slice(0,40):[],field:['distance','minutes','energy','count'].includes(s.field)?s.field:'distance',unit:String(s.unit||'').slice(0,14)}:{})},
+      source:{kind:s.kind==='auto'?'auto':'manual',...(s.kind==='auto'?{metric:String(s.metric||''),types:Array.isArray(s.types)?s.types.map(String).slice(0,40):[],field:['distance','minutes','energy','count'].includes(s.field)?s.field:'distance',unit:String(s.unit||'').slice(0,14),
+        // V3.7 O8 (A38): four optional filters, additive under goal.v:1 (V3.6 drops them on a re-save and keeps the goal: §1 row 21)
+        ...(Array.isArray(s.writers)&&s.writers.length?{writers:s.writers.map(String).slice(0,8)}:{}),...(s.outdoor===true?{outdoor:true}:{}),...(Number.isFinite(+s.minMinutes)&&+s.minMinutes>0?{minMinutes:Math.min(600,+s.minMinutes)}:{}),...(Number.isFinite(+s.hrCoverage)&&+s.hrCoverage>0?{hrCoverage:Math.min(1,+s.hrCoverage)}:{})}:{})},
       target:{op:GOAL_OPS.includes(t.op)?t.op:'atLeast',value:num(t.value,0,1e7),...(t.op==='between'?{value2:num(t.value2,0,1e7)}:{})},
       period:{kind:GOAL_PERIODS.includes(p.kind)?p.kind:'day',...(p.kind==='week'&&(p.weekStart===0||p.weekStart===1)?{weekStart:p.weekStart}:{}),...(p.kind==='everyN'||p.kind==='rolling'?{n:num(p.n,1,366)||7}:{}),...(p.kind==='range'?(()=>{const a=validCalendarDate(p.from)?p.from:null,b=validCalendarDate(p.to)?p.to:null;return a&&b&&a>b?{from:b,to:a}:{from:a,to:b};})():{})},   // a range typed backwards is put in order (review F5)
       when:{kind:GOAL_WHENS.includes(w.kind)?w.kind:'any'},
@@ -260,7 +265,7 @@ const GoalEngine={
     const p=g.period||{},ws=state&&state.prefs&&state.prefs.weekStart===0?0:1;
     if(ver&&ver.recurrence&&ver.recurrence.kind==='target'&&g.measure.kind==='check'){const rw=recurrenceWindow(ver,date);if(rw)return {from:rw.from,to:rw.to};}   // "N times a week": the stored target's own week (review F9)
     if(g.when&&g.when.kind==='deadline'&&g.when.date&&p.kind==='day')return {from:ver&&ver.effectiveFrom<g.when.date?ver.effectiveFrom:g.when.date,to:g.when.date};   // a one-off deadline is one window (review F2)
-    if(p.kind==='week'){const a=weekStartOf(date,p.weekStart===0||p.weekStart===1?p.weekStart:ws);return {from:a,to:addDays(a,6)};}
+    if(p.kind==='week'){const pin=p.weekStart===0||p.weekStart===1?p.weekStart:(state&&ver&&typeof wsGoalWeekPin==='function'?wsGoalWeekPin(state,ver):null),a=weekStartOf(date,pin===0||pin===1?pin:ws);return {from:a,to:addDays(a,6)};}   // V3.7 X8: an older week goal keeps its first paid week's alignment, on the page and in the pay
     if(p.kind==='month')return {from:date.slice(0,8)+'01',to:addDays(date.slice(0,8)+'01',new Date(+date.slice(0,4),+date.slice(5,7),0).getDate()-1)};
     if(p.kind==='everyN'){const start=ver&&ver.effectiveFrom||date,k=Math.floor(Math.max(0,calendarDistance(start,date))/p.n),a=addDays(start,k*p.n);return {from:a,to:addDays(a,p.n-1)};}
     if(p.kind==='range')return {from:p.from||date,to:p.to||date};
@@ -274,11 +279,22 @@ const GoalEngine={
   autoRecords(state,src,from,to){
     const out=[],skipped=[],types=src.types&&src.types.length?new Set(src.types):null;
     if(src.metric==='workouts'){
-      for(const r of state.sourceRecords||[]){if(r.kind!=='workout')continue;const d=sourceLocalDay(r.start);if(d<from||d>to)continue;if(types&&!types.has(r.type))continue;const m=r.unmapped&&r.unmapped.healthAutoExport||{};
+      /* V3.7 X2 (audit D-1): one entry per session, never per row. The rows are grouped the way the Fitness Workouts card
+         groups them (WorkoutSessions.select with his joins and splits); the watch's record wins and a type filter matches
+         any record of the session. A day either side is read so a session that crosses midnight is grouped first. */
+      const rows=(state.sourceRecords||[]).concat(ifitWorkoutRows(state)).filter(r=>{if(r.kind!=='workout')return false;const d=sourceLocalDay(r.start);return d>=addDays(from,-1)&&d<=addDays(to,1);});   // V3.7 O3: iFIT file sessions join the grouping
+      const WS=globalThis.WorkoutSessions,byId=new Map(rows.map(r=>[r.id,r]));
+      const recs=WS?rows.map(r=>[r,WS.record(r,sourceLocalDay(r.start))]):[],lone=WS?recs.filter(x=>!x[1]).map(x=>[x[0]]):[];   // a record with no usable time span stands alone (never dropped)
+      const groups=WS?lone.concat(WS.select(recs.map(x=>x[1]).filter(Boolean),(l=>({join:l.join.concat(Object.values(state.ifitSessions||{}).filter(x=>x.linked).map(x=>[x.id,x.linked])),split:l.split}))(workoutLinks(state))).map(w=>[w.id,...w.aliases.map(a=>a.id)].map(id=>byId.get(id)).filter(Boolean))):rows.map(r=>[r]);
+      const okRec=x=>{if(src.writers&&src.writers.length&&!src.writers.some(w=>new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i').test(String(x.sourceApp||''))))return false;if(src.outdoor&&!(/outdoor|hik/i.test(String(x.type||''))&&!/indoor|treadmill/i.test(String(x.type||''))))return false;
+        const mins=Number.isFinite(x.durationSec)?x.durationSec/60:(Date.parse(x.end)-Date.parse(x.start))/60000;if(src.minMinutes&&!(mins>=src.minMinutes))return false;if(src.hrCoverage&&!(workoutHrCoverage(state,x)>=src.hrCoverage))return false;return true;};
+      for(const group of groups){const r0=group[0],d=sourceLocalDay(r0.start);if(d<from||d>to)continue;if(types&&!group.some(x=>types.has(x.type)))continue;if((src.writers||src.outdoor||src.minMinutes||src.hrCoverage)&&!group.some(okRec))continue;   // V3.7 O8
+        const r=src.field==='distance'?group.find(x=>{const q=x.unmapped&&x.unmapped.healthAutoExport&&x.unmapped.healthAutoExport.distance;return q&&Number.isFinite(+q.qty)&&GOAL_UNITS[String(q.units||'').toLowerCase()];})||r0:src.field==='energy'?group.find(x=>{const q=x.unmapped&&x.unmapped.healthAutoExport&&x.unmapped.healthAutoExport.activeEnergy;return q&&Number.isFinite(+q.qty);})||r0:r0;
+        const m=r.unmapped&&r.unmapped.healthAutoExport||{};
         let v=null;if(src.field==='minutes')v=Number.isFinite(r.durationSec)?r.durationSec/60:null;else if(src.field==='count')v=1;else if(src.field==='energy'){const q=m.activeEnergy;v=q&&Number.isFinite(+q.qty)?+q.qty*(/kj/i.test(q.units||'')?.239006:1):null;}
         else{const q=m.distance;if(!q||!Number.isFinite(+q.qty)){skipped.push({id:r.id,date:d,type:r.type,why:'no distance'});continue;}const f=GOAL_UNITS[String(q.units||'').toLowerCase()];if(!f){skipped.push({id:r.id,date:d,type:r.type,why:'unit unknown'});continue;}v=+q.qty*f*(src.unit==='km'?GOAL_KM_PER_MI:1);}
         if(v===null){skipped.push({id:r.id,date:d,type:r.type,why:'no '+src.field});continue;}
-        out.push({sourceId:r.id,date:d,ts:Date.parse(r.start),type:r.type,value:v});}
+        out.push({sourceId:r0.id,date:d,ts:Date.parse(r0.start),type:r.type,value:v,...(group.length>1?{also:group.slice(1).map(x=>x.id)}:{})});}
     }else if(src.metric==='walking_running_distance'){
       const days=new Map();for(const r of haeRowsFor(state,['walking_running_distance'])){const d=sourceLocalDay(r.start);if(d<from||d>to||!Number.isFinite(r.value))continue;const f=GOAL_UNITS[String(r.unit||'').toLowerCase()];if(!f){skipped.push({id:r.id,date:d,why:'unit unknown'});continue;}const rep=(r.unmapped&&r.unmapped.healthAutoExport||{}).representation||'',x=days.get(d)||{roll:null,sum:0};const v=r.value*f*(src.unit==='km'?GOAL_KM_PER_MI:1);if(/daily|rollup|summary/i.test(rep))x.roll=Math.max(x.roll||0,v);else x.sum+=v;days.set(d,x);}
       for(const [d,x] of days)out.push({sourceId:'wrd:'+d,date:d,ts:Date.parse(d+'T12:00:00'),type:'Daily distance',value:x.roll!==null?x.roll:x.sum});
@@ -287,7 +303,7 @@ const GoalEngine={
   },
   // The sources that exist for what is measured, with counts (the builder lists only these).
   sources(state,measure,unit){
-    const out=[],wk=(state.sourceRecords||[]).filter(r=>r.kind==='workout'),typeCount=new Map();
+    const out=[],wk=(state.sourceRecords||[]).concat(ifitWorkoutRows(state)).filter(r=>r.kind==='workout'),typeCount=new Map();   // review F7: an iFIT file session is a type he can tick
     for(const r of wk){const t=typeCount.get(r.type)||{type:r.type,records:0,distance:0};t.records++;const q=r.unmapped&&r.unmapped.healthAutoExport&&r.unmapped.healthAutoExport.distance;if(q&&Number.isFinite(+q.qty)&&GOAL_UNITS[String(q.units||'').toLowerCase()])t.distance++;typeCount.set(r.type,t);}
     const types=[...typeCount.values()].sort((a,b)=>b.records-a.records);
     if(measure==='sum'&&['mi','km'].includes(unit)){if(wk.length)out.push({metric:'workouts',field:'distance',count:types.reduce((n,t)=>n+t.distance,0),types});const days=new Set(haeRowsFor(state,['walking_running_distance']).map(r=>sourceLocalDay(r.start)));if(days.size)out.push({metric:'walking_running_distance',count:days.size});}
@@ -362,7 +378,7 @@ const GoalEngine={
     const p=g.period,pt={day:'each day',week:'each week',month:'each month',everyN:'every '+p.n+' days',range:p.from&&p.to?'between '+md(p.from)+' and '+md(p.to):'in a date range',rolling:'in any rolling '+p.n+' days'}[p.kind];
     const w=g.when,wt=w.kind==='days'?'on '+(w.days.length===1?WD[w.days[0]]+'s':w.days.map(d=>WD[d].slice(0,3)).join(', ')):w.kind==='by'?'done by '+WD[w.by]+'; it turns overdue after '+WD[w.by]:w.kind==='monthday'?'on the '+ord(w.monthday)+' of the month':w.kind==='nthweekday'?'on the '+(w.nth===-1?'last':ord(w.nth))+' '+WD[w.weekday]+' of the month':w.kind==='after'?w.after+' days after you last did it':w.kind==='season'?(w.seasons||[]).map(r=>r.days.map(d=>WD[d].slice(0,3)).join(', ')+' from '+md(r.from)+' to '+md(r.to)).join('; then '):w.kind==='deadline'&&w.date?'due '+md(w.date):'';
     const cap=s=>s.charAt(0).toUpperCase()+s.slice(1),m=g.measure.kind;let s;
-    if(m==='check')s=w.kind==='after'?'Check it off '+w.after+' days after you last did it; the clock restarts each time you finish it':w.kind==='deadline'?'Check it off once, '+wt:'Check it off '+(p.kind==='day'?'every day':p.kind==='week'?'once each week':p.kind==='month'?'once each month':pt)+(wt&&w.kind!=='any'?', '+wt:'');
+    if(m==='check')s=w.kind==='after'?'Check it off '+w.after+' days after you last did it; the clock restarts each time you finish it':w.kind==='deadline'?'Check it off once, '+wt:'Check it off '+(p.kind==='day'?'every day':p.kind==='week'?(t.value>1?nf(t.value)+' times each week':'once each week'):p.kind==='month'?(t.value>1?nf(t.value)+' times each month':'once each month'):pt)+(wt&&w.kind!=='any'?', '+wt:'');
     else if(m==='count'||m==='sum')s=cap(tt)+' '+pt+(m==='sum'?', adding up what '+(g.source.kind==='auto'?'comes in':'you enter'):'')+(t.op==='atMost'?' (a limit)':'')+(w.kind==='any'?', any day':wt?', '+wt:'');
     else if(m==='average')s='Average '+(RD[g.measure.reading]||g.measure.reading||'reading')+' '+tt+' '+pt+(wt?', '+wt:'');
     else s='Latest '+(RD[g.measure.reading]||g.measure.reading||'reading')+' '+tt+' '+(w.kind==='deadline'&&w.date?'by '+md(w.date):pt);
@@ -1017,6 +1033,7 @@ function undo(state){
     mergeRewardLedger(prev,{rewards:ledger});
   }
   prev.revision=state.revision||0;
+  if (state.vo2Ledger) prev.vo2Ledger = JSON.parse(JSON.stringify(state.vo2Ledger));   // V3.7 review F6: the VO2 ledger is a log of frozen claims; an undo never removes a row
   for (const k of Object.keys(state)) delete state[k];
   Object.assign(state, prev);
   undoStack.pop();
@@ -1303,15 +1320,19 @@ function gradeGroupUmbrella(state,gid){
 }
 const gradeUmbrellaSettings=(cfg,id)=>{const u=GRADE_UMBRELLAS.find(x=>x.id===id),c=cfg.umbrellas[id]||{};
   return {importance:Number.isFinite(c.importance)?c.importance:u.importance,included:id==='hobbies'?cfg.hobbies&&c.included!==false:c.included!==false,faith:id!=='faith'&&c.faith!==false,faithShare:Number.isFinite(c.faithShare)?c.faithShare:GRADE_FAITH_SHARE};};
-function gradePeriod(state,today,period,range){
-  const prog=programStartOf(state,today);   // V3.6 S5: the one Program start (V36-I17)
+/* V3.7 Y1 (notes 20, 21; A6, A7, A63): the period is anchored on the selected date, not on today. Week is the calendar week to
+   the anchor (or, with the Week setting's "Last 7 days", the 7 days ending on it); Month the calendar month to it; All the
+   Program start to it. The closed-days rule (a window that reaches today stops at yesterday) applies only when the anchor is
+   the real today. Nothing ends after today. */
+function gradePeriod(state,anchor,period,range,opts){
+  const real=todayYmd(),today=anchor&&anchor<real?anchor:real,prog=programStartOf(state,today);   // V3.6 S5: the one Program start (V36-I17)
   let from=today,to=today;
-  if(period==='week')from=weekStartOf(today,state.prefs&&state.prefs.weekStart===0?0:1);
+  if(period==='week')from=opts&&opts.week==='last7'?addDays(today,-6):weekStartOf(today,state.prefs&&state.prefs.weekStart===0?0:1);
   else if(period==='month')from=today.slice(0,8)+'01';
   else if(period==='all')from=prog;
   else if(period==='custom'&&range&&validCalendarDate(range.from)&&validCalendarDate(range.to)){from=range.from<range.to?range.from:range.to;to=range.from<range.to?range.to:range.from;}
-  if(to>today)to=today;
-  if(['week','month','all'].includes(period)&&to===today&&from<today)to=addDays(today,-1);   // review: closed days only, as the old rank did; Day is today so far
+  if(to>real)to=real;
+  if(['week','month','all'].includes(period)&&to===real&&from<real)to=addDays(real,-1);   // review: closed days only, as the old rank did; Day is today so far
   if(from>to)from=to;
   return {from,to,program:prog};
 }
@@ -1334,9 +1355,35 @@ function gradeRows(state,from,to){
   const liveSpan=g=>{const s=state.series.find(x=>x.id===g.seriesId),starts=(s&&s.versions||[]).filter(v=>v.recurrence&&v.recurrence.kind==='target').map(v=>v.effectiveFrom).filter(validCalendarDate).sort(),a=starts[0]&&starts[0]>from?starts[0]:from,end=s&&validCalendarDate(String(s.archivedAt||'').slice(0,10))&&s.archivedAt.slice(0,10)<=to?addDays(s.archivedAt.slice(0,10),-1):to;return end<a?1:calendarDistance(a,end)+1;};
   // An item that was daily before it became a weekly target keeps its daily days; the target adds its share (review re-check).
   for(const g of goals.values()){const expected=g.count*liveSpan(g)/(7*g.weeks),prev=items.get(g.seriesId);items.set(g.seriesId,{seriesId:g.seriesId,name:g.name,gid:g.gid,planned:(prev?prev.planned:0)+expected,done:(prev?prev.done:0)+Math.min(g.done,expected),target:true});}
+  // V3.7 Y6 (note 19, A11): the weekly prayer goal (three paired days, two more with at least one) is a graded row, Required;
+  // 5 expected per 7 days it existed, pro-rated like the weekly targets. Only from the dated rule day (A59): earlier windows keep
+  // the rule they were graded under.
+  if(to>=V37_RULE_DAY&&state.workspace){
+    const prayer=(state.series||[]).filter(x=>!x.demo&&['prayer-am','prayer-pm'].includes(wsKind(x,to))),cache=new Map();let paired=0,once=0,live=0;
+    if(prayer.length)for(let d=from;d<=to;d=addDays(d,1)){const on=prayer.filter(x=>versionFor(x,d)&&!(x.archivedAt&&x.archivedAt<=d));if(!on.length)continue;live++;const val=x=>{const r=wsGoalDay(state,x,d,cache),o=state.occurrences[occKey(x.id,d)];return r.full?1:o&&o.status==='partial'?.5:0;},am=Math.max(0,...on.filter(x=>wsKind(x,d)==='prayer-am').map(val)),pm=Math.max(0,...on.filter(x=>wsKind(x,d)==='prayer-pm').map(val));paired+=Math.min(am,pm);once+=Math.max(am,pm);}   // V3.7 re-review: a partial prayer counts half, as on Faith's card (A78)
+    if(live){const P=3*live/7,A=2*live/7,first=Math.min(paired,P),done=first+Math.min(Math.max(0,once-first),A),gid=wsGroup(prayer[0],to);items.set('goal:prayer',{seriesId:'goal:prayer',name:'Prayer week goal',gid,planned:5*live/7,done:Math.min(done,5*live/7),target:true,derived:true});}
+  }
   return [...items.values()];
 }
 const gradeMean=list=>{let w=0,s=0;for(const x of list)if(x.score!==null&&x.included&&x.importance>0){w+=x.importance;s+=x.score*x.importance;}return w?s/w:null;};
+/* V3.7 Y3 (note 19, his rule; A8, A9, A10, A59): each item is Required (the goal he set) or Stretch (extra). With R the share of
+   Required done and T the share of Stretch done (importance-weighted inside each), percent = 85 x R + 15 x T x R. With no Stretch
+   item the level is Required alone, 100 x R, with no cap (A9); where Stretch exists, 95 or more with T under 95 percent is 94.4.
+   A dated rule: a window ending before V37_RULE_DAY keeps the old mean. A tier is dated from the day he sets it (tierFrom);
+   the defaults (A10): Morning and Night prayer Stretch, everything else Required. */
+const GRADE_TIER_DEFAULTS={'dw-prayer-am':'stretch','dw-prayer-pm':'stretch'};
+// Review F5: the tier history is an append-only list [{from, tier}], so a past day keeps the tier it had whatever is flipped later
+function gradeTierOf(cfg,seriesId,to){const c=cfg.items[seriesId]||{},def=GRADE_TIER_DEFAULTS[seriesId]||'required',ok=t=>t==='required'||t==='stretch';
+  if(Array.isArray(c.tiers)&&c.tiers.length){let t=def;for(const x of c.tiers)if(x&&validCalendarDate(x.from)&&x.from<=to&&ok(x.tier))t=x.tier;return t;}
+  return def;}
+function gradeTiered(list,tierOf){
+  const req=list.filter(x=>tierOf(x)!=='stretch'),str=list.filter(x=>tierOf(x)==='stretch'),R0=gradeMean(req),T0=gradeMean(str),cnt=l=>l.filter(x=>x.score!==null&&x.included&&x.importance>0);
+  if(R0===null&&T0===null)return {score:null,R:null,T:null,hasStretch:false};
+  // review F4 (ASSUMED V37-A72): with no Required item the level is graded on Stretch alone (100 x T), so doing nothing never scores 85
+  const R=R0===null?null:R0/100,hasStretch=T0!==null,T=hasStretch?T0/100:null;
+  let pct=R===null?100*T:hasStretch?100*(0.85*R+0.15*T*R):100*R;if(hasStretch&&R!==null&&pct>=95&&T<0.95)pct=94.4;
+  return {score:pct,R,T,hasStretch,reqDone:cnt(req).reduce((n,x)=>n+(x.done||0),0),reqDue:cnt(req).reduce((n,x)=>n+(x.planned||0),0),strDone:cnt(str).reduce((n,x)=>n+(x.done||0),0),strDue:cnt(str).reduce((n,x)=>n+(x.planned||0),0)};
+}
 /* umbrellaGradeReport(state, today, period, range): {from, to, overall, letter, umbrellas:[{id, name, own, displayed, faithOn,
    faithShare, importance, included, share (of the Overall, %), groups:[{gid, name, score, importance, included,
    items:[…]}]}], unassigned:[items], counted, listed, due}. Percentages are 0–100. */
@@ -1344,33 +1391,40 @@ const gradeMean=list=>{let w=0,s=0;for(const x of list)if(x.score!==null&&x.incl
    page supplies ({health:[{id, name, score}]}); its include and importance live under gradeConfig.groups['measured:<id>'],
    which an earlier build reads as an unknown group and ignores. It is off until he turns it on, so the Overall does not
    move on release day. */
-function umbrellaGradeReport(state,today,period,range,measured){
-  const {from,to,program}=gradePeriod(state,today,period||'day',range),cfg=gradeConfig(state),rows=gradeRows(state,from,to);
+function umbrellaGradeReport(state,today,period,range,measured,opts){
+  const {from,to,program}=gradePeriod(state,today,period||'day',range,opts),cfg=gradeConfig(state),rows=gradeRows(state,from,to),tiered=to>=V37_RULE_DAY,tierOf=x=>x.tier||gradeTierOf(cfg,x.seriesId,to);
   const groupName=gid=>((state.groups||[]).find(g=>g.id===gid)||{}).name||gid||'No card';
-  const item=r=>{const c=cfg.items[r.seriesId]||{};return {...r,score:r.planned?100*Math.min(1,r.done/r.planned):null,importance:Number.isFinite(c.importance)?c.importance:GRADE_ITEM_IMPORTANCE,included:c.included!==false};};
+  const item=r=>{const c=cfg.items[r.seriesId]||{};return {...r,score:r.planned?100*Math.min(1,r.done/r.planned):null,importance:Number.isFinite(c.importance)?c.importance:GRADE_ITEM_IMPORTANCE,included:c.included!==false,tier:r.derived?'required':gradeTierOf(cfg,r.seriesId,to)};};
   const umbrellas=GRADE_UMBRELLAS.map(u=>{
     const set=gradeUmbrellaSettings(cfg,u.id),byGroup=new Map();
     for(const r of rows){if(gradeGroupUmbrella(state,r.gid)!==u.id)continue;if(!byGroup.has(r.gid))byGroup.set(r.gid,[]);byGroup.get(r.gid).push(item(r));}
-    const groups=[...byGroup].map(([gid,list])=>{const c=cfg.groups[gid]||{};return {gid,name:groupName(gid),items:list,score:gradeMean(list),importance:Number.isFinite(c.importance)?c.importance:GRADE_GROUP_IMPORTANCE,included:c.included!==false};});
+    const groups=[...byGroup].map(([gid,list])=>{const c=cfg.groups[gid]||{},t=tiered?gradeTiered(list,tierOf):null;return {gid,name:groupName(gid),items:list,score:t?t.score:gradeMean(list),tiers:t,importance:Number.isFinite(c.importance)?c.importance:GRADE_GROUP_IMPORTANCE,included:c.included!==false};});
     for(const m of (measured&&measured[u.id])||[]){const gid='measured:'+m.id,c=cfg.groups[gid]||{};groups.push({gid,name:m.name,items:[],score:Number.isFinite(m.score)?m.score:null,importance:Number.isFinite(c.importance)?c.importance:GRADE_GROUP_IMPORTANCE,included:c.included===true,measured:true,note:m.note||''});}
-    return {id:u.id,name:u.name,emoji:u.emoji,groups,own:gradeMean(groups),importance:set.importance,included:set.included,faithOn:set.faith,faithShare:set.faithShare};
+    // Y3 at umbrella level: R and T are the importance-weighted means of the groups' R and T (the measured groups count in R)
+    let own=gradeMean(groups),tiers=null;
+    if(tiered){const lv=groups.filter(g=>g.score!==null&&g.included&&g.importance>0),rg=lv.map(g=>({score:g.tiers?(g.tiers.R===null?null:100*g.tiers.R):g.score,importance:g.importance,included:true})),tg=lv.filter(g=>g.tiers&&g.tiers.hasStretch).map(g=>({score:100*g.tiers.T,importance:g.importance,included:true}));
+      const R0=gradeMean(rg),T0=gradeMean(tg);if(R0!==null||T0!==null){const R=R0===null?null:R0/100,hasStretch=T0!==null,T=hasStretch?T0/100:null;let pct=R===null?100*T:hasStretch?100*(0.85*R+0.15*T*R):100*R;if(hasStretch&&R!==null&&pct>=95&&T<0.95)pct=94.4;own=pct;
+        const sum=(k)=>lv.reduce((n,g)=>n+(g.tiers?g.tiers[k]||0:0),0);tiers={R,T,hasStretch,reqDone:sum('reqDone'),reqDue:sum('reqDue'),strDone:sum('strDone'),strDue:sum('strDue')};}}
+    return {id:u.id,name:u.name,emoji:u.emoji,groups,own,tiers,importance:set.importance,included:set.included,faithOn:set.faith,faithShare:set.faithShare};
   });
   const faith=umbrellas.find(u=>u.id==='faith').own;
   for(const u of umbrellas){u.displayed=u.own!==null&&u.faithOn&&faith!==null?(1-u.faithShare)*u.own+u.faithShare*faith:u.own;u.letter=rankLetter(u.displayed);u.ownLetter=rankLetter(u.own);}
   const live=umbrellas.filter(u=>u.included&&u.own!==null&&u.importance>0),wsum=live.reduce((n,u)=>n+u.importance,0);
-  const overall=wsum?live.reduce((n,u)=>n+u.own*u.importance,0)/wsum:null;
+  let overall=wsum?live.reduce((n,u)=>n+u.own*u.importance,0)/wsum:null;
+  if(tiered&&overall!==null&&overall>=95&&live.some(u=>u.tiers&&u.tiers.hasStretch&&u.tiers.T<0.95))overall=94.4;   // Y3: the SSS guard
   for(const u of umbrellas)u.share=wsum&&live.includes(u)?100*u.importance/wsum:0;
   const unassigned=rows.filter(r=>!gradeGroupUmbrella(state,r.gid)).map(item),counted=rows.length-unassigned.length;
-  return {from,to,program,period:period||'day',overall,letter:rankLetter(overall),umbrellas,unassigned,counted,listed:unassigned.length,due:rows.length};
+  return {from,to,program,period:period||'day',overall,letter:rankLetter(overall),umbrellas,unassigned,counted,listed:unassigned.length,due:rows.length,tiered};
 }
 // The one way settings change: kind is umbrellas, groups or items; field is importance, included, faith or faithShare.
 function setGradeConfig(state,kind,id,field,value){
   if(!['umbrellas','groups','items'].includes(kind)||typeof id!=='string'||!id)return null;
   if(kind==='umbrellas'&&!GRADE_UMBRELLAS.some(u=>u.id===id)&&!(id==='fitness'&&['faith','faithShare'].includes(field)))return null;   // the Fitness Grade card keeps its own 🙏 blend
-  const ok={importance:v=>Number.isFinite(+v)&&+v>=0&&+v<=10,included:v=>typeof v==='boolean',faith:v=>typeof v==='boolean'&&kind==='umbrellas'&&id!=='faith',faithShare:v=>Number.isFinite(+v)&&+v>=0&&+v<=.5&&kind==='umbrellas'};
+  const ok={tier:v=>(v==='required'||v==='stretch')&&kind==='items',importance:v=>Number.isFinite(+v)&&+v>=0&&+v<=10,included:v=>typeof v==='boolean',faith:v=>typeof v==='boolean'&&kind==='umbrellas'&&id!=='faith',faithShare:v=>Number.isFinite(+v)&&+v>=0&&+v<=.5&&kind==='umbrellas'};
   if(!ok[field]||!ok[field](value))return null;
   if(!state.gradeConfig||typeof state.gradeConfig!=='object')state.gradeConfig={version:1};
   const bag=state.gradeConfig[kind]=state.gradeConfig[kind]||{},entry=bag[id]=Object.assign({},bag[id]);
+  if(field==='tier'){const day=todayYmd();if(gradeTierOf(gradeConfig(state),id,day)===value&&(entry.tiers||[]).length)return entry;entry.tiers=(Array.isArray(entry.tiers)?entry.tiers:[]).filter(x=>x&&x.from<day).concat({from:day,tier:value});}   // V3.7 A59: a tier is dated from the day he sets it (a no-op when unchanged)
   entry[field]=field==='importance'?Math.round(+value):field==='faithShare'?Math.round(+value*100)/100:value;
   return entry;
 }
@@ -1378,13 +1432,14 @@ function setHobbiesGraded(state,on){if(!state.gradeConfig||typeof state.gradeCon
 // Reset to default: one entry, or a whole kind (an umbrella's reset also clears its groups and items).
 function resetGradeConfig(state,kind,id){
   const c=state.gradeConfig;if(!c||typeof c!=='object')return false;
-  if(kind&&id){if(c[kind])delete c[kind][id];return true;}
-  delete c.umbrellas;delete c.groups;delete c.items;return true;
+  const keepTiers=e=>e&&Array.isArray(e.tiers)&&e.tiers.length?{tier:e.tier,tiers:e.tiers}:null;   // review F5: a reset puts weights back, never rewrites tier history
+  if(kind&&id){if(c[kind]){const k=kind==='items'?keepTiers(c[kind][id]):null;if(k)c[kind][id]=k;else delete c[kind][id];}return true;}
+  delete c.umbrellas;delete c.groups;if(c.items){const kept={};for(const [k,e] of Object.entries(c.items)){const t=keepTiers(e);if(t)kept[k]=t;}if(Object.keys(kept).length)c.items=kept;else delete c.items;}return true;
 }
 function gradeConfigProblem(c){
   if(c===undefined)return null;if(!c||typeof c!=='object'||Array.isArray(c))return 'The grade settings are malformed.';
   for(const kind of ['umbrellas','groups','items']){const bag=c[kind];if(bag===undefined)continue;if(!bag||typeof bag!=='object'||Array.isArray(bag))return 'The grade settings are malformed.';
-    for(const e of Object.values(bag)){if(!e||typeof e!=='object')return 'A grade setting is malformed.';if(e.importance!==undefined&&!(Number.isFinite(e.importance)&&e.importance>=0&&e.importance<=10))return 'A grade importance is out of range.';if(e.included!==undefined&&typeof e.included!=='boolean')return 'A grade setting is malformed.';if(e.faith!==undefined&&typeof e.faith!=='boolean')return 'A grade setting is malformed.';if(e.faithShare!==undefined&&!(Number.isFinite(e.faithShare)&&e.faithShare>=0&&e.faithShare<=.5))return 'A Faith share is out of range.';}}
+    for(const e of Object.values(bag)){if(!e||typeof e!=='object')return 'A grade setting is malformed.';if(e.importance!==undefined&&!(Number.isFinite(e.importance)&&e.importance>=0&&e.importance<=10))return 'A grade importance is out of range.';if(e.included!==undefined&&typeof e.included!=='boolean')return 'A grade setting is malformed.';if(e.faith!==undefined&&typeof e.faith!=='boolean')return 'A grade setting is malformed.';if(e.faithShare!==undefined&&!(Number.isFinite(e.faithShare)&&e.faithShare>=0&&e.faithShare<=.5))return 'A Faith share is out of range.';if(e.tier!==undefined&&e.tier!=='required'&&e.tier!=='stretch')return 'A grade tier is malformed.';if(e.tiers!==undefined&&(!Array.isArray(e.tiers)||e.tiers.some(x=>!x||!validCalendarDate(x.from)||(x.tier!=='required'&&x.tier!=='stretch'))))return 'A grade tier history is malformed.';}}
   if(c.hobbies!==undefined&&typeof c.hobbies!=='boolean')return 'The grade settings are malformed.';
   return null;
 }
@@ -2086,7 +2141,48 @@ const GOAL_RULES_V2=[
   {id:'vo2max',label:'VO₂ max',unit:'ml/kg·min',metrics:['vo2_max'],down:false,jan7:{baselinePlus:4},longTerm:{byAgeBand:{'30-39':45,'40-49':42,'20-29':48}},source:'FRIEND registry: “good” for men 30–39 ≈ 45'},
   {id:'bmi',label:'BMI',unit:'',derived:'bmi',down:true,flag:'Weak for muscular builds',source:'CDC BMI categories'}
 ];
-function goalsV2(state){const g=state.prefs?.goalsV2||{};return {...GOAL_DEFAULTS_V2,...g,weightLb:{...GOAL_DEFAULTS_V2.weightLb,...(g.weightLb||{})},deficit:{...GOAL_DEFAULTS_V2.deficit,...(g.deficit||{})},other:Array.isArray(g.other)?g.other:GOAL_DEFAULTS_V2.other};}
+/* ---------- V3.7 O2, O6 (A31, A35): two additive stores, optional, ignored by V3.6.
+   state.ifitSessions: id -> an iFIT TCX session summary (IfitReader.parse), keyed by its start and the file's digest so the same
+   file twice is one session; per-second points are never kept, only the 3-minute window table.
+   state.vo2Ledger: id -> one frozen row per Apple VO2 max reading (what each variant claimed the day before it arrived); a log
+   of claims, never a score: it feeds no grade, no points and no other score. ---------- */
+const IFIT_ID=/^ifit:\d+:[0-9a-f]{12}$/;
+function validateIfitSessions(m){
+  if(m===undefined)return null;if(!m||typeof m!=='object'||Array.isArray(m))return 'The iFIT sessions are malformed.';
+  for(const [id,x] of Object.entries(m)){if(!x||x.id!==id||!IFIT_ID.test(id)||typeof x.start!=='string'||!Number.isFinite(Date.parse(x.start))||!Number.isFinite(x.durationSec)||x.durationSec<=0||!Array.isArray(x.windows)||typeof x.hasHR!=='boolean')return 'An iFIT session is malformed.';
+    if(x.linked!==undefined&&x.linked!==null&&typeof x.linked!=='string')return 'An iFIT session link is malformed.';}
+  return null;
+}
+function validateVo2Ledger(m){
+  if(m===undefined)return null;if(!m||typeof m!=='object'||Array.isArray(m))return 'The VO₂ ledger is malformed.';
+  for(const [id,r] of Object.entries(m))if(!r||r.id!==id||!validCalendarDate(r.date)||!Number.isFinite(r.reading)||!['live','backfill'].includes(r.source)||!r.variants||typeof r.variants!=='object')return 'A VO₂ ledger row is malformed.';
+  return null;
+}
+// O2, O3: add parsed sessions; the same file again is "same", never a second copy. Returns the counts the review shows.
+function addIfitSessions(state,sessions,links){
+  state.ifitSessions=state.ifitSessions||{};const out={added:[],same:[]};
+  for(const x of sessions||[]){if(!x||!IFIT_ID.test(x.id||''))continue;if(state.ifitSessions[x.id]){out.same.push(x.id);continue;}
+    const keep={id:x.id,fileName:String(x.fileName||'').slice(0,120),digest:x.digest,start:x.start,end:x.end,durationSec:x.durationSec,distanceM:Number.isFinite(x.distanceM)?x.distanceM:null,hasHR:!!x.hasHR,hrCoverage:Number.isFinite(x.hrCoverage)?x.hrCoverage:0,hasAltitude:!!x.hasAltitude,elevGainM:Number.isFinite(x.elevGainM)?x.elevGainM:null,laps:(x.laps||[]).slice(0,20),windows:(x.windows||[]).slice(0,200),origin:'iFIT file',importedAt:nowIso(),linked:links&&links[x.id]||null};
+    if(validateIfitSessions({[x.id]:keep})){out.refused=(out.refused||[]).concat(x.id);continue;}   // review F1: a row the validator would refuse never enters the record
+    state.ifitSessions[x.id]=keep;out.added.push(x.id);}
+  return out;
+}
+function removeIfitSessions(state,ids){for(const id of ids||[])if(state.ifitSessions)delete state.ifitSessions[id];return true;}
+// O3: an iFIT session as a workout row the goal source and the session selector read ("iFIT session"; the watch's record wins, A56)
+function ifitWorkoutRows(state){return Object.values(state.ifitSessions||{}).map(x=>({id:x.id,kind:'workout',type:'iFIT session',sourceApp:'iFIT file',start:x.start,end:x.end||new Date(Date.parse(x.start)+x.durationSec*1000).toISOString(),durationSec:x.durationSec,unmapped:{healthAutoExport:{distance:Number.isFinite(x.distanceM)?{qty:x.distanceM/1609.344,units:'mi'}:null}},ifit:true}));}
+/* V3.7 O8: the share of a workout's minutes that hold a heart-rate sample: its own per-minute trace when the record has one,
+   else the heart_rate rows inside its window. It credits the workout, never Apple's reading. */
+function workoutHrCoverage(state,r){
+  const a=Date.parse(r.start),b=Date.parse(r.end);if(!Number.isFinite(a)||!Number.isFinite(b)||b<=a)return 0;const n=Math.max(1,Math.round((b-a)/60000)),hr=r.detail&&r.detail.hr&&Array.isArray(r.detail.hr.avg)?r.detail.hr.avg:null;
+  if(hr)return Math.min(1,hr.filter(v=>Number.isFinite(v)&&v>0).length/n);
+  const mins=new Set();for(const x of haeRowsFor(state,['heart_rate'])){const t=Date.parse(x.start);if(t>=a&&t<b)mins.add(Math.floor((t-a)/60000));}
+  return Math.min(1,mins.size/n);
+}
+/* V3.7 X1: sex is optional (male, female or not set). One helper writes it (Settings and Body's Goals); every reader asks
+   sexOf. While it is blank the ladders read the male tables and say so; the Nutrition Grade and the VO₂ percentile never default. */
+function sexOf(state){const s=state&&state.prefs&&state.prefs.goalsV2&&state.prefs.goalsV2.sex;return s==='male'||s==='female'?s:null;}
+function setSex(state,v){const next={...(state.prefs.goalsV2||{})};if(v==='male'||v==='female')next.sex=v;else delete next.sex;state.prefs.goalsV2=next;return sexOf(state);}
+function goalsV2(state){const g=state.prefs?.goalsV2||{};return {...GOAL_DEFAULTS_V2,...g,sexSet:sexOf(state)!==null,weightLb:{...GOAL_DEFAULTS_V2.weightLb,...(g.weightLb||{})},deficit:{...GOAL_DEFAULTS_V2.deficit,...(g.deficit||{})},other:Array.isArray(g.other)?g.other:GOAL_DEFAULTS_V2.other};}
 /* Health Auto Export rows by metric, kept per committed row set (V3.0): readers that want one or two
    metrics no longer walk every minute bucket on every draw. Rows keep their store order. */
 function haeRowsByMetric(state){return rowMemo(state,'byMetric',()=>{const m=new Map();(state.sourceRecords||[]).forEach((r,i)=>{const k=r.unmapped?.healthAutoExport?.metric;if(typeof k!=='string')return;if(!m.has(k))m.set(k,[]);m.get(k).push([i,r]);});return m;});}
@@ -2115,6 +2211,26 @@ function goalTargets(state){
 function checkpointsOf(state){const g=goalsV2(state),main={id:'main',name:'Goal date',date:state.prefs?.checkpoint||g.goalDate,main:true};return [main,...(Array.isArray(state.prefs?.checkpoints)?state.prefs.checkpoints:[])].filter(c=>c&&validCalendarDate(c.date)).sort((a,b)=>a.date.localeCompare(b.date));}
 function nextCheckpoint(state,today){const t=today||todayYmd();return checkpointsOf(state).find(c=>c.date>=t)||null;}
 /* Where the plan says his weight should be on a date: a straight line from the start to the goal. */
+/* V3.7 X6 (audit P6, A58, A65): On the Plan's headline and four figures, from data the app already holds. weighIns are
+   [{date, lb}]. On plan is within 0.5 lb of the plan line; Ahead is past the line toward the goal. The projected date reads
+   the least-squares slope of the weigh-ins in the 28 days to the date (3 or more); the checkpoint is the next one he named,
+   else the goal date. Each figure is null with a reason when it cannot be computed. */
+function planFigures(state,t,weighIns){
+  const g=goalsV2(state),goalDate=validCalendarDate(state.prefs?.checkpoint)?state.prefs.checkpoint:g.goalDate,goal=Number.isFinite(g.weightLb.jan7)&&g.weightLb.jan7>0?g.weightLb.jan7:null,start=Number.isFinite(g.startWeightLb)?g.startWeightLb:null;
+  const w=(weighIns||[]).filter(x=>x&&x.date<=t&&Number.isFinite(x.lb)).sort((a,b)=>a.date.localeCompare(b.date)),latest=w.length?w[w.length-1]:null,down=goal!==null&&start!==null?goal<start:true;
+  const out={latest,goal,goalDate,state:null,diff:null,paceNeeded:null,projected:null,projectedVsGoal:null,daysAhead:null,checkpoint:null,why:latest?null:'not enough weigh-ins'};
+  const plan=d=>weightPaceLb(state,d);
+  if(latest&&plan(latest.date)!==null){out.diff=latest.lb-plan(latest.date);out.state=Math.abs(out.diff)<=0.5?'On plan':(out.diff<0)===down?'Ahead':'Behind';}
+  if(latest&&goal!==null&&validCalendarDate(goalDate)&&goalDate>t)out.paceNeeded=(goal-latest.lb)/(calendarDistance(t,goalDate)/7);
+  const recent=w.filter(x=>x.date>addDays(t,-28));
+  if(recent.length>=3&&goal!==null){const xs=recent.map(x=>calendarDistance(recent[0].date,x.date)),ys=recent.map(x=>x.lb),n=xs.length,mx=xs.reduce((a,b)=>a+b,0)/n,my=ys.reduce((a,b)=>a+b,0)/n,sxx=xs.reduce((a,x)=>a+(x-mx)*(x-mx),0),slope=sxx>0?xs.reduce((a,x,i)=>a+(x-mx)*(ys[i]-my),0)/sxx:0;
+    out.slopePerWeek=slope*7;const left=goal-latest.lb;if(Math.abs(left)<1e-9){out.projected=latest.date;}else if(Math.abs(slope)>=0.01&&Math.sign(slope)===Math.sign(left)&&left/slope<=3*365){out.projected=addDays(latest.date,Math.ceil(left/slope));}   // review F9: a flat slope (under 0.01 lb a day) or a date past three years is no projection
+    if(out.projected&&validCalendarDate(goalDate))out.projectedVsGoal=calendarDistance(goalDate,out.projected);}
+  if(latest&&start!==null&&goal!==null&&g.startDate&&validCalendarDate(goalDate)){const span=calendarDistance(g.startDate,goalDate),frac=(latest.lb-start)/(goal-start);if(span>0&&Number.isFinite(frac))out.daysAhead=Math.round(Math.max(0,Math.min(1,frac))*span)-calendarDistance(g.startDate,t);}
+  const cks=(Array.isArray(state.prefs?.checkpoints)?state.prefs.checkpoints:[]).filter(c=>c&&validCalendarDate(c.date)&&c.date>=t).sort((a,b)=>a.date.localeCompare(b.date));
+  const ck=cks[0]||(validCalendarDate(goalDate)&&goalDate>=t?{name:'Goal',date:goalDate}:null);if(ck)out.checkpoint={name:ck.name||'Checkpoint',date:ck.date,lb:plan(ck.date)};
+  return out;
+}
 function weightPaceLb(state,date){const g=goalsV2(state),goalDate=validCalendarDate(state.prefs?.checkpoint)?state.prefs.checkpoint:g.goalDate;if(!g.startDate||!Number.isFinite(g.startWeightLb)||!Number.isFinite(g.weightLb.jan7)||!validCalendarDate(goalDate))return null;const span=calendarDistance(g.startDate,goalDate),at=Math.max(0,Math.min(span,calendarDistance(g.startDate,date)));return span>0?g.startWeightLb+(g.weightLb.jan7-g.startWeightLb)*at/span:g.weightLb.jan7;}
 function latestWeightLb(state,before){const rows=weightRowsLb(state,before);return rows.length?rows[rows.length-1]:null;}
 // Every weigh-in in pounds (imported rows and his own entries), oldest first; `before` keeps those on or before a day.
@@ -2494,7 +2610,9 @@ function reopenNote(state, id){ return setNoteDone(state, id, false); }
 function saveFeedbackDraft(state, fields){
   const f = fields || {}, text = String(f.text || '').slice(0,NOTE_MAX);
   if (!Array.isArray(state.feedbackDrafts)) state.feedbackDrafts = [];
-  let d = f.id ? state.feedbackDrafts.find(x => x.id === f.id) : state.feedbackDrafts.find(x => x.cardId === f.cardId && x.status === 'draft');
+  // V3.7 K4: three levels; a visual's note and its card's note share the card id, so a draft is matched by level and visual too
+  const lvl = x => x.level || 'card', vis = x => x.visual && x.visual.id || '';
+  let d = f.id ? state.feedbackDrafts.find(x => x.id === f.id) : state.feedbackDrafts.find(x => x.cardId === f.cardId && x.status === 'draft' && lvl(x) === lvl(f) && vis(x) === vis(f));
   if (f.id && !d) return null;
   if (d && d.status === 'approved') return d;
   if (d){
@@ -2504,7 +2622,8 @@ function saveFeedbackDraft(state, fields){
   if (!text.trim() || typeof f.cardId !== 'string' || !f.cardId || typeof f.cardLabel !== 'string' || !f.cardLabel) return null;
   const at = nowIso();
   d = {id:newId('feedback'),cardId:f.cardId,cardLabel:f.cardLabel,area:String(f.area || ''),text:'',at,updatedAt:at,status:'draft',
-    ...(f.page ? {page:String(f.page)} : {}), ...(f.item ? {item:String(f.item)} : {}), ...(f.day ? {day:String(f.day)} : {}), build:typeof stampedBuildId === 'function' ? stampedBuildId() : undefined};   // V3.3 (3.6): where it was written
+    ...(f.page ? {page:String(f.page)} : {}), ...(f.item ? {item:String(f.item)} : {}), ...(f.day ? {day:String(f.day)} : {}),
+    ...(f.level === 'page' || f.level === 'visual' ? {level:f.level} : {}), ...(f.level === 'visual' && f.visual && f.visual.id ? {visual:{id:String(f.visual.id).slice(0, 80), label:String(f.visual.label || f.visual.id).slice(0, 80)}} : {}), build:typeof stampedBuildId === 'function' ? stampedBuildId() : undefined};   // V3.3 (3.6): where it was written
   setNoteText(d, text);   // review: the first save trims and splits like every later one
   state.feedbackDrafts.push(d); return d;
 }
@@ -2518,7 +2637,7 @@ function promoteFeedbackDraft(state, id){
   if (existing && (existing.sourceDraftId !== d.id || !existing.sourceCard || existing.sourceCard.id !== d.cardId)) return null;
   if (d.status === 'approved') return existing || null;
   const at = new Date(Math.max(Date.now(), noteChangedAt(d) + 1)).toISOString();
-  const n = existing || {id:noteId,...setNoteText({}, noteText(d).trim()),area:d.area,at,done:false,sourceCard:{id:d.cardId,label:d.cardLabel,area:d.area,...(d.page ? {page:d.page} : {}),...(d.item ? {item:d.item} : {}),...(d.day ? {day:d.day} : {})},sourceDraftId:d.id,...(d.build ? {build:d.build} : {})};
+  const n = existing || {id:noteId,...setNoteText({}, noteText(d).trim()),area:d.area,at,done:false,sourceCard:{id:d.cardId,label:d.cardLabel,area:d.area,...(d.page ? {page:d.page} : {}),...(d.item ? {item:d.item} : {}),...(d.day ? {day:d.day} : {}),...(d.level ? {level:d.level} : {}),...(d.visual ? {visual:{...d.visual}} : {})},sourceDraftId:d.id,...(d.build ? {build:d.build} : {})};
   if (!existing) state.notes.push(n);
   d.status = 'approved'; d.approvedNoteId = n.id; d.approvedAt = at; d.updatedAt = at;
   return n;
@@ -2810,6 +2929,7 @@ function validateState(x){
   }
   for (const s of x.series) for (const v of s.versions){ const e = typeof GoalEngine !== 'undefined' ? GoalEngine.validate(v.goal) : null; if (e) return e; }   // V3.6 M1
   { const e = typeof GoalEngine !== 'undefined' ? GoalEngine.validateEntries(x.goalEntries) : null; if (e) return e; }
+  { const e = validateIfitSessions(x.ifitSessions) || validateVo2Ledger(x.vo2Ledger); if (e) return e; }   // V3.7 O2, O6: additive, optional
   if (!x.occurrences || typeof x.occurrences !== 'object' || Array.isArray(x.occurrences)) return 'The record has no occurrence map.';
   for (const [k, o] of Object.entries(x.occurrences)){
     if (!o || typeof o.seriesId !== 'string' || typeof o.date !== 'string' || occKey(o.seriesId, o.date) !== k) return 'An occurrence is malformed.';
@@ -2842,6 +2962,7 @@ function validateState(x){
     if (!Array.isArray(x.feedbackDrafts)) return 'The feedback draft list is malformed.';
     const ids = new Set(), timestamp = t => typeof t === 'string' && Number.isFinite(Date.parse(t));
     for (const d of x.feedbackDrafts){
+      if (d && ((d.level !== undefined && d.level !== 'page' && d.level !== 'visual') || (d.visual !== undefined && (!d.visual || typeof d.visual.id !== 'string' || typeof d.visual.label !== 'string')))) return 'A feedback draft level is malformed.';   // V3.7 K4
       if (!d || ['id','cardId','cardLabel','area','text'].some(k => typeof d[k] !== 'string') || !d.id || !d.cardId || !d.cardLabel || ids.has(d.id) || d.text.length > 300 || (d.more !== undefined && typeof d.more !== 'string') || !timestamp(d.at) || !timestamp(d.updatedAt) || !['draft','approved'].includes(d.status)) return 'A feedback draft is malformed.';
       if (d.status === 'approved' ? (!d.text.trim() || d.approvedNoteId !== 'n-' + d.id || !timestamp(d.approvedAt)) : (d.approvedNoteId !== undefined || d.approvedAt !== undefined)) return 'A feedback draft approval is malformed.';
       ids.add(d.id);
@@ -3306,6 +3427,7 @@ function mergeState(cur, inc){
   c.importReceipts = 0;
   for (const r of inc.importReceipts) if (!cur.importReceipts.some(x => x.id === r.id)){ cur.importReceipts.push(JSON.parse(JSON.stringify(r))); c.importReceipts++; }
   if (typeof mergeJournals === 'function') c.journal = mergeJournals(cur,inc);
+  for (const k of ['ifitSessions', 'vo2Ledger']){ let n = 0; for (const [id, v] of Object.entries(inc[k] || {})){ cur[k] = cur[k] || {}; if (!cur[k][id]){ cur[k][id] = JSON.parse(JSON.stringify(v)); n++; } } if (n) c[k] = n; }   // V3.7 O2, O6: merged by id; history never moves
   { let n = 0; for (const [sid, list] of Object.entries(inc.goalEntries || {})){ if (!Array.isArray(list)) continue; cur.goalEntries = cur.goalEntries || {}; const mine = cur.goalEntries[sid] = cur.goalEntries[sid] || []; for (const e of list) if (e && e.id && !mine.some(x => x.id === e.id)){ mine.push(JSON.parse(JSON.stringify(e))); n++; } } if (n) c.goalEntries = n; }   // V3.6 M1: hand entries merge by id
   for (const g of inc.groups){
     const i = cur.groups.findIndex(x => x.id === g.id);
@@ -4294,6 +4416,19 @@ function wsBonusLines(state,eligible,today,epoch,allowZero){
   if(memoKey){drawMemo.bonusKey=memoKey;drawMemo.bonus=out;}
   return out;
 }
+// V3.7 X8: a goal line pays importance x difficulty x the window's credit share, once at the window's close. The amount is
+// recomputed from the stored rule and share, and every correction is checked the same way (or is a zero with no calculation).
+function validateGoalLineClaim(c,id){
+  const sid=typeof c.seriesId==='string'&&c.seriesId.startsWith('@goal:')?c.seriesId.slice(6):null;if(!sid||id!=='goal:'+sid+'|'+c.date)return 'A goal line is malformed.';
+  const one=(amount,calc)=>{const g=calc&&calc.goal,r=calc&&calc.rule;if(!calc||calc.ruleStep!=='goal-v1'||calc.bonusQ!==0||calc.baseQ!==amount||!g||!validCalendarDate(g.from)||g.to!==c.date||g.from>g.to||!Number.isSafeInteger(g.share)||g.share<1||g.share>100||!r)return false;
+    try{return QuarterPoints.baseQ({importance:r.importance,difficulty:r.difficulty,sizeNumerator:g.share,sizeDenominator:100})===amount;}catch(_){return false;}};
+  if(!one(c.amount,c.calculation))return 'A goal line differs from its calculation.';
+  const adj=c.adjustments||[];let running=c.amount;
+  if(!Array.isArray(adj))return 'A goal line correction is malformed.';
+  for(let i=0;i<adj.length;i++){const a=adj[i];if(!a||!Number.isSafeInteger(a.delta)||a.delta===0||a.unit!=='quarter-point'||a.epochId!==c.epochId||a.ruleVersion!==4||typeof a.id!=='string'||typeof a.at!=='string'||a.revision!==i+1)return 'A goal line correction is malformed.';
+    running+=a.delta;if(running<0||(a.calculation===null?running!==0:!one(running,a.calculation)))return 'A goal line correction differs from its calculation.';}
+  return null;
+}
 function validateLineClaim(c,id){
   const calc=c.calculation,int=v=>Number.isSafeInteger(v)&&v>=0;
   if(calc.baseQ!==c.amount||calc.bonusQ!==0||typeof calc.tableId!=='string')return 'A bonus line is malformed.';
@@ -4340,6 +4475,7 @@ function validatePerfectClaim(c,id,rewards){
 function validateQuarterClaim(c,id,rewards){
   if(c.id!==id||c.eventId!==id||c.unit!=='quarter-point'||typeof c.epochId!=='string'||!(rewards.epochs||[]).some(e=>e.id===c.epochId)||!Number.isSafeInteger(c.amount)||c.amount<1||!validCalendarDate(c.date)||typeof c.seriesId!=='string'||typeof c.claimedAt!=='string')return 'A quarter-point claim is malformed.';
   const calc=c.calculation;if(!calc||!Number.isSafeInteger(calc.baseQ)||calc.baseQ<0||!Number.isSafeInteger(calc.bonusQ)||calc.bonusQ<0||calc.baseQ+calc.bonusQ!==c.amount)return 'A quarter-point calculation is malformed.';
+  if(calc.ruleStep==='goal-v1')return validateGoalLineClaim(c,id);   // V3.7 X8 (re-attack): a goal line has its own shape
   try{const protectedError=validatePerfectClaim(c,id,rewards);if(protectedError)return protectedError;}catch(_){return 'A dated Perfect calculation is malformed.';}
   if(calc.dayLine!==undefined||calc.weekLine!==undefined){const bad=validateLineClaim(c,id);if(bad)return bad;const adj=c.adjustments||[];if(!Number.isSafeInteger(claimBalance(c))||claimBalance(c)<0||adj.some((a,i)=>!a||!Number.isSafeInteger(a.delta)||a.delta===0||a.unit!=='quarter-point'||a.epochId!==c.epochId||a.ruleVersion!==4||a.revision!==i+1||!a.calculation||validateLineClaim({...c,amount:c.amount+adj.slice(0,i+1).reduce((n,x)=>n+x.delta,0),calculation:a.calculation},id)))return 'A bonus top-up is malformed.';return null;}
   if(!Number.isSafeInteger(calc.priorFull)||calc.priorFull<0||typeof calc.pending!=='boolean'||typeof calc.recurring!=='boolean')return 'A quarter-point chain is malformed.';
@@ -4394,7 +4530,7 @@ rewardReport=function(state,today){
   const rewards=state.rewards,epoch=wsEpoch(state),items=confirmedEligibility(state,today).filter(e=>e.epochId===epoch.id),eligible=items.concat(wsBonusLines(state,items,today,epoch),wsPerfectAwards(state,today,epoch)),byId=new Map(eligible.map(e=>[e.id,e]));
   // A Scoring V2 claim whose day has since grown (steps climbing to 12,000) is topped up by the
   // difference, once; only a drop needs the reviewed correction (V2.0).
-  const grown=c=>(c.calculation?.ruleStep===5||c.calculation?.dayLine===5||c.calculation?.weekLine===5||wsProtectedClaim(c))&&(byId.get(c.id)?.amount||0)>claimBalance(c);
+  const grown=c=>(c.calculation?.ruleStep===5||c.calculation?.ruleStep==='goal-v1'||c.calculation?.dayLine===5||c.calculation?.weekLine===5||wsProtectedClaim(c))&&(byId.get(c.id)?.amount||0)>claimBalance(c);
   const unknown=c=>wsProtectedClaim(c)&&typeof PerfectVerdicts==='undefined';
   const claims=Object.values(rewards.claims).filter(c=>c.ruleVersion===4&&c.epochId===epoch.id).map(c=>({...c,balance:claimBalance(c),displayAmount:c.amount/4,displayBalance:claimBalance(c)/4,eligibilityUnknown:unknown(c),needsReview:!unknown(c)&&(byId.get(c.id)?.amount||0)!==claimBalance(c)&&!grown(c)}));
   const topUps=Object.values(rewards.claims).filter(c=>c.ruleVersion===4&&c.epochId===epoch.id&&grown(c)).map(c=>{const e=byId.get(c.id),delta=e.amount-claimBalance(c);return {...e,topUp:true,delta,amount:delta,amountQ:delta,displayAmount:delta/4,previousAmount:claimBalance(c)};});
@@ -4433,6 +4569,17 @@ function wsLineCorrections(state,note,reviewedEpoch){
     c.adjustments=c.adjustments||[];
     c.adjustments.push({id:newId('adjust'),at,delta:now.amount-before,reason:String(note||'Bonus follows corrected items').slice(0,300),revision:c.adjustments.length+1,ruleVersion:4,unit:'quarter-point',epochId:c.epochId,calculation:now.calculation});
     out.push({id:c.id,before,after:now.amount});
+  }
+  // V3.7 X8 (re-attack): a claimed goal line follows corrected ticks like every other claim (a drop is a reviewed correction)
+  const goalNow=new Map();
+  for(const c of Object.values(state.rewards.claims||{})){
+    if(c.ruleVersion!==4||!c.calculation||c.calculation.ruleStep!=='goal-v1'||reviewedEpoch&&c.epochId!==reviewedEpoch)continue;
+    if(!goalNow.has(c.epochId)){const epoch=(state.rewards.epochs||[]).find(e=>e.id===c.epochId);goalNow.set(c.epochId,epoch&&quarterProgression(state)&&wsEpoch(state)?.id===epoch.id?wsGoalLines(state,today):null);}
+    const lines=goalNow.get(c.epochId);if(!lines)continue;const now=lines.find(l=>l.id===c.id),before=claimBalance(c),after=now?now.amount:0;
+    if(after>=before)continue;
+    c.adjustments=c.adjustments||[];
+    c.adjustments.push({id:newId('adjust'),at,delta:after-before,reason:String(note||'Goal follows corrected ticks').slice(0,300),revision:c.adjustments.length+1,ruleVersion:4,unit:'quarter-point',epochId:c.epochId,calculation:now?wsClone(now.calculation):null});
+    out.push({id:c.id,before,after});
   }
   for(const epochId of new Set(Object.values(state.rewards.claims).filter(c=>wsProtectedClaim(c)&&(!reviewedEpoch||c.epochId===reviewedEpoch)).map(c=>c.epochId)))for(const change of wsProtectedCorrections(state,epochId)){
     const c=state.rewards.claims[change.id];c.adjustments=c.adjustments||[];
@@ -4813,7 +4960,49 @@ let wsProjectionCache=null;
 const wsUncachedChainEvent=wsChainEvent,wsUncachedPriorChain=wsPriorChain,wsUncachedEligibility=confirmedEligibility;
 wsChainEvent=function(state,id,date){if(!wsProjectionCache)return wsUncachedChainEvent(state,id,date);const key='event|'+id+'|'+date;if(!wsProjectionCache.has(key))wsProjectionCache.set(key,wsUncachedChainEvent(state,id,date));return wsProjectionCache.get(key);};
 wsPriorChain=function(state,id,date,epoch){if(!wsProjectionCache)return wsUncachedPriorChain(state,id,date,epoch);const key='prior|'+id+'|'+date+'|'+epoch.id;if(!wsProjectionCache.has(key))wsProjectionCache.set(key,wsUncachedPriorChain(state,id,date,epoch));return wsProjectionCache.get(key);};
-confirmedEligibility=function(state,today){if(!quarterProgression(state))return wsUncachedEligibility(state,today);const prior=wsProjectionCache;wsProjectionCache=new Map();try{return wsUncachedEligibility(state,today);}finally{wsProjectionCache=prior;}};
+confirmedEligibility=function(state,today){if(!quarterProgression(state))return wsUncachedEligibility(state,today);const prior=wsProjectionCache;wsProjectionCache=new Map();try{return wsUncachedEligibility(state,today).concat(wsGoalLines(state,today));}finally{wsProjectionCache=prior;}};
+/* V3.7 X8 (V36-A9, A44, V36-I29): a goal item pays its existing points times the credit share its window holds when the
+   window closes; no new points table. A dated rule from V37_RULE_DAY: a window that closed before it is never paid, an
+   occurrence of a windowed goal before it keeps its per-tick pay, and no earlier claim moves. A limit that held credits in
+   full, one that is over credits 0 (no line). The line's series id starts with "@" so it never joins a day's bonus total. */
+// One test for both payers (re-attack, Oct 4): the window around day d is paid as one line only when one windowed, non-rolling
+// version governs every day of it and it starts on or after both the rule day and the points epoch. Otherwise each tick in it
+// keeps its own pay, so a tick is never paid twice (line + tick) and never lost (neither).
+// A week goal saved without its own week start (every V3.6 goal) is pinned to the alignment of its first claimed line, so a
+// later week-start change never re-cuts a paid week, skips the next one or strands a claim (re-attack, Oct 4). Nothing is written.
+const wsPinCache=new WeakMap(),wsVerSeries=new WeakMap();
+function wsGoalWeekPin(state,ver){
+  const claims=state.rewards&&state.rewards.claims;if(!claims)return null;
+  let sid=wsVerSeries.get(ver);if(sid===undefined){for(const x of state.series||[])for(const v of x.versions||[])wsVerSeries.set(v,x.id);sid=wsVerSeries.get(ver);if(sid===undefined)return null;}
+  const n=Object.keys(claims).length;let c=wsPinCache.get(claims);
+  if(!c||c.n!==n){c={n,pin:new Map()};const first=new Map();
+    const byId=new Map((state.series||[]).map(x=>[x.id,x]));
+    for(const x of Object.values(claims)){const g=x&&x.calculation&&x.calculation.ruleStep==='goal-v1'&&x.calculation.goal;if(!g||!validCalendarDate(g.from)||g.to!==addDays(g.from,6))continue;const k=x.seriesId.slice(6),sr=byId.get(k),vv=sr&&versionFor(sr,g.to);if(!vv||!vv.goal||!vv.goal.period||vv.goal.period.kind!=='week')continue;const prev=first.get(k);if(!prev||g.from<prev)first.set(k,g.from);}   // only a line paid under a weekly version sets a week pin (not "every 7 days", not a month)
+    for(const [k,f] of first){const wd=new Date(f+'T12:00:00').getDay();if(wd===0||wd===1)c.pin.set(k,wd);}wsPinCache.set(claims,c);}
+  const v=c.pin.get(sid);return v===0||v===1?v:null;
+}
+function wsLineWindow(state,s,d,epoch){
+  const ver=versionFor(s,d);if(!ver||!GoalEngine.windowed(ver)||(ver.goal.period&&ver.goal.period.kind==='rolling'))return null;   // review F2: a rolling window overlaps itself
+  const w=GoalEngine.window(ver.goal,d,ver,state),from0=V37_RULE_DAY>epoch.effectiveFrom?V37_RULE_DAY:epoch.effectiveFrom;if(!w||w.from<from0)return null;   // review F3
+  for(let x=w.from;x<=w.to;x=addDays(x,1))if(versionFor(s,x)!==ver)return null;   // a goal changed mid-window (Convert either way) is paid per tick
+  return {ver,w,st:state};
+}
+function wsGoalLines(state,today){
+  if(typeof QuarterPoints==='undefined'||typeof GoalEngine==='undefined')return [];
+  const epoch=wsEpoch(state);if(!epoch)return [];const out=[],memo={},from0=V37_RULE_DAY>epoch.effectiveFrom?V37_RULE_DAY:epoch.effectiveFrom;
+  for(const s of state.series||[]){if(s.demo)continue;const done=new Set();
+    for(const ver of s.versions||[]){if(!GoalEngine.windowed(ver)||(ver.goal.period&&ver.goal.period.kind==='rolling'))continue;
+      const start=ver.effectiveFrom>from0?ver.effectiveFrom:from0;
+      for(let d=start;d<today;d=addDays(d,1)){const lw=wsLineWindow(state,s,d,epoch);if(!lw||lw.ver!==ver)continue;const w=lw.w;if(w.to>=today||done.has(w.to))continue;done.add(w.to);
+        const rule=scoringRule(ver.scoring);if(!rule.eligible)continue;
+        const credit=(GoalEngine.progress(lw.st,s,w.to,goalReadings)||{}).credit,share=Number.isFinite(credit)?Math.max(0,Math.min(100,Math.round(credit*100))):0;if(!share)continue;
+        const baseQ=QuarterPoints.baseQ({importance:rule.importance,difficulty:rule.difficulty,sizeNumerator:share,sizeDenominator:100});if(!Number.isSafeInteger(baseQ)||baseQ<=0)continue;
+        const id='goal:'+s.id+'|'+w.to;
+        out.push({id,eventId:id,seriesId:'@goal:'+s.id,goalSeriesId:s.id,date:w.to,name:ver.name,amount:baseQ,amountQ:baseQ,displayAmount:baseQ/4,ruleVersion:4,unit:'quarter-point',epochId:epoch.id,origin:'goal',evidenceIds:[],calculation:{baseQ,bonusQ:0,ruleStep:'goal-v1',goal:{from:w.from,to:w.to,credit,share},rule:wsClone(rule)},disputed:false});}}}
+  return out;
+}
+const wsUnwindowedEntitlement=actionEntitlement;
+actionEntitlement=function(state,o){if(quarterProgression(state)&&o&&o.date>=V37_RULE_DAY&&typeof GoalEngine!=='undefined'){const s=state.series.find(x=>x.id===o.seriesId),epoch=s&&wsEpoch(state);if(epoch&&wsLineWindow(state,s,o.date,epoch))return null;}return wsUnwindowedEntitlement(state,o);};   /* only a window that pays a line loses its per-tick pay (the same test, wsLineWindow) */   // X8: paid once at the window's close, never per tick as well
 
 /* Corrections use the original claim's rule even while another epoch is active. */
 function wsLegacyClaimPreview(state,id){

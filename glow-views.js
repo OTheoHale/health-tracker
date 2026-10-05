@@ -46,7 +46,7 @@
     return '<svg class="load-gauge" viewBox="0 0 '+W+' 104" role="img" aria-label="'+esc('Load '+(num(load.value)?load.value:'unknown')+'; target '+Math.round(b.lo)+' to '+Math.round(b.hi)+'; '+(load.label||''))+'">'+stops+'<rect x="'+f(x(b.lo))+'" y="33" width="'+f(x(b.hi)-x(b.lo))+'" height="24" rx="3" fill="none" stroke="var(--ink)" stroke-width="1.5"/>'+marker+'<text x="'+f(x(mid))+'" y="83" text-anchor="middle" fill="var(--ink)" font-size="13">Target '+Math.round(b.lo)+'–'+Math.round(b.hi)+'</text><text x="24" y="83" fill="var(--muted)" font-size="12">0 · Low</text><text x="536" y="83" text-anchor="end" fill="var(--muted)" font-size="12">'+Math.round(max)+' · High</text></svg>';
   }
   function sleepWeek(days,target){
-    const W=400,H=244,L=32,R=392,T=16,B=164,max=Math.max(target,...days.flatMap(d=>[d.asleep,d.inBed]).filter(num),60),top=Math.ceil(max/120)*120,step=(R-L)/Math.max(1,days.length),y=v=>B-v/top*(B-T),hours=v=>String(Math.round(v/60*10)/10)+' h';
+    const W=400,H=244,L=32,R=392,T=28,B=164,max=Math.max(target,...days.flatMap(d=>[d.asleep,d.inBed]).filter(num),60),top=Math.ceil(max/120)*120,step=(R-L)/Math.max(1,days.length),y=v=>B-v/top*(B-T),hours=v=>String(Math.round(v/60*10)/10)+' h';
     let out='<svg class="sleep-week-chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Asleep and in-bed duration by night, hours; target '+hours(target)+'"><text x="2" y="10" fill="var(--muted)" font-size="11">Hours</text>';
     for(const v of [0,top/2,top])out+='<line x1="'+L+'" x2="'+R+'" y1="'+f(y(v))+'" y2="'+f(y(v))+'" stroke="var(--line)"/><text x="24" y="'+f(y(v)+4)+'" text-anchor="end" fill="var(--muted)" font-size="12">'+Math.round(v/60)+'</text>';
     out+='<line x1="'+L+'" x2="'+R+'" y1="'+f(y(target))+'" y2="'+f(y(target))+'" stroke="#9cc4f0" stroke-dasharray="5 4"/><text x="'+R+'" y="'+f(y(target)-5)+'" text-anchor="end" fill="var(--ink)" font-size="12">Target '+hours(target)+'</text>';
@@ -241,6 +241,9 @@
       for(const v of [d0,(d0+d1)/2,d1])frame+='<line class="grid" x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v)+'" y2="'+y(v)+'"/><text class="axis" x="'+(L-5)+'" y="'+f(+y(v)+3.5)+'" text-anchor="end">'+esc(axisText(v,axis.digits))+'</text>';
       if(axis.unit)frame+='<text class="axis unit" x="'+(L-5)+'" y="9" text-anchor="end">'+esc(axis.unit)+'</text>';
       const names=axis.x||[],at=[...new Set([0,Math.floor((values.length-1)/2),values.length-1])];
+      // V3.7 X5: a middle name that would run into an end name is left out (an estimate of the text width at the axis font)
+      const wid=i=>String(names[i]==null?'':names[i]).length*6.2,span=(i,k)=>{const c=+x(i);return k===0?[c,c+wid(i)]:k===at.length-1?[c-wid(i),c]:[c-wid(i)/2,c+wid(i)/2];},hit=(a,b)=>a[0]<b[1]+3&&b[0]<a[1]+3;
+      if(at.length===3&&(hit(span(at[1],1),span(at[0],0))||hit(span(at[1],1),span(at[2],2))))at.splice(1,1);
       at.forEach((i,k)=>{if(names[i]!==undefined&&names[i]!==null)frame+='<text class="axis" x="'+x(i)+'" y="'+(H-6)+'" text-anchor="'+(k===0?'start':k===at.length-1?'end':'middle')+'">'+esc(names[i])+'</text>';});
     }
     if(ref)frame+='<line class="ref" x1="'+L+'" x2="'+(W-R)+'" y1="'+y(ref.value)+'" y2="'+y(ref.value)+'" stroke="'+tone(ref.colour||'neutral')+'"/>'+(ref.label?'<text class="axis ref-label" x="'+(W-R)+'" y="'+f(+y(ref.value)-4)+'" text-anchor="end" fill="'+tone(ref.colour||'neutral')+'">'+esc(ref.label)+'</text>':'');
@@ -261,21 +264,26 @@
     const all=(o.points||[]).filter(p=>p&&num(p.v)&&/^\d{4}-\d{2}-\d{2}$/.test(p.d)).sort((a,b)=>a.d.localeCompare(b.d));
     const d0=o.domain?o.domain[0]:all.length?all[0].d:null,d1=o.domain?o.domain[1]:all.length?all[all.length-1].d:null;if(!d0||!d1)return '';
     const t0=dnum(d0),t1=Math.max(dnum(d1),t0+1),pts=all.filter(p=>dnum(p.d)>=t0&&dnum(p.d)<=t1),plan=(o.plan||[]).filter(p=>num(p.v));
-    const ext=pts.map(p=>p.v).concat(o.band||[],(o.hlines||[]).map(l=>l.v),plan.map(p=>p.v),(o.marks||[]).map(m=>m.v)).filter(num);if(!ext.length)return '';
+    const ext=pts.map(p=>p.v).concat((o.bands||[]).flatMap(b=>[b&&b.lo,b&&b.hi]).filter(num),o.band||[],(o.hlines||[]).map(l=>l.v),plan.map(p=>p.v),(o.marks||[]).map(m=>m.v)).filter(num);if(!ext.length)return '';
     const lo0=Math.min(...ext),hi0=Math.max(...ext),span=(hi0-lo0)||Math.max(1,Math.abs(hi0)*.1),lo=lo0-span*.1,hi=hi0+span*.1;
     const x=t=>pl+(t-t0)/(t1-t0)*(W-pl-pr),y=v=>pt+(1-(v-lo)/(hi-lo))*(H-pt-pb);
-    const pv=pts.map(p=>p.v),yMin=pv.length?Math.min(...pv):lo0,yMax=pv.length?Math.max(...pv):hi0,ys=yMin===yMax?[yMin]:[yMin,(yMin+yMax)/2,yMax];
+    const pv=pts.map(p=>p.v),yMin=pv.length?Math.min(...pv):lo0,yMax=pv.length?Math.max(...pv):hi0,gap=Math.abs(y(yMin)-y(yMax)),ys=yMin===yMax||gap<12?[yMin]:gap<24?[yMin,yMax]:[yMin,(yMin+yMax)/2,yMax];   // V3.7: labels never collide (one when the readings are within 12 px)
     const col=o.colour||'var(--verd,#79d6a9)';let g='';
     ys.forEach(v=>{g+='<line class="lc-grid" x1="'+pl+'" x2="'+(W-pr)+'" y1="'+f(y(v))+'" y2="'+f(y(v))+'"/>';});
     if(o.band&&num(o.band[0])&&num(o.band[1])){const by=y(Math.min(hi,o.band[1])),bh=Math.max(2,y(Math.max(lo,o.band[0]))-by);g+='<rect class="lc-band" x="'+pl+'" y="'+f(by)+'" width="'+(W-pl-pr)+'" height="'+f(bh)+'" rx="6"/>';}
+    // V3.7 B5: target bands (ideal green, close yellow, bad red) from a table the app holds; edges may be open (±Infinity); clipped to the chart
+    (o.bands||[]).forEach(b=>{if(!b)return;const a=Math.max(lo,num(b.lo)?b.lo:-Infinity),z=Math.min(hi,num(b.hi)?b.hi:Infinity);if(!(z>a))return;const by=y(z),bh=Math.max(1,y(a)-by);g+='<rect class="lc-tband '+(b.kind||'ideal')+'" data-band="'+(b.kind||'ideal')+'" data-lo="'+(num(b.lo)?b.lo:'')+'" data-hi="'+(num(b.hi)?b.hi:'')+'" x="'+pl+'" y="'+f(by)+'" width="'+(W-pl-pr)+'" height="'+f(bh)+'"/>';});
     (o.hlines||[]).forEach(l=>{g+='<line class="lc-h '+(l.cls||'')+'" data-v="'+l.v+'" x1="'+pl+'" x2="'+(W-pr)+'" y1="'+f(y(l.v))+'" y2="'+f(y(l.v))+'"/>';});
+    // V3.7 B5: the plan line's band (weight against the plan, A58): a ribbon of ±planBand around the plan line
+    if(plan.length>1&&num(o.planBand)&&o.planBand>0)g+='<path class="lc-tband ideal" data-band="plan" data-width="'+o.planBand+'" d="'+plan.map((p,i)=>(i?'L':'M')+f(x(dnum(p.d)))+' '+f(y(p.v+o.planBand))).join('')+plan.slice().reverse().map(p=>'L'+f(x(dnum(p.d)))+' '+f(y(p.v-o.planBand))).join('')+'Z"/>';
     if(plan.length>1)g+='<path class="lc-plan"'+(o.planAttrs||'')+' d="'+plan.map((p,i)=>(i?'L':'M')+f(x(dnum(p.d)))+' '+f(y(p.v))).join('')+'"/>';
     if(pts.length>1)g+='<path class="lc-line" stroke="'+col+'" d="'+pts.map((p,i)=>(i?'L':'M')+f(x(dnum(p.d)))+' '+f(y(p.v))).join('')+'"/>';
     pts.forEach((p,i)=>{const last=i===pts.length-1;g+='<circle class="'+(last?'lc-last':'lc-pt')+'" data-d="'+p.d+'" data-v="'+p.v+'"'+(p.attrs||'')+' cx="'+f(x(dnum(p.d)))+'" cy="'+f(y(p.v))+'" r="'+(last?(small?3:4.5):(small?1.8:2.4))+'" fill="'+(last?'#ece6d6':col)+'"'+(last?' stroke="'+col+'" stroke-width="2"':'')+'>'+(p.title?'<title>'+esc(p.title)+'</title>':'')+'</circle>';});
     (o.marks||[]).forEach(m=>{if(num(m.v))g+='<circle class="lc-mark"'+(m.attrs||'')+' cx="'+f(x(dnum(m.d)))+'" cy="'+f(y(m.v))+'" r="'+(m.r||3.6)+'" fill="'+(m.colour||'#cfae63')+'"'+(m.stroke?' stroke="'+m.stroke+'" stroke-width="2"':'')+'>'+(m.title?'<title>'+esc(m.title)+'</title>':'')+'</circle>';});
     let labs='';const lab=(c,t,xx,yy,tf,a)=>'<span class="lc-ax '+c+'" '+(a||'')+' style="left:'+f(xx/W*100)+'%;top:'+f(yy/H*100)+'%;transform:'+tf+'">'+esc(t)+'</span>';
-    ys.forEach((v,i)=>{labs+=lab('y',lcNum(v,digits,signed),pl-4,y(v),'translate(-100%,-50%)','data-y="'+(ys.length===1?'one':['min','mid','max'][i])+'"');});
-    const long=t1-t0>60,ticks=o.xTicks||[t0,(t0+t1)/2,t1].map(t=>({d:dstr(t),label:long?MON3[new Date(Math.round(t)*864e5).getUTCMonth()]:dlab(dstr(t))}));
+    // V3.7 X5: a small chart (a 140 x 50 tile) carries no y labels and only its two end dates; min and max live in its drawer
+    if(!small)ys.forEach((v,i)=>{labs+=lab('y',lcNum(v,digits,signed),pl-4,y(v),'translate(-100%,-50%)','data-y="'+(ys.length===1?'one':['min','mid','max'][i])+'"');});
+    const long=t1-t0>60,ticks=o.xTicks||(small?[t0,t1]:[t0,(t0+t1)/2,t1]).map((t,i)=>({d:dstr(t),label:long?MON3[new Date(Math.round(t)*864e5).getUTCMonth()]:small&&dstr(t1).slice(0,7)===dstr(t0).slice(0,7)?String(+dstr(t).slice(8)):dlab(dstr(t))}));   // V3.7 X5: a small chart inside one month shows day numbers (the month is in its drawer)
     ticks.forEach((tk,i)=>{labs+=lab('x',tk.label,x(dnum(tk.d)),H-pb+3,i===0?'none':i===ticks.length-1?'translate(-100%,0)':'translate(-50%,0)','data-x="'+(['first','mid','last'][Math.min(i,2)])+'" data-d="'+tk.d+'"');});
     (o.hlines||[]).forEach(l=>{if(l.label)labs+=lab('hl '+(l.cls||''),l.label,W-pr,y(l.v)-2,'translate(-100%,-100%)','data-hl="'+l.v+'"');});
     (o.pointLabels||[]).forEach(p=>{if(num(p.v))labs+=lab('pl',p.label,x(dnum(p.d))+(p.left?-6:6),y(p.v),p.left?'translate(-100%,-50%)':'translate(0,-50%)','data-pl="'+p.d+'"');});
