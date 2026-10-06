@@ -1568,6 +1568,13 @@ button.today-fend:hover{background:var(--sunk-2)}.today-fend b{font:600 24px var
 .goal-pace{margin-left:8px;font-size:11px;color:var(--muted)}
 /* Fix P4: with the 11 px floor, the Fast Resilience title keeps its line and its note goes beneath it */
 .fast-res .ph h2{flex:0 0 auto}.fast-res .ph .fixed-win{flex:1 1 100%;order:5;margin:0}
+/* Fix Q1, Q2: the pinned block at the top of the right rail */
+.rail-pin{position:sticky;top:-12px;z-index:7;display:flex;flex-direction:column;gap:8px;margin:-12px -4px 0;padding:12px 4px 8px;background:linear-gradient(var(--bg,#0e2219) 82%,transparent)}
+.rail-head{display:flex;flex-direction:column;gap:6px;padding:8px 10px;border:1px solid var(--line);border-radius:14px;background:var(--panel-2,rgba(12,34,26,.92))}
+.rail-head .rh-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.rail-head .rh-top b{font:600 15px var(--serif,inherit)}.rail-head .rh-top small{font-size:11px;color:var(--muted)}
+.rail-head .rh-date{display:flex;align-items:center;gap:6px}.rail-head .rh-date b{font-size:13px;white-space:nowrap}.rail-head .rh-date .k-btn{height:26px;padding:0 10px;font-size:12px;margin-left:auto}
+.rail-head .filt-bar{margin:0;gap:6px;flex-wrap:wrap}.rail-head .filt-seg button{min-height:26px;height:26px;padding:0 9px;font-size:12px}.rail-head .filt-range{height:26px;padding:0 10px;font-size:12px}
+.rail-pin .rail-sofar{margin:0;padding:12px 14px}.rail-sofar .ph{flex-wrap:nowrap;gap:6px}.rail-sofar .ph h2{white-space:nowrap;font-size:16px;margin-right:24px}.rail-sofar .sofar-line,.rail-sofar .today-perfect{font-size:13px}
 </style>
 <link rel="stylesheet" href="body-view.css">
 <script type="module" src="model-viewer.min.js"></script>
@@ -5158,6 +5165,7 @@ addEventListener('load', () => {
   const filtPickRefresh = () => { const el = document.querySelector('.filt-pop-wrap'); if (el && filtPicker) el.outerHTML = filtPickHTML(filtPicker.page); else render(); };
   // The page filter (L1): the selected day with ‹ › (A70), then the five periods, the Week menu (L7) and Custom's dates (L6)
   function filtPageHTML(page, o){
+    if (railHosts() && !(o && o.rail)) return '';   // Q1: the rail draws the page filter
     const s = filtState(page), sel = o && o.noDay ? '' : '<span class="filt-day" data-parity="V37-L1-02"><button class="k-icon-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b data-sel-day="' + day + '">' + esc(new Date(day + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'})) + '</b><button class="k-icon-btn" data-act="step" data-n="1" aria-label="Next day">›</button>' + (day !== todayYmd() ? '<button class="k-btn" data-act="jumpToday">Today</button>' : '') + '</span>';
     return '<div class="filt-bar" data-filter-page="' + page + '" data-parity="V37-L1-01">' + sel + '<div class="k-seg filt-seg" role="group" aria-label="Period for this page">' + filtSeg(page, null, s.per) + '</div>' + weekMenu() +
       (s.per === 'custom' ? (() => { const c = filtRange(s.custom) || {from:addDays(day, -6), to:day}; return '<span class="filt-custom" data-parity="V37-L6-01"><button type="button" class="k-btn filt-range" data-act="filtPick" data-page="' + page + '" aria-haspopup="dialog" aria-expanded="' + !!(filtPicker && filtPicker.page === page) + '" title="Choose a date range">📅 ' + esc(c.from === c.to ? monthDay(c.from) : monthDay(c.from) + ' – ' + monthDay(c.to)) + '</button></span>'; })() : '') + filtPickHTML(page) + '</div>';
@@ -5450,14 +5458,14 @@ addEventListener('load', () => {
     // week, Fuel, then the Learn list. The day's cards are on Quests; Sleep, Readiness, Health Age, Nutrition and the
     // rings each keep one home elsewhere (parity rows TODAY-16, 17, 39, 40, 54).
     const today = todayYmd(), asOf = day < today ? day : null, tr = weightTrend(st, asOf || today), u = unitPrefs(st), r1 = x => (Math.round(x * 10) / 10).toLocaleString('en-US'), lvl = readyToClaim(st);   // V3.7.1 review R4: the strip's weigh-in as of the selected day
-    const head = '<div class="today-bar" data-parity="TODAY-01"><div class="today-nav daynav"><button class="k-icon-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b class="today-date" title="' + esc(longDate(day)) + '">' + esc(new Date(day + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'})) + (dayWord !== longDate(day) ? '<small>' + esc(dayWord) + '</small>' : '') + '</b><button class="k-icon-btn" data-act="step" data-n="1" aria-label="Next day">›</button>' + (day !== today ? '<button class="k-btn" data-act="jumpToday">Today</button>' : '') + '<input type="date" class="daypick" value="' + esc(day) + '" aria-label="Pick a day"></div>' + filtPageHTML('home', {noDay:true}) + '<span class="k-spacer"></span><button class="k-btn g-addbtn" data-act="todayAdd" data-parity="V35-G8-02">+ Add</button>' + todayAttention(st) +
+    const head = '<div class="today-bar" data-parity="TODAY-01">' + (railHosts() ? '' : '<div class="today-nav daynav"><button class="k-icon-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b class="today-date" title="' + esc(longDate(day)) + '">' + esc(new Date(day + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'})) + (dayWord !== longDate(day) ? '<small>' + esc(dayWord) + '</small>' : '') + '</b><button class="k-icon-btn" data-act="step" data-n="1" aria-label="Next day">›</button>' + (day !== today ? '<button class="k-btn" data-act="jumpToday">Today</button>' : '') + '<input type="date" class="daypick" value="' + esc(day) + '" aria-label="Pick a day"></div>') + filtPageHTML('home', {noDay:true}) + '<span class="k-spacer"></span><button class="k-btn g-addbtn" data-act="todayAdd" data-parity="V35-G8-02">+ Add</button>' + todayAttention(st) +
       '<details class="more today-log" data-parity="TODAY-19"><summary aria-label="Log something" title="Log food, water, a workout, a check-in or the journal">＋</summary><div class="more-menu">' + LOG_TABS.map(t => '<button class="link" data-act="quickLog" data-tab="' + t[0] + '">' + t[1] + '</button>').join('') + '<button class="link" data-act="journalOpen">Journal</button><button class="link" data-act="go" data-area="data">All entries</button></div></details></div>';
     const strip = '<div class="today-strip" data-parity="TODAY-35">' + (tr ? '<span class="today-s" data-parity="TODAY-25"><span aria-hidden="true">⚖️</span><b>' + r1(u.lb(tr.latest)) + '</b><small>' + esc(u.mass) + '</small>' + freshChip(tr.date, null, asOf) + '</span>' : '<span class="today-s"><span aria-hidden="true">⚖️</span><small>No weigh-in yet</small></span>') + (lvl ? '<span class="today-s"><span class="orb small" aria-hidden="true"></span><b>Level ' + esc(String(lvl.rw.level)) + '</b></span>' : '') + '</div>';
     const sofar = soFarCard().replace('data-act="reviewPass"', 'data-act="todayReview"').replace('<section class="panelcard sofar"', '<section class="panelcard sofar today-sofar" data-parity="TODAY-02"').replace('</section>', perfectLine(day) + unplacedLine(st) + (lvl && lvl.points ? '<button class="k-chip gold today-claim-chip" data-act="claimAll">Claim ' + (Math.round(lvl.points * 100) / 100).toLocaleString() + '</button>' : '') + '</section>');
     const upnext = '<section class="k-sec today-next-sec"><div class="k-sec-head"><h2>Up Next' + infoBtn('upnext', 'Up Next') + '</h2><button class="link" data-act="todayTab" data-tab="activities" data-parity="TODAY-36">See all ›</button></div>' + infoPop('upnext', 'What is due today by its own days, one routine at a time with every step in view. Skip for now sends one to the back of today’s queue; ‹ › go through what is left. The full day is on Quests.') + next.replace('<section class="panelcard next-action"', '<section class="panelcard next-action" data-parity="TODAY-10"') + '</section>';
     const week = '<section class="k-sec"><div class="k-sec-head"><h2>This Week' + infoBtn('wkstrip', 'This Week') + '</h2>' + filtChipHTML('home', 'week') + '<button class="link" data-act="questTab" data-tab="week">Week ›</button></div>' + infoPop('wkstrip', 'Each day of this week: what it asked, and how much is done (brighter is more). Tap a day to open it on Quests. Your weekly goals (Prayer 3 of 5 and the rest) are on Quests → Week.') + weekStripV34(st) + '</section>';
     const added = composer && composer.area === 'home' ? '<section class="k-card today-add" data-feedback-id="today-add" data-feedback-label="Add an item">' + composerHTML() + '</section>' : '';
-    return head + strip + added + gradeArea('home', () => gradeHero(st) + gradeStrip(st), st) + dayEditor() + quickPanel() + sofar + heroCard(day, {tiles:true}) + '<div class="today-two">' + upnext + week + '</div><div class="today-two today-two-energy"><div class="today-stack">' + fuelCardV35(day) + '</div>' + waterStepsCardV35(day) + '</div>' + macrosNutritionCard(day) + dailyLearnList('today', day);
+    return head + strip + added + gradeArea('home', () => gradeHero(st) + gradeStrip(st), st) + dayEditor() + quickPanel() + (railHosts() ? '' : sofar) + heroCard(day, {tiles:true}) + '<div class="today-two">' + upnext + week + '</div><div class="today-two today-two-energy"><div class="today-stack">' + fuelCardV35(day) + '</div>' + waterStepsCardV35(day) + '</div>' + macrosNutritionCard(day) + dailyLearnList('today', day);
   }
 
   function starterFilePanel(){
@@ -5702,12 +5710,13 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const st = S(), closed = dayClosed(st, day), left = dayClosesIn(st, day), today = todayYmd();
     const word = day === today ? 'Today' : day === addDays(today, -1) ? 'Yesterday' : day === addDays(today, 1) ? 'Tomorrow' : '';
     const state = day > today ? '' : closed ? '<span class="q-lock" data-parity="QUESTS-12">🔒 Closed <button class="link" data-act="dayReopen" data-date="' + esc(day) + '">Reopen</button></span>' : '<span class="q-closes" data-parity="QUESTS-12">' + left + ' d left</span>';
+    if (railHosts()) return '<div class="q-daynav daynav" data-parity="QUESTS-DAY">' + state + '</div>';   // Q1: the rail holds the day and its arrows
     return '<div class="q-daynav daynav" data-parity="QUESTS-DAY"><button class="k-icon-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b class="q-date" title="' + esc(longDate(day)) + '">' + esc(new Date(day + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'})) + (word ? '<small>' + word + '</small>' : '') + '</b><button class="k-icon-btn" data-act="step" data-n="1" aria-label="Next day">›</button>' + (day !== today ? '<button class="k-btn" data-act="jumpToday">Today</button>' : '') + '<input type="date" class="daypick" value="' + esc(day) + '" aria-label="Pick a day">' + state + '</div>';
   }
   function questHead(){
     const tabs = '<div class="q-tabs" role="tablist" aria-label="Quests views" data-parity="QUESTS-36">' + QUEST_TABS.map(t => '<button role="tab" class="q-tab" aria-selected="' + (questTab === t[0]) + '" data-act="questTab" data-tab="' + t[0] + '"><span aria-hidden="true">' + t[2] + '</span>' + t[1] + '</button>').join('') + '</div>';
     const more = '<details class="more q-more" data-parity="QUESTS-51"><summary aria-label="More in Quests">⋯</summary><div class="more-menu"><button class="link" data-act="questTab" data-tab="plans">Plans, Families and Ideas</button><button class="link" data-act="questTab" data-tab="plans" data-focus="ideas">Ideas and Notes</button><button class="link" data-act="questTab" data-tab="plans" data-focus="stopped">Stopped routines</button></div></details>';
-    return '<div class="q-head">' + tabs + '<div class="q-sofar">' + soFarCard(true) + '</div>' + more + '</div>';
+    return '<div class="q-head">' + tabs + '<div class="q-sofar">' + (railHosts() ? '' : soFarCard(true)) + '</div>' + more + '</div>';
   }
   function umbrellaChips(st){
     const present = new Set(visibleGroups(st).map(g => g.umbrella).filter(Boolean));
@@ -7754,7 +7763,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   const FIT_LEARN = [['steps', 'Steps'], ['fuel', 'Active Energy'], ['strength', 'Workout'], ['sleep-score', 'Sleep'], ['load', 'Load'], ['net-energy', 'Net Energy'], ['strength', 'Strength Balance'], ['mobility', 'Mobility'], ['run-efficiency', 'Run Efficiency'], ['durability', 'Durability']];
   function fitnessPage(st){
     const W = fitWindow(st), card = (id, html) => withChip(html, 'fitness', id), tile = (id, title, emoji, unit, goal, key, colour, parity, learn) => { const w = fitWindow(st, id); return card(id, fitTile(id, title, emoji, unit, goal, fitSources(st, w)[key], w, colour, parity, learn)); };
-    const seg = '<div class="fit-bar2" data-parity="V36-FITNESS-P01">' + filtPageHTML('fitness') + '<span class="fit-when" data-when>' + esc(fitCaption(W)) + '</span></div>';
+    const seg = '<div class="fit-bar2" data-parity="V36-FITNESS-P01">' + filtPageHTML('fitness') + (railHosts() ? '' : '<span class="fit-when" data-when>' + esc(fitCaption(W)) + '</span>') + '</div>';
     const tiles = '<div class="k-grid c3 fit-tiles2" data-parity="V36-FITNESS-C01">' + tile('steps', 'Steps', '👟', '', stepsGoal(st), 'steps', 'var(--c-yellow)', 'V36-FITNESS-C01a', 'steps') + tile('active', 'Active Energy', '🏃', 'kcal', fitGoal('energy'), 'active', '#f0a058', 'V36-FITNESS-C01b', 'fuel') + tile('workout', 'Workout', '⏱️', 'min', WORKOUT_MIN, 'workout', 'var(--c-green)', 'V36-FITNESS-C03', 'strength') + '</div>';
     const ew = fitWindow(st, 'energy'), energy = card('energy', energyWeightCard(st, ew.from, ew.to, ew.days).replace('<section class="panelcard fit-energy"', '<section class="panelcard fit-energy" data-parity="V36-FITNESS-C07"'));
     const links = '<div class="k-grid c2 fit-links"><button type="button" class="k-card fit-link" data-act="go" data-area="profile" data-link="body-trends" data-parity="V36-F4-01"><span aria-hidden="true">❤️</span><b>Heart fitness trends</b><small>VO₂ max, resting heart rate and HRV on Body</small>' + kIco('chevron', 14) + '</button><button type="button" class="k-card fit-link" data-act="go" data-area="data" data-link="data" data-parity="V36-F4-02"><span aria-hidden="true">🗂️</span><b>Detail by source</b><small>Every source, its records and receipts, on Data</small>' + kIco('chevron', 14) + '</button></div>';
@@ -8758,6 +8767,23 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
      belongs beside this page. Cards that used to sit at the top of a page move here, so the page leads
      with its own work. Hidden with its button (remembered); below the content on a narrow window. */
   function railHidden(){try{return localStorage.getItem('ht-rail-hidden')==='1';}catch(_){return false;}}
+  /* Fix Q1, Q2 (Mintay, Oct 6: "so that as I scroll down I can still see things"): on these pages the page name, the day with its arrows, the D W M A C filter and
+     the last check live in a pinned block at the top of the right rail, and on Today and Quests the So Far card sits under it. The main column does not draw
+     them again; with the rail collapsed to its strip they come back into the main column. */
+  const RAIL_HEAD_AREAS = ['home', 'profile', 'fitness', 'progress', 'stand', 'plan'];
+  const railHosts = () => !railHidden() && RAIL_HEAD_AREAS.includes(area);
+  function railHeadHTML(st){
+    const page = ['home', 'profile', 'fitness', 'progress', 'stand'].includes(area) ? area : null, d = new Date(day + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
+    let when = 'Not checked'; try { if (st.autoFeed) when = freshnessMeta(st.autoFeed).when; } catch (_) {}
+    return '<div class="rail-head" data-parity="Q1-HEAD"><div class="rh-top"><b>' + esc(TITLES[area][0]) + '</b><small>' + (when === 'Not checked' ? 'Not checked yet' : 'Checked ' + esc(when)) + '</small></div>' +
+      '<div class="rh-date"><button class="k-icon-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b title="' + esc(longDate(day)) + '">' + esc(d) + '</b><button class="k-icon-btn" data-act="step" data-n="1" aria-label="Next day">›</button>' + (day !== todayYmd() ? '<button class="k-btn" data-act="jumpToday">Today</button>' : '') + '</div>' +
+      (page ? filtPageHTML(page, {noDay:true, rail:true}) : '') + '</div>';
+  }
+  function soFarRailHTML(st){
+    let h = soFarCard(); if (area === 'home') h = h.replace('data-act="reviewPass"', 'data-act="todayReview"');
+    return h.replace('<section class="panelcard sofar"', '<section class="panelcard sofar today-sofar rail-sofar" data-parity="Q2-SOFAR"').replace('</section>', perfectLine(day) + unplacedLine(st) + claimChipHTML(st) + '</section>');
+  }
+  const railPinHTML = st => '<div class="rail-pin" data-parity="Q1-PIN">' + railHeadHTML(st) + (area === 'home' || area === 'plan' ? soFarRailHTML(st) : '') + '</div>';
   function todayPointsHTML(st){
     let rw=null;try{rw=rewardReport(st,todayYmd());}catch(_){rw=null;}
     if(!rw)return '';
@@ -8800,6 +8826,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     // V3.5 S3, S4: an icon-only chevron inside the rail collapses it to a slim strip of one button per card; hovering the
     // strip shows the whole rail over the page; a strip button pins it open at that card.
     const chev='<button type="button" class="rail-chev" data-act="toggleRail" aria-controls="ctxRail" aria-expanded="'+(!hidden)+'" aria-label="'+(hidden?'Expand the side panel':'Collapse the side panel')+'" title="'+(hidden?'Expand the side panel':'Collapse the side panel')+'" data-parity="V35-S4-02"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+(hidden?'M15 5l-7 7 7 7':'M9 5l7 7-7 7')+'"/></svg></button>';
+    if (!hidden && railHosts()) body = railPinHTML(st) + body;   // Q1, Q2: the pinned block comes first, over the drawer too
     app.classList.toggle('norailcards',!body);
     el.innerHTML=chev+body+'<nav class="rail-strip" aria-label="Side panel shortcuts" data-parity="V35-S3-01"></nav>';   // V3.4 (T7): each page's rail holds its own
     { const strip=el.querySelector('.rail-strip'),cards=[...el.querySelectorAll('.k-card,.panelcard,section,details.panelcard')].filter(c=>!c.parentElement.closest('.k-card,.panelcard,section')&&!c.matches('.rail-strip'));
