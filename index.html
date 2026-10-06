@@ -1582,6 +1582,8 @@ button.today-fend:hover{background:var(--sunk-2)}.today-fend b{font:600 24px var
 /* Fix P7, P8 */
 .dt-winners .hint{margin:0 0 6px}.dw-grid{display:grid;gap:2px}.dw-row{display:grid;grid-template-columns:84px 1fr;gap:0 10px;align-items:baseline;padding:4px 0;border-top:1px solid var(--line)}.dw-row:first-child{border-top:0}.dw-row span{font-size:12px;color:var(--muted)}.dw-row b{font-size:13px;text-align:right}.dw-row small{grid-column:1/3;font-size:11px;color:var(--faint)}
 .goal-row[data-act="goalHistory"]{cursor:pointer}.gh{display:flex;flex-direction:column;align-items:stretch;gap:6px;width:100%;flex:1 1 100%}.gh .gh-chart{display:block;width:100%;min-height:150px}.gh .gh-line{white-space:normal;margin:0}.gh-top{display:flex;align-items:baseline;gap:8px}.gh-top b{font:600 28px var(--serif,inherit)}.gh-top small{font-size:12px;color:var(--muted)}.gh-chart{width:100%;height:auto;margin:6px 0}.gh-line{margin:4px 0 0;font-size:13px}
+/* Fix P1 */
+.watch-chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
 </style>
 <link rel="stylesheet" href="body-view.css">
 <script type="module" src="model-viewer.min.js"></script>
@@ -1883,6 +1885,7 @@ addEventListener('load', () => {
     return out;
   }
   Object.defineProperty(window,'HealthWholeBody',{get(){try{return wholeBodyFigures();}catch(_){return null;}}});
+  setTimeout(() => { try { watchPoll(); } catch (_) {} }, 5000); setInterval(() => { try { watchPoll(); } catch (_) {} }, 60000); document.addEventListener('visibilitychange', () => { if (!document.hidden) { try { watchPoll(); } catch (_) {} } });
   document.addEventListener('bodysnapshot', e => {
     const next = e.detail;
     if (!next || preview || readOnly) return;
@@ -4248,7 +4251,7 @@ addEventListener('load', () => {
     // height, Your Body, then Learn; Goals in the rail.
     // V3.5 (B1, B15, the approved prototype): Overview (must keep), the hero tiles, Your Body, then Vitals beside Fitness
     // Trends, Learn; the interim rank and Goals in the rail.
-    return (SCORES_ON ? '' : filtPageHTML('profile')) + bodyHeroTiles(st) + bodyOverview(st) +   /* Fix C3: the four hero cards first */  '<div class="k-sec-head body-your"><h2>Your Body</h2>' + fixedWin('Latest scan') + '</div><ht-body-view data-fixed-window="Latest scan"></ht-body-view><div class="cols2 profile-cards body-mid" data-parity="BODY-72">' + (SCORES_ON ? withChip(vitalsCardV31(st), 'profile', 'vitals') : '') + fitnessTrendsCard(st) + '</div>' + learnList('body',metricLearnCards(st,BODY_LEARN));
+    return (SCORES_ON ? '' : filtPageHTML('profile')) + watchChipsHTML() + bodyHeroTiles(st) + bodyOverview(st) +   /* Fix C3: the four hero cards first */  '<div class="k-sec-head body-your"><h2>Your Body</h2>' + fixedWin('Latest scan') + '</div><ht-body-view data-fixed-window="Latest scan"></ht-body-view><div class="cols2 profile-cards body-mid" data-parity="BODY-72">' + (SCORES_ON ? withChip(vitalsCardV31(st), 'profile', 'vitals') : '') + fitnessTrendsCard(st) + '</div>' + learnList('body',metricLearnCards(st,BODY_LEARN));
   }
   /* ---------- V3.6 M4, M7: goal items on every list. GoalEngine (health-domain.js) does the sums; this draws them. An
      amount or count is a bar with "x of y" and a log button ("+ add 3.1 mi"), with an Auto chip where a source feeds it;
@@ -7140,6 +7143,42 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (!cands.length) return null; const w = typeof WorkoutSessions !== 'undefined' ? WorkoutSessions.watch : () => false;
     cands.sort((a, b) => Number(w(b)) - Number(w(a)) || Math.abs(Date.parse(a.start) - t) - Math.abs(Date.parse(b.start) - t)); return cands[0];
   }
+  /* Fix P1 (Mintay's list, Oct 6): the Mac app looks at two iCloud folders (Fitdays reports, iFIT exports), read-only. A file the page has not seen
+     shows one chip on Body and Data; a tap reads it through the existing path (the Fitdays confirm screen, the iFIT review with Undo). Nothing is
+     imported without that tap, and a file never prompts again once its chip has been used. The manual import stays. */
+  const watchUnseen = {fitdays:[], ifit:[]}, WATCH_SEEN_KEY = 'health-tracker.watchSeen';
+  const watchSeenSet = () => { try { return new Set(JSON.parse(localStorage.getItem(WATCH_SEEN_KEY) || '[]')); } catch (_) { return new Set(); } };
+  const watchKey = (id, f) => id + '|' + f.rel + '|' + f.size + '|' + f.modifiedAtMs;
+  function watchMarkSeen(id, files){ const seen = watchSeenSet(); for (const f of files) seen.add(watchKey(id, f)); try { localStorage.setItem(WATCH_SEEN_KEY, JSON.stringify([...seen].slice(-3000))); } catch (_) {} watchUnseen[id] = watchUnseen[id].filter(f => !files.some(x => x.rel === f.rel)); intakeRender(); }
+  let watchPolling = false;
+  async function watchPoll(){
+    if (watchPolling || !NATIVE || preview || typeof nativeRequest !== 'function' || document.hidden) return; watchPolling = true;
+    try {
+      const r = await nativeRequest('watchScan', {}); if (!r || !r.ok) return;
+      const seen = watchSeenSet(), before = JSON.stringify(watchUnseen);
+      for (const root of r.roots || []) if (watchUnseen[root.id]) watchUnseen[root.id] = (root.files || []).filter(f => !seen.has(watchKey(root.id, f)));
+      if (JSON.stringify(watchUnseen) !== before) intakeRender();
+    } finally { watchPolling = false; }
+  }
+  const watchReportDate = f => { const m = /^(\d{1,2})\.(\d{1,2})\.(\d{2,4})/.exec(String(f.rel).split('/').pop()); if (m){ const y = m[3].length === 2 ? 2000 + +m[3] : +m[3], d = y + '-' + String(+m[1]).padStart(2, '0') + '-' + String(+m[2]).padStart(2, '0'); if (validCalendarDate(d)) return d; } return new Date(f.modifiedAtMs).toLocaleDateString('en-CA'); };
+  function watchChipsHTML(){
+    const f = watchUnseen.fitdays, i = watchUnseen.ifit; if (!f.length && !i.length) return '';
+    const newest = f.slice().sort((a, b) => b.modifiedAtMs - a.modifiedAtMs)[0];
+    return '<div class="watch-chips" data-parity="P1-WATCH">' + (f.length ? '<button type="button" class="k-chip gold" data-act="watchFitdays">' + (f.length === 1 ? 'New Fitdays report (' + esc(monthDay(watchReportDate(newest))) + ')' : f.length + ' new Fitdays reports') + ' · Import</button>' : '') + (i.length ? '<button type="button" class="k-chip gold" data-act="watchIfit">' + i.length + ' new iFIT file' + (i.length === 1 ? '' : 's') + ' · Import</button>' : '') + '</div>';
+  }
+  const watchFile = x => { if (typeof x.text === 'string') return new File([x.text], x.name, {type:'application/xml'}); const bin = atob(x.base64 || ''), bytes = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k); return new File([bytes], x.name, {type:/\.pdf$/i.test(x.name) ? 'application/pdf' : 'image/png'}); };
+  const watchWait = async (test, ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms){ const v = test(); if (v) return v; await new Promise(r => setTimeout(r, 100)); } return null; };
+  /* The iFIT review, shared by the file chooser and the folder watcher: read the files, classify them against the kept sessions and Apple Health, show the counts. */
+  function ifitReviewFiles(files, done){
+    if (typeof IfitReader === 'undefined'){ toast('The iFIT reader did not load. Reload the page.'); done && done(); return; }
+    if (files.reduce((n, f) => n + f.size, 0) > 200 * 1024 * 1024){ toast('These files exceed 200 MB. Nothing was read.'); done && done(); return; }
+    Promise.all(files.map(async f => ({name:f.name, text:await f.text()}))).then(list => { const st0 = S(), seen = new Set();
+        ifitReview = {rows:list.map(({name, text}) => { const p = IfitReader.parse(text, {fileName:name}); if (!p.ok) return {name, status:'refused', reason:p.reason};
+          const x = {...p.session, fileName:name}; if (seen.has(x.id) || (st0.ifitSessions && st0.ifitSessions[x.id])) return {name, status:'same', session:x}; seen.add(x.id);
+          const l = ifitLinkFor(st0, x), q = l && l.unmapped && l.unmapped.healthAutoExport && l.unmapped.healthAutoExport.distance;
+          return {name, status:'new', session:x, link:l ? {id:l.id, type:l.type, mi:q && Number.isFinite(+q.qty) ? (+q.qty * ({mi:1, km:0.621371, m:0.000621371}[String(q.units || '').toLowerCase()] || 1)).toFixed(1) + ' mi' : ''} : null}; })};
+        done && done(); render(); focusFirst('[data-act="ifitImport"]'); });
+  }
   function ifitPanelHTML(st){
     const pick = '<div class="acts dt-ifit" data-parity="V37-O3-01"><label class="filebtn">Choose iFIT files (TCX)<input type="file" multiple accept=".tcx,application/vnd.garmin.tcx+xml,application/xml,text/xml" data-act="ifitFile" aria-label="Choose iFIT TCX files"></label><small class="hint">' + Object.keys(st.ifitSessions || {}).length + ' iFIT sessions kept</small></div>';
     if (!ifitReview) return pick;
@@ -7157,7 +7196,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function renderDataPage(){
     const st = S(), connected = !!st.autoFeed, detail = renderData();
     const add = '<section class="k-card dt-add" data-parity="V36-DATA-C03" data-feedback-id="add-data" data-feedback-label="Add data"><div class="k-head"><span aria-hidden="true">➕</span><span class="k-title">Add data</span></div>' + dataIds('add') + '<p class="hint keep">A JSON, CSV or TCX file, a Fitdays report image, or a pasted reply. Each goes to a review with its counts (new, same, conflict) before anything is kept.</p>' + starterFilePanel() + ifitPanelHTML(st) + dataRelayHTML + '<p class="hint keep">A night the Watch missed: <button class="link" data-act="settingsFind" data-find="night">Settings → Sleep</button></p></section>';
-    const left = dataStatusCard(st).replace('</section>', dataIds('status') + '</section>') + (connected ? '' : intakeCard()) + dataSourcesCard(st).replace('</section>', dataIds('sources') + '</section>') + dataWinnersCard(st) + add;
+    const left = watchChipsHTML() + dataStatusCard(st).replace('</section>', dataIds('status') + '</section>') + (connected ? '' : intakeCard()) + dataSourcesCard(st).replace('</section>', dataIds('sources') + '</section>') + dataWinnersCard(st) + add;
     const right = dataRecentImports(st).replace('</section>', dataIds('imports') + '</section>') + dataRecordsCard(st).replace('</section>', dataIds('records') + '</section>') + dataBackupCard(st).replace(/<\/div>$/, dataIds('backup') + '</div>');   // V3.7 X7 (D26): the GPT relay door is its Sources row and drawer, not a second card
     return '<div class="data-page" data-parity="V37-DATA-D29"><div class="dt-col">' + left + '</div><div class="dt-col">' + right + '</div></div>' + detail;
   }
@@ -9783,6 +9822,14 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       case 'learnView': learnId = btn.dataset.learn; closeDrawer(); go('learn'); return;
       case 'wsComposerUmb': if (composer){ composerRead(); composer.umb = btn.dataset.v; composer.umbPicked = true; const first = visibleGroups(st).find(g => gradeGroupUmbrella(st, g.id) === composer.umb); if (!first || gradeGroupUmbrella(st, composer.card) !== composer.umb) composer.card = first ? first.id : ''; render(); focusFirst('[data-act="wsComposerUmb"][data-v="' + composer.umb + '"]'); } return;
       case 'gradeOpen': openGradeDrawer(btn.dataset.u, btn.closest('[data-drawer]') ? gradeWin : null); return;   // A2: from inside the drawer, the same window
+      case 'watchFitdays': { const f = watchUnseen.fitdays.slice().sort((a, b) => b.modifiedAtMs - a.modifiedAtMs)[0]; if (!f) return; btn.disabled = true;
+        const r = await nativeRequest('watchRead', {id:'fitdays', rels:[f.rel]}); if (!r || !r.ok || !(r.files || []).length){ toast('That report could not be read.'); btn.disabled = false; return; }
+        go('profile'); const bv = await watchWait(() => { const e = document.querySelector('ht-body-view'); return e && e.selected && typeof e.openReport === 'function' ? e : null; }, 8000);
+        if (!bv){ toast('Open Body, then tap again.'); btn.disabled = false; return; }
+        bv.openReport('file'); await bv.readReportFile(watchFile(r.files[0])); watchMarkSeen('fitdays', [f]); return; }
+      case 'watchIfit': { const list = watchUnseen.ifit.slice(); if (!list.length) return; btn.disabled = true; const files = [];
+        for (let k = 0; k < list.length; k += 40){ const r = await nativeRequest('watchRead', {id:'ifit', rels:list.slice(k, k + 40).map(x => x.rel)}); if (!r || !r.ok){ toast('The iFIT files could not be read.'); btn.disabled = false; return; } for (const x of r.files || []) files.push(watchFile(x)); }
+        go('data'); watchMarkSeen('ifit', list); ifitReviewFiles(files); return; }
       case 'goalHistory': { if (!btn.dataset.id) return; openGoalHistory(btn.dataset.id); return; }
       case 'gradeFaithAll': { const gr = gradeNow(st), others = gr.umbrellas.filter(u => u.id !== 'faith' && u.included !== false), on = others.every(u => u.faithOn); stage(st, 'grades'); for (const u of others) if (!setGradeConfig(st, 'umbrellas', u.id, 'faith', !on)){ popUndo(); return; } await commit('grades', on ? 'Faith left out of the area cards. The Overall is unchanged.' : 'Faith blended into the area cards. The Overall is unchanged.'); focusFirst('[data-act="gradeFaithAll"]'); return; }
       case 'gradeFaith': { const id = btn.dataset.u, cur = id === 'fitness' ? (gradeConfig(st).umbrellas.fitness || {}).faith !== false : (gradeConfig(st).umbrellas[id] || {}).faith !== false; stage(st, 'grades'); if (!setGradeConfig(st, 'umbrellas', id, 'faith', !cur)){ popUndo(); return; } await commit('grades', cur ? 'Faith left out of this card. The Overall is unchanged.' : 'Faith blended into this card. The Overall is unchanged.'); focusFirst('[data-act="gradeFaith"][data-u="' + id + '"]'); return; }
@@ -9977,14 +10024,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (el.dataset.act === 'textSize'){ stage(st, 'pref'); st.prefs.textSize = el.value === 'large' ? 'large' : 'normal'; commit('pref', 'Text size saved.'); return; }
     if (el.dataset.act === 'units'){ stage(st, 'pref'); st.prefs.units = el.value === 'kg' ? 'kg' : 'lb'; commit('pref', 'Weight display unit saved. Entries retain their recorded units; legacy entries with unknown units stay labeled.'); return; }
     if (el.dataset.act === 'ifitFile'){
-      const files = Array.from(el.files || []); if (!files.length) return; if (typeof IfitReader === 'undefined'){ toast('The iFIT reader did not load. Reload the page.'); return; }
-      if (files.reduce((n, f) => n + f.size, 0) > 200 * 1024 * 1024){ toast('These files exceed 200 MB. Nothing was read.'); el.value = ''; return; }
-      Promise.all(files.map(async f => ({name:f.name, text:await f.text()}))).then(list => { const st0 = S(), seen = new Set();
-        ifitReview = {rows:list.map(({name, text}) => { const p = IfitReader.parse(text, {fileName:name}); if (!p.ok) return {name, status:'refused', reason:p.reason};
-          const x = {...p.session, fileName:name}; if (seen.has(x.id) || (st0.ifitSessions && st0.ifitSessions[x.id])) return {name, status:'same', session:x}; seen.add(x.id);
-          const l = ifitLinkFor(st0, x), q = l && l.unmapped && l.unmapped.healthAutoExport && l.unmapped.healthAutoExport.distance;
-          return {name, status:'new', session:x, link:l ? {id:l.id, type:l.type, mi:q && Number.isFinite(+q.qty) ? (+q.qty * ({mi:1, km:0.621371, m:0.000621371}[String(q.units || '').toLowerCase()] || 1)).toFixed(1) + ' mi' : ''} : null}; })};
-        el.value = ''; render(); focusFirst('[data-act="ifitImport"]'); });
+      const files = Array.from(el.files || []); if (!files.length) return;
+      ifitReviewFiles(files, () => { el.value = ''; });
       return;
     }
     if (el.dataset.act === 'starterFile'){
