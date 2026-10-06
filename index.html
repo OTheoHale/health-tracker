@@ -3004,6 +3004,7 @@ addEventListener('load', () => {
   function bodyReading(st,metrics,fitdays,asOf){
     const past=!!asOf&&asOf<todayYmd(),app=latestMeasurement(st,metrics,past?asOf:undefined),key={weight_body_mass:'weight',body_fat_percentage:'bodyFatPercentage',lean_body_mass:'muscleMass'}[metrics[0]],v=fitdays&&fitdays.wholeBody&&fitdays.wholeBody[key];
     const fit=v&&Number.isFinite(v.value)&&validCalendarDate(fitdays.measurementDate)&&fitdays.measurementDate<=(past?asOf:todayYmd())?{value:v.unit==='lb'?v.value*.45359237:v.value,date:fitdays.measurementDate,source:'Fitdays'}:null;
+    if (metrics[0] === 'lean_body_mass' && fit) return fit;   // Fix K2: Muscle is the saved report's muscle mass, never an Apple Health lean mass or an older scan
     return !fit?app:!app||fit.date>app.date?fit:app;
   }
   function vo2Display(st, asOf){
@@ -3371,7 +3372,7 @@ addEventListener('load', () => {
     const none = label => tile(label, '<span class="dim">—</span>', GV.chip({text:'No reading yet'}), '');
     const chip = (delta, goodDown, span) => delta === null ? GV.chip({text:'no reading ' + span + ' ago'}) : Math.abs(delta) < 0.25 ? GV.chip({text:'steady · ' + span}) : GV.chip({arrow:delta < 0 ? '▼' : '▲', text:(Math.round(Math.abs(delta) * 10) / 10).toFixed(1) + ' in ' + span, tone:goodDown === null ? 'neutral' : (delta < 0) === goodDown ? 'green' : 'orange'});
     const trend = (now, metric, date, goodDown) => { const two = before(metric, date, 14), four = before(metric, date, 28); return two === null && four === null ? GV.chip({text:'first reading this month'}) : '<span class="trend-pair">' + chip(two === null ? null : (now - two) * perKg, goodDown, '2 weeks') + chip(four === null ? null : (now - four) * perKg, goodDown, '4 weeks') + '</span>'; };
-    const w = reading(['weight_body_mass','weight_&_body_mass']), fat = reading(['body_fat_percentage']), lean = reading(['lean_body_mass']);
+    const w = reading(['weight_body_mass','weight_&_body_mass']), fat = reading(['body_fat_percentage']), lean = bodyReading(st, ['lean_body_mass'], null);   // K2: this tile is Apple Health's own lean mass; the report's muscle mass is the Muscle figure
     const down = Number.isFinite(g.weightLb.jan7) && w ? g.weightLb.jan7 < w.value * 2.2046226218487757 : null;
     const range = fat ? Scores.range('body_fat_percentage', fat.value, whoOf(p)) : null;
     return '<div class="body-figures" data-feedback-id="body-figures" data-feedback-label="Body figures">' +

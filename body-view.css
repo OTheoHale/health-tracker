@@ -128,3 +128,10 @@ ht-body-view{display:block;min-width:0}.body-record-card{padding:24px}.body-reco
 .bs-bar .body-modes{padding:2px;gap:0}.bs-bar .body-modes button{min-width:0;padding:0 6px;font-size:11px;letter-spacing:0}
 .bs-bar .body-rchip.wb,.bs-bar .bs-btn{font-size:11px;padding:0 7px}
 .bs-bar{gap:3px;left:6px;right:6px}.bs-bar .body-rchip.wb,.bs-bar .bs-btn{padding:0 6px}.bs-bar .bs-btn svg{width:11px;height:11px}.bs-bar .body-modes button{padding:0 5px}
+
+/* Fix K1: the Fitdays report card, four short blocks, small type */
+.body-report-card{margin:10px 0;border-top:1px solid var(--line);padding-top:8px}.body-report-card>summary{cursor:pointer;font-size:13px;color:var(--ink)}
+.body-report-card .rc-block{margin-top:10px}.body-report-card .cap{margin:0 0 4px;font-size:11px;color:var(--muted)}
+.body-report-card .rc-grid{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(54px,auto);gap:3px 12px;font-size:12px;align-items:baseline}
+.body-report-card .rc-n{color:var(--muted)}.body-report-card .rc-v{font-variant-numeric:tabular-nums;text-align:right}.body-report-card .rc-wide{grid-column:2/4;text-align:right}
+.body-report-card .rc-s{font-size:11px}.body-report-card .rc-s.hi{color:var(--c-orange,#f0a058)}.body-report-card .rc-s.ok{color:var(--c-green,#79d6a9)}.body-report-card .rc-s.lo{color:var(--c-blue,#7fb3f0)}.body-report-card .rc-s.mid{color:var(--muted)}

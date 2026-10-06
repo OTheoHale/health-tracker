@@ -174,6 +174,20 @@ function parseFitdaysReport(lines) {
     if (v === null) { const right = items.filter(o => o !== l && o.x > l.x && sameRow(o, l) && isValue(o)).sort((a, b) => a.x - b.x)[0]; if (right) v = valueOf(right.text, extra[2] === 'lb' ? 'lb' : null); }
     if (v !== null) out.extras[extra[0]] = {value: v, unit: extra[2]};
   }
+  /* Fix K1: the report's own status word beside each figure (High, Too High, Excellent...), the two verdict lines and the weight-control block */
+  const STATUS_WORD = /^(too\s*high|high|too\s*low|low|excellent|standard|normal|good|insufficient|healthy)$/i, onRow = l => items.filter(o => o !== l && sameRow(o, l));
+  out.statuses = {}; out.labels = {}; out.control = {};
+  for (const l of items) {
+    const key = (REPORT_WHOLE.find(([, re]) => re.test(l.text)) || REPORT_EXTRA.find(([, re]) => re.test(l.text)) || [])[0]; if (!key || out.statuses[key]) continue;
+    const word = onRow(l).filter(o => o.x > 0.6 && STATUS_WORD.test(o.text.trim())).sort((a, b) => a.x - b.x)[0]; if (word) out.statuses[key] = word.text.trim().replace(/\s+/g, ' ');
+  }
+  const rightText = l => { const r = onRow(l).filter(o => o.x > l.x + 0.1).sort((a, b) => b.x - a.x)[0]; return r ? r.text.trim() : null; };
+  for (const [key, re] of [['obesityLevel', /^obesity\s*level$/i], ['bodyType', /^body\s*type$/i]]) { const l = items.find(o => re.test(o.text.trim())); const v = l && rightText(l); if (v && v.length <= 40) out.labels[key] = v; }
+  const signed = (l, r) => { if (!r) return null; const m = reportMasses(r.text); const v = m.length ? m[0].v : (nums(r.text)[0] || {}).v; return Number.isFinite(v) ? (/^[\s•]*[-–−]/.test(r.text) ? -v : v) : null; };
+  for (const [key, re] of [['targetWeight', /^recommended\s*target\s*weight/i], ['weight', /^[•\s]*weight\s*control/i], ['fat', /^[•\s]*fat\s*control/i], ['muscle', /^[•\s]*muscle\s*control/i]]) {
+    const l = items.filter(o => re.test(o.text.trim())).find(o => onRow(o).some(x => x.x > o.x + 0.2)); if (!l) continue;
+    const val = signed(l, onRow(l).filter(o => o.x > l.x + 0.2).sort((a, b) => b.x - a.x)[0]); if (val !== null) out.control[key] = val;
+  }
   /* the segment blocks, by position */
   const heads = items.map(l => ({l, kind: (REPORT_BLOCKS.find(([, re]) => re.test(l.text)) || [])[0]})).filter(h => h.kind);
   const at = (l, i, n) => l.x + (l.w || 0) * ((i + n / 2) / Math.max(1, l.text.length));
@@ -613,8 +627,8 @@ class HealthBodyView extends HTMLElement {
       {label: 'weight', figure: newer(app.weight, fromFitdays('weight', 'lb'))},
       {label: 'body fat', figure: newer(app.bodyFat, fromFitdays('bodyFatPercentage', '%'))},
       {label: 'lean mass', figure: app.leanMass || null},
-      // Fitdays' muscle has no Apple Health twin; it shows only when your export has no lean mass.
-      {label: 'muscle', figure: app.leanMass ? null : fromFitdays('muscleMass', 'lb')},
+      // Fix K2: muscle is always the saved report's muscle mass; Apple Health's lean mass is its own, differently named figure.
+      {label: 'muscle', figure: fromFitdays('muscleMass', 'lb')},
       {label: 'BMI', figure: newer(app.bmi, fromFitdays('bmi', null))}
     ].filter(row => row.figure);
   }
@@ -784,7 +798,7 @@ class HealthBodyView extends HTMLElement {
     this.innerHTML = '<section class="panelcard body-record-card" aria-label="Your body records">' +
       '<p class="body-status hint" role="status" aria-live="polite"></p>' +
       (record ? (this.stage ? '<div class="body-record-heading"><h3>' + esc(this.date(record.captureDate)) + '</h3><span class="chip quiet">Import preview · not saved</span></div><div class="body-review"><label>Reference type<select data-body="variant" aria-label="Reference type"><option value="reconstructed-reference">Reconstructed reference</option><option value="original-photo-reference">Original-photo reference</option></select></label><p class="hint">One model and four reference images checked. Review the date, views and reference type before saving.</p><div class="acts"><button class="primary" data-body="save">Save body record</button><button data-body="cancel">Cancel import</button></div></div>' : '') +
-        stageHTML +
+        stageHTML + (!this.stage ? this.reportCardHTML() : '') +
         (!this.stage ? '<details class="body-more"><summary>More · records, Fitdays detail, measurements, export</summary>' +
           '<div class="body-more-row"><span class="cap" data-parity="BODY-43">Private on this Mac</span><label class="filebtn body-import">Import body record<input type="file" accept=".zip,application/zip" aria-label="Import body record ZIP" data-body="file"></label>' +
           (this.records.length ? '<label class="body-record-label">Choose a dated view<select data-body="record" aria-label="Saved body record">' + this.records.map(r => '<option value="' + r.id + '"' + (r.id === this.selected?.id ? ' selected' : '') + '>' + esc(this.date(r.captureDate) + ' · ' + r.variantLabel) + '</option>').join('') + '</select></label>' : '') + '</div>' +
@@ -892,6 +906,27 @@ class HealthBodyView extends HTMLElement {
       '<div class="rep-grid">' + whole + '</div>' + this.reportExtrasHTML(v.extras) + '<p class="cap">Regions</p><div class="rep-segs">' + segs + '</div>' +
       '<p class="body-status hint rep-status" role="status"></p><div class="acts"><button class="primary save" data-body="reportSave">' + (entry === 'read' ? 'Confirm and save' : 'Save') + '</button><button data-body="reportClose">Cancel</button></div></div></div>';
   }
+  /* Fix K1 (Mintay, Oct 6: "all the metrics from the Fitdays app ... visualized as well without making things too complicated"): one folded card with
+     everything the saved report holds, in four short blocks, each figure with the report's own status word. */
+  reportCardHTML() {
+    const r = this.fitdays, w = r && r.wholeBody; if (!w) return '';
+    const e = r.extras || {}, st = r.statuses || {}, lab = r.labels || {}, ctl = r.control || {}, esc = v => this.escape(v), u = window.HealthDisplayUnits || {mass: 'lb', lb: v => v};
+    const fig = (src, k, unit) => { const x = src[k]; return x && Number.isFinite(x.value) ? {v: x.value, unit} : null; };
+    const row = (label, f, status, key) => { if (!f) return ''; const text = f.unit === 'lb' ? u.lb(f.v).toFixed(1) + ' ' + u.mass : f.unit === '%' ? f.v + '%' : f.unit === 'kcal' ? f.v + ' kcal' : String(f.v); const s = status || st[key] || ''; const tone = /^too/i.test(s) || /^high$/i.test(s) ? 'hi' : /^(low|insufficient)$/i.test(s) ? 'lo' : /^excellent$/i.test(s) ? 'ok' : 'mid';
+      return '<span class="rc-n">' + esc(label) + '</span><b class="rc-v">' + esc(text) + '</b><span class="rc-s ' + tone + '">' + esc(s) + '</span>'; };
+    const text = (label, v) => v ? '<span class="rc-n">' + esc(label) + '</span><b class="rc-v rc-wide">' + esc(v) + '</b>' : '';
+    const signedLb = (label, k) => Number.isFinite(ctl[k]) ? '<span class="rc-n">' + esc(label) + '</span><b class="rc-v">' + (ctl[k] > 0 ? '+' : '') + u.lb(ctl[k]).toFixed(1) + ' ' + u.mass + '</b><span></span>' : '';
+    const blocks = [
+      ['Composition', row('Weight', fig(w, 'weight', 'lb'), '', 'weight') + row('Fat mass', fig(w, 'fatMass', 'lb'), '', 'fatMass') + row('Fat-free weight', fig(w, 'fatFreeWeight', 'lb'), '', 'fatFreeWeight') + row('Muscle mass', fig(w, 'muscleMass', 'lb'), '', 'muscleMass') + row('Muscle rate', fig(e, 'muscleRate', '%'), '', 'muscleRate') + row('Skeletal muscle', fig(e, 'skeletalMuscle', '%'), '', 'skeletalMuscle') + row('Bone mass', fig(e, 'boneMass', 'lb'), '', 'boneMass')],
+      ['Water and protein', row('Water weight', fig(e, 'waterWeight', 'lb'), '', 'waterWeight') + row('Body water', fig(e, 'bodyWater', '%'), '', 'bodyWater') + row('Protein mass', fig(e, 'proteinMass', 'lb'), '', 'proteinMass') + row('Protein', fig(e, 'protein', '%'), '', 'protein')],
+      ['Fat and risk', row('Body fat', fig(w, 'bodyFatPercentage', '%'), '', 'bodyFatPercentage') + row('BMI', fig(w, 'bmi', ''), '', 'bmi') + row('Subcutaneous fat', fig(e, 'subcutaneousFat', '%'), '', 'subcutaneousFat') + row('Visceral fat', fig(e, 'visceralFat', ''), '', 'visceralFat') + row('WHR', fig(e, 'whr', ''), '', 'whr') + text('Obesity level', lab.obesityLevel) + text('Body type', lab.bodyType)],
+      ['Targets', row('Ideal weight', fig(e, 'idealBodyWeight', 'lb'), '', 'idealBodyWeight') + row('BMR', fig(e, 'bmr', 'kcal'), '', 'bmr') + row('Body age', fig(e, 'bodyAge', ''), '', 'bodyAge') + (Number.isFinite(ctl.targetWeight) ? '<span class="rc-n">Recommended weight</span><b class="rc-v">' + u.lb(ctl.targetWeight).toFixed(1) + ' ' + u.mass + '</b><span></span>' : '') + signedLb('Weight control', 'weight') + signedLb('Fat control', 'fat') + signedLb('Muscle control', 'muscle')]
+    ].filter(b => b[1]);
+    if (!blocks.length) return '';
+    return '<details class="body-report-card" data-parity="K1-REPORT"><summary>Fitdays report · ' + esc(this.date(r.measurementDate, true)) + ' · every figure it holds</summary>' +
+      blocks.map(([t, body]) => '<div class="rc-block"><p class="cap">' + esc(t) + '</p><div class="rc-grid">' + body + '</div></div>').join('') +
+      '<p class="hint">All figures are from the report of ' + esc(this.date(r.measurementDate)) + '; the status words are the report’s own.</p></details>';
+  }
   /* B2: the remaining table rows, read from the picture and saved with the report; nothing to type. */
   reportExtrasHTML(extras) {
     const names = {boneMass: 'Bone', proteinMass: 'Protein mass', waterWeight: 'Water weight', skeletalMuscle: 'Skeletal muscle', muscleRate: 'Muscle rate', subcutaneousFat: 'Subcutaneous fat', visceralFat: 'Visceral fat', bmr: 'BMR', bodyAge: 'Body age', whr: 'WHR', idealBodyWeight: 'Ideal weight', bodyWater: 'Body water', protein: 'Protein share'};
@@ -919,7 +954,7 @@ class HealthBodyView extends HTMLElement {
         /* V3.5 (B6): for a HEIC or an image-only PDF the wrapper sends back a JPEG of what it read; it is shown and saved */
         if (typeof reply.imageBase64 === 'string' && reply.imageBase64) { this.reportImage = reply.imageBase64; picture = '<img alt="The report you chose" src="data:image/jpeg;base64,' + reply.imageBase64 + '">'; } } } catch (_) { values = null; }
     }
-    this.reportExtras = values && values.extras || {};
+    this.reportExtras = values && values.extras || {}; this.reportMore = values ? {statuses: values.statuses || {}, labels: values.labels || {}, control: values.control || {}} : null;
     box.innerHTML = values ? this.reportFormHTML(values, 'read', picture) : '<p class="hint">This surface cannot read reports; type the numbers beside the picture.</p>' + this.reportFormHTML(null, 'self-entered', picture);
   }
   async saveReport() {
@@ -931,6 +966,7 @@ class HealthBodyView extends HTMLElement {
       wholeBody: Object.fromEntries(this.reportFields().map(([k]) => [k, {value: val('whole.' + k), unit: units[k]}])),
       segments: Object.keys(FITDAYS_GROUPS).map(id => ({id, fatMassLb: val('seg.' + id + '.fat'), muscleBalanceMassLb: val('seg.' + id + '.muscle')}))};
     if (entry === 'read' && this.reportImage) payload.imageBase64 = this.reportImage;
+    if (entry === 'read' && this.reportMore) Object.assign(payload, this.reportMore);   // K1: the status words, the two verdicts and the weight-control block
     if (entry === 'read' && this.reportExtras && Object.keys(this.reportExtras).length) payload.extras = this.reportExtras;   // B2: what else the picture printed
     const empty = Object.entries(payload.wholeBody).filter(([, x]) => x.value === null).length + payload.segments.filter(s => s.fatMassLb === null || s.muscleBalanceMassLb === null).length;
     if (!payload.measurementDate || empty) { say('Fill in the date and every number first.', true); return; }
