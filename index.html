@@ -1575,6 +1575,10 @@ button.today-fend:hover{background:var(--sunk-2)}.today-fend b{font:600 24px var
 .rail-head .rh-date{display:flex;align-items:center;gap:6px}.rail-head .rh-date b{font-size:13px;white-space:nowrap}.rail-head .rh-date .k-btn{height:26px;padding:0 10px;font-size:12px;margin-left:auto}
 .rail-head .filt-bar{margin:0;gap:6px;flex-wrap:wrap}.rail-head .filt-seg button{min-height:26px;height:26px;padding:0 9px;font-size:12px}.rail-head .filt-range{height:26px;padding:0 10px;font-size:12px}
 .rail-pin .rail-sofar{margin:0;padding:12px 14px}.rail-sofar .ph{flex-wrap:nowrap;gap:6px}.rail-sofar .ph h2{white-space:nowrap;font-size:16px;margin-right:24px}.rail-sofar .sofar-line,.rail-sofar .today-perfect{font-size:13px}
+/* Fix R1: the page filter's two chip rows and a card's two chip rows */
+.filt-segs{display:flex;flex-direction:column;gap:4px;align-items:flex-start}.filt-segs .filt-seg button{min-width:0}.filt-trails button{font-size:12px}
+.ck-fchip{flex-wrap:wrap;max-width:210px;row-gap:3px;border-radius:14px}.ck-fchip .fs-row{display:inline-flex;gap:2px}.ck-fchip .fs-trail{flex-basis:100%}.ck-fchip .fs-trail button{font-size:11px}
+.filt-range-card{height:22px;padding:0 8px;border-radius:999px;border:1px solid var(--line);background:var(--sunk);color:var(--ink);font-size:11px;cursor:pointer}
 </style>
 <link rel="stylesheet" href="body-view.css">
 <script type="module" src="model-viewer.min.js"></script>
@@ -5122,19 +5126,20 @@ addEventListener('load', () => {
      or the 7 days ending on it); Month the calendar month to the day; All the Program start to the day; Custom his two dates.
      Every windowed visual says its window (data-win-from, data-win-to) so the strict window test (L8) can read it. Per viewer
      (localStorage, like the old gradePeriod), nothing in his record. */
-  const FILT_PERS = [['day','Day'],['week','Week'],['month','Month'],['all','All'],['custom','Custom']], FILT_PAGES = ['home','profile','fitness','progress','stand'];
+  const FILT_MAIN = [['day','Day'],['week','Week'],['month','Month'],['all','All'],['custom','Custom']], FILT_TRAILS = [['3d','3d',3],['7d','7d',7],['30d','30d',30],['60d','60d',60]], FILT_PERS = FILT_MAIN.concat(FILT_TRAILS.map(([k, l]) => [k, l])), FILT_PAGES = ['home','profile','fitness','progress','stand'];
   const filtKey = page => 'health-tracker.filter.v37.' + page, filtOk = p => FILT_PERS.some(([k]) => k === p);
   const filtRange = c => c && validCalendarDate(c.from) && validCalendarDate(c.to) ? {from:c.from, to:c.to} : null;
   function filtState(page){ let v = null; try { v = JSON.parse(localStorage.getItem(filtKey(page)) || 'null'); } catch (_) { v = null; } v = v && typeof v === 'object' ? v : {}; const pins = {}; for (const [k, x] of Object.entries(v.pins && typeof v.pins === 'object' ? v.pins : {})) if (x && filtOk(x.per)) pins[k] = {per:x.per, custom:filtRange(x.custom)}; return {per:filtOk(v.per) ? v.per : 'day', custom:filtRange(v.custom), pins}; }
   function filtSave(page, s){ try { localStorage.setItem(filtKey(page), JSON.stringify(s)); } catch (_) {} }
   let filtPicker = null;   // I1: the open range calendar {page, month, from, to, step}
-  const weekMeans = () => { try { return localStorage.getItem('health-tracker.weekMeans') === 'last7' ? 'last7' : 'this'; } catch (_) { return 'this'; } };
+  const weekMeans = () => 'this';   // Fix R3: Week always means the calendar week; 7d is the trailing week
   // L7: the one week window every Week view and the Overall grade's Week read
-  function weekWindow(anchor){ const a = anchor || day, ws = S().prefs.weekStart === 0 ? 0 : 1; return weekMeans() === 'last7' ? {from:addDays(a, -6), to:a} : {from:weekStartOf(a, ws), to:a}; }
+  function weekWindow(anchor){ const a = anchor || day, ws = S().prefs.weekStart === 0 ? 0 : 1, from = weekStartOf(a, ws), end = addDays(from, 6), t = todayYmd(); return {from, to:end > t ? t : end}; }   // Fix R1: the whole calendar week that holds the day, the days after today left empty
   function filtWindow(per, anchor, custom){
     const t0 = todayYmd(), a = (anchor || day) > t0 ? t0 : (anchor || day);   // review F10: no window runs past today (as gradePeriod)
     if (per === 'week') return weekWindow(a);
-    if (per === 'month') return {from:a.slice(0, 8) + '01', to:a};
+    if (per === 'month'){ const from = a.slice(0, 8) + '01', end = from.slice(0, 8) + String(new Date(+from.slice(0, 4), +from.slice(5, 7), 0).getDate()).padStart(2, '0'); return {from, to:end > t0 ? t0 : end}; }   // Fix R1: the whole calendar month that holds the day
+    { const tr = FILT_TRAILS.find(x => x[0] === per); if (tr) return {from:addDays(a, -(tr[2] - 1)), to:a, trail:tr[2]}; }   // Fix R1: 3d, 7d, 30d, 60d end on the selected day, which counts as the last day
     if (per === 'all'){ const s = programStartOf(S(), a); return {from:s < a ? s : a, to:a}; }
     if (per === 'custom'){ const c = filtRange(custom); if (!c) return weekWindow(a); let f = c.from, t = c.to; if (t < f) [f, t] = [t, f]; const today = todayYmd(); if (t > today) t = today; if (f > t) f = t; return {from:f, to:t}; }
     return {from:a, to:a};
@@ -5143,16 +5148,21 @@ addEventListener('load', () => {
   function filtWin(page, card){
     const s = filtState(page), pin = card ? s.pins[card] : null, per = pin ? pin.per : s.per, w = filtWindow(per, day, pin && pin.custom || s.custom), days = [];
     for (let d = w.from; d <= w.to; d = addDays(d, 1)) days.push(d);
-    return {per, from:w.from, to:w.to, days, day:w.from === w.to, pinned:!!pin, page, card:card || null};
+    return {per:w.trail ? 'custom' : per, from:w.from, to:w.to, days, day:w.from === w.to, pinned:!!pin, page, card:card || null, trail:w.trail || null};   // a trailing chip reads like a custom range to every card
   }
   const winAttrs = w => ' data-win-from="' + w.from + '" data-win-to="' + w.to + '" data-win-per="' + w.per + '"';
-  const weekTip = () => { const w = weekWindow(day), sun = S().prefs.weekStart === 0; return weekMeans() === 'last7' ? 'Last 7 days, ' + monthDay(w.from) + ' to ' + monthDay(w.to) : 'This week, ' + (sun ? 'Sun' : 'Mon') + ' to ' + (sun ? 'Sat' : 'Sun') + ', to ' + monthDay(w.to); };
-  const filtSeg = (page, card, cur, small) => FILT_PERS.map(([k, l]) => '<button type="button" data-act="' + (card ? 'filtChip' : 'filtPage') + '" data-page="' + page + '"' + (card ? ' data-card="' + esc(card) + '"' : '') + ' data-p="' + k + '" aria-pressed="' + (cur === k) + '"' + (k === 'week' ? ' title="' + esc(weekTip()) + '"' : '') + (small ? ' aria-label="' + l + '"' : '') + '>' + (small ? l[0] : l) + '</button>').join('');
-  const weekMenu = () => '<details class="more filt-wk" data-parity="V37-L7-02"><summary aria-label="Week means" title="Week means">▾</summary><div class="more-menu"><b class="filt-wk-h">Week means</b>' + [['this', 'This week'], ['last7', 'Last 7 days']].map(([k, l]) => '<button type="button" data-act="weekMeans" data-v="' + k + '" aria-pressed="' + (weekMeans() === k) + '">' + l + '</button>').join('') + '</div></details>';
+  const weekTip = () => { const w = weekWindow(day), sun = S().prefs.weekStart === 0; return 'Week, ' + (sun ? 'Sun' : 'Mon') + ' to ' + (sun ? 'Sat' : 'Sun') + ': ' + monthDay(w.from) + ' to ' + monthDay(addDays(w.from, 6)); };
+  /* Fix R1: one chip component, two rows: D W M A C, and 3d 7d 30d 60d. `segs` wraps each row as a segmented pill (the page filter). */
+  const filtSeg = (page, card, cur, small, segs) => {
+    const one = ([k, l]) => '<button type="button" data-act="' + (card ? 'filtChip' : 'filtPage') + '" data-page="' + page + '"' + (card ? ' data-card="' + esc(card) + '"' : '') + ' data-p="' + k + '" aria-pressed="' + (cur === k) + '"' + (k === 'week' ? ' title="' + esc(weekTip()) + '"' : '') + (small ? ' aria-label="' + l + '"' : '') + '>' + (small && FILT_MAIN.some(m => m[0] === k) ? l[0] : l) + '</button>';
+    const r1 = FILT_MAIN.map(one).join(''), r2 = FILT_TRAILS.map(x => one([x[0], x[1]])).join('');
+    return segs ? '<div class="k-seg filt-seg">' + r1 + '</div><div class="k-seg filt-seg filt-trails">' + r2 + '</div>' : '<span class="fs-row">' + r1 + '</span><span class="fs-row fs-trail">' + r2 + '</span>';
+  };
+  // Fix R3: no Week menu; Week is always the calendar week and 7d is the trailing week
   /* Fix I1: a small month calendar for the Custom chip. First tap a start day, second tap an end day (a backwards pair is swapped,
      a future day is not offered), then Apply. The page filter, the grade windows and every chart read the saved range as before. */
-  function filtPickHTML(page){
-    const p = filtPicker; if (!p || p.page !== page) return '';
+  function filtPickHTML(){
+    const p = filtPicker; if (!p) return '';
     const ws = S().prefs.weekStart === 0 ? 0 : 1, td = todayYmd(), first = new Date(p.month + 'T12:00:00'), dim = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate(), lead = (first.getDay() - ws + 7) % 7;
     const lo = p.from && p.to ? (p.from < p.to ? p.from : p.to) : p.from, hi = p.from && p.to ? (p.from < p.to ? p.to : p.from) : p.from, names = ws === 0 ? ['S','M','T','W','T','F','S'] : ['M','T','W','T','F','S','S'];
     const nextMonth = new Date(first.getFullYear(), first.getMonth() + 1, 1), nextYmd = nextMonth.getFullYear() + '-' + String(nextMonth.getMonth() + 1).padStart(2, '0') + '-01';
@@ -5160,20 +5170,22 @@ addEventListener('load', () => {
     for (let d = 1; d <= dim; d++){ const ymd = p.month.slice(0, 8) + String(d).padStart(2, '0'), inR = lo && ymd >= lo && ymd <= hi, edge = ymd === lo || ymd === hi;
       cells += '<button type="button" data-act="filtPickDay" data-d="' + ymd + '" class="' + (edge ? 'edge' : inR ? 'in' : '') + (ymd === td ? ' today' : '') + '"' + (ymd > td ? ' disabled' : '') + ' aria-label="' + esc(new Date(ymd + 'T12:00:00').toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric', year:'numeric'})) + '" aria-pressed="' + !!(inR || edge) + '">' + d + '</button>'; }
     const sum = !lo ? 'Tap a start day, then an end day.' : p.step === 1 ? monthDay(lo) + ' to … tap the end day.' : lo === hi ? monthDay(lo) + ' (one day)' : monthDay(lo) + ' – ' + monthDay(hi) + ' · ' + (calendarDistance(lo, hi) + 1) + ' days';
-    return '<div class="filt-pop-wrap" data-page="' + page + '"><div class="filt-scrim" data-act="filtPickCancel"></div><div class="filt-pop" role="dialog" aria-label="Choose a date range" data-parity="I1-RANGE"><div class="filt-pop-h"><button type="button" data-act="filtPickMonth" data-n="-1" aria-label="Previous month">‹</button><b>' + esc(first.toLocaleDateString('en-US', {month:'long', year:'numeric'})) + '</b><button type="button" data-act="filtPickMonth" data-n="1" aria-label="Next month"' + (nextYmd > td ? ' disabled' : '') + '>›</button></div><div class="filt-cal">' + cells + '</div><p class="filt-pop-sum" role="status">' + esc(sum) + '</p><div class="filt-pop-act"><button type="button" class="k-btn" data-act="filtPickCancel">Cancel</button><button type="button" class="k-btn primary" data-act="filtPickApply"' + (lo ? '' : ' disabled') + '>Apply</button></div></div></div>';
+    return '<div class="filt-pop-wrap" data-page="' + p.page + '"><div class="filt-scrim" data-act="filtPickCancel"></div><div class="filt-pop" role="dialog" aria-label="Choose a date range" data-parity="I1-RANGE"><div class="filt-pop-h"><button type="button" data-act="filtPickMonth" data-n="-1" aria-label="Previous month">‹</button><b>' + esc(first.toLocaleDateString('en-US', {month:'long', year:'numeric'})) + '</b><button type="button" data-act="filtPickMonth" data-n="1" aria-label="Next month"' + (nextYmd > td ? ' disabled' : '') + '>›</button></div><div class="filt-cal">' + cells + '</div><p class="filt-pop-sum" role="status">' + esc(sum) + '</p><div class="filt-pop-act"><button type="button" class="k-btn" data-act="filtPickCancel">Cancel</button><button type="button" class="k-btn primary" data-act="filtPickApply"' + (lo ? '' : ' disabled') + '>Apply</button></div></div></div>';
   }
-  const filtPickRefresh = () => { const el = document.querySelector('.filt-pop-wrap'); if (el && filtPicker) el.outerHTML = filtPickHTML(filtPicker.page); else render(); };
+  /* Fix R2: the range calendar is one element for the whole page, opened by the page filter or by any card's chip */
+  function renderPickHost(){ let h = document.getElementById('filtPickHost'); if (!h){ h = document.createElement('div'); h.id = 'filtPickHost'; document.body.appendChild(h); } h.innerHTML = filtPickHTML(); }
+  const filtPickRefresh = () => { if (filtPicker) renderPickHost(); else render(); };
   // The page filter (L1): the selected day with ‹ › (A70), then the five periods, the Week menu (L7) and Custom's dates (L6)
   function filtPageHTML(page, o){
     if (railHosts() && !(o && o.rail)) return '';   // Q1: the rail draws the page filter
     const s = filtState(page), sel = o && o.noDay ? '' : '<span class="filt-day" data-parity="V37-L1-02"><button class="k-icon-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b data-sel-day="' + day + '">' + esc(new Date(day + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'})) + '</b><button class="k-icon-btn" data-act="step" data-n="1" aria-label="Next day">›</button>' + (day !== todayYmd() ? '<button class="k-btn" data-act="jumpToday">Today</button>' : '') + '</span>';
-    return '<div class="filt-bar" data-filter-page="' + page + '" data-parity="V37-L1-01">' + sel + '<div class="k-seg filt-seg" role="group" aria-label="Period for this page">' + filtSeg(page, null, s.per) + '</div>' + weekMenu() +
-      (s.per === 'custom' ? (() => { const c = filtRange(s.custom) || {from:addDays(day, -6), to:day}; return '<span class="filt-custom" data-parity="V37-L6-01"><button type="button" class="k-btn filt-range" data-act="filtPick" data-page="' + page + '" aria-haspopup="dialog" aria-expanded="' + !!(filtPicker && filtPicker.page === page) + '" title="Choose a date range">📅 ' + esc(c.from === c.to ? monthDay(c.from) : monthDay(c.from) + ' – ' + monthDay(c.to)) + '</button></span>'; })() : '') + filtPickHTML(page) + '</div>';
+    return '<div class="filt-bar" data-filter-page="' + page + '" data-parity="V37-L1-01">' + sel + '<div class="filt-segs" role="group" aria-label="Period for this page">' + filtSeg(page, null, s.per, false, true) + '</div>' +
+      (s.per === 'custom' ? (() => { const c = filtRange(s.custom) || {from:addDays(day, -6), to:day}; return '<span class="filt-custom" data-parity="V37-L6-01"><button type="button" class="k-btn filt-range" data-act="filtPick" data-page="' + page + '" aria-haspopup="dialog" aria-expanded="' + !!(filtPicker && filtPicker.page === page) + '" title="Choose a date range">📅 ' + esc(c.from === c.to ? monthDay(c.from) : monthDay(c.from) + ' – ' + monthDay(c.to)) + '</button></span>'; })() : '') + '</div>';
   }
   // A card's chip (the "period chip" family): "page" while it follows; a pin dot once it holds its own value
   function filtChipHTML(page, card){
     const s = filtState(page), pin = s.pins[card], cur = pin ? pin.per : s.per;
-    return '<span class="ck-fchip' + (pin ? ' pinned' : '') + '" data-family="period-chip" data-chip="' + esc(card) + '" data-page="' + page + '" role="group" aria-label="Period for this card">' + filtSeg(page, card, cur, true) + (pin ? '<i class="ck-pin" title="Pinned: this card keeps its own period until you click the page filter"></i>' : '<small class="ck-page">page</small>') + '</span>';
+    return '<span class="ck-fchip' + (pin ? ' pinned' : '') + '" data-family="period-chip" data-chip="' + esc(card) + '" data-page="' + page + '" role="group" aria-label="Period for this card">' + filtSeg(page, card, cur, true) + (cur === 'custom' ? (() => { const c = filtRange((pin && pin.custom) || s.custom); return c ? '<button type="button" class="filt-range filt-range-card" data-act="filtPick" data-page="' + page + '" data-card="' + esc(card) + '" title="Choose a date range">' + esc(c.from === c.to ? monthDay(c.from) : monthDay(c.from) + ' – ' + monthDay(c.to)) + '</button>' : ''; })() : '') + (pin ? '<i class="ck-pin" title="Pinned: this card keeps its own period until you click the page filter"></i>' : '<small class="ck-page">page</small>') + '</span>';
   }
   // The chip goes in a card's header, after its title; the card says its window
   function withChip(html, page, card, w){
@@ -7147,7 +7159,6 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       setRow('room', 'Room', 'theme appearance marble dark light verde black lacquer ivory wall', sel('pref-theme', 'theme', [['verde', 'Speakeasy Verde'], ['black', 'Black Lacquer'], ['light', 'Ivory']], theme), {info:'The wall behind the cards. Speakeasy Verde, Black Lacquer or Ivory.'}),
       setRow('units', 'Units', 'imperial metric weight distance lb kg miles km body', sel('pref-units', 'units', [['lb', 'Imperial · lb, mi, in'], ['kg', 'Metric · kg, km, cm']], st.prefs.units === 'kg' ? 'kg' : 'lb')),
       setRow('weekStart', 'Week starts', 'calendar monday sunday week', sel('pref-ws', 'weekStart', [['1', 'Monday'], ['0', 'Sunday']], st.prefs.weekStart === 0 ? '0' : '1')),
-      setRow('weekMeans', 'Week means', 'week filter this week last 7 days rolling calendar period', '<span data-parity="V37-L7-01">' + sel('pref-weekmeans', 'weekMeansSet', [['this', 'This week (' + (st.prefs.weekStart === 0 ? 'Sun' : 'Mon') + ' to ' + (st.prefs.weekStart === 0 ? 'Sat' : 'Sun') + ')'], ['last7', 'Last 7 days']], weekMeans()) + '</span>', {info:'What Week shows on every page filter, every card chip and the Overall grade’s Week: this calendar week up to the selected day, or the 7 days ending on it. The Week button’s menu (▾) switches the same setting.'}),
       setRow('text', 'Text size', 'font bigger large', sel('pref-size', 'textSize', [['normal', 'Normal'], ['large', 'Large']], st.prefs.textSize === 'large' ? 'large' : 'normal')),
       setRow('itemrule', 'How items look', 'item display rule on off button progress bar check circle', sample, {stack:true, info:'A yes or no item is an on/off button. A quantity is a bar with x of y. Everything else keeps the check circle. The samples here change nothing.'}),
       setRow('tapmap', 'Where a tap goes', 'tap map do know review drawer learn', tapMap, {stack:true, info:'One map for the whole app. Do acts in place or opens Quests; Know opens the metric drawer; Review opens the grade, Collection, Body or Faith.'})
@@ -8827,6 +8838,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     // strip shows the whole rail over the page; a strip button pins it open at that card.
     const chev='<button type="button" class="rail-chev" data-act="toggleRail" aria-controls="ctxRail" aria-expanded="'+(!hidden)+'" aria-label="'+(hidden?'Expand the side panel':'Collapse the side panel')+'" title="'+(hidden?'Expand the side panel':'Collapse the side panel')+'" data-parity="V35-S4-02"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+(hidden?'M15 5l-7 7 7 7':'M9 5l7 7-7 7')+'"/></svg></button>';
     if (!hidden && railHosts()) body = railPinHTML(st) + body;   // Q1, Q2: the pinned block comes first, over the drawer too
+    renderPickHost();
     app.classList.toggle('norailcards',!body);
     el.innerHTML=chev+body+'<nav class="rail-strip" aria-label="Side panel shortcuts" data-parity="V35-S3-01"></nav>';   // V3.4 (T7): each page's rail holds its own
     { const strip=el.querySelector('.rail-strip'),cards=[...el.querySelectorAll('.k-card,.panelcard,section,details.panelcard')].filter(c=>!c.parentElement.closest('.k-card,.panelcard,section')&&!c.matches('.rail-strip'));
@@ -9587,14 +9599,13 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       // V3.7 L1, L3, L6, L7: the page filter clears every pin on its page; a chip pins (last click wins); Custom's two dates; Week means
       case 'filtPage': { const pg = btn.dataset.page, p = btn.dataset.p; if (!filtOk(p)) return; filtSet(pg, s0 => { s0.per = p; s0.pins = {}; if (p === 'custom' && !s0.custom) s0.custom = {from:addDays(day, -6), to:day}; }); filtPicker = null;
         if (p === 'custom'){ const c = filtRange(filtState(pg).custom) || {from:addDays(day, -6), to:day}; filtPicker = {page:pg, month:c.to.slice(0, 8) + '01', from:c.from, to:c.to, step:0}; } render(); return; }
-      case 'filtPick': { const pg = btn.dataset.page, c = filtRange(filtState(pg).custom) || {from:addDays(day, -6), to:day}; filtPicker = filtPicker && filtPicker.page === pg ? null : {page:pg, month:c.to.slice(0, 8) + '01', from:c.from, to:c.to, step:0}; render(); return; }
+      case 'filtPick': { const pg = btn.dataset.page, card = btn.dataset.card || null, st0 = filtState(pg), c = filtRange(card && st0.pins[card] && st0.pins[card].custom ? st0.pins[card].custom : st0.custom) || {from:addDays(day, -6), to:day}; filtPicker = filtPicker && filtPicker.page === pg && (filtPicker.card || null) === card ? null : {page:pg, card, month:c.to.slice(0, 8) + '01', from:c.from, to:c.to, step:0}; render(); return; }
       case 'filtPickDay': { const d = btn.dataset.d; if (!filtPicker || !validCalendarDate(d) || d > todayYmd()) return; if (filtPicker.step === 1){ filtPicker.to = d; filtPicker.step = 0; } else { filtPicker.from = d; filtPicker.to = null; filtPicker.step = 1; } filtPickRefresh(); return; }
       case 'filtPickMonth': { if (!filtPicker) return; const m = new Date(filtPicker.month + 'T12:00:00'); m.setMonth(m.getMonth() + (+btn.dataset.n || 0)); const ym = m.getFullYear() + '-' + String(m.getMonth() + 1).padStart(2, '0') + '-01'; if (ym > todayYmd()) return; filtPicker.month = ym; filtPickRefresh(); return; }
       case 'filtPickCancel': filtPicker = null; render(); return;
-      case 'filtPickApply': { if (!filtPicker || !filtPicker.from) return; let f = filtPicker.from, t = filtPicker.to || filtPicker.from; if (t < f) [f, t] = [t, f]; const td = todayYmd(); if (t > td) t = td; if (f > t) f = t; const pg = filtPicker.page; filtSet(pg, s0 => { s0.per = 'custom'; s0.custom = {from:f, to:t}; s0.pins = {}; }); filtPicker = null; render(); return; }
-      case 'filtChip': { const pg = btn.dataset.page, p = btn.dataset.p, c = btn.dataset.card; if (!filtOk(p) || !c) return; filtSet(pg, s0 => { s0.pins[c] = {per:p, custom:p === 'custom' ? (s0.custom || {from:addDays(day, -6), to:day}) : null}; }); render(); return; }
+      case 'filtPickApply': { if (!filtPicker || !filtPicker.from) return; let f = filtPicker.from, t = filtPicker.to || filtPicker.from; if (t < f) [f, t] = [t, f]; const td = todayYmd(); if (t > td) t = td; if (f > t) f = t; const pg = filtPicker.page, card = filtPicker.card; filtSet(pg, s0 => { if (card) s0.pins[card] = {per:'custom', custom:{from:f, to:t}}; else { s0.per = 'custom'; s0.custom = {from:f, to:t}; s0.pins = {}; } }); filtPicker = null; render(); return; }
+      case 'filtChip': { const pg = btn.dataset.page, p = btn.dataset.p, c = btn.dataset.card; if (!filtOk(p) || !c) return; if (p === 'custom'){ const st0 = filtState(pg), cur = filtRange((st0.pins[c] && st0.pins[c].custom) || st0.custom) || {from:addDays(day, -6), to:day}; filtSet(pg, s0 => { s0.pins[c] = {per:'custom', custom:cur}; }); filtPicker = {page:pg, card:c, month:cur.to.slice(0, 8) + '01', from:cur.from, to:cur.to, step:0}; render(); return; } filtPicker = null; filtSet(pg, s0 => { s0.pins[c] = {per:p, custom:p === 'custom' ? (s0.custom || {from:addDays(day, -6), to:day}) : null}; }); render(); return; }
       case 'filtCustom': { const pg = btn.dataset.page; let f = ($('#filtFrom-' + pg) || {}).value, t = ($('#filtTo-' + pg) || {}).value; if (!validCalendarDate(f) || !validCalendarDate(t)){ toast('Choose two dates.'); return; } if (t < f) [f, t] = [t, f]; const td = todayYmd(); if (t > td) t = td; if (f > t) f = t; filtSet(pg, s0 => { s0.per = 'custom'; s0.custom = {from:f, to:t}; s0.pins = {}; }); render(); return; }
-      case 'weekMeans': { try { localStorage.setItem('health-tracker.weekMeans', btn.dataset.v === 'last7' ? 'last7' : 'this'); } catch (_) {} render(); return; }
       case 'stepWeek': weekSel = addDays(weekSel, 7 * +btn.dataset.n); panel = null; render(); return;
       case 'jumpWeek': weekSel = todayYmd(); panel = null; render(); return;
       case 'stepProg': progStart = addDays(progStart, 7 * +btn.dataset.n); render(); return;
@@ -9883,7 +9894,6 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (el.dataset.act === 'shelfPick'){ if (el.checked) shelfPicked.add(el.dataset.tpl); else shelfPicked.delete(el.dataset.tpl); render(); return; }
     if (el.dataset.act === 'fasting'){ el.closest('label').classList.toggle('on', el.checked); stage(st, 'pref'); st.prefs.fastingDays = [...document.querySelectorAll('input[name="fast-day"]:checked')].map(i => +i.value).sort(); commit('fasting','Fasting days saved. Shown on Log, never enforced.'); return; }
     if (el.dataset.act === 'questAutoClose'){ stage(st, 'pref'); st.prefs.questAutoClose = el.value !== 'off'; commit('pref', el.value !== 'off' ? 'Finished cards close to one line.' : 'Finished cards stay open.'); return; }
-    if (el.dataset.act === 'weekMeansSet'){ try { localStorage.setItem('health-tracker.weekMeans', el.value === 'last7' ? 'last7' : 'this'); } catch (_) {} render(); return; }   // V3.7 L7: per viewer, like the filters
     if (el.dataset.act === 'sexSet'){ stage(st, 'pref'); const v = setSex(st, el.value); commit('pref', v ? 'Sex set to ' + (v === 'male' ? 'Male' : 'Female') + '.' : 'Sex cleared.'); return; }   // V3.7 X1: the one writer
     if (el.dataset.act === 'weekStart'){ stage(st, 'pref'); st.prefs.weekStart = +el.value; progStart = wkStart(todayYmd()); commit('pref', 'Week now starts on ' + (st.prefs.weekStart === 1 ? 'Monday' : 'Sunday') + '.'); return; }
     if (el.dataset.act === 'sleepCheckOff'){ const enabled=el.value==='on',r=await manualActionTransaction(st,d=>Workspace.setSleepCheckOff(d,enabled),{persist:!preview});render();toast(r.ok?(enabled?'Sleep is on Today’s list. Earlier dated preferences stay unchanged.':'Sleep is off Today’s list; the Watch’s night fills the ring. Earlier dated preferences stay unchanged.'):'Not saved. '+r.error);return; }

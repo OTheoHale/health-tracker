@@ -1338,6 +1338,7 @@ function gradePeriod(state,anchor,period,range,opts){
   else if(period==='month')from=today.slice(0,8)+'01';
   else if(period==='all')from=prog;
   else if(period==='custom'&&range&&validCalendarDate(range.from)&&validCalendarDate(range.to)){from=range.from<range.to?range.from:range.to;to=range.from<range.to?range.to:range.from;}
+  if(anchor&&anchor<real&&(period==='week'||period==='month')){const full=period==='week'?addDays(from,6):from.slice(0,8)+String(new Date(+from.slice(0,4),+from.slice(5,7),0).getDate()).padStart(2,'0');to=full;}   // R1: a past day's Week or Month is the whole calendar span, days after today left out below
   if(to>real)to=real;
   if(['week','month','all'].includes(period)&&to===real&&from<real){to=addDays(real,-1);live=true;}   // review: closed days only, as the old rank did; Day is today so far
   if(from>to)from=to;
