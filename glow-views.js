@@ -179,6 +179,18 @@
     const opt=o||{},s=opt.start||{},g=opt.goal||{},nw=opt.now||{},dg=opt.digits===undefined?1:opt.digits,fmt=v=>num(v)?(Math.round(v*10**dg)/10**dg).toLocaleString('en-US'):'—';
     const ok=s.date&&g.date&&g.date>s.date&&num(s.value)&&num(g.value);
     if(!ok)return '<div class="goal-bar-date empty" role="img" aria-label="'+esc((opt.label||'Goal')+': not set')+'"><div class="gb-track"></div><div class="gb-ends"><span>'+esc(fmt(s.value))+'</span><span>'+esc(fmt(g.value))+'</span></div></div>';
+    /* Fix N1 (Mintay, Oct 6): a value axis with headroom. The bar runs from the lowest of start, now and goal less a pad to the highest plus a pad,
+       so a back-slip still sits inside it; the dot is where he is now, start and goal are marked and labelled where they fall. */
+    if(opt.valueAxis&&num(s.value)&&num(g.value)){
+      const pad=num(opt.pad)?opt.pad:10,nv=num(nw.value)?nw.value:null,vals=[s.value,g.value].concat(nv===null?[]:[nv]),lo=Math.min.apply(null,vals)-pad,hi=Math.max.apply(null,vals)+pad,vx=v=>clamp((v-lo)/(hi-lo),0,1),colour=opt.onPace===true?'green':opt.onPace===false?'orange':'neutral';
+      const a=vx(s.value),b=vx(g.value),n=nv===null?a:vx(nv),from=Math.min(a,n),to=Math.max(a,n);
+      const ticks=(opt.checkpoints||[]).filter(c=>c&&num(c.value)&&c.value>lo&&c.value<hi).map(c=>'<i class="gb-tick" style="left:'+f(vx(c.value)*100)+'%" title="'+esc((c.name?c.name+' · ':'')+(c.date?shortDate(c.date):''))+'"></i>').join('');
+      const label=(x,v,d,cls)=>'<span class="gb-vl '+cls+'" style="left:'+f(x*100)+'%"><b>'+esc(fmt(v))+'</b>'+(d?'<small>'+esc(d)+'</small>':'')+'</span>';
+      const spoken=(opt.label||'Goal')+': start '+fmt(s.value)+(opt.unit?' '+opt.unit:'')+(s.date?' on '+shortDate(s.date):'')+', goal '+fmt(g.value)+(opt.unit?' '+opt.unit:'')+(g.date?' by '+shortDate(g.date):'')+(nv===null?'':'; now '+fmt(nv)+(nw.date?' on '+shortDate(nw.date):''));
+      return '<div class="goal-bar-date gb-value" role="img" aria-label="'+esc(spoken)+'" data-tone="'+colour+'">'+
+        '<div class="gb-track"><i class="gb-fill" style="left:'+f(from*100)+'%;width:'+f((to-from)*100)+'%;background:'+tone(colour)+'"></i><i class="gb-mark start" style="left:'+f(a*100)+'%" title="Start"></i><i class="gb-mark goal" style="left:'+f(b*100)+'%" title="Goal"></i>'+ticks+(nv===null?'':'<b class="gb-now" style="left:'+f(n*100)+'%;--glow:'+tone(colour)+'">'+(opt.quietNow?'':'<span>'+esc(fmt(nv))+'</span>')+'</b>')+(num(opt.longTerm)&&opt.longTerm>lo&&opt.longTerm<hi?'<i class="gb-long" style="left:'+f(vx(opt.longTerm)*100)+'%" title="Long term '+esc(fmt(opt.longTerm))+'"></i>':'')+'</div>'+
+        '<div class="gb-vends">'+label(a,s.value,s.date?shortDate(s.date):'','start')+label(b,g.value,g.date?shortDate(g.date,s.date||undefined):'','goal')+'</div></div>';
+    }
     const span=between(s.date,g.date)||1,x=d=>clamp(between(s.date,d)/span,0,1),hasNow=num(nw.value)&&!!nw.date,xn=hasNow?x(nw.date):0;
     const colour=opt.onPace===true?'green':opt.onPace===false?'orange':'neutral';
     const ticks=(opt.checkpoints||[]).filter(c=>c&&c.date>s.date&&c.date<g.date).map(c=>'<i class="gb-tick" style="left:'+f(x(c.date)*100)+'%" title="'+esc((c.name?c.name+' · ':'')+shortDate(c.date))+'"><em>'+esc(shortDate(c.date))+'</em></i>').join('');
