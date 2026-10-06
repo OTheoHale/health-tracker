@@ -1679,7 +1679,7 @@ addEventListener('load', () => {
   let logTab = 'food';
   let planGroup = 'all';
   let dataTab = 'weight';
-  let rankWindow='rolling',fitnessRange='today',fitnessAnchor=todayYmd(),fitnessFrom=addDays(todayYmd(),-6),fitnessTo=todayYmd(), collectionWeek=weekStartOf(todayYmd(),1), actionReview=null, feedbackText='';
+  let rankWindow='rolling',fitnessRange='today',fitnessAnchor=todayYmd(),fitnessFrom=weekStartOf(todayYmd(),1),fitnessTo=todayYmd(), collectionWeek=weekStartOf(todayYmd(),1), actionReview=null, feedbackText='';
   // V3.6 N7 (V36-I4): the day rolls at local midnight, and on focus, for a view he has not navigated away from; a day he
   // picked stays put. Checked every 30 seconds; a field being typed in defers the redraw to the next check.
   let shownToday = todayYmd();
@@ -3448,7 +3448,7 @@ addEventListener('load', () => {
     const chip = last ? '<span class="k-chip vo2-chip">last Apple reading ' + esc(monthDay(last.day)) + '</span>' : '';
     // the weekly "VO₂ reading chance" goal, when he has one (it credits the workout, never Apple's reading)
     const gs = (st.series || []).find(x => { const vv = versionFor(x, t); return vv && vv.goal && vv.goal.source && vv.goal.source.outdoor && (vv.goal.source.writers || []).length; }), gp = gs ? GoalEngine.progress(st, gs, t) : null;
-    const goalLine = gp ? '<p class="hint keep" data-vo2-goal>' + goalNum(gp.value || 0) + ' of ' + goalNum(gp.target) + ' this week · ' + (I.readings.some(r => r.day >= addDays(t, -6) && r.day <= t) ? 'Apple posted a reading this week' : 'no reading yet') + '</p>' : '';
+    const goalLine = gp ? '<p class="hint keep" data-vo2-goal>' + goalNum(gp.value || 0) + ' of ' + goalNum(gp.target) + ' this week · ' + (I.readings.some(r => r.day >= weekWindow(t).from && r.day <= t) ? 'Apple posted a reading this week' : 'no reading yet') + '</p>' : '';
     // gate open: the range, and for 7 days after a new Apple reading what Glow had said
     const rows = Object.values(st.vo2Ledger || {}).filter(r => r.source === 'live' && r.date <= t).sort((a, b) => a.date.localeCompare(b.date)), newest = rows.at(-1), vk = gate.open ? gate.variant : null;
     const recap = vk && newest && calendarDistance(newest.date, t) <= 7 && Number.isFinite(newest.variants[vk]) ? '<p class="hint keep" data-vo2-recap>Apple measured ' + newest.reading.toFixed(1) + '. Glow said ' + newest.variants[vk].toFixed(1) + ': off by ' + Math.abs(newest.reading - newest.variants[vk]).toFixed(1) + '. The last reading would have been off by ' + Math.abs(newest.reading - newest.anchor).toFixed(1) + '.</p>' : '';
@@ -3808,7 +3808,7 @@ addEventListener('load', () => {
     const m = METRICS[id], range = drawer.range, all = [...metricSeries(st, id, 90)].sort(([a], [b]) => a.localeCompare(b)), pts = all.filter(([d]) => d >= addDays(todayYmd(), -(range - 1))), last = all.at(-1);
     const fmt = v => v === null || v === undefined ? '—' : id === 'steps' ? Math.round(v).toLocaleString('en-US') : v.toFixed(m.digits);
     const band = all.length >= 7 ? [quantile(all.map(p => p[1]), .25), quantile(all.map(p => p[1]), .75)] : null;
-    const mean = (a, b) => { const v = all.filter(([d]) => d > a && d <= b).map(p => p[1]); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : null; }, t = todayYmd(), w1 = mean(addDays(t, -7), t), w0 = mean(addDays(t, -14), addDays(t, -7));
+    const mean = (a, b) => { const v = all.filter(([d]) => d > a && d <= b).map(p => p[1]); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : null; }, t = todayYmd(), wf = weekWindow(t).from, w1 = mean(addDays(wf, -1), t), w0 = mean(addDays(wf, -8), addDays(wf, -1));   /* Fix H4: this week against the one before it */
     const where = !last || !band ? '' : last[1] < band[0] ? 'below your usual range' : last[1] > band[1] ? 'above your usual range' : 'in your usual range';
     const change = w1 === null || w0 === null ? (last ? 'Not enough readings for a weekly change yet' + (where ? ' · ' + where : '') : '') : (Math.abs(w1 - w0) < Math.pow(10, -m.digits) / 2 ? 'Steady' : (w1 > w0 ? 'Up ' : 'Down ') + fmt(Math.abs(w1 - w0)) + (m.unit ? ' ' + m.unit : '')) + ' on the week before' + (where ? ' · ' + where : '');
     const reason = !last ? '<p class="drawer-change">No reading yet. ' + esc(m.source === 'Self-entered' ? 'Add one below.' : 'It fills from ' + m.source + ' once a reading arrives.') + '</p>' : '';
@@ -3872,7 +3872,7 @@ addEventListener('load', () => {
   const LCMP = (now, prev, fmt) => '<div class="learn-cmp" data-learn-compare><span>This window</span><b>' + esc(now) + '</b><span>The one before</span><b>' + esc(prev) + '</b>' + (fmt ? '<small>' + esc(fmt) + '</small>' : '') + '</div>';
   const V36_LEARN = {
     'net-energy': st => {
-      const y = addDays(todayYmd(), -1), wk = NetEnergy.summary(st, addDays(y, -6), y), pr = NetEnergy.summary(st, addDays(y, -13), addDays(y, -7)), goal = NetEnergy.goal(st), on = NetEnergy.onTrack(st);
+      const y = addDays(todayYmd(), -1), wf = weekWindow(todayYmd()).from, wfrom = wf > y ? y : wf, wk = NetEnergy.summary(st, wfrom, y), pr = NetEnergy.summary(st, addDays(wfrom, -7), addDays(y, -7)),   /* Fix H4: this week so far against the same days of the week before */  goal = NetEnergy.goal(st), on = NetEnergy.onTrack(st);
       const v = wk.avg === null ? null : Math.round(wk.avg), p = pr.avg === null ? null : Math.round(pr.avg), d = v !== null && p !== null ? v - p : null;
       const mean = k => { const ok = wk.days.filter(x => x.full); return ok.length ? Math.round(ok.reduce((n, x) => n + (x[k] || 0), 0) / ok.length) : null; };
       return {id:'net-energy', name:'Net Energy', line:'food eaten minus energy burned, signed',
@@ -3929,7 +3929,7 @@ addEventListener('load', () => {
     'sleep-colours': st => {
       const need = sleepGoalMin(st), nights = sleepNights(st), t = todayYmd(), rows = [];
       for (let i = 6; i >= 0; i--){ const d = addDays(t, -i), n = nights.get(d); rows.push({name:medDate(d), yours:n ? hm(n.minutes) : '—', weight:n ? ((n.minutes - need) / 60 >= 0 ? '+' : '−') + Math.abs((n.minutes - need) / 60).toFixed(1) + ' h' : 'no night', colour:n && typeof GlowViews !== 'undefined' && GlowViews.sleepColour ? GlowViews.sleepColour(n.minutes, need) : 'neutral'}); }
-      const have = [...nights.values()].filter(n => n.day > addDays(t, -7)), avg = have.length ? have.reduce((a, n) => a + n.minutes, 0) / have.length : null;
+      const have = [...nights.values()].filter(n => n.day >= weekWindow(t).from), avg = have.length ? have.reduce((a, n) => a + n.minutes, 0) / have.length : null;
       return {id:'sleep-colours', name:'Sleep colours', line:'one colour scale for every sleep chart',
         score:{value:avg === null ? null : hm(avg), word:avg === null ? 'no nights this week' : 'asleep a night · the last 7', colour:'neutral', change:'need ' + hm(need)},
         breakdown:rows, compare:typeof GlowViews !== 'undefined' && GlowViews.sleepKey ? GlowViews.sleepKey(need) : '',
@@ -4029,11 +4029,13 @@ addEventListener('load', () => {
     if (!series || !series.size) return {now:null, prev:null};
     const days = [...series.keys()].sort(), mean = (a, b) => { const v = days.filter(d => d >= a && d <= b).map(d => series.get(d)); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : null; }, count = (a, b) => days.filter(d => d >= a && d <= b).reduce((n, d) => n + series.get(d), 0);
     const agg = def.kind === 'count' ? count : mean, last = days.filter(d => d <= today).at(-1);
-    if (win === 'day'){ if (def.kind === 'count') return {now:agg(addDays(today, -6), today), prev:agg(addDays(today, -13), addDays(today, -7))}; if (def.kind === 'reading'){ const before = days.filter(d => d < last).at(-1); return {now:series.get(last), prev:before ? series.get(before) : null, at:last}; } return {now:series.has(today) ? series.get(today) : null, prev:series.has(addDays(today, -1)) ? series.get(addDays(today, -1)) : null}; }
-    if (win === 'week' || win === 'month'){ const n = win === 'week' ? 7 : 28, a = addDays(today, -(n - 1)), b = addDays(a, -n); const now = agg(a, today), prev = agg(b, addDays(a, -1)); return {now:now === null && def.kind === 'reading' ? series.get(last) : now, prev, stale:now === null}; }
+    if (win === 'day'){ if (def.kind === 'count') { const wf = weekWindow(today).from; return {now:agg(wf, today), prev:agg(addDays(wf, -7), addDays(today, -7))}; }   /* Fix H4: this week, not the last 7 days */ if (def.kind === 'reading'){ const before = days.filter(d => d < last).at(-1); return {now:series.get(last), prev:before ? series.get(before) : null, at:last}; } return {now:series.has(today) ? series.get(today) : null, prev:series.has(addDays(today, -1)) ? series.get(addDays(today, -1)) : null}; }
+    if (win === 'week' || win === 'month'){   /* Fix H4: this calendar week or month so far, against the same stretch of the one before */
+      let a, b, bEnd; if (win === 'week'){ a = weekWindow(today).from; b = addDays(a, -7); bEnd = addDays(today, -7); } else { a = today.slice(0, 8) + '01'; const pm = new Date(a + 'T12:00:00'); pm.setMonth(pm.getMonth() - 1); b = pm.getFullYear() + '-' + String(pm.getMonth() + 1).padStart(2, '0') + '-01'; bEnd = addDays(b, calendarDistance(a, today)); }
+      const now = agg(a, today), prev = agg(b, bEnd); return {now:now === null && def.kind === 'reading' ? series.get(last) : now, prev, stale:now === null}; }
     const first = days.find(d => d >= start); if (!first) return {now:def.kind === 'reading' ? series.get(last) : null, prev:null};
     if (def.kind === 'reading') return {now:series.get(last), prev:last === first ? null : series.get(first), at:last};
-    return {now:agg(addDays(today, -6), today), prev:agg(first, addDays(first, 6))};
+    return {now:agg(weekWindow(today).from, today), prev:agg(first, addDays(first, 6))};
   }
   /* V3.7 L2: a tile's value over the filter window. Day: that day's value (a reading on that day), and the reading before it with
      its date. A range: the window's mean (a sum for counts; the latest reading for a reading), against the same length before. */
@@ -4900,7 +4902,7 @@ addEventListener('load', () => {
       // V3.7 Y1: closed days up to the selected day (the selected day counts when it is before today)
       const today = todayYmd(), y = day < today ? day : addDays(today, -1), start = programStart(st);
       const per = gradePer === 'custom' && gradeRange ? 'all' : gradePer === 'custom' ? 'week' : gradePer;
-      let from = per === 'month' ? addDays(y, -27) : per === 'all' ? start : addDays(y, -6), to = y;
+      let from = per === 'month' ? y.slice(0, 8) + '01' : per === 'all' ? start : (weekWindow(today).from > y ? y : weekWindow(today).from), to = y;   /* Fix H4: this calendar week or month, closed days */
       if (gradePer === 'custom' && gradeRange){ from = gradeRange.from; to = gradeRange.to < y ? gradeRange.to : y; }
       return nutritionGradeOver(st, from, to, per);
     });

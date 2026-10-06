@@ -2317,9 +2317,9 @@ const NetEnergy={
     const ok=days.filter(x=>x.full),total=ok.reduce((n,x)=>n+x.net,0);
     return {from,to,days,logged:ok.length,of:days.length,total,avg:ok.length?ok.reduce((n,x)=>n+Math.round(x.net),0)/ok.length:null,pounds:total/NET_KCAL_PER_LB,burn:ok.length?ok.reduce((n,x)=>n+x.burn,0)/ok.length:null,food:ok.length?ok.reduce((n,x)=>n+x.food,0)/ok.length:null,missing:days.filter(x=>!x.full)};
   },
-  // Trailing windows ending on `day` (A30): Day = that day, Week = 7 days, Month = 30 days, All = Program start.
+  // Windows ending on `day` (A30, H4): Day = that day, Week = Monday to `day` (or Sunday, by the Week setting), Month = the 1st to `day`, All = Program start.
   window(state,period,day,range){const t=day||todayYmd();if(period==='custom'&&range&&validCalendarDate(range.from)&&validCalendarDate(range.to)){const a=range.from<range.to?range.from:range.to,b=range.from<range.to?range.to:range.from;return {from:a,to:b>t?t:b};}
-    const from=period==='week'?addDays(t,-6):period==='month'?addDays(t,-29):period==='all'?programStartOf(state,t):t;return {from:from>t?t:from,to:t};},
+    const from=period==='week'?weekStartOf(t,state.prefs&&state.prefs.weekStart===0?0:1):period==='month'?t.slice(0,8)+'01':period==='all'?programStartOf(state,t):t;return {from:from>t?t:from,to:t};},   // H4: Week is the calendar week and Month the calendar month
   // The net used by the weight estimate (his rule, Oct 3): an unlogged day counts as food 0; a day without resting or
   // active energy is not food 0, so it is skipped and named (ASSUMED A3); today counts once it has a full record.
   estimateDays(state,from,to,today){
