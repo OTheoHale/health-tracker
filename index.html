@@ -1584,6 +1584,8 @@ button.today-fend:hover{background:var(--sunk-2)}.today-fend b{font:600 24px var
 .goal-row[data-act="goalHistory"]{cursor:pointer}.gh{display:flex;flex-direction:column;align-items:stretch;gap:6px;width:100%;flex:1 1 100%}.gh .gh-chart{display:block;width:100%;min-height:150px}.gh .gh-line{white-space:normal;margin:0}.gh-top{display:flex;align-items:baseline;gap:8px}.gh-top b{font:600 28px var(--serif,inherit)}.gh-top small{font-size:12px;color:var(--muted)}.gh-chart{width:100%;height:auto;margin:6px 0}.gh-line{margin:4px 0 0;font-size:13px}
 /* Fix P1 */
 .watch-chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+/* Fix P9 */
+.sunday-review p{margin:6px 0 0;font-size:13px}.sunday-review .sr-line b{font:600 20px var(--serif,inherit);margin-right:4px}.sunday-review .sr-up span{color:var(--c-green,#79d6a9)}.sunday-review .sr-down span{color:var(--c-orange,#f0a058)}.sunday-review .sr-next{color:var(--ink)}.sunday-review .sr-flat{color:var(--muted)}
 </style>
 <link rel="stylesheet" href="body-view.css">
 <script type="module" src="model-viewer.min.js"></script>
@@ -5483,7 +5485,7 @@ addEventListener('load', () => {
     const upnext = '<section class="k-sec today-next-sec"><div class="k-sec-head"><h2>Up Next' + infoBtn('upnext', 'Up Next') + '</h2><button class="link" data-act="todayTab" data-tab="activities" data-parity="TODAY-36">See all ›</button></div>' + infoPop('upnext', 'What is due today by its own days, one routine at a time with every step in view. Skip for now sends one to the back of today’s queue; ‹ › go through what is left. The full day is on Quests.') + next.replace('<section class="panelcard next-action"', '<section class="panelcard next-action" data-parity="TODAY-10"') + '</section>';
     const week = '<section class="k-sec"><div class="k-sec-head"><h2>This Week' + infoBtn('wkstrip', 'This Week') + '</h2>' + filtChipHTML('home', 'week') + '<button class="link" data-act="questTab" data-tab="week">Week ›</button></div>' + infoPop('wkstrip', 'Each day of this week: what it asked, and how much is done (brighter is more). Tap a day to open it on Quests. Your weekly goals (Prayer 3 of 5 and the rest) are on Quests → Week.') + weekStripV34(st) + '</section>';
     const added = composer && composer.area === 'home' ? '<section class="k-card today-add" data-feedback-id="today-add" data-feedback-label="Add an item">' + composerHTML() + '</section>' : '';
-    return head + strip + added + gradeArea('home', () => gradeHero(st) + gradeStrip(st), st) + dayEditor() + quickPanel() + (railHosts() ? '' : sofar) + heroCard(day, {tiles:true}) + '<div class="today-two">' + upnext + week + '</div><div class="today-two today-two-energy"><div class="today-stack">' + fuelCardV35(day) + '</div>' + waterStepsCardV35(day) + '</div>' + macrosNutritionCard(day) + dailyLearnList('today', day);
+    return head + strip + added + gradeArea('home', () => gradeHero(st) + gradeStrip(st), st) + sundayReviewToday(st) + dayEditor() + quickPanel() + (railHosts() ? '' : sofar) + heroCard(day, {tiles:true}) + '<div class="today-two">' + upnext + week + '</div><div class="today-two today-two-energy"><div class="today-stack">' + fuelCardV35(day) + '</div>' + waterStepsCardV35(day) + '</div>' + macrosNutritionCard(day) + dailyLearnList('today', day);
   }
 
   function starterFilePanel(){
@@ -6152,7 +6154,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     // V3.7 L4 (A5): a card whose window is fixed by design says so on its face; By Group follows the page (the Overall's period)
     const fixedCard = (html, text) => html ? html.replace(/^(\s*<(?:section|div)\b)/, '$1 data-fixed-window="' + esc(text) + '"').replace(/(<span class="k-title">[\s\S]*?<\/span>|<\/h2>)/, '$1' + fixedWin(text)) : '';
     const PW = progWindow(st), byG = byGroup.replace('<section class="k-card pg-groups"', '<section class="k-card pg-groups"' + winAttrs(PW)).replace('<span class="k-title">By Group</span>', '<span class="k-title">By Group</span><span class="ck-fchip" data-family="period-chip" role="group" aria-label="Period for this page">' + filtSeg('progress', null, PW.per, true) + '<small class="ck-page">page</small></span>');   // Fix C4: By Group carries the D W M A C chip; it follows the page's period, so its chip sets the page's
-    return '<div class="progress" data-period="' + PW.per + '">' + head + hero + '<div class="pg-two">' + byG + mom + '</div><div class="pg-two">' + fixedCard(faithCard, 'Last ' + (f ? f.window : 60) + ' mornings') + fixedCard(fastCard, 'Last 180 days · needs 20 fast days') + '</div><div class="pg-two">' + fixedCard(plan, 'Since ' + monthDay(programStart(st))) + sleepCredit + '</div>' + (suggest || '') + hist + '<div class="pg-two">' + fixedCard(review, 'One week of writing') + '</div>' + fixedCard(whCard, '60 days of a habit before it says anything') + learn + '</div>';
+    return '<div class="progress" data-period="' + PW.per + '">' + head + hero + sundayReviewHTML(st) + '<div class="pg-two">' + byG + mom + '</div><div class="pg-two">' + fixedCard(faithCard, 'Last ' + (f ? f.window : 60) + ' mornings') + fixedCard(fastCard, 'Last 180 days · needs 20 fast days') + '</div><div class="pg-two">' + fixedCard(plan, 'Since ' + monthDay(programStart(st))) + sleepCredit + '</div>' + (suggest || '') + hist + '<div class="pg-two">' + fixedCard(review, 'One week of writing') + '</div>' + fixedCard(whCard, '60 days of a habit before it says anything') + learn + '</div>';
   }
   // P4: momentum over the period's windows (the readings Momentum always used, momentumOf)
   function progMomentum(st, id, win){
@@ -7041,6 +7043,31 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const kinds = [...new Set(rows.map(r => r.kind))], age = newest ? calendarDistance(sourceLocalDay(newest), todayYmd()) : null;
     return {count:hand !== null ? hand : rows.length, newest, kinds, age, feed:id === 'apple-health' ? feed : null};
   }
+  /* Fix P9 (Mintay's list, Oct 6): the Sunday review, one short card: what improved, what slipped, one suggestion for next week. The week is Monday to Sunday (or by the
+     week-start setting); on the last day of the week it is this week, otherwise the one just finished. Every number comes from the same grade report as the drawers. */
+  function weekReviewData(st){
+    const today = todayYmd(), ws = st.prefs.weekStart === 0 ? 0 : 1, start = weekStartOf(today, ws), lastDay = today === addDays(start, 6), from = lastDay ? start : addDays(start, -7), to = addDays(from, 6) > today ? today : addDays(from, 6), pFrom = addDays(from, -7), pTo = addDays(from, -1);
+    return drawn('weekReview|' + from + '|' + to, () => {
+      const rg = (a, b) => umbrellaGradeReport(st, today, 'custom', {from:a, to:b}, gradeMeasured(st, {from:a, to:b})), cur = rg(from, to), prev = rg(pFrom, pTo);
+      const rows = []; for (const u of cur.umbrellas){ if (u.included === false || u.displayed === null || u.displayed === undefined) continue; const q = prev.umbrellas.find(x => x.id === u.id); if (q && q.displayed !== null && q.displayed !== undefined) rows.push({name:u.name, emoji:u.emoji, d:Math.round(u.displayed - q.displayed)}); }
+      const improved = rows.filter(r => r.d >= 3).sort((a, b) => b.d - a.d).slice(0, 2), slipped = rows.filter(r => r.d <= -3).sort((a, b) => a.d - b.d).slice(0, 2);
+      let worst = null; for (const u of cur.umbrellas) for (const g of u.groups) if (!g.measured && g.included && g.importance > 0 && g.score !== null) for (const i of g.items || []) if (i.included !== false && i.importance > 0 && i.score !== null && i.tier !== 'stretch'){ const c = gradeCount(st, cur, i), gap = c.of - c.done; if (gap > 0 && (!worst || gap > worst.gap)) worst = {name:i.name, area:u.name, done:c.done, of:c.of, gap}; }
+      let perfect = 0; for (let d = from; d <= to; d = addDays(d, 1)) if (perfectDay(st, d) === true) perfect++;
+      const wts = weightHistory(st, addDays(pFrom, -5), to, 'lb').filter(w => Number.isFinite(w.weight)).sort((a, b) => a.date.localeCompare(b.date)), at = d => { const x = wts.filter(w => w.date <= d).pop(); return x ? x.weight : null; }, w1 = at(to), w0 = at(pTo);
+      return {from, to, lastDay, overall:cur.overall, prevOverall:prev.overall, letter:cur.letter, improved, slipped, worst, perfect, wDelta:w1 !== null && w0 !== null ? w1 - w0 : null};
+    });
+  }
+  function sundayReviewHTML(st, o){
+    let r; try { r = weekReviewData(st); } catch (_) { return ''; }
+    if (!r || r.overall === null || r.overall === undefined) return '';
+    const u = unitPrefs(st), sign = n => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n), d = r.overall !== null && r.prevOverall !== null && r.prevOverall !== undefined ? Math.round(r.overall - r.prevOverall) : null;
+    const list = a => a.map(x => esc(x.emoji + ' ' + x.name) + ' ' + sign(x.d)).join(' · ');
+    return '<section class="k-card sunday-review' + (o && o.today ? ' sr-today' : '') + '" data-parity="P9-REVIEW" data-feedback-id="sunday-review" data-feedback-label="Sunday review"><div class="k-head"><span aria-hidden="true">📋</span><span class="k-title">' + (r.lastDay ? 'Sunday review' : 'Last week') + '</span><small class="fixed-win">' + esc(monthDay(r.from) + ' – ' + monthDay(r.to)) + '</small></div>' +
+      '<p class="sr-line"><b>' + esc(r.letter || '–') + '</b> ' + Math.round(r.overall) + '%' + (d !== null ? ' · ' + sign(d) + ' vs the week before' : '') + (r.perfect ? ' · ' + r.perfect + ' perfect day' + (r.perfect === 1 ? '' : 's') : '') + (r.wDelta !== null && Math.abs(r.wDelta) >= .1 ? ' · ' + sign(Math.round(u.lb(r.wDelta) * 10) / 10) + ' ' + esc(u.mass) : '') + '</p>' +
+      (r.improved.length ? '<p class="sr-up"><span aria-hidden="true">▲</span> ' + list(r.improved) + '</p>' : '') + (r.slipped.length ? '<p class="sr-down"><span aria-hidden="true">▼</span> ' + list(r.slipped) + '</p>' : '') + (!r.improved.length && !r.slipped.length ? '<p class="sr-flat">No area moved by 3 points or more.</p>' : '') +
+      '<p class="sr-next"><span aria-hidden="true">→</span> ' + (r.worst ? 'Next week: ' + esc(r.worst.name) + ' (' + esc(r.worst.area) + '), ' + r.worst.done + ' of ' + r.worst.of + ' done' : 'Next week: keep it going, every Required item was met.') + '</p></section>';
+  }
+  const sundayReviewToday = st => { const d = new Date(), ws = st.prefs.weekStart === 0 ? 0 : 1, endDow = (ws + 6) % 7; return d.getDay() === endDow && d.getHours() >= 17 && day === todayYmd() ? sundayReviewHTML(st, {today:true}) : ''; };
   /* Fix P7 (Mintay's list, Oct 6): the source that wins for each figure and the date of its latest reading, read through the same selectors the visuals use. */
   /* Fix P8: tap a goal to open its history: the readings, the goal line, the start, today's dot and a finish date projected from the last 28 days. */
   function goalSeries(st, id){
