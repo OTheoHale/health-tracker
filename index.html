@@ -1543,6 +1543,8 @@ button.today-fend:hover{background:var(--sunk-2)}.today-fend b{font:600 24px var
 .filt-cal button.in{background:rgba(207,170,92,.2);border-radius:4px}.filt-cal button.edge{background:var(--gold,#cfaa5c);color:#1b1608;font-weight:700;border-radius:10px}.filt-cal button.today{outline:1px solid var(--line-strong)}
 .filt-pop-sum{margin:10px 2px 8px;font-size:13px;color:var(--muted);min-height:18px}.filt-pop-act{display:flex;gap:8px;justify-content:flex-end}
 .filt-range{height:34px;padding:0 14px;font-size:13px}
+/* Fix G4: the step row is made of buttons */
+.wf-dots .wf-dot{background:transparent;border:0;color:inherit;font:inherit;display:inline-flex;align-items:center;gap:6px;padding:2px 4px;border-radius:8px;cursor:pointer}.wf-dots .wf-dot:hover{background:var(--sunk)}
 </style>
 <link rel="stylesheet" href="body-view.css">
 <script type="module" src="model-viewer.min.js"></script>
@@ -4413,9 +4415,22 @@ addEventListener('load', () => {
     const days = Array.isArray(r.days) ? r.days : all; g.when = days.length && days.length < 7 ? {kind:'days', days:days.slice()} : {kind:'any'};
     return g;
   }
+  /* Fix G5 (Mintay, Oct 6: Convert is "much more difficult than it needs to be"): converting an item is one plain choice, how it is checked off
+     (once a day, a number of times a week, an amount), with the number beside it and a before and after picture. */
+  function goalConvertHTML(c){
+    const P = gbParts(c), g = c.goal, m = g.measure.kind, kind = m === 'check' ? (g.period.kind === 'week' ? 'week' : 'day') : 'amount', row = P.row, before = c.flow.before;
+    const choice = [['day', 'Once a day'], ['week', 'A number of times a week'], ['amount', 'An amount']].map(([id, t]) => '<button type="button" class="rep-chip" data-act="wsGoal" data-k="convKind" data-v="' + id + '" aria-pressed="' + (kind === id) + '">' + esc(t) + '</button>').join('');
+    const detail = kind === 'week' ? row('<span class="scope">Times each week</span><input id="wsComposerGValue" type="number" inputmode="decimal" step="1" min="1" value="' + (Number.isFinite(g.target.value) ? g.target.value : '') + '" aria-label="Times each week">') : kind === 'amount' ? P.s1.replace(/^<div class="cmp-row">[\s\S]*?<\/div>/, '') + P.s3 : '';
+    const bc = {...c, goal:before.goal, gpreset:null, gbase:null, title:before.name}, nowS = GoalEngine.summary(GoalEngine.normalize(before.goal), ''), afterS = GoalEngine.summary(P.norm, '');
+    return '<div class="wf wf-convert" data-goal-flow data-step="1" data-parity="G5-CONVERT"><p class="cap">How is “' + esc(before.name) + '” checked off?</p>' + row(choice) + detail +
+      '<div class="wf-change" data-parity="V37-W2-01"><p data-chg-from><b>Now:</b> ' + esc(nowS) + '</p><p data-chg-to><b>After:</b> ' + esc(afterS) + '</p><p data-chg-history class="hint keep">Earlier days keep what they were; from ' + esc(medDate(todayYmd())) + ' it is the new item.</p>' +
+      '<div class="wf-ba" data-parity="V37-W2-02"><div data-before><div class="scope">Before</div>' + gbPreview(bc) + '</div><div data-after><div class="scope">After</div>' + gbPreview(c) + '</div></div></div>' +
+      '<div class="acts wf-nav"><button class="save" data-act="wsComposerSave" data-wf-save>Convert</button><button type="button" class="ghost" data-act="wsComposerCancel">Cancel</button></div></div>';
+  }
   function goalFlowHTML(c){
+    if (c.flow.convert) return goalConvertHTML(c);
     const P = gbParts(c), g = c.goal, step = Math.max(1, Math.min(5, c.flow.step || 1)), k = flowKindOf(g), {row, chip, st} = P;
-    const dots = '<ol class="wf-dots">' + FLOW_STEPS.map((n, i) => '<li' + (i + 1 === step ? ' class="on" aria-current="step"' : '') + '><i>' + (i + 1) + '</i>' + n + '</li>').join('') + '</ol>';
+    const dots = '<ol class="wf-dots">' + FLOW_STEPS.map((n, i) => '<li' + (i + 1 === step ? ' class="on" aria-current="step"' : '') + '><button type="button" class="wf-dot" data-act="flowGo" data-n="' + (i + 1) + '" aria-label="Step ' + (i + 1) + ', ' + esc(n) + '"><i>' + (i + 1) + '</i>' + esc(n) + '</button></li>').join('') + '</ol>';
     const body = step === 1 ? row(FLOW_KINDS.map(([id, t]) => '<button type="button" class="rep-chip wf-kind" data-act="wsGoal" data-k="flowKind" data-v="' + id + '" data-kind="' + id + '" aria-pressed="' + (k === id) + '">' + esc(t) + '</button>').join('')) + (k === 'amount' || k === 'limit' || k === 'average' ? P.s1.replace(/^<div class="cmp-row">[\s\S]*?<\/div>/, '') : '') + (['count', 'amount', 'limit'].includes(k) ? '<div class="wf-src">' + P.s2 + '</div>' : '')
       : step === 2 ? P.s4 : step === 3 ? P.s3 : step === 4 ? P.s5 : P.s6 + gbTierRow(c);
     const sentence = GoalEngine.summary(P.norm, gbAutoLabel(st, P.norm)) + ' ' + gbTierSentence(c);
@@ -4433,6 +4448,11 @@ addEventListener('load', () => {
     const g = c.goal, n = Number(v), W = g.when, toggle = (list, x) => list.includes(x) ? (list.length > 1 ? list.filter(y => y !== x) : list) : list.concat(x).sort();
     c.gpreset = null;
     if (k === 'tier'){ c.tier = v === 'stretch' ? 'stretch' : 'required'; return; }   // V3.7 W3
+    if (k === 'convKind'){   // G5
+      if (v === 'day'){ if (g.measure.kind !== 'check') gbSet(c, 'measure', 'check'); g.period = {kind:'day'}; g.target.value = 1; }
+      else if (v === 'week'){ if (g.measure.kind !== 'check') gbSet(c, 'measure', 'check'); g.period = {kind:'week'}; if (!(g.target.value >= 1)) g.target.value = 3; }
+      else { if (g.measure.kind === 'check') gbSet(c, 'measure', 'sum'); g.period = {kind:'week'}; if (!(g.target.value >= 1)) g.target.value = 1; }
+      c.gpreset = null; return; }
     if (k === 'flowKind'){ const m = v === 'check' ? 'check' : v === 'average' ? 'average' : v === 'amount' ? 'sum' : 'count'; if (g.measure.kind !== m) gbSet(c, 'measure', m); g.target.op = v === 'limit' ? 'atMost' : g.target.op === 'atMost' ? 'atLeast' : g.target.op; if (v === 'limit' && g.credit === 'proportional') g.credit = 'all'; c.gpreset = null; return; }   // V3.7 W1
     if (k === 'measure'){ g.measure = {kind:v, unit:v === 'count' ? 'times' : v === 'sum' ? (GB_UNITS.includes(g.measure.unit) ? g.measure.unit : 'mi') : v === 'check' ? '' : (GB_READINGS.find(r => r[0] === (g.measure.reading || 'sleep')) || GB_READINGS[0])[2], ...(v === 'average' || v === 'latest' ? {reading:g.measure.reading || 'sleep'} : {})}; g.source = {kind:'manual'}; if (v === 'check') g.credit = 'all'; else if (g.credit === 'half') g.credit = 'proportional'; else if (v === 'sum' && g.credit === 'all') g.credit = 'proportional'; if (v !== 'check' && !Number.isFinite(g.target.value)) g.target.value = 1; }
     else if (k === 'unit'){ g.measure.unit = v === 'custom' ? '' : v; g.source = {kind:'manual'}; }
@@ -7849,6 +7869,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
      across a page switch (1.8). Where it lands follows the day rule (2.2, 2.3): a weekly-count item starts in
      Template → Due This Week; a daily, day-bound or one-off item fills its day. */
   const REPEATS = [['once','Once'],['daily','Daily'],['days','Days'],['week','N per week'],['goal','Goal or repeat']];   // V3.6 M6
+  /* Fix G3 (Mintay, Oct 6): one weight, said in words. 5 is the average item; 10 counts twice as much; 0 is left out of the grade. */
+  const gimpWords = v => { v = Math.max(0, Math.min(10, Math.round(+v || 0))); const x = v / GRADE_ITEM_IMPORTANCE; return v === 0 ? 'Left out of the grade.' : v === GRADE_ITEM_IMPORTANCE ? 'Counts like the average item.' : x > 1 ? 'Counts ' + (Math.round(x * 10) / 10) + ' times as much as the average item.' : 'Counts ' + Math.round(x * 100) + '% as much as the average item.'; };
+  document.addEventListener('input', e => { const t = e.target; if (t && t.id === 'wsComposerGImp'){ const out = t.parentElement && t.parentElement.querySelector('.g-sval'), words = document.getElementById('wsGimpWords'); if (out) out.textContent = t.value; if (words) words.textContent = gimpWords(t.value) + ' The Importance dots above set its points; this sets how much it moves its group’s grade.'; } });
   function openComposer(kind, parentId, groupId, title, ideaId, options){
     if (composer && composer.busy) return;
     const o = options || {};
@@ -7900,6 +7923,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   }
   function composerHTML(){
     if (!composer) return '';
+    if (composer.flow && composer.flow.convert && composer.goal && composer.editSeries) return '<div class="ws-composer ws-convert" data-composer="item" data-key="composer:convert" data-parity="G5-CONVERT-WRAP">' + goalConvertHTML(composer) + (composer.error ? '<p class="body-error hint" role="alert">' + esc(composer.error) + '</p>' : '') + '</div>';   // G5: nothing but the one question around Convert
     const c = composer, st = S(), what = c.kind === 'subgroup' ? 'sub-group' : c.kind === 'subitem' ? 'sub-item' : 'item', groups = visibleGroups(st), labels = dayLabels();
     const chip = ([id, name]) => '<button type="button" class="rep-chip" data-act="wsComposerRepeat" data-v="' + id + '" aria-pressed="' + (c.repeat === id) + '">' + name + '</button>';
     const umbChips = '<div class="cmp-row"><span class="scope">Area</span><div class="cmp-cards" role="radiogroup" aria-label="Umbrella">' + GRADE_UMBRELLAS.map(u => '<button type="button" class="rep-chip" role="radio" data-act="wsComposerUmb" data-v="' + u.id + '" aria-checked="' + (c.umb === u.id) + '" aria-pressed="' + (c.umb === u.id) + '">' + u.emoji + ' ' + u.name + '</button>').join('') + '</div></div>', pickGroups = c.umbPicked && c.umb ? groups.filter(g => gradeGroupUmbrella(st, g.id) === c.umb) : groups;   // only once he picks an Area
@@ -7912,7 +7936,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
         '<div class="cmp-row"><span class="scope">Repeat</span>' + REPEATS.map(chip).join('') + detail + '</div>' + (c.repeat === 'goal' && c.goal ? (c.flow ? goalFlowHTML(c) : goalBuilderHTML(c)) : '') +
         '<div class="cmp-row"><span class="scope">Importance</span>' + dots('importance') + '<span class="scope">Difficulty</span>' + dots('difficulty') + '</div>' +
         '<div class="cmp-row"><label for="wsComposerNote" class="scope">Note</label><input id="wsComposerNote" type="text" maxlength="140" placeholder="What a normal day looks like" value="' + esc(c.note) + '"></div>' +
-        '<div class="cmp-row"><label for="wsComposerGImp" class="scope">Grade importance</label><input id="wsComposerGImp" type="range" min="0" max="10" step="1" value="' + c.gimp + '"><b class="g-sval">' + c.gimp + '</b></div>' +
+        '<div class="cmp-row"><label for="wsComposerGImp" class="scope">Weight in the grade</label><input id="wsComposerGImp" type="range" min="0" max="10" step="1" value="' + c.gimp + '" aria-describedby="wsGimpWords"><b class="g-sval">' + c.gimp + '</b></div><p class="hint keep" id="wsGimpWords" data-parity="G3-WORDS">' + esc(gimpWords(c.gimp)) + ' The Importance dots above set its points; this sets how much it moves its group’s grade.</p>' +
         (c.kind === 'subitem' ? '' : umbChips + '<div class="cmp-row"><span class="scope">Group</span><div id="wsComposerCard" class="cmp-cards" role="radiogroup" aria-label="Group">' + pickGroups.map(g => '<button type="button" class="rep-chip" role="radio" data-act="wsComposerPick" data-v="' + esc(g.id) + '" aria-checked="' + (g.id === c.card) + '" aria-pressed="' + (g.id === c.card) + '" style="--category:' + categoryColor(g.id) + '">' + esc(g.name) + '</button>').join('') + '<button type="button" class="rep-chip" data-act="cardNew">+ New group</button></div></div>') +   // V3.4 (Q2): the card as chips, no native select; V3.5 G8: groups of the umbrella picked
         '<p class="hint keep cmp-lands">' + esc(composerLands(c)) + '</p></div>' : '';
     // From Quests' Overview the composer asks which card or category first (7.6); a chip shows the card it will land on.
@@ -9214,6 +9238,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       stage(st, 'ifit'); const out = addIfitSessions(st, rows.map(r => r.session), links); ifitReview = null; await commit('ifit', 'Imported ' + pl(out.added.length, 'iFIT session') + (out.same.length ? ' (' + out.same.length + ' already here)' : '') + '.'); return; }   // V3.7 O3: Undo removes the batch
     if (act === 'flowOpen'){ if (composer && composer.goal){ composerRead(); composer.flow = {step:1}; composerRender(); focusFirst('[data-goal-flow] [aria-pressed="true"]'); } return; }
     if (act === 'flowClose'){ if (composer){ composerRead(); composer.flow = null; composerRender(); } return; }
+    if (act === 'flowGo'){ if (composer && composer.flow){ composerRead(); composer.flow.step = Math.max(1, Math.min(5, Number(btn.dataset.n) || 1)); composerRender(); } return; }   // G4: each step in the row is a real jump
     if (act === 'flowStep'){ if (composer && composer.flow){ composerRead(); composer.flow.step = Math.max(1, Math.min(5, (composer.flow.step || 1) + Number(btn.dataset.n))); composerRender(); focusFirst('[data-goal-flow] [data-wf-next], [data-goal-flow] [data-wf-save]'); } return; }
     if (act === 'itemConvert'){ const st0 = S(), sx = st0.series.find(x => x.id === btn.dataset.series), td = todayYmd(), v = sx && versionFor(sx, td); if (!v){ toast('This item has no version today to convert.'); return; }
       const g0 = goalFromVersion(v), tier = gradeTierOf(gradeConfig(st0), sx.id, td), inDrawer = !!drawer;
