@@ -263,11 +263,11 @@ const GoalEngine={
   // M3: the window a period means on a date (weeks start Monday unless he chose Sunday).
   window(g,date,ver,state){
     const p=g.period||{},ws=state&&state.prefs&&state.prefs.weekStart===0?0:1;
-    if(ver&&ver.recurrence&&ver.recurrence.kind==='target'&&g.measure.kind==='check'){const rw=recurrenceWindow(ver,date);if(rw)return {from:rw.from,to:rw.to};}   // "N times a week": the stored target's own week (review F9)
+    if(ver&&ver.recurrence&&ver.recurrence.kind==='target'&&g.measure.kind==='check'){const rw=recurrenceWindow(ver,date,state);if(rw)return {from:rw.from,to:rw.to};}   // "N times a week": the stored target's own week (review F9)
     if(g.when&&g.when.kind==='deadline'&&g.when.date&&p.kind==='day')return {from:ver&&ver.effectiveFrom<g.when.date?ver.effectiveFrom:g.when.date,to:g.when.date};   // a one-off deadline is one window (review F2)
     if(p.kind==='week'){const pin=p.weekStart===0||p.weekStart===1?p.weekStart:(state&&ver&&typeof wsGoalWeekPin==='function'?wsGoalWeekPin(state,ver):null),a=weekStartOf(date,pin===0||pin===1?pin:ws);return {from:a,to:addDays(a,6)};}   // V3.7 X8: an older week goal keeps its first paid week's alignment, on the page and in the pay
     if(p.kind==='month')return {from:date.slice(0,8)+'01',to:addDays(date.slice(0,8)+'01',new Date(+date.slice(0,4),+date.slice(5,7),0).getDate()-1)};
-    if(p.kind==='everyN'){const start=ver&&ver.effectiveFrom||date,k=Math.floor(Math.max(0,calendarDistance(start,date))/p.n),a=addDays(start,k*p.n);return {from:a,to:addDays(a,p.n-1)};}
+    if(p.kind==='everyN'){const ps=state?programStartOf(state,date):null,start=ps&&ps<=date?ps:ver&&ver.effectiveFrom||date,k=Math.floor(Math.max(0,calendarDistance(start,date))/p.n),a=addDays(start,k*p.n);return {from:a,to:addDays(a,p.n-1)};}
     if(p.kind==='range')return {from:p.from||date,to:p.to||date};
     if(p.kind==='rolling')return {from:addDays(date,-(p.n-1)),to:date};
     return {from:date,to:date};
@@ -877,13 +877,20 @@ function addFamilyMembership(state, parent, childIds, effectiveFrom, today){
     reviseSeries(state,parent.id,{childIds:ids},date,today);
   }
 }
-function recurrenceWindow(ver, date){
+/* Fix H3 (Mintay, Oct 6): one window rule. An item with a period counts in fixed blocks: a week is the calendar week (the Week setting's
+   first day), a longer period is 4-week-style blocks counted from the Program start, and the blocks move with it. A stored "rolling" mode is
+   honoured, except for Church, which is always fixed blocks. Without `state` (a caller that has none) the older anchor is the start date. */
+function recurrenceWindow(ver, date, state){
   const r = ver.recurrence || {};
   if (r.kind !== 'target') return null;
   const span = r.weeks * 7, anchor = r.startDate || ver.effectiveFrom;
   if (date < anchor) return null;
-  const from = r.mode === 'rolling' ? (addDays(date, 1-span) < anchor ? anchor : addDays(date, 1-span)) : addDays(anchor, Math.floor(calendarDistance(anchor, date) / span) * span);
-  return { from, to:r.mode === 'rolling' ? date : addDays(from, span-1), mode:r.mode, target:r.count };
+  if (state && !(r.mode === 'rolling' && ver.workspaceKind !== 'church')){
+    if (r.weeks === 1){ const ws = weekStartOf(date, state.prefs && state.prefs.weekStart === 0 ? 0 : 1); return { from:ws, to:addDays(ws, 6), mode:'fixed', target:r.count }; }
+    const b = programBlockOf(state, date, r.weeks); if (b) return { from:b.from, to:b.to, mode:'fixed', target:r.count };
+  }
+  const from = r.mode === 'rolling' && ver.workspaceKind !== 'church' ? (addDays(date, 1-span) < anchor ? anchor : addDays(date, 1-span)) : addDays(anchor, Math.floor(calendarDistance(anchor, date) / span) * span);
+  return { from, to:r.mode === 'rolling' && ver.workspaceKind !== 'church' ? date : addDays(from, span-1), mode:r.mode === 'rolling' && ver.workspaceKind !== 'church' ? 'rolling' : 'fixed', target:r.count };
 }
 /* A read-only index that lives for one synchronous screen draw. The UI opens it around render(),
    when the record cannot change, so repeated per-row scans of every occurrence happen once. */
@@ -896,7 +903,7 @@ function occurrencesOf(state,seriesId){
 }
 function targetProgress(state, seriesId, date){
   const s = state.series.find(x => x.id === seriesId), v = s && versionFor(s, date);
-  const window = v && recurrenceWindow(v, date);
+  const window = v && recurrenceWindow(v, date, state);
   if (!window) return null;
   const events = new Set(occurrencesOf(state,seriesId).filter(o => o.date >= window.from && o.date <= window.to && o.date <= date && o.status === 'done' && (!confirmedProgression(state)||actionConfirmation(state,o).confirmed)).map(o => o.rewardEventId || occKey(o.seriesId, o.date)));
   return Object.assign({}, window, { count:events.size, remaining:Math.max(0, window.target-events.size), complete:events.size >= window.target });
@@ -1274,11 +1281,11 @@ function overallRankReport(state,today,windowKind,range,sections){
     const slot=slotOf(r.category);if(!slot){unassigned.push({seriesId:r.seriesId,name:r.name,date:d,category:r.category||null});continue;}   // V3.5 G6 (V35-I8): never silently dropped; reported
     const series=state.series.find(x=>x.id===r.seriesId),rec=series&&versionFor(series,d)?.recurrence;
     { const gv=series&&versionFor(series,d); if(GoalEngine.windowed(gv)&&!r.optional){ const sh=GoalEngine.gradeShare(state,series,gv,d,to,goalMemo),t=tally[slot]=tally[slot]||{planned:0,done:0}; t.planned+=sh.planned; t.done+=sh.done; continue; } }   // V3.6 M3: the rank counts a goal as the grade does (review F1)
-    if(rec&&rec.kind==='target'&&rec.count>0){const g=goals[r.seriesId]=goals[r.seriesId]||{slot,count:rec.count,weeks:rec.weeks||1,done:0};if(r.status==='done')g.done++;else if(r.status==='partial')g.done+=.5;continue;}
+    if(rec&&rec.kind==='target'&&rec.count>0){const g=goals[r.seriesId]=goals[r.seriesId]||{seriesId:r.seriesId,slot,count:rec.count,weeks:rec.weeks||1,done:0};if(r.status==='done')g.done++;else if(r.status==='partial')g.done+=.5;continue;}
     if(r.optional)continue;
     const t=tally[slot]=tally[slot]||{planned:0,done:0};t.planned++;t.done+=share(r,d);
   }
-  for(const g of Object.values(goals)){const expected=g.count*span/(7*g.weeks),t=tally[g.slot]=tally[g.slot]||{planned:0,done:0};t.planned+=expected;t.done+=Math.min(g.done,expected);}
+  for(const g of Object.values(goals)){const blk=targetBlockShare(state,g.seriesId,{count:g.count,weeks:g.weeks},from,to),expected=blk?blk.planned:g.count*span/(7*g.weeks),t=tally[g.slot]=tally[g.slot]||{planned:0,done:0};t.planned+=expected;t.done+=blk?blk.done:Math.min(g.done,expected);}
   const settings=state.grades||defaultGradeSettings();let weights=0,sum=0;
   const slots=(sections?sections.order:v2?RANK_SECTIONS_V2:GRADE_CATEGORIES).map(gid=>{const t=tally[gid],pct=t&&t.planned?100*t.done/t.planned:null,w=sections?sections.weights[gid]:v2?(settings.included[gid]===false?0:settings.weights[gid]??RANK_WEIGHTS_V2[gid]):settings.included[gid]?settings.weights[gid]:0;if(pct!==null&&w){weights+=w;sum+=pct*w;}return {gid,planned:t?t.planned:0,done:t?t.done:0,pct,letter:rankLetter(pct),weight:w,included:sections?true:v2?settings.included[gid]!==false:!!settings.included[gid]};});
   const overall=weights?sum/weights:null;
@@ -1354,7 +1361,7 @@ function gradeRows(state,from,to){
   // Review S3: pro-rated over the days the target existed in this window (from its first version to its archive), not since the window began.
   const liveSpan=g=>{const s=state.series.find(x=>x.id===g.seriesId),starts=(s&&s.versions||[]).filter(v=>v.recurrence&&v.recurrence.kind==='target').map(v=>v.effectiveFrom).filter(validCalendarDate).sort(),a=starts[0]&&starts[0]>from?starts[0]:from,end=s&&validCalendarDate(String(s.archivedAt||'').slice(0,10))&&s.archivedAt.slice(0,10)<=to?addDays(s.archivedAt.slice(0,10),-1):to;return end<a?1:calendarDistance(a,end)+1;};
   // An item that was daily before it became a weekly target keeps its daily days; the target adds its share (review re-check).
-  for(const g of goals.values()){const expected=g.count*liveSpan(g)/(7*g.weeks),prev=items.get(g.seriesId);items.set(g.seriesId,{seriesId:g.seriesId,name:g.name,gid:g.gid,planned:(prev?prev.planned:0)+expected,done:(prev?prev.done:0)+Math.min(g.done,expected),target:true});}
+  for(const g of goals.values()){const blk=targetBlockShare(state,g.seriesId,{count:g.count,weeks:g.weeks},from,to),expected=blk?blk.planned:g.count*liveSpan(g)/(7*g.weeks),got=blk?blk.done:Math.min(g.done,expected),prev=items.get(g.seriesId);items.set(g.seriesId,{seriesId:g.seriesId,name:g.name,gid:g.gid,planned:(prev?prev.planned:0)+expected,done:(prev?prev.done:0)+got,target:true});}   // H3: a block-met target counts per block
   // V3.7 Y6 (note 19, A11): the weekly prayer goal (three paired days, two more with at least one) is a graded row, Required;
   // 5 expected per 7 days it existed, pro-rated like the weekly targets. Only from the dated rule day (A59): earlier windows keep
   // the rule they were graded under.
@@ -1622,7 +1629,7 @@ function routineConsistency(state,seriesId,date){
     const o=state.occurrences[occKey(seriesId,d)];
     if (o && (o.disposition==='rest'||o.disposition==='excused'||o.removed)) continue;
     if(v.recurrence&&v.recurrence.kind==='target'&&!(o&&(o.added||o.committed||o.status))){
-      const w=recurrenceWindow(v,d);
+      const w=recurrenceWindow(v,d,state);
       if(w&&w.mode==='fixed'&&d===w.to&&!targetProgress(state,seriesId,d).complete)break;
       continue;
     }
@@ -2292,6 +2299,19 @@ function deficitSuggestion(state,today){
 /* Fix H1 (Mintay, Oct 6: "from whenever the program started through the 4th week ... until 4 weeks is over, at which point it resets"):
    an N-week item is met in fixed blocks counted from the Program start, not in a window that slides with the day looked at. */
 function programBlockOf(state,date,weeks){const span=(weeks||4)*7,start=programStartOf(state,date);if(!validCalendarDate(start)||date<start)return null;const from=addDays(start,Math.floor(calendarDistance(start,date)/span)*span);return {from,to:addDays(from,span-1),next:addDays(from,span)};}
+/* H3: a target met in fixed blocks counts per block in a grade window: each block's share of the window is planned in proportion to its days in the
+   window, and paid in full once the block has its attendance (from the block's first day to the window's end), whenever in the block it came. */
+function targetBlockShare(state,seriesId,rec,from,to){
+  const s=state.series.find(x=>x.id===seriesId),weeks=rec&&rec.weeks||1;if(!s||weeks<2||!(rec.count>0))return null;
+  const v=versionFor(s,to);if(!v||(v.recurrence&&v.recurrence.mode==='rolling'&&v.workspaceKind!=='church'))return null;
+  const starts=(s.versions||[]).filter(x=>x.recurrence&&x.recurrence.kind==='target').map(x=>x.effectiveFrom).filter(validCalendarDate).sort(),a=starts[0]&&starts[0]>from?starts[0]:from;
+  let planned=0,done=0;
+  for(let d=a;d<=to;){const b=programBlockOf(state,d,weeks);if(!b){d=addDays(d,1);continue;}
+    const end=b.to<to?b.to:to,p=rec.count*(calendarDistance(d,end)+1)/(7*weeks);let att=0;
+    for(let x=b.from;x<=end;x=addDays(x,1)){const o=state.occurrences[occKey(seriesId,x)];if(o&&o.status==='done')att++;else if(o&&o.status==='partial')att+=.5;}
+    planned+=p;done+=p*Math.min(1,att/rec.count);d=addDays(b.to,1);}
+  return planned>0?{planned,done}:null;
+}
 function programStartOf(state,today){const t=today||todayYmd(),p=state.prefs?.programStart,s=state.prefs?.goalsV2?.startDate;return validCalendarDate(p)&&p<=t?p:validCalendarDate(s)&&s<=t?s:GRADE_PROGRAM_START;}
 /* V3.6 N1 to N3 (Mintay, Oct 2 and 3): ONE Net Energy convention. net = food minus burn; a deficit is negative.
    The goal is stored once and positive (goalsV2.deficit.daily, so V3.5 and older read it unchanged) and is read
@@ -4359,7 +4379,7 @@ function wsPerfectQuotas(state,from,to,monthly,today=todayYmd()){
   for(const s of state.series){
     if(s.demo||s.archivedAt&&s.archivedAt<=from||!s.versions.some(v=>v.recurrence?.kind==='target'))continue;
     for(let d=from;d<=to&&d<=today;){
-      const v=versionFor(s,d),r=v?.recurrence,w=r?.kind==='target'?recurrenceWindow(v,d):null;
+      const v=versionFor(s,d),r=v?.recurrence,w=r?.kind==='target'?recurrenceWindow(v,d,state):null;
       if(!w){d=addDays(d,1);continue;}
       const end=w.mode==='rolling'?(to<today?to:today):w.to;
       if(end>to)break;
@@ -4669,7 +4689,7 @@ function wsGoals(state,date,options={}){
   for(const s of series){
     const v=versionFor(s,date),kind=wsKind(s,date);if(['prayer-am','prayer-pm'].includes(kind)||!kind&&v.recurrence?.kind!=='target')continue;
     if(v.childIds&&kind!=='care')continue;
-    const block=kind==='church'?programBlockOf(state,date,v.recurrence?.weeks||4):null,rolling=!block&&(kind==='church'||v.recurrence?.mode==='rolling'),configured=recurrenceWindow(v,date),from=block?block.from:rolling?addDays(date,1-(v.recurrence?.weeks||4)*7):configured?.from||start,to=block?block.to:rolling?date:configured?.to||end;   // H1: Church is met once per fixed block from the Program start
+    const rolling=v.recurrence?.mode==='rolling'&&kind!=='church',configured=recurrenceWindow(v,date,state),block=kind==='church'&&configured?configured:null,from=rolling?addDays(date,1-(v.recurrence?.weeks||4)*7):configured?.from||start,to=rolling?date:configured?.to||end;   // H1, H3: Church and every N-week item is met once per fixed block from the Program start
     const days=[];for(let day=from;day<=to;day=addDays(day,1)){const entry=wsGoalDay(state,s,day,rowCache);if(kind==='church'&&dow(day)!==0){entry.full=false;entry.qualifying=false;}days.push(entry);}
     const eligibleDays=days.filter(d=>d.date<=date),events=new Set(),fullEvents=new Set();for(const d of eligibleDays){if(d.qualifying)events.add(d.eventId||d.date);if(d.full)fullEvents.add(d.eventId||d.date);}
     const target=v.recurrence?.count||({cardio:4,strength:4,journal:3,church:1,home:1}[kind]||1),qualifying=events.size,full=fullEvents.size;
@@ -5069,7 +5089,7 @@ actionConfirmation=function(state,o){
 const wsLegacyTargetProgress=targetProgress;
 targetProgress=function(state,id,date){
   if(!wsEnabled(state))return wsLegacyTargetProgress(state,id,date);
-  const series=state.series.find(s=>s.id===id),v=series&&versionFor(series,date),window=v&&recurrenceWindow(v,date);if(!window)return null;
+  const series=state.series.find(s=>s.id===id),v=series&&versionFor(series,date),window=v&&recurrenceWindow(v,date,state);if(!window)return null;
   const kind=wsKind(series,date),qualified=new Set(),full=new Set();let minutes=0,pending=0;
   for(let day=window.from;day<=window.to&&day<=date;day=addDays(day,1)){
     const current=versionFor(series,day);if(!current||!scheduledOn(current,day))continue;
