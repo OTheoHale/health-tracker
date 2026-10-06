@@ -1570,10 +1570,10 @@ button.today-fend:hover{background:var(--sunk-2)}.today-fend b{font:600 24px var
 .fast-res .ph h2{flex:0 0 auto}.fast-res .ph .fixed-win{flex:1 1 100%;order:5;margin:0}
 /* Fix Q1, Q2: the pinned block at the top of the right rail */
 .rail-pin{position:sticky;top:-12px;z-index:7;display:flex;flex-direction:column;gap:8px;margin:-12px -4px 0;padding:12px 4px 8px;background:linear-gradient(var(--bg,#0e2219) 82%,transparent)}
-.rail-head{display:flex;flex-direction:column;gap:6px;padding:8px 10px;border:1px solid var(--line);border-radius:14px;background:var(--panel-2,rgba(12,34,26,.92))}
-.rail-head .rh-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.rail-head .rh-top b{font:600 15px var(--serif,inherit)}.rail-head .rh-top small{font-size:11px;color:var(--muted)}
-.rail-head .rh-date{display:flex;align-items:center;gap:6px}.rail-head .rh-date b{font-size:13px;white-space:nowrap}.rail-head .rh-date .k-btn{height:26px;padding:0 10px;font-size:12px;margin-left:auto}
-.rail-head .filt-bar{margin:0;gap:6px;flex-wrap:wrap}.rail-head .filt-seg button{min-height:26px;height:26px;padding:0 9px;font-size:12px}.rail-head .filt-range{height:26px;padding:0 10px;font-size:12px}
+.rail-top{display:flex;flex-direction:column;gap:6px;padding:8px 10px;border:1px solid var(--line);border-radius:14px;background:var(--panel-2,rgba(12,34,26,.92))}
+.rail-top .rh-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.rail-top .rh-top b{font:600 15px var(--serif,inherit)}.rail-top .rh-top small{font-size:11px;color:var(--muted)}
+.rail-top .rh-date{display:flex;align-items:center;gap:6px}.rail-top .rh-date b{font-size:13px;white-space:nowrap}.rail-top .rh-date .k-btn{height:26px;padding:0 10px;font-size:12px;margin-left:auto}
+.rail-top .filt-bar{margin:0;gap:6px;flex-wrap:wrap}.rail-top .filt-seg button{min-height:26px;height:26px;padding:0 9px;font-size:12px}.rail-top .filt-range{height:26px;padding:0 10px;font-size:12px}
 .rail-pin .rail-sofar{margin:0;padding:12px 14px}.rail-sofar .ph{flex-wrap:nowrap;gap:6px}.rail-sofar .ph h2{white-space:nowrap;font-size:16px;margin-right:24px}.rail-sofar .sofar-line,.rail-sofar .today-perfect{font-size:13px}
 /* Fix R1: the page filter's two chip rows and a card's two chip rows */
 .filt-segs{display:flex;flex-direction:column;gap:4px;align-items:flex-start}.filt-segs .filt-seg button{min-width:0}.filt-trails button{font-size:12px}
@@ -1581,11 +1581,14 @@ button.today-fend:hover{background:var(--sunk-2)}.today-fend b{font:600 24px var
 .filt-range-card{height:22px;padding:0 8px;border-radius:999px;border:1px solid var(--line);background:var(--sunk);color:var(--ink);font-size:11px;cursor:pointer}
 /* Fix P7, P8 */
 .dt-winners .hint{margin:0 0 6px}.dw-grid{display:grid;gap:2px}.dw-row{display:grid;grid-template-columns:84px 1fr;gap:0 10px;align-items:baseline;padding:4px 0;border-top:1px solid var(--line)}.dw-row:first-child{border-top:0}.dw-row span{font-size:12px;color:var(--muted)}.dw-row b{font-size:13px;text-align:right}.dw-row small{grid-column:1/3;font-size:11px;color:var(--faint)}
-.goal-row[data-act="goalHistory"]{cursor:pointer}.gh{display:flex;flex-direction:column;align-items:stretch;gap:6px;width:100%;flex:1 1 100%}.gh .gh-chart{display:block;width:100%;min-height:150px}.gh .gh-line{white-space:normal;margin:0}.gh-top{display:flex;align-items:baseline;gap:8px}.gh-top b{font:600 28px var(--serif,inherit)}.gh-top small{font-size:12px;color:var(--muted)}.gh-chart{width:100%;height:auto;margin:6px 0}.gh-line{margin:4px 0 0;font-size:13px}
+.goal-row[data-act="goalHistory"]{cursor:pointer}.ghist{display:flex;flex-direction:column;align-items:stretch;gap:6px;width:100%;flex:1 1 100%}.ghist .gh-chart{display:block;width:100%;min-height:150px}.ghist .gh-line{white-space:normal;margin:0}.gh-top{display:flex;align-items:baseline;gap:8px}.gh-top b{font:600 28px var(--serif,inherit)}.gh-top small{font-size:12px;color:var(--muted)}.gh-chart{width:100%;height:auto;margin:6px 0}.gh-line{margin:4px 0 0;font-size:13px}
 /* Fix P1 */
 .watch-chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
 /* Fix P9 */
 .sunday-review p{margin:6px 0 0;font-size:13px}.sunday-review .sr-line b{font:600 20px var(--serif,inherit);margin-right:4px}.sunday-review .sr-up span{color:var(--c-green,#79d6a9)}.sunday-review .sr-down span{color:var(--c-orange,#f0a058)}.sunday-review .sr-next{color:var(--ink)}.sunday-review .sr-flat{color:var(--muted)}
+/* Fix P10 */
+.plan-draft{margin:8px 0}.plan-days{display:grid;gap:6px}.plan-day{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 8px;border:1px dashed var(--line);border-radius:10px;min-height:34px}.plan-day>b{width:44px;font-size:12px;color:var(--muted)}
+.plan-chip{border:1px solid var(--category,var(--line));background:var(--sunk);color:var(--ink);border-radius:999px;padding:3px 10px;font-size:12px;cursor:grab}
 </style>
 <link rel="stylesheet" href="body-view.css">
 <script type="module" src="model-viewer.min.js"></script>
@@ -6550,8 +6553,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
         fold('cards', 'Cards', cards.length || 'none', cards.length ? '<div class="tpl-cards" data-parity="QUESTS-07">' + cards.map(cardChip).join('') + '</div>' : '<p class="hint keep">Every card is on the day.</p>', true)
       : dueShelf() + (cards.length ? fold('cards', 'Cards', cards.length, '<div class="tpl-cards" data-parity="QUESTS-07">' + cards.map(cardChip).join('') + '</div>', true) : '');
     const removed = v33 ? removedFor(st, day) : [], removedFold = removed.length ? fold('removed', 'Removed Today', removed.length, removed.map(r => '<div class="due-row" draggable="true" data-series="' + esc(r.seriesId) + '" data-date="' + esc(day) + '" style="--category:' + categoryColor((st.series.find(x => x.id === r.seriesId) && wsGroup(st.series.find(x => x.id === r.seriesId), day)) || 'care') + '"><span><b>' + esc(r.name) + '</b><small>' + (r.movedTo ? 'moved to ' + esc(medDate(r.movedTo)) : 'off this day') + '</small></span><button class="due-add" data-act="restore" aria-label="Put ' + esc(r.name) + ' back on ' + esc(medDate(day)) + '" title="Put it back on this day">+</button></div>').join(''), true) : '';
-    const adder = v33 ? (composer && composer.template ? composerHTML() : '<div class="tpl-add"><button class="ws-addbtn" data-act="tplAdd">+ Add</button><button type="button" class="rep-chip" data-act="tplAdd" title="A new item, tied to a card">Item</button><button type="button" class="rep-chip" data-act="cardNew" title="A new card">Card</button></div>') : '';
-    return '<section class="panelcard shelf template" data-budget="list" data-parity="QUESTS-06" data-feedback-id="template-shelf" data-feedback-label="Template"><details class="shelf-body" id="shelfBody"' + (shelfOpen() ? ' open' : '') + '><summary><h2>Template</h2>' + infoBtn('template', 'Template') + (unplaced ? '<span class="tpl-badge" data-unplaced="' + unplaced + '" title="Due this week, not yet placed">' + unplaced + '</span>' : '') + '</summary>' + infoPop('template', TEMPLATE_INFO) + note + classic + adder + sections + removedFold +
+    const adder = v33 ? (composer && composer.template ? composerHTML() : '<div class="tpl-add"><button class="ws-addbtn" data-act="tplAdd">+ Add</button><button type="button" class="rep-chip" data-act="planWeek">Plan my week</button><button type="button" class="rep-chip" data-act="tplAdd" title="A new item, tied to a card">Item</button><button type="button" class="rep-chip" data-act="cardNew" title="A new card">Card</button></div>') : '';
+    return '<section class="panelcard shelf template" data-budget="list" data-parity="QUESTS-06" data-feedback-id="template-shelf" data-feedback-label="Template"><details class="shelf-body" id="shelfBody"' + (shelfOpen() ? ' open' : '') + '><summary><h2>Template</h2>' + infoBtn('template', 'Template') + (unplaced ? '<span class="tpl-badge" data-unplaced="' + unplaced + '" title="Due this week, not yet placed">' + unplaced + '</span>' : '') + '</summary>' + infoPop('template', TEMPLATE_INFO) + note + classic + adder + planDraftHTML(st) + sections + removedFold +
       fold('quick', 'Quick Adds', list.length, '<div class="tpl-chips">' + chips + '</div><div class="acts"><button class="save" data-act="shelfAdd"' + (shelfPicked.size ? '' : ' disabled') + '>' + (shelfPicked.size ? 'Place ' + shelfPicked.size : 'Place') + '</button><button class="ghost" data-act="shelfDone" title="Done for today">Done</button><button class="link" data-act="shelfManage" aria-pressed="' + shelfManage + '">' + (shelfManage ? 'Close manage' : 'Manage') + '</button></div>' + manage, true) + '</details></section>';
   }
   function shelfOpen(){ try { return localStorage.getItem('health-tracker.shelfOpen') !== '0'; } catch (_) { return true; } }
@@ -7068,6 +7071,30 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       '<p class="sr-next"><span aria-hidden="true">→</span> ' + (r.worst ? 'Next week: ' + esc(r.worst.name) + ' (' + esc(r.worst.area) + '), ' + r.worst.done + ' of ' + r.worst.of + ' done' : 'Next week: keep it going, every Required item was met.') + '</p></section>';
   }
   const sundayReviewToday = st => { const d = new Date(), ws = st.prefs.weekStart === 0 ? 0 : 1, endDow = (ws + 6) % 7; return d.getDay() === endDow && d.getHours() >= 17 && day === todayYmd() ? sundayReviewHTML(st, {today:true}) : ''; };
+  /* Fix P10 (Mintay's list, Oct 6): "Plan my week". One button on the Template rail proposes a day for each weekly item that is due and not yet placed, within its own days and the
+     calendar week; he can move any item (tap it to cycle its day, or drag it to another day), then one Confirm places them all and one Undo takes them back. Anything already placed stays. */
+  let planDraft = null, planDrag = null;
+  function planWeekProposal(st){
+    const today = todayYmd(), items = templateItems(st, today).weekly.filter(x => !x.met), load = {}, out = [];
+    for (const x of items.slice().sort((a, b) => (b.q.target - b.q.count) - (a.q.target - a.q.count))){
+      const placed = (x.placed || []).filter(d => d >= today), need = x.q.target - x.q.count - placed.length; if (need <= 0) continue;
+      const days = x.row.recurrence && Array.isArray(x.row.recurrence.days) && x.row.recurrence.days.length && x.row.recurrence.days.length < 7 ? x.row.recurrence.days : null, cand = [];
+      for (let d = x.q.from > today ? x.q.from : today; d <= x.q.to; d = addDays(d, 1)){ if (placed.includes(d) || dayClosed(st, d)) continue; if (days && !days.includes(dow(d))) continue; cand.push(d); }
+      const chosen = []; while (chosen.length < need && cand.length){ let best = null; for (const d of cand){ const gap = chosen.length ? Math.min(...chosen.map(c => Math.abs(calendarDistance(c, d)))) : 9, score = gap * 10 - (load[d] || 0); if (!best || score > best.score) best = {d, score}; } chosen.push(best.d); cand.splice(cand.indexOf(best.d), 1); load[best.d] = (load[best.d] || 0) + 1; }
+      for (const d of chosen) out.push({id:x.row.seriesId, name:x.row.name, group:x.row.group, date:d, from:x.q.from > today ? x.q.from : today, to:x.q.to, days});
+    }
+    return {items:out.sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name))};
+  }
+  const planAllowed = (it, d) => d >= it.from && d <= it.to && (!it.days || it.days.includes(dow(d)));
+  function planDraftHTML(st){
+    if (!planDraft) return '';
+    const days = []; for (let d = todayYmd(); d <= (planDraft.items.reduce((m, x) => x.to > m ? x.to : m, todayYmd())); d = addDays(d, 1)) days.push(d);
+    const col = d => '<div class="plan-day" data-plan-day="' + d + '"><b>' + esc(new Date(d + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short', day:'numeric'})) + '</b>' + planDraft.items.map((it, i) => it.date === d ? '<button type="button" class="plan-chip" draggable="true" data-act="planMove" data-i="' + i + '" title="Tap to move to the next day it can go on, or drag it" style="--category:' + categoryColor(it.group) + '">' + esc(it.name) + '</button>' : '').join('') + '</div>';
+    return '<div class="plan-draft" data-parity="P10-PLAN" role="group" aria-label="The proposed week"><p class="cap">' + planDraft.items.length + ' item' + (planDraft.items.length === 1 ? '' : 's') + ' to place</p><div class="plan-days">' + days.map(col).join('') + '</div><div class="acts"><button type="button" class="save" data-act="planConfirm">Confirm</button><button type="button" class="ghost" data-act="planCancel">Cancel</button></div></div>';
+  }
+  document.addEventListener('dragstart', e => { const c = e.target.closest && e.target.closest('.plan-chip'); if (c){ planDrag = +c.dataset.i; try { e.dataTransfer.setData('text/plain', 'plan'); e.dataTransfer.effectAllowed = 'move'; } catch (_) {} } });
+  document.addEventListener('dragover', e => { if (planDrag !== null && e.target.closest && e.target.closest('.plan-day')) e.preventDefault(); });
+  document.addEventListener('drop', e => { const c = e.target.closest && e.target.closest('.plan-day'); if (planDrag === null || !c || !planDraft) return; e.preventDefault(); const it = planDraft.items[planDrag], d = c.dataset.planDay; planDrag = null; if (it && planAllowed(it, d)){ it.date = d; render(); } else toast('It cannot go on that day.'); });
   /* Fix P7 (Mintay's list, Oct 6): the source that wins for each figure and the date of its latest reading, read through the same selectors the visuals use. */
   /* Fix P8: tap a goal to open its history: the readings, the goal line, the start, today's dot and a finish date projected from the last 28 days. */
   function goalSeries(st, id){
@@ -7089,7 +7116,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     let goalV = id === 'weight' ? (Number.isFinite(g.weightLb && g.weightLb.jan7) ? u.lb(g.weightLb.jan7) : null) : saved && Number.isFinite(saved.value) ? (id === 'leanMass' ? u.lb(saved.value) : saved.value) : (rule && Number.isFinite(rule.jan7) ? (id === 'leanMass' ? u.lb(rule.jan7) : rule.jan7) : (id === 'leanMass' && latest ? Math.round(latest.v * 1.05 * 10) / 10 : null));
     const startD = id === 'weight' ? g.startDate : (series[0] ? series[0].d : null), startV = id === 'weight' ? (Number.isFinite(g.startWeightLb) ? u.lb(g.startWeightLb) : null) : (series[0] ? series[0].v : null);
     const unit = id === 'bodyFat' ? '%' : mass ? u.mass : id === 'waist' ? u.length : '';
-    if (!series.length) return '<div class="gh" data-parity="P8-HISTORY"><p class="hint">No readings yet.</p></div>';
+    if (!series.length) return '<div class="ghist" data-parity="P8-HISTORY"><p class="hint">No readings yet.</p></div>';
     // the last 28 days give the pace; the finish date is where that line meets the goal
     const recent = series.filter(p => calendarDistance(p.d, today) <= 28), n = recent.length; let slope = null;
     if (n >= 2){ const t0 = recent[0].d, xs = recent.map(p => calendarDistance(t0, p.d)), ys = recent.map(p => p.v), mx = xs.reduce((a, b) => a + b, 0) / n, my = ys.reduce((a, b) => a + b, 0) / n, den = xs.reduce((a, b) => a + (b - mx) * (b - mx), 0); if (den > 0) slope = xs.reduce((a, b, i) => a + (b - mx) * (ys[i] - my), 0) / den; }
@@ -7103,7 +7130,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const startDot = Number.isFinite(startV) && startD ? '<circle cx="' + X(startD < x0 ? x0 : startD).toFixed(1) + '" cy="' + Y(startV).toFixed(1) + '" r="3" fill="none" stroke="var(--muted)" stroke-width="1.5"><title>Start ' + f1(startV) + ' on ' + esc(monthDay(startD)) + '</title></circle>' : '';
     const svg = '<svg class="gh-chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(label + ' history') + '">' + goalLine + '<polyline fill="none" stroke="var(--ink)" stroke-width="1.8" points="' + line + '"/>' + proj + startDot + '<circle cx="' + X(latest.d).toFixed(1) + '" cy="' + Y(latest.v).toFixed(1) + '" r="4.5" fill="var(--c-green,#79d6a9)"><title>' + f1(latest.v) + ' on ' + esc(monthDay(latest.d)) + '</title></circle><text x="' + L + '" y="' + (H - 4) + '" font-size="11" fill="var(--muted)">' + esc(monthDay(x0)) + '</text><text x="' + (W - R) + '" y="' + (H - 4) + '" text-anchor="end" font-size="11" fill="var(--muted)">' + esc(monthDay(x1)) + '</text></svg>';
     const text = finish ? 'At this pace: ' + monthDay(finish) + (goalDate && finish > goalDate ? ' (after ' + monthDay(goalDate) + ')' : '') : !Number.isFinite(goalV) ? 'No goal set.' : slope === null ? 'Too few readings in 28 days for a pace.' : 'Not heading toward the goal yet.';
-    return '<div class="gh" data-parity="P8-HISTORY">' + '<div class="gh-top"><b>' + f1(latest.v) + '</b><small>' + esc(unit) + ' · ' + esc(monthDay(latest.d)) + '</small></div>' + svg + '<p class="gh-line" data-gh-line>' + esc(text) + '</p></div>';
+    return '<div class="ghist" data-parity="P8-HISTORY">' + '<div class="gh-top"><b>' + f1(latest.v) + '</b><small>' + esc(unit) + ' · ' + esc(monthDay(latest.d)) + '</small></div>' + svg + '<p class="gh-line" data-gh-line>' + esc(text) + '</p></div>';
   }
   function openGoalHistory(id){
     const label = id === 'weight' ? 'Weight' : id === 'leanMass' ? 'Muscle' : ((goalTargets(S()).find(t => t.id === id) || {}).label || 'Goal');
@@ -8916,7 +8943,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function railHeadHTML(st){
     const page = ['home', 'profile', 'fitness', 'progress', 'stand'].includes(area) ? area : null, d = new Date(day + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
     let when = 'Not checked'; try { if (st.autoFeed) when = freshnessMeta(st.autoFeed).when; } catch (_) {}
-    return '<div class="rail-head" data-parity="Q1-HEAD"><div class="rh-top"><b>' + esc(TITLES[area][0]) + '</b><small>' + (when === 'Not checked' ? 'Not checked yet' : 'Checked ' + esc(when)) + '</small></div>' +
+    return '<div class="rail-top" data-parity="Q1-HEAD"><div class="rh-top"><b>' + esc(TITLES[area][0]) + '</b><small>' + (when === 'Not checked' ? 'Not checked yet' : 'Checked ' + esc(when)) + '</small></div>' +
       '<div class="rh-date"><button class="k-icon-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b title="' + esc(longDate(day)) + '">' + esc(d) + '</b><button class="k-icon-btn" data-act="step" data-n="1" aria-label="Next day">›</button>' + (day !== todayYmd() ? '<button class="k-btn" data-act="jumpToday">Today</button>' : '') + '</div>' +
       (page ? filtPageHTML(page, {noDay:true, rail:true}) : '') + '</div>';
   }
@@ -9857,6 +9884,12 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       case 'watchIfit': { const list = watchUnseen.ifit.slice(); if (!list.length) return; btn.disabled = true; const files = [];
         for (let k = 0; k < list.length; k += 40){ const r = await nativeRequest('watchRead', {id:'ifit', rels:list.slice(k, k + 40).map(x => x.rel)}); if (!r || !r.ok){ toast('The iFIT files could not be read.'); btn.disabled = false; return; } for (const x of r.files || []) files.push(watchFile(x)); }
         go('data'); watchMarkSeen('ifit', list); ifitReviewFiles(files); return; }
+      case 'planWeek': { planDraft = planWeekProposal(S()); if (!planDraft.items.length){ planDraft = null; toast('Everything due this week is placed already.'); return; } render(); return; }
+      case 'planMove': { if (!planDraft) return; const it = planDraft.items[+btn.dataset.i]; if (!it) return; const opts = []; for (let d = it.from; d <= it.to; d = addDays(d, 1)) if (planAllowed(it, d)) opts.push(d); if (opts.length > 1){ it.date = opts[(opts.indexOf(it.date) + 1) % opts.length]; render(); } return; }
+      case 'planCancel': planDraft = null; render(); return;
+      case 'planConfirm': { if (!planDraft) return; const items = planDraft.items.slice(), st = S(); btn.disabled = true; let placed = 0, failed = 0;
+        const r = await manualActionTransaction(st, dr => { for (const it of items){ const x = Workspace.commit(dr, it.id, it.date, true); if (x && x.ok === false) failed++; else placed++; } return {ok:true}; }, {persist:!preview, undo:'place'});
+        planDraft = null; render(); toast(r.ok ? placed + ' item' + (placed === 1 ? '' : 's') + ' placed' + (failed ? ', ' + failed + ' could not be' : '') + '.' : r.error || 'Not placed.'); return; }
       case 'goalHistory': { if (!btn.dataset.id) return; openGoalHistory(btn.dataset.id); return; }
       case 'gradeFaithAll': { const gr = gradeNow(st), others = gr.umbrellas.filter(u => u.id !== 'faith' && u.included !== false), on = others.every(u => u.faithOn); stage(st, 'grades'); for (const u of others) if (!setGradeConfig(st, 'umbrellas', u.id, 'faith', !on)){ popUndo(); return; } await commit('grades', on ? 'Faith left out of the area cards. The Overall is unchanged.' : 'Faith blended into the area cards. The Overall is unchanged.'); focusFirst('[data-act="gradeFaithAll"]'); return; }
       case 'gradeFaith': { const id = btn.dataset.u, cur = id === 'fitness' ? (gradeConfig(st).umbrellas.fitness || {}).faith !== false : (gradeConfig(st).umbrellas[id] || {}).faith !== false; stage(st, 'grades'); if (!setGradeConfig(st, 'umbrellas', id, 'faith', !cur)){ popUndo(); return; } await commit('grades', cur ? 'Faith left out of this card. The Overall is unchanged.' : 'Faith blended into this card. The Overall is unchanged.'); focusFirst('[data-act="gradeFaith"][data-u="' + id + '"]'); return; }
