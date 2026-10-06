@@ -2177,7 +2177,7 @@ const GOAL_DEFAULTS_V2={startDate:null,startWeightLb:null,goalDate:'2027-01-07',
    first reading on or after the start date, frozen once found, so a target does not move each time he measures. */
 const GOAL_RULES_V2=[
   {id:'bodyFat',label:'Body fat',unit:'%',metrics:['body_fat_percentage'],down:true,jan7:'fatAtGoal',longTerm:{value:17},source:'ACE body-fat categories (fitness 14–17% for men)'},
-  {id:'leanMass',label:'Lean mass',unit:'lb',metrics:['lean_body_mass'],down:false,jan7:{baselineMinus:2},longTerm:{baselineMinus:0},source:'Sardeli 2018: resistance training preserves most lean mass in a deficit'},
+  {id:'leanMass',label:'Lean mass',unit:'lb',metrics:['lean_body_mass'],down:false,jan7:{baselinePlus:0},longTerm:{baselinePlus:0},source:'Sardeli 2018: resistance training preserves most lean mass in a deficit'},
   {id:'waist',label:'Waist',unit:'in',metrics:['waist_circumference'],down:true,jan7:{baselineMinus:4},longTerm:{heightRatio:0.5},source:'NICE NG246: waist under half your height'},
   {id:'vo2max',label:'VO₂ max',unit:'ml/kg·min',metrics:['vo2_max'],down:false,jan7:{baselinePlus:4},longTerm:{byAgeBand:{'30-39':45,'40-49':42,'20-29':48}},source:'FRIEND registry: “good” for men 30–39 ≈ 45'},
   {id:'bmi',label:'BMI',unit:'',derived:'bmi',down:true,flag:'Weak for muscular builds',source:'CDC BMI categories'}
