@@ -2289,6 +2289,9 @@ function deficitSuggestion(state,today){
 }
 /* V3.6 S5 (V36-I17): one Program start for every reader (the grade's All, Fitness Trends, Fuel, Sleep Credit). */
 // review F5: Settings writes prefs.programStart (its own value; goalsV2.startDate is also the weight plan's start), read first
+/* Fix H1 (Mintay, Oct 6: "from whenever the program started through the 4th week ... until 4 weeks is over, at which point it resets"):
+   an N-week item is met in fixed blocks counted from the Program start, not in a window that slides with the day looked at. */
+function programBlockOf(state,date,weeks){const span=(weeks||4)*7,start=programStartOf(state,date);if(!validCalendarDate(start)||date<start)return null;const from=addDays(start,Math.floor(calendarDistance(start,date)/span)*span);return {from,to:addDays(from,span-1),next:addDays(from,span)};}
 function programStartOf(state,today){const t=today||todayYmd(),p=state.prefs?.programStart,s=state.prefs?.goalsV2?.startDate;return validCalendarDate(p)&&p<=t?p:validCalendarDate(s)&&s<=t?s:GRADE_PROGRAM_START;}
 /* V3.6 N1 to N3 (Mintay, Oct 2 and 3): ONE Net Energy convention. net = food minus burn; a deficit is negative.
    The goal is stored once and positive (goalsV2.deficit.daily, so V3.5 and older read it unchanged) and is read
@@ -4666,12 +4669,12 @@ function wsGoals(state,date,options={}){
   for(const s of series){
     const v=versionFor(s,date),kind=wsKind(s,date);if(['prayer-am','prayer-pm'].includes(kind)||!kind&&v.recurrence?.kind!=='target')continue;
     if(v.childIds&&kind!=='care')continue;
-    const rolling=kind==='church'||v.recurrence?.mode==='rolling',configured=recurrenceWindow(v,date),from=rolling?addDays(date,1-(v.recurrence?.weeks||4)*7):configured?.from||start,to=rolling?date:configured?.to||end;
+    const block=kind==='church'?programBlockOf(state,date,v.recurrence?.weeks||4):null,rolling=!block&&(kind==='church'||v.recurrence?.mode==='rolling'),configured=recurrenceWindow(v,date),from=block?block.from:rolling?addDays(date,1-(v.recurrence?.weeks||4)*7):configured?.from||start,to=block?block.to:rolling?date:configured?.to||end;   // H1: Church is met once per fixed block from the Program start
     const days=[];for(let day=from;day<=to;day=addDays(day,1)){const entry=wsGoalDay(state,s,day,rowCache);if(kind==='church'&&dow(day)!==0){entry.full=false;entry.qualifying=false;}days.push(entry);}
     const eligibleDays=days.filter(d=>d.date<=date),events=new Set(),fullEvents=new Set();for(const d of eligibleDays){if(d.qualifying)events.add(d.eventId||d.date);if(d.full)fullEvents.add(d.eventId||d.date);}
     const target=v.recurrence?.count||({cardio:4,strength:4,journal:3,church:1,home:1}[kind]||1),qualifying=events.size,full=fullEvents.size;
     const deadline=v.deadlineDay===undefined?null:{date:addDays(start,(v.deadlineDay+6)%7),time:'23:59',label:'By Thursday night'};
-    if(v.recurrence?.kind==='target'||['cardio','strength','journal','church','home'].includes(kind))cards.push({id:s.id+'|'+from,kind:kind||'target',title:v.name,groupId:wsGroup(s,date),seriesIds:[s.id],window:{from,to,label:from+' – '+to,kind:rolling?'rolling28':v.recurrence?.weeks>1?'multiweek':'weekly'},qualifying,full,target,minutes:eligibleDays.reduce((n,d)=>n+d.minutes,0),pending:eligibleDays.filter(d=>d.pending).length,complete:qualifying>=target,days,deadline});
+    if(v.recurrence?.kind==='target'||['cardio','strength','journal','church','home'].includes(kind))cards.push({id:s.id+'|'+from,kind:kind||'target',title:v.name,groupId:wsGroup(s,date),seriesIds:[s.id],window:{from,to,label:from+' – '+to,kind:block?'block28':rolling?'rolling28':v.recurrence?.weeks>1?'multiweek':'weekly'},qualifying,full,target,minutes:eligibleDays.reduce((n,d)=>n+d.minutes,0),pending:eligibleDays.filter(d=>d.pending).length,complete:qualifying>=target,days,deadline});
   }
   return cards;
 }
