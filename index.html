@@ -7820,9 +7820,12 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const o = options || {};
     if (groupId) wsCollapsed.delete('group:' + groupId);
     if (parentId) wsCollapsed.delete(parentId);
-    const card = groupId || (visibleGroups(S())[0] || {}).id || '';
+    /* Fix G2 (Mintay, Oct 6): a new item follows the page it was opened from (Faith's page adds to Faith, not Health) and is Required
+       unless he picks Stretch. An add that names its card keeps that card's area; one that asks the card first picks no area yet. */
+    const pageUmb = o.umb || (groupId ? null : {faith:'faith', fitness:'health', body:'health', stand:'health'}[area]) || null;
+    const card = groupId || (pageUmb && !o.askCard && (visibleGroups(S()).find(g => gradeGroupUmbrella(S(), g.id) === pageUmb) || {}).id) || (visibleGroups(S())[0] || {}).id || '';
     composer = { date:o.date || day, kind, parentId: parentId || null, groupId: groupId || null, fieldId: newDraftId(), title: title || '', ideaId: ideaId || null, error:'', busy:false,
-      template: !!o.template, more: !!o.more, subs: '', repeat: o.repeat || 'once', days: [1, 2, 3, 4, 5], count: 3, importance: 2, difficulty: 1, note: '', card: o.askCard ? '' : card, askCard: !!o.askCard, area: o.area || null, counts: true, gimp: 5, umb: (card && !o.askCard && gradeGroupUmbrella(S(), card)) || null };   // V3.5 G8: Counts toward grade, grade importance, the umbrella
+      template: !!o.template, more: !!o.more, subs: '', repeat: o.repeat || 'once', days: [1, 2, 3, 4, 5], count: 3, importance: 2, difficulty: 1, note: '', card: o.askCard ? '' : card, askCard: !!o.askCard, area: o.area || null, counts: true, gimp: 5, tier: 'required', umb: (card && !o.askCard && gradeGroupUmbrella(S(), card)) || (!o.askCard && pageUmb) || null };   // V3.5 G8: Counts toward grade, grade importance, the umbrella
     unsavedForm = true; render(); focusFirst('#wsComposerTitle');
   }
   // What the composer's fields say now, so a re-draw (More, a repeat chip, a page switch) never loses a word.
@@ -9567,7 +9570,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       case 'gradeAssign': { const g = groupById(st, btn.dataset.g), u = gradePick[btn.dataset.g]; if (!g || !u) return; stage(st, 'groups'); g.umbrella = gradeStoredUmbrella(u); g.updatedAt = nowIso(); delete gradePick[btn.dataset.g]; await commit('groups', g.name + ' now counts under ' + GRADE_UMBRELLAS.find(x => x.id === u).name + '.'); return; }
       case 'groupsOpen': openGroupsEditor(); return;
       case 'groupNew': { const n = String(($('#grpNewName') || {}).value || '').trim(), u = ($('#grpNewUmb') || {}).value; if (!n){ toast('Name the group.'); focusFirst('#grpNewName'); return; } stage(st, 'groups'); const g = addGroup(st, n); if (!g){ popUndo(); return; } g.umbrella = gradeStoredUmbrella(u); await commit('groups', n + ' added under ' + GRADE_UMBRELLAS.find(x => x.id === u).name + '.'); return; }
-      case 'gradeAddItem': { const id = btn.dataset.u, g = (st.groups || []).find(x => !x.hidden && !x.retiredFrom && gradeGroupUmbrella(st, x.id) === id); openComposer('item', null, g ? g.id : null, '', null, {area:'drawer', more:true, date:day}); return; }
+      case 'gradeAddItem': { const id = btn.dataset.u, g = (st.groups || []).find(x => !x.hidden && !x.retiredFrom && gradeGroupUmbrella(st, x.id) === id); openComposer('item', null, g ? g.id : null, '', null, {area:'drawer', more:true, date:day, umb:id}); return; }
       case 'todayAdd': if (dayClosed(st, day)){ toast(closedWord(day)); return; } openComposer('item', null, null, '', null, {area:'home', askCard:true, date:day}); return;
       case 'fuelEdit': if (dayClosed(st, day)){ toast(closedWord(day)); return; } fuelEditing = btn.dataset.f; render(); focusFirst('#fuelIn'); return;
       case 'fuelSave': { if (dayClosed(st, day)){ fuelEditing = null; toast(closedWord(day)); render(); return; } const raw = String(($('#fuelIn') || {}).value || '').replace(/[^\d.]/g, ''), f = btn.dataset.f, word = f === 'burn' ? 'Burn' : 'Food';

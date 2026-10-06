@@ -1326,15 +1326,15 @@ const gradeUmbrellaSettings=(cfg,id)=>{const u=GRADE_UMBRELLAS.find(x=>x.id===id
    the real today. Nothing ends after today. */
 function gradePeriod(state,anchor,period,range,opts){
   const real=todayYmd(),today=anchor&&anchor<real?anchor:real,prog=programStartOf(state,today);   // V3.6 S5: the one Program start (V36-I17)
-  let from=today,to=today;
+  let from=today,to=today,live=false;
   if(period==='week')from=opts&&opts.week==='last7'?addDays(today,-6):weekStartOf(today,state.prefs&&state.prefs.weekStart===0?0:1);
   else if(period==='month')from=today.slice(0,8)+'01';
   else if(period==='all')from=prog;
   else if(period==='custom'&&range&&validCalendarDate(range.from)&&validCalendarDate(range.to)){from=range.from<range.to?range.from:range.to;to=range.from<range.to?range.to:range.from;}
   if(to>real)to=real;
-  if(['week','month','all'].includes(period)&&to===real&&from<real)to=addDays(real,-1);   // review: closed days only, as the old rank did; Day is today so far
+  if(['week','month','all'].includes(period)&&to===real&&from<real){to=addDays(real,-1);live=true;}   // review: closed days only, as the old rank did; Day is today so far
   if(from>to)from=to;
-  return {from,to,program:prog};
+  return {from,to,program:prog,live};
 }
 // The rows a grade reads: every leaf due in the window, with its done share. Weekly targets are one row each, pro-rated.
 function gradeRows(state,from,to){
@@ -1392,20 +1392,20 @@ function gradeTiered(list,tierOf){
    which an earlier build reads as an unknown group and ignores. It is off until he turns it on, so the Overall does not
    move on release day. */
 function umbrellaGradeReport(state,today,period,range,measured,opts){
-  const {from,to,program}=gradePeriod(state,today,period||'day',range,opts);
+  const {from,to,program,live}=gradePeriod(state,today,period||'day',range,opts),tierDay=live?todayYmd():null;   // Fix G1: a Week, Month or All window ends yesterday only because today is still open, so it reads the tier in force today
   // V3.7.1 F5 (audit D-5; his "take ur rec", Oct 5; ASSUMED V371-A1): a window that spans the rule day is graded in two parts, the
   // days before it by the old rule and the days from it by Required and Stretch, joined by their due counts (gradeSplit). A window
   // wholly on one side is graded exactly as before, so a past week viewed as a week never moves (A59).
   // Review R1: a weekly target or a goal window is met over the whole window, not per part: each part keeps its own due count and
   // takes the whole window's share done (a target met on Oct 1 to 3 is met in a Last 7 days window that ends Oct 7)
   if(from<V37_RULE_DAY&&to>=V37_RULE_DAY){const whole=new Map(gradeRows(state,from,to).filter(r=>(r.target||r.goal)&&!r.derived&&r.planned>0).map(r=>[r.seriesId,Math.min(1,r.done/r.planned)])),share=r=>whole.has(r.seriesId)&&(r.target||r.goal)&&!r.derived?{...r,done:r.planned*whole.get(r.seriesId)}:r;
-    return gradeSplit(gradeReportOver(state,from,addDays(V37_RULE_DAY,-1),program,period,measured,false,share),gradeReportOver(state,V37_RULE_DAY,to,program,period,measured,true,share));}
-  return gradeReportOver(state,from,to,program,period,measured,to>=V37_RULE_DAY);
+    return gradeSplit(gradeReportOver(state,from,addDays(V37_RULE_DAY,-1),program,period,measured,false,share),gradeReportOver(state,V37_RULE_DAY,to,program,period,measured,true,share,tierDay));}
+  return gradeReportOver(state,from,to,program,period,measured,to>=V37_RULE_DAY,undefined,tierDay);
 }
-function gradeReportOver(state,from,to,program,period,measured,tiered,share){
-  const cfg=gradeConfig(state),rows=share?gradeRows(state,from,to).map(share):gradeRows(state,from,to),tierOf=x=>x.tier||gradeTierOf(cfg,x.seriesId,to);
+function gradeReportOver(state,from,to,program,period,measured,tiered,share,tierDay){
+  const cfg=gradeConfig(state),rows=share?gradeRows(state,from,to).map(share):gradeRows(state,from,to),tierAt=tierDay||to,tierOf=x=>x.tier||gradeTierOf(cfg,x.seriesId,tierAt);
   const groupName=gid=>((state.groups||[]).find(g=>g.id===gid)||{}).name||gid||'No card';
-  const item=r=>{const c=cfg.items[r.seriesId]||{};return {...r,score:r.planned?100*Math.min(1,r.done/r.planned):null,importance:Number.isFinite(c.importance)?c.importance:GRADE_ITEM_IMPORTANCE,included:c.included!==false,tier:r.derived?'required':gradeTierOf(cfg,r.seriesId,to)};};
+  const item=r=>{const c=cfg.items[r.seriesId]||{};return {...r,score:r.planned?100*Math.min(1,r.done/r.planned):null,importance:Number.isFinite(c.importance)?c.importance:GRADE_ITEM_IMPORTANCE,included:c.included!==false,tier:r.derived?'required':gradeTierOf(cfg,r.seriesId,tierAt)};};
   const umbrellas=GRADE_UMBRELLAS.map(u=>{
     const set=gradeUmbrellaSettings(cfg,u.id),byGroup=new Map();
     for(const r of rows){if(gradeGroupUmbrella(state,r.gid)!==u.id)continue;if(!byGroup.has(r.gid))byGroup.set(r.gid,[]);byGroup.get(r.gid).push(item(r));}
