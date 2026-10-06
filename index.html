@@ -237,6 +237,13 @@ body[data-area="fitness"] .content,body[data-area="progress"] .content,body[data
 .g-urow .g-uname,.g-grow .g-gname{text-align:left;color:var(--ink);font-weight:600;padding:0;min-height:0;border:0;background:none}
 .g-grow small,.g-urow small{color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
 .g-item{padding-left:18px;font-size:12.5px}.g-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Fix A3 (Oct 6): an item is three short lines, so its Required or Stretch tag never runs past the drawer: the name, n/m and
+   the tag; the dated cells and the percent; the importance slider and Convert. A partly done day is a ◐ after n/m (A1). */
+.g-grow.g-item{grid-template-columns:auto minmax(0,1fr) auto auto;row-gap:3px}
+.g-item>.g-check{grid-area:1/1}.g-item>.g-iname{grid-area:1/2}.g-item>.g-nm{grid-area:1/3}.g-item>.g-tier{grid-area:1/4;justify-self:end}
+.g-item>.g-cells{grid-area:2/2/3/4}.g-item>small{grid-area:2/4;justify-self:end}
+.g-item>.g-slider{grid-area:3/2}.g-item>.g-sval{grid-area:3/3}.g-item>.g-convert{grid-area:3/4;justify-self:end}
+.g-nm[data-part]::after{content:'◐';margin-left:3px;color:var(--c-green,#79d6a9)}
 .g-slider{width:100%;accent-color:var(--brass,#cfae63)}.g-sval{font-size:12px;font-variant-numeric:tabular-nums;color:var(--ink)}
 .g-check{accent-color:var(--brass,#cfae63);width:16px;height:16px;margin:0}
 .g-un{padding:10px 12px;border-radius:12px;background:var(--sunk);margin:0 0 8px;display:flex;flex-direction:column;gap:6px}.g-un small{color:var(--faint)}
@@ -5096,7 +5103,11 @@ addEventListener('load', () => {
   const gradeMeasured = (st, range) => { const y = addDays(todayYmd(), -1), end = range ? (range.to < y ? range.to : y) : null, n = range ? (end < range.from ? null : drawn('nutGradeAt|' + range.from + '|' + end, () => nutritionGradeOver(st, range.from < addDays(end, -6) ? addDays(end, -6) : range.from, end, 'week'))) : nutritionGradeNow(st); return {health:[{id:'nutrition', name:'🥗 Nutrition Grade', score:n && n.qualifying && n.letter ? n.percent : null}]}; };
   // V3.7 Y1 (A6, A7, A63, A70): the Overall's own period anchored on the selected day; the umbrella cards and Faith show that day
   const gradeNow = st => drawn('umbGrade|' + gradePer + '|' + (gradeRange ? gradeRange.from + gradeRange.to : '') + '|' + day + '|' + weekMeans(), () => umbrellaGradeReport(st, day, gradePer === 'custom' && !gradeRange ? 'week' : gradePer, gradeRange, gradeMeasured(st), {week:weekMeans()}));
-  const gradeDayNow = st => drawn('umbGradeDay|' + day, () => umbrellaGradeReport(st, day, 'day', null, gradeMeasured(st, {from:day, to:day})));
+  /* Fix A2 (Mintay, Oct 6: "The metrics that are the same should have the same source"): every grade on a page (the umbrella
+     cards, the folded minis, the 🙏 rows and the Fitness Grade's Faith) reads gradeNow, the report its drawer shows. A Grade
+     History cell opens the drawer for its own window (gradeWin), the same engine call as the cell, and the drawer names it. */
+  let gradeWin = null;
+  const gradeShown = st => gradeWin ? drawn('gradeHist|' + gradeWin.from + '|' + gradeWin.to, () => umbrellaGradeReport(st, todayYmd(), 'custom', {from:gradeWin.from, to:gradeWin.to}, gradeMeasured(st, {from:gradeWin.from, to:gradeWin.to}))) : gradeNow(st);
   const gradeUmb = (r, id) => r.umbrellas.find(u => u.id === id);
   function gradePerLabel(r){
     if (gradePer === 'custom' && !gradeRange) return 'Pick two dates';
@@ -5126,8 +5137,8 @@ addEventListener('load', () => {
      at most 175 px tall. */
   function gradeHero(st){
     const r = gradePer === 'custom' && !gradeRange ? null : gradeNow(st), pct = r ? r.overall : null, letter = r ? r.letter : null, un = r ? r.unassigned.length : 0;
-    let done = 0, due = 0; if (r) for (const u of r.umbrellas) if (u.included !== false) for (const g of u.groups) if (g.included !== false) for (const it of g.items) if (it.included !== false && it.planned){ done += Math.min(it.done, it.planned); due += it.planned; }
-    const n = v => Math.round(v * 2) / 2 === Math.round(v) ? String(Math.round(v)) : Math.floor(v) + '½';
+    let done = 0, due = 0; if (r) for (const u of r.umbrellas) if (u.included !== false){ const t = gradeTally(st, r, u); done += t.done; due += t.of; }   // Fix A1, A2: the drawers' whole counts
+    const n = v => String(v);
     return '<section class="k-card g-hero g-hero36" data-parity="V35-G2-01" data-feedback-id="grade-overall" data-feedback-label="Overall Grade"><div class="k-head"><span aria-hidden="true">🏅</span><span class="k-title">Overall Grade</span>' + infoBtn('grade-overall', 'Overall Grade') + gradePeriodHTML() + '</div>' + infoPop('grade-overall', GRADE_INFO.overall) + gradeCustomHTML() +
       '<div class="g-hero-row" data-parity="V36-F1-01"><div class="g-hero-body" role="button" tabindex="0" data-act="gradeOpen" data-u="overall" aria-label="Overall ' + (letter || 'no grade yet') + '. Open what counts">' + crossMeter(pct, 78) + '<b class="g-letter big" style="color:' + gradeTone(pct) + '">' + (letter || '–') + '</b><div class="g-hero-side"><span class="g-pct">' + (pct === null ? (r ? 'Nothing due' : 'Pick two dates') : Math.round(pct) + '%') + '</span>' + gradeBar(pct, 20) + '<small>' + esc(gradePerLabel(r)) + '</small></div></div>' +
       '<div class="g-hero-count" data-og-count="' + n(done) + '/' + n(due) + '"><span><b>' + n(done) + '</b> of ' + n(due) + ' done</span>' + (un ? '<button class="k-chip g-ungraded" data-act="gradeOpen" data-u="overall" data-parity="V35-G6-01">' + un + ' not graded</button>' : '') + '</div></div></section>';
@@ -5135,16 +5146,16 @@ addEventListener('load', () => {
 
   function gradeUmbCard(u, faithPct){
     const p = u.displayed, faith = u.id === 'faith' ? '' : '<div class="g-faithrow"><span aria-hidden="true">🙏</span>' + (u.faithOn ? '<b style="color:' + gradeTone(faithPct) + '">' + (rankLetter(faithPct) || '–') + '</b>' + gradeBar(faithPct, 10) : '<small>Faith left out</small>') + '<button type="button" class="g-toggle" role="switch" aria-checked="' + u.faithOn + '" data-act="gradeFaith" data-u="' + u.id + '" aria-label="Faith counts in the ' + esc(u.name) + ' card"><i></i></button></div>';
-    return '<section class="k-card g-umb" data-umb="' + u.id + '" data-grade-open="' + u.id + '" data-feedback-id="grade-' + u.id + '" data-feedback-label="' + esc(u.name) + ' grade"><div class="k-head"><span aria-hidden="true">' + u.emoji + '</span><span class="k-title">' + esc(u.name) + '</span>' + infoBtn('grade-u-' + u.id, u.name + ' grade') + '</div>' + infoPop('grade-u-' + u.id, esc(u.name) + ': the share of what was due that you did on the selected day (' + monthDay(day) + '), each group weighted by its importance. ' + (u.id === 'faith' ? 'Faith counts once in the Overall.' : 'With 🙏 on, Faith is blended into this card only (' + Math.round(u.faithShare * 100) + ' %); the Overall is unchanged.') + ' Tap the card to change what counts.') + '<div class="g-ub-row"><b class="g-letter" style="color:' + gradeTone(p) + '">' + (u.letter || '–') + '</b><span class="g-pct">' + (p === null ? 'Nothing due' : Math.round(p) + '%') + '</span></div>' + gradeBar(p, 12) + faith + '</section>';
+    return '<section class="k-card g-umb" data-umb="' + u.id + '" data-grade-open="' + u.id + '" data-feedback-id="grade-' + u.id + '" data-feedback-label="' + esc(u.name) + ' grade"><div class="k-head"><span aria-hidden="true">' + u.emoji + '</span><span class="k-title">' + esc(u.name) + '</span>' + infoBtn('grade-u-' + u.id, u.name + ' grade') + '</div>' + infoPop('grade-u-' + u.id, esc(u.name) + ': the share of what was due that you did in the period this page shows (the one its drawer shows), each group weighted by its importance. ' + (u.id === 'faith' ? 'Faith counts once in the Overall.' : 'With 🙏 on, Faith is blended into this card only (' + Math.round(u.faithShare * 100) + ' %); the Overall is unchanged.') + ' Tap the card to change what counts.') + '<div class="g-ub-row"><b class="g-letter" style="color:' + gradeTone(p) + '">' + (u.letter || '–') + '</b><span class="g-pct">' + (p === null ? 'Nothing due' : Math.round(p) + '%') + '</span></div>' + gradeBar(p, 12) + faith + '</section>';
   }
   // G3: one strip; Hobbies appears only when graded.
-  function gradeStrip(st, ids){ const r = gradeDayNow(st), faith = gradeUmb(r, 'faith').own; return '<div class="g-umbs' + (ids && ids.length < 3 ? ' few' : '') + '" data-parity="V35-G3-01">' + r.umbrellas.filter(u => (!ids || ids.includes(u.id)) && (u.id !== 'hobbies' || u.included)).map(u => gradeUmbCard(u, faith)).join('') + '</div>'; }
+  function gradeStrip(st, ids){ const r = gradeNow(st), faith = gradeUmb(r, 'faith').own; return '<div class="g-umbs' + (ids && ids.length < 3 ? ' few' : '') + '" data-parity="V35-G3-01">' + r.umbrellas.filter(u => (!ids || ids.includes(u.id)) && (u.id !== 'hobbies' || u.included)).map(u => gradeUmbCard(u, faith)).join('') + '</div>'; }
   // G9: one collapse control per grade area; collapsed is a slim row of Overall, Faith and Health; remembered per page.
   const GRADE_FOLDED = ['plan', 'home'];   // V3.7 K1: the rarely needed starts folded: Today's umbrella grade strip, as Quests'
   const gradeAreaOpen = page => { try { const v = localStorage.getItem('health-tracker.gradeArea.' + page); return v === null ? !GRADE_FOLDED.includes(page) : v === '1'; } catch (_) { return !GRADE_FOLDED.includes(page); } };
   function gradeArea(page, inner, st){
-    const open = gradeAreaOpen(page), r = gradeNow(st), rd = gradeDayNow(st);
-    const minis = open ? '' : [['overall','🏅','Overall',r.overall],['faith','🙏','Faith',gradeUmb(rd, 'faith').own],['health','💪','Health',gradeUmb(rd, 'health').displayed]].map(([id, e, name, p]) => '<button type="button" class="g-mini" data-act="gradeOpen" data-u="' + id + '" aria-label="' + name + ' ' + (rankLetter(p) || 'no grade yet') + '. Open what counts"><span aria-hidden="true">' + e + '</span><b style="color:' + gradeTone(p) + '">' + (rankLetter(p) || '–') + '</b></button>').join('');
+    const open = gradeAreaOpen(page), r = gradeNow(st);
+    const minis = open ? '' : [['overall','🏅','Overall',r.overall],['faith','🙏','Faith',gradeUmb(r, 'faith').own],['health','💪','Health',gradeUmb(r, 'health').displayed]].map(([id, e, name, p]) => '<button type="button" class="g-mini" data-act="gradeOpen" data-u="' + id + '" aria-label="' + name + ' ' + (rankLetter(p) || 'no grade yet') + '. Open what counts"><span aria-hidden="true">' + e + '</span><b style="color:' + gradeTone(p) + '">' + (rankLetter(p) || '–') + '</b></button>').join('');
     return '<div class="g-area" data-grade-area="' + page + '" data-parity="V35-G9-01"><div class="g-ahead"><button type="button" class="g-acollapse" data-act="gradeArea" data-page="' + page + '" aria-expanded="' + open + '">' + kIco(open ? 'down' : 'chevron', 14) + '<span>Grades</span></button>' + minis + '</div>' + (open ? '<div class="g-abody">' + inner() + '</div>' : page === 'home' ? '<div class="g-abody" hidden>' + inner() + '</div>' : '') + '</div>';   // V3.7 K1: Today's strip starts folded and keeps its cards in the page, hidden (a folded card keeps its parity ids); Quests' fold draws nothing, as in V3.5
   }
   /* ---- G5: the Fitness Grade, from FitnessGrade.grade over his closed days; the period follows Fitness Trends (B8) ---- */
@@ -5178,7 +5189,7 @@ addEventListener('load', () => {
   }
   const FIT_SOURCE = {movement:'A week’s workout minutes or steps, the higher', strength:'Days with 15 minutes or more of strength work', sleep:'Hours asleep a night', vo2:'Apple Watch estimate, your percentile for age', body:'Waist-to-height, else BMI', protein:'Grams a day against 1.6 g per kg', net:'Net Energy against your goal, a week or longer; credit is capped by what the scale confirms'};
   function fitnessShown(st, f){
-    const c = gradeConfig(st).umbrellas.fitness || {}, on = c.faith !== false, share = Number.isFinite(c.faithShare) ? c.faithShare : GRADE_FAITH_SHARE, faith = gradeUmb(gradeDayNow(st), 'faith').own;
+    const c = gradeConfig(st).umbrellas.fitness || {}, on = c.faith !== false, share = Number.isFinite(c.faithShare) ? c.faithShare : GRADE_FAITH_SHARE, faith = gradeUmb(gradeNow(st), 'faith').own;
     const pct = f.shown === null ? null : on ? FitnessGrade.blend(f.shown, faith, share) : f.shown, letter = !f.letter ? null : f.capped || f.present < 7 ? (['S','SS','SSS'].includes(rankLetter(pct)) ? 'A' : rankLetter(pct)) : rankLetter(pct);
     return {on, share, faith, pct, letter};
   }
@@ -5194,14 +5205,15 @@ addEventListener('load', () => {
   const gradeSlider = (kind, id, value, label, field, max) => '<input type="range" class="g-slider" min="0" max="' + (max || 10) + '" step="1" value="' + value + '" data-grade-slider data-kind="' + kind + '" data-id="' + esc(id) + '" data-field="' + (field || 'importance') + '" aria-label="' + esc((field === 'faithShare' ? 'Faith share of ' : 'Importance of ') + label) + '"><b class="g-sval">' + value + (field === 'faithShare' ? '%' : '') + '</b>';
   const gradeCheck = (kind, id, on, label) => '<input type="checkbox" class="g-check" data-grade-check data-kind="' + kind + '" data-id="' + esc(id) + '"' + (on ? ' checked' : '') + ' aria-label="' + esc(label) + ' counts toward the grade" title="Counts toward grade">';
   const gradePct = p => p === null ? '—' : Math.round(p) + '%';
-  function openGradeDrawer(id){
-    const st = S(), r = gradeNow(st), u = GRADE_UMBRELLAS.find(x => x.id === id), name = id === 'overall' ? 'Overall Grade' : id === 'fitness' ? 'Fitness Grade' : u ? u.name : 'Grade', emoji = id === 'overall' ? '🏅' : id === 'fitness' ? '🏃' : u ? u.emoji : '';
+  function openGradeDrawer(id, win){
+    gradeWin = win && validCalendarDate(win.from) && validCalendarDate(win.to) ? {from:win.from, to:win.to} : null;
+    const st = S(), r = gradeShown(st), u = GRADE_UMBRELLAS.find(x => x.id === id), name = id === 'overall' ? 'Overall Grade' : id === 'fitness' ? 'Fitness Grade' : u ? u.name : 'Grade', emoji = id === 'overall' ? '🏅' : id === 'fitness' ? '🏃' : u ? u.emoji : '';
     const now = id === 'overall' ? r.overall : id === 'fitness' ? (fitnessGradeNow(st) || {}).shown : gradeUmb(r, id) ? gradeUmb(r, id).displayed : null; gradeWas[id] = now === undefined ? null : now;
     openPanel({key:'grade-' + id, title:name, emoji, learn:null, html:() => gradeDrawerHTML(id)});
   }
   function gradePreviewHTML(pct, letter, r, id){
     const was = gradeWas[id], moved = Number.isFinite(was) && Number.isFinite(pct) && Math.round(was) !== Math.round(pct);
-    return '<div class="g-prev" data-parity="V35-G4-01"><b class="g-letter big" data-prev-letter style="color:' + gradeTone(pct) + '">' + (letter || '–') + '</b><div><span class="g-pct" data-prev-pct>' + (pct === null ? 'Nothing due' : Math.round(pct) + '%') + '</span><small data-prev-was>' + esc(gradePerLabel(r)) + (moved ? ' · was ' + (rankLetter(was) || '–') + ' ' + Math.round(was) + '%' : '') + '</small></div>' + gradeBar(pct, 12) + '</div>';
+    return '<div class="g-prev" data-parity="V35-G4-01"><b class="g-letter big" data-prev-letter style="color:' + gradeTone(pct) + '">' + (letter || '–') + '</b><div><span class="g-pct" data-prev-pct>' + (pct === null ? 'Nothing due' : Math.round(pct) + '%') + '</span><small data-prev-was>' + esc(gradeWin && r ? (r.from === r.to ? monthDay(r.from) : monthDay(r.from) + ' – ' + monthDay(r.to)) : gradePerLabel(r)) + (moved ? ' · was ' + (rankLetter(was) || '–') + ' ' + Math.round(was) + '%' : '') + '</small></div>' + gradeBar(pct, 12) + '</div>';
   }
   /* ---- V3.7 Y2, Y4, Y5: the drawer lists each group's items with "n/m", dated cells over the period (done, partial, missed,
      not due; a discrete item is never a bar), a tier button and Convert; the two shares and what is left to the next letter. ---- */
@@ -5217,17 +5229,41 @@ addEventListener('load', () => {
   function gradeItemHTML(st, r, i){
     const tier = i.tier || 'required', nowTier = gradeTierOf(gradeConfig(st), i.seriesId, todayYmd()), tb = r.tiered && !i.derived ? '<button type="button" class="k-chip g-tier' + (tier === 'stretch' ? ' str' : '') + '" data-act="gradeTier" data-id="' + esc(i.seriesId) + '" data-tier="' + nowTier + '" title="' + esc((tier === 'stretch' ? 'Stretch: ' + TIER_WORDS.stretch : 'Required: ' + TIER_WORDS.required) + ' Tap to make it ' + (tier === 'stretch' ? 'Required' : 'Stretch') + '.') + '" aria-label="' + esc(i.name + ' is ' + tier + '. Make it ' + (tier === 'stretch' ? 'Required' : 'Stretch')) + '">' + (tier === 'stretch' ? 'Stretch' : 'Required') + '</button>' : (i.derived ? '<span class="k-chip g-tier">Required</span>' : '');
     const conv = !i.derived ? '<button type="button" class="link g-convert" data-act="itemConvert" data-series="' + esc(i.seriesId) + '">Convert</button>' : '';
-    return '<div class="g-grow g-item" data-item="' + esc(i.seriesId) + '" data-tier="' + tier + '">' + gradeCheck('items', i.seriesId, i.included, i.name) + '<span>' + esc(i.name) + '</span><b class="g-nm" data-nm>' + nOf(i.done || 0, i.planned || 0) + '</b>' + gradeCells(st, i.seriesId, r.from, r.to) + tb + conv + '<small>' + gradePct(i.score) + '</small>' + (i.derived ? '' : gradeSlider('items', i.seriesId, i.importance, i.name)) + '</div>';
+    const c = gradeCount(st, r, i), tip = c.done + ' of ' + c.of + ' ' + c.when + (c.part ? '; ' + c.part + ' partly done, half points' : '');
+    return '<div class="g-grow g-item" data-item="' + esc(i.seriesId) + '" data-tier="' + tier + '">' + gradeCheck('items', i.seriesId, i.included, i.name) + '<span class="g-iname">' + esc(i.name) + '</span><b class="g-nm" data-nm' + (c.part ? ' data-part="' + c.part + '"' : '') + ' title="' + esc(tip) + '" aria-label="' + esc(tip) + '">' + c.done + '/' + c.of + '</b>' + gradeCells(st, i.seriesId, r.from, r.to) + tb + conv + '<small>' + gradePct(i.score) + '</small>' + (i.derived ? '' : gradeSlider('items', i.seriesId, i.importance, i.name)) + '</div>';
+  }
+  /* Fix A1 (Mintay, Oct 6: "The partial stuff is just for the points; I rarely have partial goals"): an item reads whole counts
+     for the period shown. A dated item: its due days and the days done. A weekly goal, a goal over a window or the prayer week
+     goal: its share of the period rounded up to whole times, and the times that share holds (a full week of "3 a week" reads
+     n/3; Monday alone reads n/1, as the grade does). A partly done day moves only the points and shows as ◐, never as ½. */
+  function gradeCount(st, r, i){
+    const status = (id, d) => (st.occurrences[occKey(id, d)] || {}).status, ids = i.derived ? ['dw-prayer-am', 'dw-prayer-pm'] : [i.seriesId];
+    let done = 0, part = 0;
+    for (let d = r.from; d <= r.to; d = addDays(d, 1)) for (const id of ids){ const k = status(id, d); if (k === 'done') done++; else if (k === 'partial') part++; }
+    if (i.derived || i.goal || i.target){
+      const of = i.planned > 0 ? Math.max(1, Math.ceil(i.planned - 1e-6)) : 0;
+      return {done:of ? Math.min(of, Math.floor(of * Math.min(1, (i.done || 0) / i.planned) + 1e-6)) : 0, of, part, when:'due in this period'};
+    }
+    const of = Math.round(i.planned || 0);
+    return {done:Math.min(done, of), of, part, when:'days'};
+  }
+  // Fix A1, A2: an umbrella's whole counts, the sum of its drawer rows by tier (the items the grade counts); the drawer's
+  // Required and Stretch line, Progress' By Group and the Overall's "n of m done" all read it
+  function gradeTally(st, r, u){
+    const t = {required:{done:0, of:0}, stretch:{done:0, of:0}, done:0, of:0};
+    for (const g of u.groups) if (!g.measured && g.included && g.importance > 0 && g.score !== null) for (const i of g.items || []) if (i.included !== false && i.importance > 0 && i.score !== null){ const c = gradeCount(st, r, i), k = i.tier === 'stretch' ? 'stretch' : 'required'; t[k].done += c.done; t[k].of += c.of; t.done += c.done; t.of += c.of; }
+    return t;
   }
   // Y4: the two shares and the points to the next letter (about how many Required items that is)
-  function gradeTierLine(u){
+  function gradeTierLine(st, r, u){
     const t = u && u.tiers; if (!t) return '';
+    const sum = gradeTally(st, r, u);
     const pct = u.own, next = RANK_CUTOFFS.slice().reverse().find(([n]) => n > (pct || 0) + 1e-9), per = t.reqDue ? 100 * (0.85 + 0.15 * (t.hasStretch ? t.T : 0)) / t.reqDue * (t.part === undefined ? 1 : t.part) : null;   // V3.7.1 F5: in a split window one item moves its part only
     const sent = !next ? 'Top grade' : (Math.round((next[0] - pct) * 10) / 10) + ' points to ' + next[1] + ' (' + next[0] + '%)' + (per ? ': about ' + Math.max(1, Math.ceil((next[0] - pct) / per)) + ' more Required item' + (Math.ceil((next[0] - pct) / per) > 1 ? 's' : '') : '') + (t.hasStretch && t.R >= 0.999 && next[0] >= 95 ? '; Stretch lifts it from here' : '');
-    return '<div class="g-tiers" data-parity="V37-Y4-01"><span data-shares>Required ' + nOf(t.reqDone, t.reqDue).replace('/', ' of ') + (t.hasStretch ? ', Stretch ' + nOf(t.strDone, t.strDue).replace('/', ' of ') : '') + (t.part !== undefined && t.part < 1 ? ' since ' + esc(monthDay(V37_RULE_DAY)) : '') + '</span><small data-next>' + esc(sent) + '</small>' + (!t.hasStretch && t.R >= 0.999 ? '<small>Add a Stretch item to rank higher</small>' : '') + '</div>';
+    return '<div class="g-tiers" data-parity="V37-Y4-01"><span data-shares>Required ' + sum.required.done + ' of ' + sum.required.of + (t.hasStretch ? ', Stretch ' + sum.stretch.done + ' of ' + sum.stretch.of : '') + '</span><small data-next>' + esc(sent) + '</small>' + (!t.hasStretch && t.R >= 0.999 ? '<small>Add a Stretch item to rank higher</small>' : '') + '</div>';
   }
   function gradeDrawerHTML(id){
-    const st = S(), r = gradeNow(st);
+    const st = S(), r = gradeShown(st);
     if (id === 'fitness'){
       const f = fitnessGradeNow(st); if (!f) return '<p class="drawer-read">The Fitness Grade needs Apple Health data.</p>';
       const s = fitnessShown(st, f);
@@ -5247,7 +5283,7 @@ addEventListener('load', () => {
       return '<div class="g-group" data-gid="' + esc(g.gid) + '"><div class="g-grow">' + gradeCheck('groups', g.gid, g.included, g.name) + '<button type="button" class="link g-gname" data-act="gradeExpand" data-gid="' + esc(g.gid) + '" aria-expanded="' + open + '">' + esc(g.name) + '</button><small>' + gradePct(g.score) + '</small>' + gradeSlider('groups', g.gid, g.importance, g.name) + '</div>' +
         (open ? (g.items.length ? g.items.map(i => gradeItemHTML(st, r, i)).join('') : '<p class="drawer-read">Nothing due in this period.</p>') : '') + '</div>'; }).join('');
     const add = composer && composer.area === 'drawer' ? composerHTML() : '<button type="button" class="link g-additem" data-act="gradeAddItem" data-u="' + u.id + '">' + kIco('plus', 14) + ' Add an item</button>';
-    return gradePreviewHTML(u.displayed, u.letter, r, id) + gradeTierLine(u) + faith + '<div class="drawer-sub">Contributors</div>' + (r.tiered ? '<p class="drawer-read g-tierwords" data-parity="V37-Y5-01"><b>Required</b>: ' + esc(TIER_WORDS.required) + '<br><b>Stretch</b>: ' + esc(TIER_WORDS.stretch) + (r.split ? '<br><small data-split="' + esc(r.split.at) + '">Before ' + esc(monthDay(r.split.at)) + ' this window is graded by the old rule (the average); from ' + esc(monthDay(r.split.at)) + ' by Required and Stretch, the two parts weighted by what was due.</small>' : '') + '</p>' : '') + (groups || '<p class="drawer-read">No groups here yet.</p>') + '<div class="drawer-sub">Add an item</div>' + add +
+    return gradePreviewHTML(u.displayed, u.letter, r, id) + gradeTierLine(st, r, u) + faith + '<div class="drawer-sub">Contributors</div>' + (r.tiered ? '<p class="drawer-read g-tierwords" data-parity="V37-Y5-01"><b>Required</b>: ' + esc(TIER_WORDS.required) + '<br><b>Stretch</b>: ' + esc(TIER_WORDS.stretch) + (r.split ? '<br><small data-split="' + esc(r.split.at) + '">Required and Stretch began on ' + esc(monthDay(r.split.at)) + '. The days before it count the old way: the share of what was due that you did.</small>' : '') + '</p>' : '') + (groups || '<p class="drawer-read">No groups here yet.</p>') + '<div class="drawer-sub">Add an item</div>' + add +
       '<button type="button" class="drawer-learn g-groups" data-act="groupsOpen">Groups' + kIco('chevron', 14) + '</button><button class="link g-reset" data-act="gradeReset" data-u="' + u.id + '">Reset to default</button>';
   }
   // G6: whatever has no umbrella is listed first in the Overall drawer, with umbrella chips and one tap to add it.
@@ -5940,8 +5976,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       (t.due ? '<div class="pg-top"><b class="pg-pct">' + Math.round(t.pct) + '%</b><span class="pg-of">' + t.done + ' of ' + t.due + ' done</span>' + chip + '</div>' + (words ? '<p class="pg-words" data-words>' + esc(words) + '</p>' : '') + '<div class="pg-bars" data-bars="' + t.days.length + '">' + bars + '</div>' +
         '<div class="pg-states" data-states>' + PROG_STATES.map(([k, l]) => '<span data-state="' + k + '"><i class="c-' + k + '"></i>' + l + ' <b>' + t[k] + '</b></span>').join('') + '</div>' : '<p class="hint keep">Nothing due in this period yet.</p>') + '</section>';
     // P3: By Group: each graded umbrella, x of y, its bar and letter; a tap opens its contributors
-    const r = gradeNow(st), umbs = r ? r.umbrellas : [], cnt = u => { let p = 0, d = 0; for (const g of u.groups) for (const i of g.items || []){ p += i.planned || 0; d += Math.min(i.done || 0, i.planned || 0); } return {p, d}; };
-    const byGroup = '<section class="k-card pg-groups" data-parity="V36-PROGRESS-C02" data-feedback-id="progress-by-group" data-feedback-label="By Group"><div class="k-head"><span aria-hidden="true">🗂️</span><span class="k-title">By Group</span></div>' + umbs.map(u => { const c = cnt(u), n = x => Math.round(x * 2) / 2 === Math.round(x) ? String(Math.round(x)) : Math.floor(x) + '½';
+    const r = gradeNow(st), umbs = r ? r.umbrellas : [], cnt = u => { const t = gradeTally(st, r, u); return {p:t.of, d:t.done}; };   // Fix A1, A2: the drawer's whole counts
+    const byGroup = '<section class="k-card pg-groups" data-parity="V36-PROGRESS-C02" data-feedback-id="progress-by-group" data-feedback-label="By Group"><div class="k-head"><span aria-hidden="true">🗂️</span><span class="k-title">By Group</span></div>' + umbs.map(u => { const c = cnt(u), n = x => String(x);
       return '<button type="button" class="pg-grow' + (u.included ? '' : ' off') + '" data-grade-open="' + u.id + '" data-umb="' + u.id + '"><span aria-hidden="true">' + u.emoji + '</span><b>' + esc(u.name) + '</b><small>' + (u.included ? n(c.d) + ' of ' + n(c.p) : 'off') + '</small>' + gradeBar(u.included ? u.displayed : null, 10) + '<b class="g-letter" style="color:' + gradeTone(u.included ? u.displayed : null) + '">' + (u.included && u.letter || '–') + '</b></button>'; }).join('') + '</section>';
     // P4: Momentum, sparkline rows, an arrow word against his own baseline; the windows follow the period (A36)
     const mom = SCORES_ON ? '<section class="k-card pg-mom" data-parity="V36-PROGRESS-C03" data-feedback-id="momentum" data-feedback-label="Momentum"' + winAttrs(MW) + ' data-filtered="momentum"><div class="k-head"><span aria-hidden="true">🧭</span><span class="k-title">Momentum</span>' + filtChipHTML('progress', 'momentum') + '<button type="button" class="info" data-act="learnView" data-learn="momentum" aria-label="Learn about Momentum">i</button></div><p class="hint keep">' + (MW.day ? esc(monthDay(MW.to)) + ' and the day before' : esc(monthDay(MW.from) + ' to ' + monthDay(MW.to)) + ' against the ' + MW.mom[1] + ' days to ' + esc(monthDay(MW.to))) + '</p>' +
@@ -5967,7 +6003,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const blocks = hb.map(b => ({...b, r:drawn('gradeHist|' + b.from + '|' + b.to, () => umbrellaGradeReport(st, todayYmd(), 'custom', {from:b.from, to:b.to}, gradeMeasured(st, {from:b.from, to:b.to})))}));
     const prevDay = HW.day ? drawn('gradeHist|' + addDays(HW.to, -1) + '|' + addDays(HW.to, -1), () => umbrellaGradeReport(st, todayYmd(), 'custom', {from:addDays(HW.to, -1), to:addDays(HW.to, -1)}, gradeMeasured(st, {from:addDays(HW.to, -1), to:addDays(HW.to, -1)}))) : null;
     const colName = b => b.from === b.to ? (HW.days.length > 7 ? String(+b.from.slice(8)) : new Date(b.from + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short'})) : monthDay(b.from);
-    const cell = (b, pct, letter, id) => '<button type="button" class="pg-hcell" data-grade-open="' + id + '" data-d="' + b.from + '" data-week="' + b.from + '" style="color:' + gradeTone(pct) + '" title="' + esc((id === 'overall' ? 'Overall' : id) + ', ' + (b.from === b.to ? monthDay(b.from) : monthDay(b.from) + ' to ' + monthDay(b.to))) + '">' + (letter || '–') + '</button>';
+    const cell = (b, pct, letter, id) => '<button type="button" class="pg-hcell" data-grade-open="' + id + '" data-d="' + b.from + '" data-to="' + b.to + '" data-week="' + b.from + '" style="color:' + gradeTone(pct) + '" title="' + esc((id === 'overall' ? 'Overall' : id) + ', ' + (b.from === b.to ? monthDay(b.from) : monthDay(b.from) + ' to ' + monthDay(b.to))) + '">' + (letter || '–') + '</button>';
     const prevCell = (pct, letter) => HW.day ? '<small class="pg-hprev" title="' + esc('the day before, ' + monthDay(addDays(HW.to, -1))) + '">' + (letter ? 'before ' + letter : 'before –') + '</small>' : '';
     const hist = '<section class="k-card pg-hist" data-parity="V36-PROGRESS-C07" data-feedback-id="grade-history" data-feedback-label="Grade History"' + winAttrs(HW) + ' data-filtered="history"><div class="k-head"><span aria-hidden="true">🏅</span><span class="k-title">Grade History</span>' + filtChipHTML('progress', 'history') + '<button type="button" class="info" data-act="learnView" data-learn="grade-history" aria-label="Learn about Grade History">i</button></div><div class="pg-hgrid" data-parity="V37-L5-01" data-cols="' + blocks.length + '" style="grid-template-columns:auto repeat(' + blocks.length + ',minmax(0,1fr))' + (HW.day ? ' auto' : '') + '"><span></span>' + blocks.map(b => '<small>' + esc(colName(b)) + '</small>').join('') + (HW.day ? '<span></span>' : '') +
       '<b>🏅 Overall</b>' + blocks.map(b => cell(b, b.r.overall, b.r.letter, 'overall')).join('') + prevCell(prevDay && prevDay.overall, prevDay && prevDay.letter) + GRADE_UMBRELLAS.filter(u => u.id !== 'hobbies').map(u => '<b>' + u.emoji + ' ' + esc(u.name) + '</b>' + blocks.map(b => { const x = b.r.umbrellas.find(y => y.id === u.id); return cell(b, x ? x.displayed : null, x ? x.letter : null, u.id); }).join('') + (prevDay ? (x => prevCell(x && x.displayed, x && x.letter))(prevDay.umbrellas.find(y => y.id === u.id)) : '')).join('') + '</div>' +
@@ -8798,7 +8834,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   const PENDING_ACTS=new Set(['toggleDone','done','log','notToday','exempt','unexcuse','claimOne','claimAll','claimDay','v5Adopt','perfectPolicySave','intakeScan','applyUpdate','catchUpStart','wsAdopt','v2Adopt','reviewAction','saveDetail','applyUpdate','export']);
   document.addEventListener('click', async e => {
     const btn = e.target.closest('button[data-act], button[data-area], [role="button"][data-act]');   // V3.5: card-style buttons (a trend cell) too
-    if (!btn && e.target.closest('[data-grade-open]') && !e.target.closest('a,input,select,textarea,summary,label,.info-pop,.card-feedback')){ openGradeDrawer(e.target.closest('[data-grade-open]').dataset.gradeOpen); return; }   // V3.5 G3, G5
+    if (!btn && e.target.closest('[data-grade-open]') && !e.target.closest('a,input,select,textarea,summary,label,.info-pop,.card-feedback')){ const g = e.target.closest('[data-grade-open]'); openGradeDrawer(g.dataset.gradeOpen, g.dataset.to ? {from:g.dataset.d, to:g.dataset.to} : null); return; }   // V3.5 G3, G5
     if (!btn){ const card = e.target.closest('[data-metric-open]'); if (card && !e.target.closest('a,input,select,textarea,summary,label,.info-pop,.card-feedback')) openDrawer(card.dataset.metricOpen); return; }   // V3.5 D1: a metric card opens its drawer
     const st = S();
     const act = btn.dataset.act;
@@ -9521,7 +9557,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       case 'drawerRange': drawer.range = +btn.dataset.r; try { localStorage.setItem('health-tracker.drawer.range', String(drawer.range)); } catch (_) {} renderDrawer(); focusFirst('[data-act="drawerRange"][data-r="' + drawer.range + '"]'); return;
       case 'learnView': learnId = btn.dataset.learn; closeDrawer(); go('learn'); return;
       case 'wsComposerUmb': if (composer){ composerRead(); composer.umb = btn.dataset.v; composer.umbPicked = true; const first = visibleGroups(st).find(g => gradeGroupUmbrella(st, g.id) === composer.umb); if (!first || gradeGroupUmbrella(st, composer.card) !== composer.umb) composer.card = first ? first.id : ''; render(); focusFirst('[data-act="wsComposerUmb"][data-v="' + composer.umb + '"]'); } return;
-      case 'gradeOpen': openGradeDrawer(btn.dataset.u); return;
+      case 'gradeOpen': openGradeDrawer(btn.dataset.u, btn.closest('[data-drawer]') ? gradeWin : null); return;   // A2: from inside the drawer, the same window
       case 'gradeFaith': { const id = btn.dataset.u, cur = id === 'fitness' ? (gradeConfig(st).umbrellas.fitness || {}).faith !== false : (gradeConfig(st).umbrellas[id] || {}).faith !== false; stage(st, 'grades'); if (!setGradeConfig(st, 'umbrellas', id, 'faith', !cur)){ popUndo(); return; } await commit('grades', cur ? 'Faith left out of this card. The Overall is unchanged.' : 'Faith blended into this card. The Overall is unchanged.'); focusFirst('[data-act="gradeFaith"][data-u="' + id + '"]'); return; }
       case 'gradeArea': { const page = btn.dataset.page, open = !gradeAreaOpen(page); try { localStorage.setItem('health-tracker.gradeArea.' + page, open ? '1' : '0'); } catch (_) {} render(); focusFirst('[data-act="gradeArea"][data-page="' + page + '"]'); return; }
       case 'gradeReset': { const id = btn.dataset.u; stage(st, 'grades'); if (id === 'overall'){ resetGradeConfig(st); if (st.gradeConfig) st.gradeConfig.hobbies = false; } else { const c = st.gradeConfig || {}; if (c.umbrellas) delete c.umbrellas[id]; for (const g of st.groups || []) if (gradeGroupUmbrella(st, g.id) === id){ if (c.groups) delete c.groups[g.id]; for (const s of st.series || []) if (c.items && (s.versions || []).some(v => v.category === g.id)) resetGradeConfig(st, 'items', s.id); }   /* review F5: tier history kept */ } await commit('grades', 'Back to the default weights.'); return; }
