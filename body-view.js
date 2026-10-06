@@ -793,7 +793,7 @@ class HealthBodyView extends HTMLElement {
         '<button type="button" class="bs-exit" data-body="fullscreen" data-parity="V35-B13-02" aria-label="Exit full screen" title="Exit full screen (Esc)">' + bodyIcon(BODY_ICONS.shrink, 18) + '</button>' +
         (!this.stage ? '<div class="body-report-sheet" hidden></div>' : '') +
       '</div>' +
-      '<div class="bs-foot">' + (stale ? '<p class="body-stale" data-parity="BODY-39">A newer weigh-in has no segment report yet</p>' : '') + '<p class="body-captured" data-parity="B4-MODEL">Model captured ' + esc(this.date(record.captureDate, true)) + '. A new report updates the numbers, never the model.</p></div>' +
+      '<div class="bs-foot">' + (stale ? '<p class="body-stale" data-parity="BODY-39">A newer weigh-in has no segment report yet</p>' : '') + '<p class="body-captured" data-parity="B4-MODEL" title="A new report updates the numbers, never the model.">Model: ' + esc(this.date(record.captureDate, true)) + '</p></div>' +
       (!this.stage ? '<div class="body-tools">' + this.toolsHTML() + '</div>' : '') : '';
     this.innerHTML = '<section class="panelcard body-record-card" aria-label="Your body records">' +
       '<p class="body-status hint" role="status" aria-live="polite"></p>' +
