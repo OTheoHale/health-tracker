@@ -1883,7 +1883,7 @@ addEventListener('load', () => {
   function nativeRequest(type,payload={}){
     return new Promise(resolve=>{
       const requestId='intake-'+(++intake.sequence)+'-'+Date.now();
-      const timer=type==='intakeChoose'?null:setTimeout(()=>{intake.pending.delete(requestId);resolve({ok:false,error:'The Mac app did not finish this request. Your saved record is unchanged.'});},30000);
+      const timer=type==='intakeChoose'?null:setTimeout(()=>{intake.pending.delete(requestId);resolve({ok:false,error:'The Mac app did not finish this request. Your saved record is unchanged.'});},['readReport','bodyFetch'].includes(type)?180000:30000);   /* Fix B5: reading a tall report picture and fetching the 3D model take longer than 30 s */
       intake.pending.set(requestId,{resolve,timer});
       if(!nativePost({type,requestId,...payload})){clearTimeout(timer);intake.pending.delete(requestId);resolve({ok:false,error:'Open the automatic intake review app to use the selected iCloud folder.'});}
     });

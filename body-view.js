@@ -36,7 +36,9 @@ function fromBase64(value) { const text = atob(value || ''); const bytes = new U
 async function bodyFetch(path, init) {
   if (!BODY_BRIDGE || !window.HealthNativeRequest) return fetch(BODY_BASE + path, init);
   const body = init && init.body, base64 = body == null ? null : toBase64(body instanceof Blob ? await body.arrayBuffer() : new TextEncoder().encode(String(body)));
-  const reply = await window.HealthNativeRequest('bodyFetch', {path, method: (init && init.method) || 'GET', headers: (init && init.headers) || {}, base64});
+  let reply = await window.HealthNativeRequest('bodyFetch', {path, method: (init && init.method) || 'GET', headers: (init && init.headers) || {}, base64});
+  /* Fix B5: the body service on this Mac may still be starting when the first request lands ("The network connection was lost"); one retry before the page says anything */
+  if (!reply.ok && /connection was lost|could not connect|did not finish/i.test(String(reply.error || ''))) { await new Promise(r => setTimeout(r, 1500)); reply = await window.HealthNativeRequest('bodyFetch', {path, method: (init && init.method) || 'GET', headers: (init && init.headers) || {}, base64}); }
   if (!reply.ok) throw new TypeError(reply.error || 'The body service did not answer.');
   const empty = [204, 205, 304].includes(reply.status);
   return new Response(empty ? null : fromBase64(reply.base64), {status: reply.status, headers: {'Content-Type': reply.contentType || 'application/octet-stream'}});
@@ -109,6 +111,11 @@ function regionAutoName(parts, regions) {
    is the lb unit after Fitdays' one decimal. */
 const REPORT_SEGMENTS = [['left-arm', /^left\s*arm/i], ['right-arm', /^right\s*arm/i], ['trunk', /^trunk/i], ['left-leg', /^left\s*leg/i], ['right-leg', /^right\s*leg/i]];
 const REPORT_WHOLE = [['weight', /^(body\s*)?weight\b/i, 'lb'], ['bmi', /^bmi\b/i, null], ['bodyFatPercentage', /^body\s*fat(?!\s*mass)(\s*(rate|percentage|%))?\b/i, '%'], ['fatMass', /^(body\s*)?fat\s*mass/i, 'lb'], ['fatFreeWeight', /^fat[\s-]*free/i, 'lb'], ['muscleMass', /^muscle\s*mass/i, 'lb']];
+/* Fix B2 (Mintay, Oct 6: "no manual typing of numbers that are on the picture"): the rest of the table a Fitdays report prints. They are read when
+   present and never required; the confirm screen shows what was read and a report without them still saves. */
+const REPORT_EXTRA = [['boneMass', /^bone\s*mass/i, 'lb'], ['proteinMass', /^protein\s*mass/i, 'lb'], ['waterWeight', /^water\s*weight/i, 'lb'], ['idealBodyWeight', /^ideal\s*body\s*weight/i, 'lb'],
+  ['muscleRate', /^muscle\s*rate/i, '%'], ['skeletalMuscle', /^skeletal\s*muscle/i, '%'], ['protein', /^protein(?!\s*mass)\b/i, '%'], ['bodyWater', /^body\s*water/i, '%'], ['subcutaneousFat', /^subcutaneous/i, '%'],
+  ['visceralFat', /^visceral/i, null], ['bmr', /^bmr\b/i, 'kcal'], ['bodyAge', /^body\s*age/i, null], ['whr', /^whr\b/i, null]];
 const REPORT_BLOCKS = [['fat', /^segment(al)?\s*fat(\s*(analysis|mass))?\s*$/i], ['muscle', /^((segment(al)?\s*)?muscle\s*balance(\s*analysis)?|segment(al)?\s*muscle(\s*(analysis|mass))?)\s*$/i]];
 const REPORT_MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 const REPORT_MASS = /(\d{1,4}(?:[.,]\d{1,2})?)\s*(lbs?|[1Il|]bs?|kg)(?![a-z])|(\d{1,4}[.,]\d)16(?![\d%])/gi;
@@ -131,7 +138,8 @@ function reportDate(t) {
   const mi = REPORT_MONTHS.indexOf(month.toLowerCase().slice(0, 3)), d = Number(day);
   if (mi < 0 || d < 1 || d > 31) return null;
   const clock = t.slice(m.index + m[0].length).match(/^[^\d]{0,4}(\d{1,2}):(\d{2})(?:\s*([ap])\.?\s*m\b\.?)?/i);
-  return {date: year + '-' + String(mi + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0'), time: clock ? reportClock(clock[1], clock[2], clock[3]) : null};
+  const any = !clock && t.match(/\b(\d{1,2}):(\d{2})\b/);   // Fitdays prints "21:06 Oct.05,2026": the time comes first
+  return {date: year + '-' + String(mi + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0'), time: clock ? reportClock(clock[1], clock[2], clock[3]) : any ? reportClock(any[1], any[2]) : null};
 }
 function parseFitdaysReport(lines) {
   const items = (lines || []).filter(l => l && typeof l.text === 'string').map(l => ({text: l.text.trim(), x: +l.x || 0, y: +l.y || 0, w: +l.w || 0, h: +l.h || 0})).filter(l => l.text).sort((a, b) => a.y - b.y || a.x - b.x);
@@ -140,7 +148,7 @@ function parseFitdaysReport(lines) {
   const texts = rows.map(r => r.items.slice().sort((a, b) => a.x - b.x).map(i => i.text).join('  ').trim());
   const nums = t => [...t.matchAll(/(\d+(?:[.,]\d+)?)\s*(lb|lbs|kg|%)?/gi)].map(m => ({v: parseFloat(m[1].replace(',', '.')), unit: (m[2] || '').toLowerCase()}));
   const toLb = n => n.unit === 'kg' ? Math.round(n.v / .45359237 * 10) / 10 : n.v;
-  const out = {measurementDate: null, measurementTime: null, wholeBody: {}, segments: [], missing: []};
+  const out = {measurementDate: null, measurementTime: null, wholeBody: {}, extras: {}, segments: [], missing: []};
   const segment = id => { let s = out.segments.find(r => r.id === id); if (!s) { s = {id, fatMassLb: null, muscleBalanceMassLb: null}; out.segments.push(s); } return s; };
   /* the date, and labelled segment rows ("Left arm 3.0 lb 8.7 lb", the V3.4 shape) */
   for (const t of texts) {
@@ -160,6 +168,12 @@ function parseFitdaysReport(lines) {
     if (v === null) { const lh = l.h || 0.015, under = items.filter(o => o.y > l.y + lh * 0.5 && o.y < l.y + lh * 3.5 && Math.abs(o.x - l.x) < Math.max(0.03, (l.w || 0) * 0.5) && isValue(o)).sort((a, b) => a.y - b.y)[0]; if (under) v = valueOf(under.text, whole[2]); }
     if (v !== null) out.wholeBody[whole[0]] = {value: v, unit: whole[2]};
   }
+  for (const l of items) {
+    const extra = REPORT_EXTRA.find(([k, re]) => re.test(l.text) && !out.extras[k]); if (!extra) continue;
+    let v = valueOf(l.text.replace(extra[1], ''), extra[2] === 'lb' ? 'lb' : null);
+    if (v === null) { const right = items.filter(o => o !== l && o.x > l.x && sameRow(o, l) && isValue(o)).sort((a, b) => a.x - b.x)[0]; if (right) v = valueOf(right.text, extra[2] === 'lb' ? 'lb' : null); }
+    if (v !== null) out.extras[extra[0]] = {value: v, unit: extra[2]};
+  }
   /* the segment blocks, by position */
   const heads = items.map(l => ({l, kind: (REPORT_BLOCKS.find(([, re]) => re.test(l.text)) || [])[0]})).filter(h => h.kind);
   const at = (l, i, n) => l.x + (l.w || 0) * ((i + n / 2) / Math.max(1, l.text.length));
@@ -168,19 +182,22 @@ function parseFitdaysReport(lines) {
     const H = head.l, sib = heads.filter(o => sameRow(o.l, H) || Math.abs(o.l.y - H.y) < 0.02).map(o => o.l).sort((a, b) => a.x - b.x), k = sib.indexOf(H);
     const x0 = k > 0 ? sib[k].x - 0.02 : 0, x1 = k < sib.length - 1 ? sib[k + 1].x - 0.02 : 1;
     const inCol = l => l.x < x1 && l.x + (l.w || 0) > x0;
-    const below = items.filter(l => l.y > H.y + (H.h || 0.01) * 0.5 && inCol(l));
-    const stop = below.find(l => heads.some(o => o.l === l) || (/[a-z]{4,}/i.test(l.text) && !l.text.split(/\s+/).every(w => status.test(w) || !/[a-z]{4,}/i.test(w))));
+    const note = l => /\brange\b|\(\s*\d+\s*%\s*[-–]\s*\d+\s*%\s*\)|inferred/i.test(l.text);   // "Standard range: 80%-160%" sits right under the head and is not the end of the block
+    const below = items.filter(l => l.y > H.y + (H.h || 0.01) * 0.5 && inCol(l) && !note(l));
+    const stop = below.find(l => heads.some(o => o.l === l) || (/[a-z]{5,}/i.test(l.text) && !l.text.split(/\s+/).every(w => status.test(w) || !/[a-z]{5,}/i.test(w))));   // five letters: a title ends the block, a misread "Hiah" under a figure does not
     const yEnd = stop ? stop.y : Infinity, inside = below.filter(l => l.y < yEnd);
     const tokens = [], markers = [];
     for (const l of inside) {
       for (const m of reportMasses(l.text)) { const x = at(l, m.index, m.length); if (x >= x0 && x < x1) tokens.push({v: m.v, x, y: l.y, h: l.h}); }
-      let pos = 0; for (const word of l.text.split(/\s+/)) { const i = l.text.indexOf(word, pos); pos = i + word.length; const side = /^(L|left)$/i.test(word) ? 'left' : /^(R|right)$/i.test(word) ? 'right' : null; if (side && (word.length > 1 || word === word.toUpperCase())) markers.push({side, x: at(l, i, word.length)}); }
+      let pos = 0; for (const word of l.text.split(/\s+/)) { const i = l.text.indexOf(word, pos); pos = i + word.length; const bare = word.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g, ''), side = /^(L|left)$/i.test(bare) ? 'left' : /^(R|right)$/i.test(bare) ? 'right' : null; if (side && (bare.length > 1 || bare === bare.toUpperCase())) markers.push({side, x: at(l, i, word.length)}); }
     }
     if (tokens.length < 2) continue;
     const xs = tokens.map(t => t.x), cx = (Math.min(...xs) + Math.max(...xs)) / 2, spread = Math.max(...xs) - Math.min(...xs) || 1;
     const lines2 = []; for (const t of tokens.sort((a, b) => a.y - b.y)) { const r = lines2.find(r => Math.abs(r.y - t.y) < (t.h ? 0.6 * t.h : 0.008)); if (r) r.t.push(t); else lines2.push({y: t.y, t: [t]}); }
     const sideOf = t => { const L = markers.filter(m => m.side === 'left'), R = markers.filter(m => m.side === 'right'); const d = ms => ms.length ? Math.min(...ms.map(m => Math.abs(m.x - t.x))) : Infinity;
-      if (L.length || R.length) return d(L) <= d(R) ? 'left' : 'right'; return t.x < cx ? 'right' : 'left'; };
+      if (L.length && R.length) return d(L) <= d(R) ? 'left' : 'right';
+      if (L.length || R.length) { const m = (L[0] || R[0]), ms = L.length ? 'left' : 'right'; return (t.x < cx) === (m.x < cx) ? ms : ms === 'left' ? 'right' : 'left'; }   // one marker survived the read: it names the side of the figure it stands on
+      return t.x < cx ? 'right' : 'left'; };
     const put = (part, t) => { const s = segment(part); const f = head.kind === 'fat' ? 'fatMassLb' : 'muscleBalanceMassLb'; if (s[f] === null) s[f] = t.v; };
     const limbs = (row, limb, rest) => { const r = row.t.slice().sort((a, b) => a.x - b.x);
       if (r.length >= 2) { const a = r[0], b = r[r.length - 1], sa = sideOf(a), sb = sideOf(b); rest.push(...r.slice(1, -1)); if (sa !== sb) { put(sa + '-' + limb, a); put(sb + '-' + limb, b); } return; }
@@ -426,6 +443,16 @@ class HealthBodyView extends HTMLElement {
     const p = window.GlowLearn && GlowLearn.partition(this.fitdays);
     return p && Number.isFinite(p.wholeFat) ? {weight: p.weight, fat: p.wholeFat, lean: p.weight - p.wholeFat, date: p.date, source: 'Fitdays'} : null;
   }
+  /* Fix B1 (Mintay, Oct 6: Other 26.2 + Fat 73.7 + "Muscle" 122.9 = 222.8 under Total 196.6): the whole body is the report's own three
+     parts, which add up to its weight: Fat mass, Muscle mass and Bone (or what is left, as Other). Fat-free weight is not Muscle: it also holds
+     bone, water and organs. A report without whole-body fat and muscle mass keeps the older figures. */
+  wholeReport() {
+    const r = this.fitdays, w = r && r.wholeBody; if (!w) return null;
+    const val = k => w[k] && Number.isFinite(w[k].value) ? w[k].value : null, weight = val('weight'), fat = val('fatMass'), muscle = val('muscleMass'), bone = r.extras && r.extras.boneMass && Number.isFinite(r.extras.boneMass.value) ? r.extras.boneMass.value : null;
+    if (weight === null || fat === null || muscle === null) return null;
+    const rest = weight - fat - muscle - (bone || 0);
+    return {weight, fat, muscle, bone, other: Math.abs(rest) >= 0.5 ? rest : 0, date: r.measurementDate};
+  }
   otherFigures(report, W) {
     const rows = (report && report.segments) || []; if (!W || Object.keys(FITDAYS_GROUPS).some(g => !rows.some(r => r.id === g))) return null;
     const fat = rows.filter(r => FITDAYS_GROUPS[r.id]).reduce((n, r) => n + r.fatMassLb, 0), muscle = rows.filter(r => FITDAYS_GROUPS[r.id]).reduce((n, r) => n + r.muscleBalanceMassLb, 0);
@@ -478,6 +505,14 @@ class HealthBodyView extends HTMLElement {
       (W ? '<p class="bc-sub">Whole Body: ' + esc(W.source) + ', ' + esc(this.date(W.date, true)) + '. Segments: Fitdays, ' + (report && report.measurementDate ? esc(this.date(report.measurementDate, true)) : 'no report yet') + (report && W.date && report.measurementDate && report.measurementDate !== W.date ? ' (different dates)' : '') + '.</p>' : '') +
       '<p class="bc-sub">Muscle is everything that is not fat (lean mass: water, organs and bone included). Other is head and neck, bone and what the report’s five regions leave over, from your latest weigh-in, so every part plus Other adds up to your weight. A part of a limb or of the trunk is its typical share of that region (est.).</p>' + this.reconciliationHTML() + '</div></details></div>';
     if (f.total === null) return '<section class="bc-card" data-parity="V35-B10-01" aria-label="Body Composition">' + head + '<b class="bc-name">' + esc(name) + '</b><span class="body-na">' + (W || report ? 'Not available at this segmentation' : 'No weigh-in yet.') + '</span></section>';
+    const wr = whole ? this.wholeReport() : null;
+    if (wr) {
+      const pctw = n => (100 * n / wr.weight).toFixed(1) + '%', rowW = (cls, label, value, tone, parity) => '<span class="bc-n ' + cls + '"' + (parity ? ' data-parity="' + parity + '"' : '') + '>' + label + '</span><span class="bc-v ' + cls + '" style="color:' + BC_TONE[tone] + '">' + u.lb(value).toFixed(1) + ' ' + u.mass + '</span><span class="bc-p ' + cls + '" style="color:' + BC_TONE[tone] + '">' + pctw(value) + '</span>';
+      return '<section class="bc-card" data-parity="V35-B10-01" data-bc-source="report" aria-label="Body Composition">' + head + '<b class="bc-name">' + esc(name) + '</b><div class="bc-grid" data-parity="BODY-26">' +
+        rowW('fat', 'Fat', wr.fat, this.fatTone({fat: wr.fat, total: wr.weight}, true)) + rowW('muscle', 'Muscle', wr.muscle, 'none', 'BODY-27') + (wr.bone !== null ? rowW('other', 'Bone', wr.bone, 'none') : '') + (wr.other ? rowW('other', wr.bone !== null ? 'Other' : 'Bone and other', wr.other, 'none') : '') +
+        '<i class="bc-rule" aria-hidden="true"></i>' + '<span class="bc-n total">Total</span><span class="bc-v total">' + u.lb(wr.weight).toFixed(1) + ' ' + u.mass + '</span><span class="bc-p total">100%<em class="bc-eq" data-parity="V35-B11-02" title="Equals the report weight" aria-label="Equals the report weight">✓</em></span>' +
+        '</div>' + this.sourceLine('Fitdays', wr.date, false) + '</section>';
+    }
     const prevReport = report && report.previous, old = !whole && !f.other && prevReport ? this.figuresOf(parts, prevReport, null) : null;
     const pct = n => f.total > 0 ? (100 * n / f.total).toFixed(1) + '%' : '—', row = (cls, label, value, p, tone, extra, parity) => '<span class="bc-n ' + cls + '"' + (parity ? ' data-parity="' + parity + '"' : '') + '>' + label + '</span><span class="bc-v ' + cls + '" style="color:' + BC_TONE[tone] + '">' + u.lb(value).toFixed(1) + ' ' + u.mass + '</span><span class="bc-p ' + cls + '" style="color:' + BC_TONE[tone] + '">' + p + (extra || '') + '</span>';
     const left = W && !f.eq && f.other ? '<span class="bc-left" data-parity="V35-B11-03">' + u.lb(Math.max(0, W.weight - f.total)).toFixed(1) + ' ' + u.mass + ' left out</span>' : '';
@@ -595,7 +630,7 @@ class HealthBodyView extends HTMLElement {
   }
 
   compositionHTML() {
-    if (!this.fitdays) return '<div class="body-fitdays-empty"><label class="filebtn body-import">Add reviewed Fitdays report<input data-body="fitdays" type="file" accept=".zip" aria-label="Add reviewed Fitdays report ZIP"></label></div>';
+    if (!this.fitdays) return '<div class="body-fitdays-empty"><button type="button" class="filebtn body-import" data-body="addReport">Add Fitdays report</button></div>'   /* Fix B3: one door for a Fitdays report: the picture, read on this Mac */;
     const report = this.fitdays;
     return '<section class="body-composition" aria-label="Fitdays regional composition"><h3>Fat &amp; muscle by region</h3><p class="hint">Fitdays · '+this.escape(this.date(report.measurementDate))+' '+this.escape(report.measurementTime || '')+' · report timezone not specified. No other source measures individual regions, so these stay on the Fitdays date'+(report.measurementDate !== this.selected.captureDate ? ', shown on your '+this.escape(this.date(this.selected.captureDate))+' model' : '')+'. Fitdays-reported estimates; segment fat is inferred, and colors identify regions rather than showing fat inside your body.</p><div class="body-composition-cards">'+this.fitdays.segments.map(row => '<button data-body="composition-region" data-region="'+row.id+'" aria-pressed="false" style="--region-color:'+FITDAYS_GROUPS[row.id].color+'"><strong><i aria-hidden="true"></i>'+row.label+'</strong><span><b>'+bodyMass(row.fatMassLb)+'</b> fat</span><span><b>'+bodyMass(row.muscleBalanceMassLb)+'</b> muscle</span></button>').join('')+'</div><p class="hint">Whole-arm, whole-leg and trunk totals. Smaller regions are estimated from these by typical segment mass and read “est.”.</p><details class="body-composition-details"><summary>Report details & comparison percentages</summary><p class="hint">These percentages compare with the Fitdays standard range. They are not regional body-fat percentages or shares of your total. '+(report.sourceSha256?'Transcribed from the saved report image.':'')+(report.extraction?' Entry: '+this.escape(report.extraction)+'.':'')+'</p><table><thead><tr><th>Region</th><th>Fat comparison</th><th>Muscle comparison</th></tr></thead><tbody>'+this.fitdays.segments.map(row=>'<tr><td>'+row.label+'</td><td>'+(Number.isFinite(row.fatComparisonPercent)?row.fatComparisonPercent.toFixed(1)+'%':'—')+'</td><td>'+(Number.isFinite(row.muscleComparisonPercent)?row.muscleComparisonPercent.toFixed(1)+'%':'—')+'</td></tr>').join('')+'</tbody></table>'+(report.sourceSha256?'<p><a class="body-export" href="'+this.asset('fitdays-source.jpg')+'" target="_blank" rel="noopener">View original Fitdays report ↗</a></p>':'<p class="hint">No picture was saved with this report.</p>')+'<p><a class="body-export" href="'+this.asset('fitdays-export.zip')+'" download>Export Fitdays report + values</a></p><label class="filebtn body-import">Add another reviewed Fitdays report<input data-body="fitdays" type="file" accept=".zip" aria-label="Add reviewed Fitdays report ZIP"></label><p class="hint">Fitdays reports are saved separately from your model, photos and HealthAutoExport source.</p></details></section>';
   }
@@ -618,8 +653,8 @@ class HealthBodyView extends HTMLElement {
   measurementHTML() {
     const esc = value => this.escape(value);
     const readings = this.measurements.readings || [];
-    return '<details class="body-measurements"><summary>Body measurements from your export</summary><label class="filebtn body-import">Add HealthAutoExport file<input data-body="measurements" type="file" accept=".zip,.csv" aria-label="Add HealthAutoExport body measurements"></label>' +
-      '<p class="hint">' + (this.measurements.source ? esc(this.measurements.sourceFile) + ' · ' + readings.length + ' body readings' : 'No body-measurement export linked yet.') + '</p>' +
+    return '<details class="body-measurements"><summary>Body measurements from your export</summary>' +
+      '<p class="hint">' + (this.measurements.source ? esc(this.measurements.sourceFile) + ' · ' + readings.length + ' body readings' : 'Health Auto Export brings these in by itself from the folder you connected.') + '</p>' +   /* Fix B3: no second door for Health Auto Export */
       (this.measurements.coverageStart ? '<p class="hint">Export coverage: '+esc(this.measurements.coverageStart)+' – '+esc(this.measurements.coverageEnd)+'. These dates may differ from the model capture date.</p>' : '') +
       '<div class="body-readings">' + (readings.length ? readings.slice(-30).map(r=>'<p><b>'+esc(r.label)+': '+esc(bodyMeasurement(r))+'</b><br><span class="hint">'+esc(r.region === 'whole-body' ? 'Whole body' : r.region)+' · '+esc(r.recordedAt)+' · HealthAutoExport</span></p>').join('') : '<p>Weight, body fat and lean body mass: <b>Not available in this HealthAutoExport file</b></p>') + '</div><p class="hint">Regional fat and muscle: Not available in this HealthAutoExport file. Whole-body values are not assigned to individual limbs.</p>' +
       (this.measurements.source ? '<a class="body-export" href="'+this.asset('measurements.json')+'" download="body-measurement-source.json">Export measurement source details</a>' : '') + '</details>';
@@ -744,7 +779,7 @@ class HealthBodyView extends HTMLElement {
         '<button type="button" class="bs-exit" data-body="fullscreen" data-parity="V35-B13-02" aria-label="Exit full screen" title="Exit full screen (Esc)">' + bodyIcon(BODY_ICONS.shrink, 18) + '</button>' +
         (!this.stage ? '<div class="body-report-sheet" hidden></div>' : '') +
       '</div>' +
-      '<div class="bs-foot">' + (stale ? '<p class="body-stale" data-parity="BODY-39">A newer weigh-in has no segment report yet</p>' : '') + '<p class="body-captured">Model captured ' + esc(this.date(record.captureDate, true)) + '</p></div>' +
+      '<div class="bs-foot">' + (stale ? '<p class="body-stale" data-parity="BODY-39">A newer weigh-in has no segment report yet</p>' : '') + '<p class="body-captured" data-parity="B4-MODEL">Model captured ' + esc(this.date(record.captureDate, true)) + '. A new report updates the numbers, never the model.</p></div>' +
       (!this.stage ? '<div class="body-tools">' + this.toolsHTML() + '</div>' : '') : '';
     this.innerHTML = '<section class="panelcard body-record-card" aria-label="Your body records">' +
       '<p class="body-status hint" role="status" aria-live="polite"></p>' +
@@ -854,8 +889,14 @@ class HealthBodyView extends HTMLElement {
     return '<div class="rep-form" data-entry="' + entry + '">' + (picture ? '<div class="rep-picture">' + picture + '</div>' : '') + '<div class="rep-fields">' +
       (entry === 'read' ? '<p class="hint">Read on this Mac. Check each number against the picture; ' + (miss.size ? 'the outlined ones were not found.' : 'every field was found.') + '</p>' : '<p class="hint">Typed reports are marked self-entered.</p>') +
       '<div class="rep-row"><label class="rep-field' + (miss.has('measurementDate') ? ' miss' : '') + '"><span>Measured on</span><input type="date" data-rep="date" value="' + esc(v.measurementDate || '') + '"></label><label class="rep-field"><span>Time</span><input type="time" data-rep="time" value="' + esc(v.measurementTime || '') + '"></label></div>' +
-      '<div class="rep-grid">' + whole + '</div><p class="cap">Regions</p><div class="rep-segs">' + segs + '</div>' +
+      '<div class="rep-grid">' + whole + '</div>' + this.reportExtrasHTML(v.extras) + '<p class="cap">Regions</p><div class="rep-segs">' + segs + '</div>' +
       '<p class="body-status hint rep-status" role="status"></p><div class="acts"><button class="primary save" data-body="reportSave">' + (entry === 'read' ? 'Confirm and save' : 'Save') + '</button><button data-body="reportClose">Cancel</button></div></div></div>';
+  }
+  /* B2: the remaining table rows, read from the picture and saved with the report; nothing to type. */
+  reportExtrasHTML(extras) {
+    const names = {boneMass: 'Bone', proteinMass: 'Protein mass', waterWeight: 'Water weight', skeletalMuscle: 'Skeletal muscle', muscleRate: 'Muscle rate', subcutaneousFat: 'Subcutaneous fat', visceralFat: 'Visceral fat', bmr: 'BMR', bodyAge: 'Body age', whr: 'WHR', idealBodyWeight: 'Ideal weight', bodyWater: 'Body water', protein: 'Protein share'};
+    const list = Object.entries(extras || {}).map(([k, x]) => (names[k] || k) + ' ' + x.value + (x.unit ? (x.unit === '%' ? '%' : ' ' + x.unit) : '')); if (!list.length) return '';
+    return '<p class="hint rep-extras" data-parity="B2-EXTRAS">Also read from the picture: ' + this.escape(list.join(' · ')) + '.</p>';
   }
   openReport(tab) {
     const sheet = this.querySelector('.body-report-sheet'); if (!sheet) return;
@@ -878,6 +919,7 @@ class HealthBodyView extends HTMLElement {
         /* V3.5 (B6): for a HEIC or an image-only PDF the wrapper sends back a JPEG of what it read; it is shown and saved */
         if (typeof reply.imageBase64 === 'string' && reply.imageBase64) { this.reportImage = reply.imageBase64; picture = '<img alt="The report you chose" src="data:image/jpeg;base64,' + reply.imageBase64 + '">'; } } } catch (_) { values = null; }
     }
+    this.reportExtras = values && values.extras || {};
     box.innerHTML = values ? this.reportFormHTML(values, 'read', picture) : '<p class="hint">This surface cannot read reports; type the numbers beside the picture.</p>' + this.reportFormHTML(null, 'self-entered', picture);
   }
   async saveReport() {
@@ -889,6 +931,7 @@ class HealthBodyView extends HTMLElement {
       wholeBody: Object.fromEntries(this.reportFields().map(([k]) => [k, {value: val('whole.' + k), unit: units[k]}])),
       segments: Object.keys(FITDAYS_GROUPS).map(id => ({id, fatMassLb: val('seg.' + id + '.fat'), muscleBalanceMassLb: val('seg.' + id + '.muscle')}))};
     if (entry === 'read' && this.reportImage) payload.imageBase64 = this.reportImage;
+    if (entry === 'read' && this.reportExtras && Object.keys(this.reportExtras).length) payload.extras = this.reportExtras;   // B2: what else the picture printed
     const empty = Object.entries(payload.wholeBody).filter(([, x]) => x.value === null).length + payload.segments.filter(s => s.fatMassLb === null || s.muscleBalanceMassLb === null).length;
     if (!payload.measurementDate || empty) { say('Fill in the date and every number first.', true); return; }
     this.busy = true; say('Saving…');
