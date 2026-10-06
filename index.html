@@ -1545,6 +1545,16 @@ button.today-fend:hover{background:var(--sunk-2)}.today-fend b{font:600 24px var
 .filt-range{height:34px;padding:0 14px;font-size:13px}
 /* Fix G4: the step row is made of buttons */
 .wf-dots .wf-dot{background:transparent;border:0;color:inherit;font:inherit;display:inline-flex;align-items:center;gap:6px;padding:2px 4px;border-radius:8px;cursor:pointer}.wf-dots .wf-dot:hover{background:var(--sunk)}
+/* Fix C1: no Back and Forward in the page header; a Search pill at the right. Fix C3: a unit never wraps off its number. */
+.topbar #viewNav{display:none!important}
+.page-search-pill{margin-left:auto;align-self:center;height:30px;padding:0 12px;font-size:12px;color:var(--muted);gap:6px}.page-search-pill kbd{font-size:11px;min-width:0;padding:0 5px}
+.wg-card .ck-pv b,.wg-card .ck-pv b small,.wg-card .ck-pv>small{white-space:nowrap}
+/* Fix C4: the Fast Resilience title stays on one line; its notes wrap below it. Fix C3: a unit stays beside its number on Weight & Goal. */
+.fast-res .ph{flex-wrap:wrap}.fast-res .ph h2{white-space:nowrap}
+.wg-card .ck-pv b small{display:inline;margin-left:3px}
+/* Fix C5: the five "at least once" boxes stay in one row, the count under them. Church Calendar's title no longer runs into its date. */
+.fw-pips{flex-wrap:wrap}.fw-prayed .fw-pips{gap:4px}.fw-prayed .fw-pips i{width:16px;height:16px}.fw-pips b{flex-basis:100%;margin-left:0}
+.church-cal .ph{flex-wrap:wrap;gap:2px 8px}.church-cal .ph .hint{flex-basis:100%}
 </style>
 <link rel="stylesheet" href="body-view.css">
 <script type="module" src="model-viewer.min.js"></script>
@@ -2624,7 +2634,7 @@ addEventListener('load', () => {
     const st = S();
     $('#areaTitle').textContent = TITLES[area][0];
     { let pn = $('#pageNote'); if (!pn){ pn = document.createElement('button'); pn.type = 'button'; pn.id = 'pageNote'; pn.className = 'k-icon-btn page-note'; pn.dataset.act = 'openFeedback'; pn.dataset.level = 'page'; pn.innerHTML = '<i class="note-ico" aria-hidden="true"></i>'; $('#areaTitle').after(pn); }
-      let ps = $('#pageSearch'); if (!ps){ ps = document.createElement('button'); ps.type = 'button'; ps.id = 'pageSearch'; ps.className = 'k-icon-btn page-search'; ps.setAttribute('aria-label', 'Search (' + (/Mac|iPhone|iPad/.test(navigator.platform || '') ? '⌘' : 'Ctrl') + '+K)'); ps.title = ps.getAttribute('aria-label'); ps.textContent = '⌕'; ps.addEventListener('click', () => openSearch()); pn.after(ps); }   // V3.7 Z2: a search button in every page header
+      let ps = $('#pageSearch'); if (!ps){ ps = document.createElement('button'); ps.type = 'button'; ps.id = 'pageSearch'; ps.className = 'k-btn page-search-pill'; const mac = /Mac|iPhone|iPad/.test(navigator.platform || ''); ps.setAttribute('aria-label', 'Search (' + (mac ? '⌘' : 'Ctrl') + '+K)'); ps.title = ps.getAttribute('aria-label'); ps.innerHTML = '<span aria-hidden="true">⌕</span> Search <kbd>' + (mac ? '⌘K' : 'Ctrl K') + '</kbd>'; ps.addEventListener('click', () => openSearch()); const tb = document.querySelector('.topbar'); if (tb) tb.append(ps); else pn.after(ps); }   // Fix C1: a Search ⌘K pill at the right of the page header   // V3.7 Z2: a search button in every page header
       pn.hidden = area === 'lessons'; pn.dataset.cardId = 'page:' + area; pn.dataset.cardLabel = TITLES[area][0] + ' (the page)'; pn.setAttribute('aria-label', 'Add a note on the ' + TITLES[area][0] + ' page'); pn.title = 'Note on this page'; }   // V3.7 K4: the first level
     $('#areaSub').textContent = TITLES[area][1];
     $('#previewBadge').hidden = !preview&&!syntheticTest&&!personalReview;
@@ -4179,7 +4189,8 @@ addEventListener('load', () => {
     const hA = SCORES_ON ? healthAgeOf(st) : null, now = hA && hA.now, fitA = hA && hA.fitness, noBirth = !p || p.age === null;
     const ageVal = (t, v, which) => '<button type="button" class="age-row" data-act="growthAge" data-age="' + which + '" aria-label="' + esc('Open ' + t + ' in Growth') + '"><span>' + t + '</span><b>' + (v === null || v === undefined ? '—' : esc(String(v))) + '<small>' + (v === null || v === undefined ? '' : 'yr') + '</small></b></button>';
     const ageCard = card('age-card', null, 'Age', '🧬', null, noBirth ? '<p class="hint keep gr-empty" data-age-empty>Enter your birth year in Body → Goals.</p>' : ageVal('Health Age', now && now.value !== null ? now.value : null, 'health') + ageVal('Fitness Age', fitA && fitA.value !== null ? fitA.label : null, 'fitness') + '<small class="hint keep">Its home is Growth; tap to open it there.</small>');
-    return '<div class="k-grid body-heroes" data-parity="V37-B3-01">' + weightGoal + muscleFat + bmiCard + ageCard + '</div>';
+    const hc = (html, id) => withChip(html, 'profile', id);   // Fix C3: every hero card carries the D W M A C chips
+    return '<div class="k-grid body-heroes" data-parity="V37-B3-01">' + weightGoal + hc(muscleFat, 'musclefat') + hc(bmiCard, 'bmi') + hc(ageCard, 'age') + '</div>';
   }
   function bodyOverview(st){
     if (!SCORES_ON) return '';
@@ -4206,7 +4217,7 @@ addEventListener('load', () => {
     // height, Your Body, then Learn; Goals in the rail.
     // V3.5 (B1, B15, the approved prototype): Overview (must keep), the hero tiles, Your Body, then Vitals beside Fitness
     // Trends, Learn; the interim rank and Goals in the rail.
-    return (SCORES_ON ? '' : filtPageHTML('profile')) + bodyOverview(st) + bodyHeroTiles(st) + '<div class="k-sec-head body-your"><h2>Your Body</h2>' + fixedWin('Latest scan') + '</div><ht-body-view data-fixed-window="Latest scan"></ht-body-view><div class="cols2 profile-cards body-mid" data-parity="BODY-72">' + (SCORES_ON ? withChip(vitalsCardV31(st), 'profile', 'vitals') : '') + fitnessTrendsCard(st) + '</div>' + learnList('body',metricLearnCards(st,BODY_LEARN));
+    return (SCORES_ON ? '' : filtPageHTML('profile')) + bodyHeroTiles(st) + bodyOverview(st) +   /* Fix C3: the four hero cards first */  '<div class="k-sec-head body-your"><h2>Your Body</h2>' + fixedWin('Latest scan') + '</div><ht-body-view data-fixed-window="Latest scan"></ht-body-view><div class="cols2 profile-cards body-mid" data-parity="BODY-72">' + (SCORES_ON ? withChip(vitalsCardV31(st), 'profile', 'vitals') : '') + fitnessTrendsCard(st) + '</div>' + learnList('body',metricLearnCards(st,BODY_LEARN));
   }
   /* ---------- V3.6 M4, M7: goal items on every list. GoalEngine (health-domain.js) does the sums; this draws them. An
      amount or count is a bar with "x of y" and a log button ("+ add 3.1 mi"), with an Auto chip where a source feeds it;
@@ -4685,10 +4696,11 @@ addEventListener('load', () => {
       '<div class="acts"><button class="save" data-act="wsReviewCancel">Done</button></div>';
   }
   function reviewPassRefresh(){ const dlg = document.getElementById('workspaceReview'); if (dlg && dlg.open && workspaceReview && workspaceReview.kind === 'review'){ dlg.innerHTML = reviewPassHTML(); const next = dlg.querySelector('.rv-row .cb:not([disabled]), .rv-row .rep-chip, .acts button'); if (next) next.focus(); } }   // keyboard: the next control keeps focus (P2-23)
-  function soFarCard(){
+  function soFarCard(withClaim){
     const st = S(), rows = onDayRows(st, day), asked = rows.filter(r => r.status || dueOn(st, r, day)), done = rows.filter(r => r.status === 'done').length, total = Math.max(asked.length, done), pct = total ? Math.round(100 * done / total) : 0, nxt = nextAction(rows), words = narrateDay(st, day, todayYmd());
-    return '<section class="panelcard sofar" data-feedback-id="day-narration" data-feedback-label="So Far" data-tidy="keep"><div class="ph"><h2>So Far</h2>' + infoBtn('sofar', 'So Far') + '<button class="link sofar-review" data-act="reviewPass" title="Check things off and place the week’s items on the days you choose">Review</button><span class="sofar-count" data-done="' + done + '" data-total="' + total + '">' + done + ' of ' + total + '</span></div>' + infoPop('sofar', words.text + ' ' + words.basis) + '<p class="sofar-line"><b>' + done + ' done</b>' + (nxt ? ' · ' + esc(nxt.name) + ' next' : total ? ' · nothing left' : '') + '</p><div class="sofar-bar" role="img" aria-label="' + done + ' of ' + total + ' done"><i style="width:' + pct + '%"></i></div></section>';
+    return '<section class="panelcard sofar" data-feedback-id="day-narration" data-feedback-label="So Far" data-tidy="keep"><div class="ph"><h2>So Far</h2>' + infoBtn('sofar', 'So Far') + '<button class="link sofar-review" data-act="reviewPass" title="Check things off and place the week’s items on the days you choose">Review</button><span class="sofar-count" data-done="' + done + '" data-total="' + total + '">' + done + ' of ' + total + '</span></div>' + infoPop('sofar', words.text + ' ' + words.basis) + '<p class="sofar-line"><b>' + done + ' done</b>' + (nxt ? ' · ' + esc(nxt.name) + ' next' : total ? ' · nothing left' : '') + '</p><div class="sofar-bar" role="img" aria-label="' + done + ' of ' + total + ' done"><i style="width:' + pct + '%"></i></div>' + (withClaim ? claimChipHTML(st) : '') + '</section>';   // Fix M2: the same gold Claim chip on Quests' So Far card, only when points are ready
   }
+  function claimChipHTML(st){ const lvl = readyToClaim(st); return lvl && lvl.points ? '<button class="k-chip gold today-claim-chip" data-act="claimAll">Claim ' + (Math.round(lvl.points * 100) / 100).toLocaleString() + '</button>' : ''; }
   function laterCard(){
     const st = S(), rows = onDayRows(st, day).filter(r => r.status === null && dueOn(st, r, day));
     return '<section class="panelcard rail-card" data-feedback-id="coming-up" data-feedback-label="Coming up" data-tidy="keep"><h2>Later Today</h2>' + (rows.length ? rows.slice(0, 4).map(dailyRow).join('') + (rows.length > 4 ? '<p class="hint keep">and ' + (rows.length - 4) + ' more in Activities</p>' : '') : '<p class="hint keep">Nothing else is due today.</p>') + '</section>';
@@ -5056,8 +5068,8 @@ addEventListener('load', () => {
     const rw = r.rw, {within, cost} = learnLevelProgress(st, rw), pts = c => (c.unit === 'quarter-point' ? claimBalance(c) / 4 : claimBalance(c)), recent = (rw.claims || []).slice().sort((a, b) => String(b.claimedAt || '').localeCompare(String(a.claimedAt || '')) || b.date.localeCompare(a.date)).slice(0, 3), f = x => (Math.round(x * 100) / 100).toLocaleString();
     return '<section class="k-card today-level" data-parity="TODAY-21" data-feedback-id="rail-level" data-feedback-label="Level"><div class="k-head"><span aria-hidden="true">✨</span><span class="k-title">Level</span>' + infoBtn('level', 'Level') + '</div>' + infoPop('level', 'Points come from confirmed actions and are kept after the fact; claiming never changes a score. Ready to claim counts every confirmed action not yet claimed, on any day.', 'points-level') +
       '<div class="today-level-top"><button class="orb" data-act="go" data-area="collection" aria-label="Open Collection"></button><div><div class="k-big">' + esc(String(rw.level)) + '</div><div class="today-muted">' + (within !== null && cost ? within + ' of ' + cost : String(rw.toNext) + ' to go') + '</div></div></div>' + (within !== null && cost ? kFill(within / cost, 'var(--verd)') : '') +
-      '<div class="today-claim" data-parity="TODAY-55"><span><b>' + f(r.points) + '</b> ready to claim</span>' + (r.points ? '<button class="k-chip gold" data-act="claimAll">Claim</button>' : '') + '</div>' +
-      (recent.length ? '<div class="k-list">' + recent.map(c => '<div class="k-row"><span class="sym" aria-hidden="true">✦</span><span class="name">' + esc(c.name || c.seriesId || 'Claim') + '</span><span class="val">+' + f(pts(c)) + '</span></div>').join('') + '</div>' : '') + '</section>';
+      '<div class="today-claim" data-parity="TODAY-55"><span><b>' + f(r.points) + '</b> ready to claim</span>' + (r.points || (r.rw.pending || []).length ? '<button class="k-chip gold" data-act="claimAll">Claim all</button>' : '')   /* Fix M1: one Claim all, shown only when something can be claimed */ + '</div>' +
+      (recent.length ? '<p class="hint keep today-recent-cap">Recent claims</p><div class="k-list">' + recent.map(c => '<div class="k-row"><span class="sym" aria-hidden="true">✦</span><span class="name">' + esc(c.name || c.seriesId || 'Claim') + '</span><span class="val">+' + f(pts(c)) + '</span></div>').join('') + '</div>' : '') + '</section>';
   }
   /* V3.5 T2: the Goal card's weight chart: his weight since the start against the plan line to the goal, the goal at
      its date; only the two end values are written. The card opens the weight drawer (tap map: Goal card → weight). */
@@ -5655,7 +5667,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function questHead(){
     const tabs = '<div class="q-tabs" role="tablist" aria-label="Quests views" data-parity="QUESTS-36">' + QUEST_TABS.map(t => '<button role="tab" class="q-tab" aria-selected="' + (questTab === t[0]) + '" data-act="questTab" data-tab="' + t[0] + '"><span aria-hidden="true">' + t[2] + '</span>' + t[1] + '</button>').join('') + '</div>';
     const more = '<details class="more q-more" data-parity="QUESTS-51"><summary aria-label="More in Quests">⋯</summary><div class="more-menu"><button class="link" data-act="questTab" data-tab="plans">Plans, Families and Ideas</button><button class="link" data-act="questTab" data-tab="plans" data-focus="ideas">Ideas and Notes</button><button class="link" data-act="questTab" data-tab="plans" data-focus="stopped">Stopped routines</button></div></details>';
-    return '<div class="q-head">' + tabs + '<div class="q-sofar">' + soFarCard() + '</div>' + more + '</div>';
+    return '<div class="q-head">' + tabs + '<div class="q-sofar">' + soFarCard(true) + '</div>' + more + '</div>';
   }
   function umbrellaChips(st){
     const present = new Set(visibleGroups(st).map(g => g.umbrella).filter(Boolean));
@@ -6072,7 +6084,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const learn = '<div class="fit-learn pg-learn" data-parity="V36-PROGRESS-C10"><span class="cap">Learn</span>' + PROG_CHIPS.map(([id, l]) => '<button type="button" class="k-chip" data-act="learnView" data-learn="' + id + '">📖 ' + esc(l) + '</button>').join('') + '</div>';
     // V3.7 L4 (A5): a card whose window is fixed by design says so on its face; By Group follows the page (the Overall's period)
     const fixedCard = (html, text) => html ? html.replace(/^(\s*<(?:section|div)\b)/, '$1 data-fixed-window="' + esc(text) + '"').replace(/(<span class="k-title">[\s\S]*?<\/span>|<\/h2>)/, '$1' + fixedWin(text)) : '';
-    const PW = progWindow(st), byG = byGroup.replace('<section class="k-card pg-groups"', '<section class="k-card pg-groups"' + winAttrs(PW));
+    const PW = progWindow(st), byG = byGroup.replace('<section class="k-card pg-groups"', '<section class="k-card pg-groups"' + winAttrs(PW)).replace('<span class="k-title">By Group</span>', '<span class="k-title">By Group</span><span class="ck-fchip" data-family="period-chip" role="group" aria-label="Period for this page">' + filtSeg('progress', null, PW.per, true) + '<small class="ck-page">page</small></span>');   // Fix C4: By Group carries the D W M A C chip; it follows the page's period, so its chip sets the page's
     return '<div class="progress" data-period="' + PW.per + '">' + head + hero + '<div class="pg-two">' + byG + mom + '</div><div class="pg-two">' + fixedCard(faithCard, 'Last ' + (f ? f.window : 60) + ' mornings') + fixedCard(fastCard, 'Last 180 days · needs 20 fast days') + '</div><div class="pg-two">' + fixedCard(plan, 'Whole program since ' + monthDay(programStart(st))) + sleepCredit + '</div>' + (suggest || '') + hist + '<div class="pg-two">' + fixedCard(review, 'One week of writing') + '</div>' + fixedCard(whCard, '60 days of a habit before it says anything') + learn + '</div>';
   }
   // P4: momentum over the period's windows (the readings Momentum always used, momentumOf)
