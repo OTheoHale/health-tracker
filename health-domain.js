@@ -1392,7 +1392,18 @@ function gradeTiered(list,tierOf){
    which an earlier build reads as an unknown group and ignores. It is off until he turns it on, so the Overall does not
    move on release day. */
 function umbrellaGradeReport(state,today,period,range,measured,opts){
-  const {from,to,program}=gradePeriod(state,today,period||'day',range,opts),cfg=gradeConfig(state),rows=gradeRows(state,from,to),tiered=to>=V37_RULE_DAY,tierOf=x=>x.tier||gradeTierOf(cfg,x.seriesId,to);
+  const {from,to,program}=gradePeriod(state,today,period||'day',range,opts);
+  // V3.7.1 F5 (audit D-5; his "take ur rec", Oct 5; ASSUMED V371-A1): a window that spans the rule day is graded in two parts, the
+  // days before it by the old rule and the days from it by Required and Stretch, joined by their due counts (gradeSplit). A window
+  // wholly on one side is graded exactly as before, so a past week viewed as a week never moves (A59).
+  // Review R1: a weekly target or a goal window is met over the whole window, not per part: each part keeps its own due count and
+  // takes the whole window's share done (a target met on Oct 1 to 3 is met in a Last 7 days window that ends Oct 7)
+  if(from<V37_RULE_DAY&&to>=V37_RULE_DAY){const whole=new Map(gradeRows(state,from,to).filter(r=>(r.target||r.goal)&&!r.derived&&r.planned>0).map(r=>[r.seriesId,Math.min(1,r.done/r.planned)])),share=r=>whole.has(r.seriesId)&&(r.target||r.goal)&&!r.derived?{...r,done:r.planned*whole.get(r.seriesId)}:r;
+    return gradeSplit(gradeReportOver(state,from,addDays(V37_RULE_DAY,-1),program,period,measured,false,share),gradeReportOver(state,V37_RULE_DAY,to,program,period,measured,true,share));}
+  return gradeReportOver(state,from,to,program,period,measured,to>=V37_RULE_DAY);
+}
+function gradeReportOver(state,from,to,program,period,measured,tiered,share){
+  const cfg=gradeConfig(state),rows=share?gradeRows(state,from,to).map(share):gradeRows(state,from,to),tierOf=x=>x.tier||gradeTierOf(cfg,x.seriesId,to);
   const groupName=gid=>((state.groups||[]).find(g=>g.id===gid)||{}).name||gid||'No card';
   const item=r=>{const c=cfg.items[r.seriesId]||{};return {...r,score:r.planned?100*Math.min(1,r.done/r.planned):null,importance:Number.isFinite(c.importance)?c.importance:GRADE_ITEM_IMPORTANCE,included:c.included!==false,tier:r.derived?'required':gradeTierOf(cfg,r.seriesId,to)};};
   const umbrellas=GRADE_UMBRELLAS.map(u=>{
@@ -1415,6 +1426,29 @@ function umbrellaGradeReport(state,today,period,range,measured,opts){
   for(const u of umbrellas)u.share=wsum&&live.includes(u)?100*u.importance/wsum:0;
   const unassigned=rows.filter(r=>!gradeGroupUmbrella(state,r.gid)).map(item),counted=rows.length-unassigned.length;
   return {from,to,program,period:period||'day',overall,letter:rankLetter(overall),umbrellas,unassigned,counted,listed:unassigned.length,due:rows.length,tiered};
+}
+/* V3.7.1 F5: join the part before the rule day (a, the old rule) and the part from it (b, Required and Stretch). A group's score and
+   an umbrella's level are the two parts' weighted by their due counts (the planned occurrences, as the engine weighs days); the
+   Overall then follows from the umbrellas as always (importance-weighted, the SSS guard where the part from the rule day has
+   Stretch short of 95 percent). Items read n of m over the whole window; the tiers are those of the part from the rule day, with
+   its share of the due count (part) so the drawer's "points to the next letter" stays right. */
+function gradeSplit(a,b){
+  const due=list=>list.filter(x=>x.included!==false&&x.importance>0&&x.score!==null).reduce((n,x)=>n+(x.planned||0),0),live=g=>g&&g.score!==null&&g.included&&g.importance>0;
+  const mix=(va,na,vb,nb)=>va===null||va===undefined?(vb===undefined?null:vb):vb===null||vb===undefined?va:na+nb>0?(va*na+vb*nb)/(na+nb):vb;
+  const join=(la,lb)=>{const m=new Map();for(const x of la.concat(lb)){const y=m.get(x.seriesId);if(!y){m.set(x.seriesId,{...x});continue;}const planned=y.planned+x.planned,done=y.done+x.done;m.set(x.seriesId,{...x,planned,done,score:planned?100*Math.min(1,done/planned):null});}return [...m.values()];};
+  const parts={before:[],after:[]},umbrellas=b.umbrellas.map(ub=>{const ua=a.umbrellas.find(u=>u.id===ub.id),gids=[...new Set(ua.groups.map(g=>g.gid).concat(ub.groups.map(g=>g.gid)))];
+    const groups=gids.map(gid=>{const ga=ua.groups.find(g=>g.gid===gid),gb=ub.groups.find(g=>g.gid===gid);return {...(gb||ga),items:join(ga?ga.items:[],gb?gb.items:[]),score:mix(ga?ga.score:null,ga?due(ga.items):0,gb?gb.score:null,gb?due(gb.items):0),tiers:gb?gb.tiers:null};});
+    const nA=ua.groups.filter(live).reduce((n,g)=>n+due(g.items),0),nB=ub.groups.filter(live).reduce((n,g)=>n+due(g.items),0);parts.before.push({id:ua.id,own:ua.own,due:nA});parts.after.push({id:ub.id,own:ub.own,due:nB});
+    let own=mix(ua.own,nA,ub.own,nB);if(own!==null&&own>=95&&ub.tiers&&ub.tiers.hasStretch&&ub.tiers.R!==null&&ub.tiers.T<0.95)own=94.4;
+    return {...ub,groups,own,tiers:ub.tiers?{...ub.tiers,part:ua.own===null||nA+nB===0?1:nB/(nA+nB)}:null};});
+  const faith=umbrellas.find(u=>u.id==='faith').own;
+  for(const u of umbrellas){u.displayed=u.own!==null&&u.faithOn&&faith!==null?(1-u.faithShare)*u.own+u.faithShare*faith:u.own;u.letter=rankLetter(u.displayed);u.ownLetter=rankLetter(u.own);}
+  const lv=umbrellas.filter(u=>u.included&&u.own!==null&&u.importance>0),wsum=lv.reduce((n,u)=>n+u.importance,0);
+  let overall=wsum?lv.reduce((n,u)=>n+u.own*u.importance,0)/wsum:null;
+  if(overall!==null&&overall>=95&&lv.some(u=>u.tiers&&u.tiers.hasStretch&&u.tiers.T<0.95))overall=94.4;   // Y3: the SSS guard
+  for(const u of umbrellas)u.share=wsum&&lv.includes(u)?100*u.importance/wsum:0;
+  const unassigned=join(a.unassigned,b.unassigned),counted=umbrellas.reduce((n,u)=>n+u.groups.reduce((k,g)=>k+g.items.length,0),0);
+  return {from:a.from,to:b.to,program:b.program,period:b.period,overall,letter:rankLetter(overall),umbrellas,unassigned,counted,listed:unassigned.length,due:counted+unassigned.length,tiered:true,split:{at:b.from,before:{from:a.from,to:a.to,overall:a.overall,tiered:a.tiered,umbrellas:parts.before},after:{from:b.from,to:b.to,overall:b.overall,tiered:b.tiered,umbrellas:parts.after}}};
 }
 // The one way settings change: kind is umbrellas, groups or items; field is importance, included, faith or faithShare.
 function setGradeConfig(state,kind,id,field,value){
@@ -2337,7 +2371,15 @@ function latestMeasurementsOf(state){
   if(drawMemo&&drawMemo.state===state)drawMemo.latest=out;
   return out;
 }
-function latestMeasurement(state,metrics){let best=null;const all=latestMeasurements(state);for(const name of metrics){const x=all.get(name);if(x&&(!best||x.date>best.date||(x.date===best.date&&x.start>best.start)))best=x;}return best;}
+function latestMeasurement(state,metrics,asOf){if(asOf)return latestMeasurementOn(state,metrics,asOf);let best=null;const all=latestMeasurements(state);for(const name of metrics){const x=all.get(name);if(x&&(!best||x.date>best.date||(x.date===best.date&&x.start>best.start)))best=x;}return best;}
+// V3.7.1 F1 (audit D-1): the newest reading on or before a day (a past selected day), read as latestMeasurementsOf reads them
+function latestMeasurementOn(state,metrics,asOf){
+  const H=globalThis.HealthAutoExport,byMetric=haeRowsByMetric(state);let best=null;
+  for(const name of new Set(metrics)){const def=H&&H.metric?H.metric(name):null;if(!def||def.reduce!=='latest')continue;
+    for(const [,r] of byMetric.get(name)||[]){const m=r.unmapped&&r.unmapped.healthAutoExport;if(!m||m.metric!==name||!Number.isFinite(r.value)||(r.clashes||[]).length)continue;const factor=def.units[r.unit];if(!Number.isFinite(factor))continue;
+      const date=sourceLocalDay(r.start);if(date>asOf)continue;if(!best||date>best.date||(date===best.date&&r.start>best.start))best={value:r.value*factor,unit:def.unit,date,start:r.start,source:r.sourceApp||'Apple Health',metric:name};}}
+  return best;
+}
 /* One day's imported nutrition totals, by metric, in canonical units (kcal, g, mL). */
 function importedNutrition(state,date){
   const out={};for(const r of relayedRecords(state,'other')){const metric=r.unmapped?.healthAutoExport?.metric;if(!metric||sourceLocalDay(r.start)!==date||!Number.isFinite(r.value)||(r.clashes||[]).length)continue;if(['dietary_energy','protein','carbohydrates','total_fat','dietary_water','dietary_sugar','alcohol_consumption','caffeine'].includes(metric))out[metric]={value:(out[metric]?.value||0)+r.value,unit:r.unit,source:r.sourceApp};}
