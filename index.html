@@ -1589,6 +1589,10 @@ button.today-fend:hover{background:var(--sunk-2)}.today-fend b{font:600 24px var
 /* Fix P10 */
 .plan-draft{margin:8px 0}.plan-days{display:grid;gap:6px}.plan-day{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 8px;border:1px dashed var(--line);border-radius:10px;min-height:34px}.plan-day>b{width:44px;font-size:12px;color:var(--muted)}
 .plan-chip{border:1px solid var(--category,var(--line));background:var(--sunk);color:var(--ink);border-radius:999px;padding:3px 10px;font-size:12px;cursor:grab}
+/* Fix S1 (Oct 6): a card's chip rows sit on their own row under the title, never beside or over it */
+.k-head,.ph,.k-sec-head,.sec-head{flex-wrap:wrap}
+.fs-break{display:block;flex:0 0 100%;order:19!important;width:100%;height:0;margin:0;padding:0;border:0}
+.ck-fchip,.k-head .ck-fchip,.ph .ck-fchip,.k-sec-head .ck-fchip{order:20!important;margin:2px 0 0;align-self:flex-start}
 </style>
 <link rel="stylesheet" href="body-view.css">
 <script type="module" src="model-viewer.min.js"></script>
@@ -5196,7 +5200,7 @@ addEventListener('load', () => {
   // A card's chip (the "period chip" family): "page" while it follows; a pin dot once it holds its own value
   function filtChipHTML(page, card){
     const s = filtState(page), pin = s.pins[card], cur = pin ? pin.per : s.per;
-    return '<span class="ck-fchip' + (pin ? ' pinned' : '') + '" data-family="period-chip" data-chip="' + esc(card) + '" data-page="' + page + '" role="group" aria-label="Period for this card">' + filtSeg(page, card, cur, true) + (cur === 'custom' ? (() => { const c = filtRange((pin && pin.custom) || s.custom); return c ? '<button type="button" class="filt-range filt-range-card" data-act="filtPick" data-page="' + page + '" data-card="' + esc(card) + '" title="Choose a date range">' + esc(c.from === c.to ? monthDay(c.from) : monthDay(c.from) + ' – ' + monthDay(c.to)) + '</button>' : ''; })() : '') + (pin ? '<i class="ck-pin" title="Pinned: this card keeps its own period until you click the page filter"></i>' : '<small class="ck-page">page</small>') + '</span>';
+    return '<i class="fs-break" aria-hidden="true"></i><span class="ck-fchip' + (pin ? ' pinned' : '') + '" data-family="period-chip" data-chip="' + esc(card) + '" data-page="' + page + '" role="group" aria-label="Period for this card">' + filtSeg(page, card, cur, true) + (cur === 'custom' ? (() => { const c = filtRange((pin && pin.custom) || s.custom); return c ? '<button type="button" class="filt-range filt-range-card" data-act="filtPick" data-page="' + page + '" data-card="' + esc(card) + '" title="Choose a date range">' + esc(c.from === c.to ? monthDay(c.from) : monthDay(c.from) + ' – ' + monthDay(c.to)) + '</button>' : ''; })() : '') + (pin ? '<i class="ck-pin" title="Pinned: this card keeps its own period until you click the page filter"></i>' : '<small class="ck-page">page</small>') + '</span>';
   }
   // The chip goes in a card's header, after its title; the card says its window
   function withChip(html, page, card, w){
@@ -6156,7 +6160,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const learn = '<div class="fit-learn pg-learn" data-parity="V36-PROGRESS-C10"><span class="cap">Learn</span>' + PROG_CHIPS.map(([id, l]) => '<button type="button" class="k-chip" data-act="learnView" data-learn="' + id + '">📖 ' + esc(l) + '</button>').join('') + '</div>';
     // V3.7 L4 (A5): a card whose window is fixed by design says so on its face; By Group follows the page (the Overall's period)
     const fixedCard = (html, text) => html ? html.replace(/^(\s*<(?:section|div)\b)/, '$1 data-fixed-window="' + esc(text) + '"').replace(/(<span class="k-title">[\s\S]*?<\/span>|<\/h2>)/, '$1' + fixedWin(text)) : '';
-    const PW = progWindow(st), byG = byGroup.replace('<section class="k-card pg-groups"', '<section class="k-card pg-groups"' + winAttrs(PW)).replace('<span class="k-title">By Group</span>', '<span class="k-title">By Group</span><span class="ck-fchip" data-family="period-chip" role="group" aria-label="Period for this page">' + filtSeg('progress', null, PW.per, true) + '<small class="ck-page">page</small></span>');   // Fix C4: By Group carries the D W M A C chip; it follows the page's period, so its chip sets the page's
+    const PW = progWindow(st), byG = byGroup.replace('<section class="k-card pg-groups"', '<section class="k-card pg-groups"' + winAttrs(PW)).replace('<span class="k-title">By Group</span>', '<span class="k-title">By Group</span><i class="fs-break" aria-hidden="true"></i><span class="ck-fchip" data-family="period-chip" role="group" aria-label="Period for this page">' + filtSeg('progress', null, PW.per, true) + '<small class="ck-page">page</small></span>');   // Fix C4: By Group carries the D W M A C chip; it follows the page's period, so its chip sets the page's
     return '<div class="progress" data-period="' + PW.per + '">' + head + hero + sundayReviewHTML(st) + '<div class="pg-two">' + byG + mom + '</div><div class="pg-two">' + fixedCard(faithCard, 'Last ' + (f ? f.window : 60) + ' mornings') + fixedCard(fastCard, 'Last 180 days · needs 20 fast days') + '</div><div class="pg-two">' + fixedCard(plan, 'Since ' + monthDay(programStart(st))) + sleepCredit + '</div>' + (suggest || '') + hist + '<div class="pg-two">' + fixedCard(review, 'One week of writing') + '</div>' + fixedCard(whCard, '60 days of a habit before it says anything') + learn + '</div>';
   }
   // P4: momentum over the period's windows (the readings Momentum always used, momentumOf)
@@ -7215,8 +7219,12 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     } finally { watchPolling = false; }
   }
   const watchReportDate = f => { const m = /^(\d{1,2})\.(\d{1,2})\.(\d{2,4})/.exec(String(f.rel).split('/').pop()); if (m){ const y = m[3].length === 2 ? 2000 + +m[3] : +m[3], d = y + '-' + String(+m[1]).padStart(2, '0') + '-' + String(+m[2]).padStart(2, '0'); if (validCalendarDate(d)) return d; } return new Date(f.modifiedAtMs).toLocaleDateString('en-CA'); };
+  /* Fix S2: a Fitdays file whose measurement is already saved (by hand or from this chip) is not offered again. The date is the one in its name (m.d.yy) or its file date,
+     compared with the saved report and the one before it. */
+  function watchSavedDates(){ const out = new Set(), fd = (document.querySelector('ht-body-view') && document.querySelector('ht-body-view').fitdays) || (window.HealthBodySnapshot && window.HealthBodySnapshot.fitdays); if (fd){ if (fd.measurementDate) out.add(fd.measurementDate); if (fd.previous && fd.previous.measurementDate) out.add(fd.previous.measurementDate); } return out; }
+  const watchFitdaysOpen = () => { const saved = watchSavedDates(); return watchUnseen.fitdays.filter(f => !saved.has(watchReportDate(f))); };
   function watchChipsHTML(){
-    const f = watchUnseen.fitdays, i = watchUnseen.ifit; if (!f.length && !i.length) return '';
+    const f = watchFitdaysOpen(), i = watchUnseen.ifit; if (!f.length && !i.length) return '';
     const newest = f.slice().sort((a, b) => b.modifiedAtMs - a.modifiedAtMs)[0];
     return '<div class="watch-chips" data-parity="P1-WATCH">' + (f.length ? '<button type="button" class="k-chip gold" data-act="watchFitdays">' + (f.length === 1 ? 'New Fitdays report (' + esc(monthDay(watchReportDate(newest))) + ')' : f.length + ' new Fitdays reports') + ' · Import</button>' : '') + (i.length ? '<button type="button" class="k-chip gold" data-act="watchIfit">' + i.length + ' new iFIT file' + (i.length === 1 ? '' : 's') + ' · Import</button>' : '') + '</div>';
   }
@@ -9876,7 +9884,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       case 'learnView': learnId = btn.dataset.learn; closeDrawer(); go('learn'); return;
       case 'wsComposerUmb': if (composer){ composerRead(); composer.umb = btn.dataset.v; composer.umbPicked = true; const first = visibleGroups(st).find(g => gradeGroupUmbrella(st, g.id) === composer.umb); if (!first || gradeGroupUmbrella(st, composer.card) !== composer.umb) composer.card = first ? first.id : ''; render(); focusFirst('[data-act="wsComposerUmb"][data-v="' + composer.umb + '"]'); } return;
       case 'gradeOpen': openGradeDrawer(btn.dataset.u, btn.closest('[data-drawer]') ? gradeWin : null); return;   // A2: from inside the drawer, the same window
-      case 'watchFitdays': { const f = watchUnseen.fitdays.slice().sort((a, b) => b.modifiedAtMs - a.modifiedAtMs)[0]; if (!f) return; btn.disabled = true;
+      case 'watchFitdays': { const f = watchFitdaysOpen().slice().sort((a, b) => b.modifiedAtMs - a.modifiedAtMs)[0]; if (!f) return; btn.disabled = true;
         const r = await nativeRequest('watchRead', {id:'fitdays', rels:[f.rel]}); if (!r || !r.ok || !(r.files || []).length){ toast('That report could not be read.'); btn.disabled = false; return; }
         go('profile'); const bv = await watchWait(() => { const e = document.querySelector('ht-body-view'); return e && e.selected && typeof e.openReport === 'function' ? e : null; }, 8000);
         if (!bv){ toast('Open Body, then tap again.'); btn.disabled = false; return; }
