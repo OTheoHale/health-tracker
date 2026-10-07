@@ -135,3 +135,14 @@ ht-body-view{display:block;min-width:0}.body-record-card{padding:24px}.body-reco
 .body-report-card .rc-grid{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(54px,auto);gap:3px 12px;font-size:12px;align-items:baseline}
 .body-report-card .rc-n{color:var(--muted)}.body-report-card .rc-v{font-variant-numeric:tabular-nums;text-align:right}.body-report-card .rc-wide{grid-column:2/4;text-align:right}
 .body-report-card .rc-s{font-size:11px}.body-report-card .rc-s.hi{color:var(--c-orange,#f0a058)}.body-report-card .rc-s.ok{color:var(--c-green,#79d6a9)}.body-report-card .rc-s.lo{color:var(--c-blue,#7fb3f0)}.body-report-card .rc-s.mid{color:var(--muted)}
+
+/* Fix U1, U2: status bars, region bars and trend lines in the report card */
+.body-report-card .rc-grid{grid-template-columns:minmax(0,1fr) 60px auto 84px;gap:4px 10px;align-items:center}
+.body-report-card .rc-sp{display:inline-flex;align-items:center;gap:4px;color:var(--muted);min-height:16px}.body-report-card .rc-sp small{font-size:11px;color:var(--muted)}
+.body-report-card .rc-bar{position:relative;display:flex;height:8px;border-radius:4px;overflow:visible;background:rgba(255,255,255,.06)}
+.body-report-card .rc-bar i{flex:1;height:100%;opacity:.55}.body-report-card .rc-bar i:first-child{border-radius:4px 0 0 4px}.body-report-card .rc-bar i:last-child{border-radius:0 4px 4px 0}
+.body-report-card .rc-bar b{position:absolute;top:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;background:var(--ink,#f3f0e6);box-shadow:0 0 0 2px rgba(0,0,0,.45)}
+.body-report-card .rc-range i{position:absolute;flex:none;top:0}.body-report-card .rc-togo{background:rgba(255,255,255,.06)}.body-report-card .rc-togo i{position:absolute;flex:none;top:0;background:var(--brass,#cfaa5c);opacity:.8;border-radius:4px}
+.body-report-card .rc-wide{grid-column:2/5;text-align:right}
+.body-report-card .rc-sp small{white-space:nowrap}.body-report-card .rc-grid{grid-template-columns:minmax(0,1fr) 76px auto 84px}
+.body-report-card .rc-grid{grid-template-columns:minmax(0,1fr) 76px 84px 84px}.body-report-card .rc-v{white-space:nowrap}

@@ -221,6 +221,25 @@ function parseFitdaysReport(lines) {
     for (const r of lines2.slice(1, -1)) middle.push(...r.t);
     const trunk = middle.sort((a, b) => Math.abs(a.x - cx) - Math.abs(b.x - cx))[0]; if (trunk) put('trunk', trunk);
   }
+  /* Fix U1: each region's percent of standard (printed under its pounds) and the report's own standard ranges (printed under the block heads) */
+  const pctItems = items.filter(l => /^\d+(?:\.\d+)?\s*%$/.test(l.text.trim()));
+  out.segmentRanges = {}; out.segmentPct = {};
+  for (const l of items){
+    const t = l.text.replace(/\s+/g, ' '), rng = re => { const m = re.exec(t); return m ? [+m[m.length - 2], +m[m.length - 1]] : null; };
+    const fat = /standard range:?\s*(\d+)\s*%\s*[-–]\s*(\d+)\s*%\s*$/i.exec(t); if (fat && !/limbs/i.test(t) && !out.segmentRanges.fat) out.segmentRanges.fat = [+fat[1], +fat[2]];
+    const limb = /upper limbs\s*\((\d+)\s*%\s*[-–]\s*(\d+)\s*%\)/i.exec(t); if (limb) out.segmentRanges.muscleLimb = [+limb[1], +limb[2]];
+    const core = /(?:trunk|lower limbs)[^()]*\((\d+)\s*%\s*[-–]\s*(\d+)\s*%\)/i.exec(t); if (core) out.segmentRanges.muscleCore = [+core[1], +core[2]];
+  }
+  for (const head of heads){
+    const H = head.l, sib = heads.filter(o => sameRow(o.l, H) || Math.abs(o.l.y - H.y) < 0.02).map(o => o.l).sort((a, b) => a.x - b.x), k = sib.indexOf(H), x0 = k > 0 ? sib[k].x - 0.02 : 0, x1 = k < sib.length - 1 ? sib[k + 1].x - 0.02 : 1;
+    const next = heads.filter(o => o.l.y > H.y + 0.02).sort((a, b) => a.l.y - b.l.y)[0], yEnd = next ? next.l.y : 1, field = head.kind === 'fat' ? 'fatComparisonPercent' : 'muscleComparisonPercent';
+    for (const seg of out.segments){
+      const v = seg[head.kind === 'fat' ? 'fatMassLb' : 'muscleBalanceMassLb']; if (v === null || v === undefined) continue;
+      const tok = items.filter(l => l.y > H.y && l.y < yEnd && l.x < x1 && l.x + (l.w || 0) > x0 && reportMasses(l.text).some(m => Math.abs(m.v - v) < 0.051));
+      tok.sort((a, b) => a.x - b.x); if (tok.length > 1) { const pick = /^left/.test(seg.id) ? tok[0] : /^right/.test(seg.id) ? tok[tok.length - 1] : tok[0]; tok.length = 0; tok.push(pick); }   // two regions with the same pounds: the left one is the figure's left side, as the pounds were assigned
+      for (const t of tok){ const tx = t.x + (t.w || 0) / 2, cand = pctItems.filter(q => q.y >= t.y - 0.012 && q.y <= t.y + 0.06 && Math.abs(q.x + (q.w || 0) / 2 - tx) < 0.1).sort((a, b) => Math.abs(a.y - t.y) - Math.abs(b.y - t.y))[0]; if (cand && seg[field] === undefined){ seg[field] = parseFloat(cand.text); break; } }
+    }
+  }
   for (const [k] of REPORT_WHOLE) if (!out.wholeBody[k]) out.missing.push(k);
   for (const [k] of REPORT_SEGMENTS) { const s = out.segments.find(r => r.id === k); if (!s || s.fatMassLb === null || s.muscleBalanceMassLb === null) out.missing.push(k); }
   out.segments = REPORT_SEGMENTS.map(([k]) => out.segments.find(r => r.id === k)).filter(Boolean);
@@ -806,6 +825,7 @@ class HealthBodyView extends HTMLElement {
           '<div class="acts" data-parity="BODY-44"><a class="body-export" href="' + this.asset('export.zip') + '" download>Export model + four images</a></div><p class="hint body-limitation" data-parity="BODY-45">' + (record.variant === 'reconstructed-reference' ? 'Reconstructed reference: shape and hidden skin details may be estimated. ' : 'Original-photo references with an approximate generated model. ') + 'This view does not measure body fat, muscle or circumferences.</p></details>' : '')
       : '<div class="body-empty"><details class="body-help inline"><summary aria-label="About your body view">ⓘ</summary><p class="hint">Your 3D model, its four reference photos and your Fitdays reports stay on this Mac. Import the ZIP the body tool makes; you review it before it is saved.</p></details><h3>Keep a dated view of your body</h3><p>Import a ZIP containing your 3D model, its details and four reference images.</p><label class="filebtn body-import">Import body record<input type="file" accept=".zip,application/zip" aria-label="Import body record ZIP" data-body="file"></label></div>') + '</section>';
     // V3.5 K5: the page adds its one note control to each card; this card is drawn here, after the page's pass.
+    { const rc = this.querySelector('.body-report-card'); if (rc) rc.addEventListener('toggle', () => { try { localStorage.setItem('health-tracker.reportCardOpen', rc.open ? '1' : '0'); } catch (_) {} }); }   // U3: the card stays as he left it
     this.dispatchEvent(new CustomEvent('bodyrender', {bubbles: true}));
     const viewer = this.querySelector('model-viewer');
     if (viewer) {
@@ -910,22 +930,45 @@ class HealthBodyView extends HTMLElement {
      everything the saved report holds, in four short blocks, each figure with the report's own status word. */
   reportCardHTML() {
     const r = this.fitdays, w = r && r.wholeBody; if (!w) return '';
-    const e = r.extras || {}, st = r.statuses || {}, lab = r.labels || {}, ctl = r.control || {}, esc = v => this.escape(v), u = window.HealthDisplayUnits || {mass: 'lb', lb: v => v};
-    const fig = (src, k, unit) => { const x = src[k]; return x && Number.isFinite(x.value) ? {v: x.value, unit} : null; };
-    const row = (label, f, status, key) => { if (!f) return ''; const text = f.unit === 'lb' ? u.lb(f.v).toFixed(1) + ' ' + u.mass : f.unit === '%' ? f.v + '%' : f.unit === 'kcal' ? f.v + ' kcal' : String(f.v); const s = status || st[key] || ''; const tone = /^too/i.test(s) || /^high$/i.test(s) ? 'hi' : /^(low|insufficient)$/i.test(s) ? 'lo' : /^excellent$/i.test(s) ? 'ok' : 'mid';
-      return '<span class="rc-n">' + esc(label) + '</span><b class="rc-v">' + esc(text) + '</b><span class="rc-s ' + tone + '">' + esc(s) + '</span>'; };
+    const e = r.extras || {}, st = r.statuses || {}, lab = r.labels || {}, ctl = r.control || {}, ranges = r.segmentRanges || {}, esc = v => this.escape(v), u = window.HealthDisplayUnits || {mass: 'lb', lb: v => v};
+    const hist = (Array.isArray(r.history) ? r.history : []).concat(r.previous && !(r.history || []).some(h => h.measurementDate === r.previous.measurementDate) ? [r.previous] : []).filter(h => h && h.measurementDate && h.measurementDate < r.measurementDate).sort((a, b) => a.measurementDate.localeCompare(b.measurementDate));
+    const fig = (src, k, unit) => { const x = src && src[k]; return x && Number.isFinite(x.value) ? {v: x.value, unit} : null; };
+    /* Fix U1: a status bar in the style of the Goals bars. Its zones are the report's own words, Excellent, Standard, High, Too High (Low only when the report says Low);
+       a dot sits in the zone the report names. Nothing is invented: a figure with no word in the report shows only its value. */
+    const ZONES = [['Excellent', '#79d6a9'], ['Standard', '#b9d96f'], ['High', '#f0a058'], ['Too High', '#e0645c']];
+    const zoneOf = word => { const x = String(word || '').trim().toLowerCase(); return /^too\s*high$/.test(x) ? 'Too High' : /^high$/.test(x) ? 'High' : /^(standard|normal|good|healthy)$/.test(x) ? 'Standard' : /^excellent$/.test(x) ? 'Excellent' : /^(too\s*)?low$|^insufficient$/.test(x) ? 'Low' : null; };
+    const statusBar = word => { const z = zoneOf(word); if (!z) return word ? '<span class="rc-s">' + esc(word) + '</span>' : ''; const zones = z === 'Low' ? [['Low', '#7fb3f0']].concat(ZONES) : ZONES, at = zones.findIndex(x => x[0] === z), n = zones.length;
+      return '<span class="rc-bar" role="img" aria-label="' + esc(word) + '" title="' + esc(word) + '">' + zones.map(x => '<i style="background:' + x[1] + '"></i>').join('') + '<b style="left:' + ((at + .5) / n * 100).toFixed(1) + '%"></b></span>'; };
+    /* U1: a region against the report's own standard range (percent of standard): the range is the green zone, below it blue, above it orange, the dot where the percent is */
+    const rangeBar = (pct, range) => { if (!Number.isFinite(pct) || !range) return ''; const hi = Math.max(pct, range[1]) * 1.15, x = v => Math.min(100, Math.max(0, v / hi * 100)).toFixed(1);
+      return '<span class="rc-bar rc-range" role="img" aria-label="' + pct + ' percent of standard" title="Standard ' + range[0] + '% to ' + range[1] + '%"><i style="left:0;width:' + x(range[0]) + '%;background:#7fb3f0"></i><i style="left:' + x(range[0]) + '%;width:' + (x(range[1]) - x(range[0])).toFixed(1) + '%;background:#79d6a9"></i><i style="left:' + x(range[1]) + '%;right:0;background:#f0a058"></i><b style="left:' + x(pct) + '%"></b></span>'; };
+    /* U2: a trend line once there are two or more reports, with the change since the previous one; one report shows neither */
+    const series = pick => { const out = []; for (const h of hist){ const v = pick(h); if (Number.isFinite(v)) out.push(v); } const c = pick(r); if (Number.isFinite(c)) out.push(c); return out; };
+    const spark = (vals, unit) => { if (vals.length < 2) return ''; const lo = Math.min(...vals), hi = Math.max(...vals), span = hi - lo || 1, W = 44, H = 16, pts = vals.map((v, i) => (i / (vals.length - 1) * (W - 4) + 2).toFixed(1) + ',' + (H - 2 - (v - lo) / span * (H - 4)).toFixed(1)).join(' '), d = vals[vals.length - 1] - vals[vals.length - 2];
+      const txt = Math.abs(d) < 0.05 ? '0' : (d > 0 ? '+' : '−') + (unit === 'lb' ? Math.abs(u.lb(d)).toFixed(1) : unit === '%' || unit === 'pt' ? Math.abs(d).toFixed(1) : String(Math.round(Math.abs(d) * 10) / 10));
+      return '<span class="rc-sp"><svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="Trend, ' + vals.length + ' reports"><polyline fill="none" stroke="currentColor" stroke-width="1.4" points="' + pts + '"/><circle cx="' + pts.split(' ').pop().split(',')[0] + '" cy="' + pts.split(' ').pop().split(',')[1] + '" r="2" fill="currentColor"/></svg><small>' + txt + (unit === 'lb' ? ' ' + esc(u.mass) : unit === '%' ? '%' : unit === 'pt' ? ' pts' : '') + '</small></span>'; };
+    const valTxt = f => f.unit === 'lb' ? u.lb(f.v).toFixed(1) + ' ' + u.mass : f.unit === '%' ? f.v + '%' : f.unit === 'kcal' ? f.v + ' kcal' : String(f.v);
+    const row = (label, f, key, src) => { if (!f) return ''; const status = st[key] || '', vals = src === 'w' ? series(h => (h.wholeBody && h.wholeBody[key] || {}).value) : series(h => (h.extras && h.extras[key] || {}).value);
+      return '<span class="rc-n">' + esc(label) + '</span>' + (spark(vals, f.unit) || '<span class="rc-sp"></span>') + '<b class="rc-v">' + esc(valTxt(f)) + '</b>' + (status ? statusBar(status) : '<span class="rc-s"></span>'); };
     const text = (label, v) => v ? '<span class="rc-n">' + esc(label) + '</span><b class="rc-v rc-wide">' + esc(v) + '</b>' : '';
-    const signedLb = (label, k) => Number.isFinite(ctl[k]) ? '<span class="rc-n">' + esc(label) + '</span><b class="rc-v">' + (ctl[k] > 0 ? '+' : '') + u.lb(ctl[k]).toFixed(1) + ' ' + u.mass + '</b><span></span>' : '';
+    /* U1: the weight-control block as one short "to go" bar per figure: the length is the distance from the current figure to the report's target */
+    const toGo = (label, k, kind) => { if (!Number.isFinite(ctl[k])) return ''; const v = ctl[k], ab = Math.abs(v), txt = (v > 0 ? '+' : v < 0 ? '−' : '') + u.lb(ab).toFixed(1) + ' ' + u.mass, cur = k === 'weight' ? w.weight : k === 'fat' ? w.fatMass : w.muscleMass, base = cur && Number.isFinite(cur.value) ? cur.value : 0, pct = base > 0 ? Math.min(100, ab / base * 100) : 0;
+      return '<span class="rc-n">' + esc(label) + '</span><span class="rc-sp"></span><b class="rc-v">' + esc(txt) + '</b><span class="rc-bar rc-togo" role="img" aria-label="' + esc(label + ' ' + txt + ' to go') + '"><i style="left:0;width:' + pct.toFixed(1) + '%"></i></span>'; };
+    const segRows = kind => { const rows = (r.segments || []).filter(x => FITDAYS_GROUPS[x.id]); if (!rows.length) return ''; const pctKey = kind === 'fat' ? 'fatComparisonPercent' : 'muscleComparisonPercent';
+      return rows.map(x => { const range = kind === 'fat' ? ranges.fat : (/arm/.test(x.id) ? ranges.muscleLimb : ranges.muscleCore), pct = x[pctKey], vals = series(h => { const s = (h.segments || []).find(y => y.id === x.id); return s ? s[pctKey] : null; });
+        return '<span class="rc-n">' + esc(FITDAYS_GROUPS[x.id].label) + '</span>' + (spark(vals, 'pt') || '<span class="rc-sp"></span>') + '<b class="rc-v">' + (Number.isFinite(pct) ? pct + '%' : '') + '</b>' + (rangeBar(pct, range) || '<span class="rc-s"></span>'); }).join(''); };
     const blocks = [
-      ['Composition', row('Weight', fig(w, 'weight', 'lb'), '', 'weight') + row('Fat mass', fig(w, 'fatMass', 'lb'), '', 'fatMass') + row('Fat-free weight', fig(w, 'fatFreeWeight', 'lb'), '', 'fatFreeWeight') + row('Muscle mass', fig(w, 'muscleMass', 'lb'), '', 'muscleMass') + row('Muscle rate', fig(e, 'muscleRate', '%'), '', 'muscleRate') + row('Skeletal muscle', fig(e, 'skeletalMuscle', '%'), '', 'skeletalMuscle') + row('Bone mass', fig(e, 'boneMass', 'lb'), '', 'boneMass')],
-      ['Water and protein', row('Water weight', fig(e, 'waterWeight', 'lb'), '', 'waterWeight') + row('Body water', fig(e, 'bodyWater', '%'), '', 'bodyWater') + row('Protein mass', fig(e, 'proteinMass', 'lb'), '', 'proteinMass') + row('Protein', fig(e, 'protein', '%'), '', 'protein')],
-      ['Fat and risk', row('Body fat', fig(w, 'bodyFatPercentage', '%'), '', 'bodyFatPercentage') + row('BMI', fig(w, 'bmi', ''), '', 'bmi') + row('Subcutaneous fat', fig(e, 'subcutaneousFat', '%'), '', 'subcutaneousFat') + row('Visceral fat', fig(e, 'visceralFat', ''), '', 'visceralFat') + row('WHR', fig(e, 'whr', ''), '', 'whr') + text('Obesity level', lab.obesityLevel) + text('Body type', lab.bodyType)],
-      ['Targets', row('Ideal weight', fig(e, 'idealBodyWeight', 'lb'), '', 'idealBodyWeight') + row('BMR', fig(e, 'bmr', 'kcal'), '', 'bmr') + row('Body age', fig(e, 'bodyAge', ''), '', 'bodyAge') + (Number.isFinite(ctl.targetWeight) ? '<span class="rc-n">Recommended weight</span><b class="rc-v">' + u.lb(ctl.targetWeight).toFixed(1) + ' ' + u.mass + '</b><span></span>' : '') + signedLb('Weight control', 'weight') + signedLb('Fat control', 'fat') + signedLb('Muscle control', 'muscle')]
-    ].filter(b => b[1]);
-    if (!blocks.length) return '';
-    return '<details class="body-report-card" data-parity="K1-REPORT"><summary>Fitdays report · ' + esc(this.date(r.measurementDate, true)) + ' · every figure it holds</summary>' +
-      blocks.map(([t, body]) => '<div class="rc-block"><p class="cap">' + esc(t) + '</p><div class="rc-grid">' + body + '</div></div>').join('') +
-      '<p class="hint">All figures are from the report of ' + esc(this.date(r.measurementDate)) + '; the status words are the report’s own.</p></details>';
+      ['Composition', row('Weight', fig(w, 'weight', 'lb'), 'weight', 'w') + row('Fat mass', fig(w, 'fatMass', 'lb'), 'fatMass', 'w') + row('Fat-free weight', fig(w, 'fatFreeWeight', 'lb'), 'fatFreeWeight', 'w') + row('Muscle mass', fig(w, 'muscleMass', 'lb'), 'muscleMass', 'w') + row('Muscle rate', fig(e, 'muscleRate', '%'), 'muscleRate', 'e') + row('Skeletal muscle', fig(e, 'skeletalMuscle', '%'), 'skeletalMuscle', 'e') + row('Bone mass', fig(e, 'boneMass', 'lb'), 'boneMass', 'e')],
+      ['Water and protein', row('Water weight', fig(e, 'waterWeight', 'lb'), 'waterWeight', 'e') + row('Body water', fig(e, 'bodyWater', '%'), 'bodyWater', 'e') + row('Protein mass', fig(e, 'proteinMass', 'lb'), 'proteinMass', 'e') + row('Protein', fig(e, 'protein', '%'), 'protein', 'e')],
+      ['Fat and risk', row('Body fat', fig(w, 'bodyFatPercentage', '%'), 'bodyFatPercentage', 'w') + row('BMI', fig(w, 'bmi', ''), 'bmi', 'w') + row('Subcutaneous fat', fig(e, 'subcutaneousFat', '%'), 'subcutaneousFat', 'e') + row('Visceral fat', fig(e, 'visceralFat', ''), 'visceralFat', 'e') + row('WHR', fig(e, 'whr', ''), 'whr', 'e') + text('Obesity level', lab.obesityLevel) + text('Body type', lab.bodyType)],
+      ['Targets', row('Ideal weight', fig(e, 'idealBodyWeight', 'lb'), 'idealBodyWeight', 'e') + row('BMR', fig(e, 'bmr', 'kcal'), 'bmr', 'e') + row('Body age', fig(e, 'bodyAge', ''), 'bodyAge', 'e') + (Number.isFinite(ctl.targetWeight) ? '<span class="rc-n">Recommended weight</span><span class="rc-sp"></span><b class="rc-v">' + u.lb(ctl.targetWeight).toFixed(1) + ' ' + u.mass + '</b><span class="rc-s"></span>' : '') + toGo('Weight control', 'weight') + toGo('Fat control', 'fat') + toGo('Muscle control', 'muscle')]
+    ];
+    const fatRows = segRows('fat'), muscleRows = segRows('muscle');
+    if (fatRows) blocks.push(['Fat by region', fatRows]); if (muscleRows) blocks.push(['Muscle by region', muscleRows]);
+    const shown = blocks.filter(b => b[1]); if (!shown.length) return '';
+    const open = (() => { try { return localStorage.getItem('health-tracker.reportCardOpen') === '1'; } catch (_) { return false; } })();
+    return '<details class="body-report-card" data-parity="K1-REPORT"' + (open ? ' open' : '') + '><summary>Fitdays report · ' + esc(this.date(r.measurementDate, true)) + (hist.length ? ' · ' + (hist.length + 1) + ' reports' : '') + '</summary>' +
+      shown.map(([t, body]) => '<div class="rc-block"><p class="cap">' + esc(t) + '</p><div class="rc-grid">' + body + '</div></div>').join('') + '</details>';
   }
   /* B2: the remaining table rows, read from the picture and saved with the report; nothing to type. */
   reportExtrasHTML(extras) {
@@ -954,7 +997,7 @@ class HealthBodyView extends HTMLElement {
         /* V3.5 (B6): for a HEIC or an image-only PDF the wrapper sends back a JPEG of what it read; it is shown and saved */
         if (typeof reply.imageBase64 === 'string' && reply.imageBase64) { this.reportImage = reply.imageBase64; picture = '<img alt="The report you chose" src="data:image/jpeg;base64,' + reply.imageBase64 + '">'; } } } catch (_) { values = null; }
     }
-    this.reportExtras = values && values.extras || {}; this.reportMore = values ? {statuses: values.statuses || {}, labels: values.labels || {}, control: values.control || {}} : null;
+    this.reportExtras = values && values.extras || {}; this.reportMore = values ? {statuses: values.statuses || {}, labels: values.labels || {}, control: values.control || {}, segmentRanges: values.segmentRanges || {}} : null; this.reportSegs = values && values.segments || [];
     box.innerHTML = values ? this.reportFormHTML(values, 'read', picture) : '<p class="hint">This surface cannot read reports; type the numbers beside the picture.</p>' + this.reportFormHTML(null, 'self-entered', picture);
   }
   async saveReport() {
@@ -964,7 +1007,7 @@ class HealthBodyView extends HTMLElement {
     const entry = form.dataset.entry, units = Object.fromEntries(this.reportFields().map(([k, , u]) => [k, u || null]));
     const payload = {entry, measurementDate: (form.querySelector('[data-rep="date"]') || {}).value || null, measurementTime: (form.querySelector('[data-rep="time"]') || {}).value || null,
       wholeBody: Object.fromEntries(this.reportFields().map(([k]) => [k, {value: val('whole.' + k), unit: units[k]}])),
-      segments: Object.keys(FITDAYS_GROUPS).map(id => ({id, fatMassLb: val('seg.' + id + '.fat'), muscleBalanceMassLb: val('seg.' + id + '.muscle')}))};
+      segments: Object.keys(FITDAYS_GROUPS).map(id => { const r = entry === 'read' && (this.reportSegs || []).find(x => x.id === id) || {}; return {id, fatMassLb: val('seg.' + id + '.fat'), muscleBalanceMassLb: val('seg.' + id + '.muscle'), ...(Number.isFinite(r.fatComparisonPercent) ? {fatComparisonPercent: r.fatComparisonPercent} : {}), ...(Number.isFinite(r.muscleComparisonPercent) ? {muscleComparisonPercent: r.muscleComparisonPercent} : {})}; })};
     if (entry === 'read' && this.reportImage) payload.imageBase64 = this.reportImage;
     if (entry === 'read' && this.reportMore) Object.assign(payload, this.reportMore);   // K1: the status words, the two verdicts and the weight-control block
     if (entry === 'read' && this.reportExtras && Object.keys(this.reportExtras).length) payload.extras = this.reportExtras;   // B2: what else the picture printed
