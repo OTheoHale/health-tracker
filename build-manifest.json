@@ -1,10 +1,10 @@
 {
-  "build": "2026-10-07-V4.0.4",
+  "build": "2026-10-07-V4.0.5",
   "files": {
     "body-view.css": "99ac2f68372870c587372c1f4065f47381e29fbfc78009e823e276ece1146ba6",
     "body-view.js": "d5afe4e2baa6526fe73025c2c45d99680f5a6e06a199f0f0779d4a26449b6409",
     "convert-starter.js": "40c333c133bdb5045fd7fe8660861c723ee1a940628a16d6f9bf05ff9cfa0fc4",
-    "delivery.js": "1de8743b73540697175aed758df6dd54f45164aa266814f2d12329eee4dcb18d",
+    "delivery.js": "910c62e1b0f4ed13d5a1db07d91670abd6a6dede86816eb5440320be9639e88e",
     "eotc-calendar.js": "1fcc866733b1160d7f01d603aaa191e7f8879a3f844275941078d33bf5dde0c4",
     "fitness-grade.js": "7fac5c48c897b7e7055a98b5b371a76c682a73dea54d70bcfb88202d605bb6c1",
     "glow-cross.webp": "db5eac33a2a9215aebca6f0c19c95fef9b9518c300c7cd3b0e50072057d21fcd",
@@ -18,7 +18,7 @@
     "icon-192.png": "44ab06f93317174e110f8edba98fd335d37f75d6fc7838844007e8c6617a8909",
     "icon-512.png": "e6857fa64bd57035354f2e0443b5e9d28f67c2242e75282223a4076fd61ba6ec",
     "ifit-reader.js": "7a206ae0d1e4880c5082d1a193961dd66af0148d594b4c1936d1c2559925b0bb",
-    "index.html": "278eb6ac4acae36661ab6f304b8dad0a04174c345372d5275388dbf2cb7a9eac",
+    "index.html": "4fa406388880b3a5d517893e8a1006d8cb9de9b645f8ccf439c5327ed6dd98d6",
     "manifest.webmanifest": "1df1641bf89b82effa7b1c00ef3ae33eddc61a0b9d5524b507d076f797097cef",
     "meal-water.js": "2ec35f37435af8cc8e5af71b16b7f3cc13436ef6150aa77c9373422b64e79a4a",
     "model-viewer.min.js": "774edda21e1be2a0934e460ca5943af1fe3f88da130a9f98bd6a9d611576cacf",
@@ -28,7 +28,7 @@
     "quarter-points.js": "7d8a7554b70172264ce5ee8f6897d02ed0a9c7e271a206f53957785cc258e58d",
     "scores.js": "dd08b7dddf6ef6fffd7af0684f1edd62f9301225e9d494dd6af1065b6b2b2b5f",
     "scoring-v5.js": "2fd45ed76f1105ba8795e2f392162ed1045fda43385f1f70cdd7833c11afef48",
-    "sw.js": "1bab16bf591bbb20dedaf33d0fc10ba3e89c49f1d7390698c5aa4831c717f50c",
+    "sw.js": "37947852242851249be9a1c6810814e165f26d0b97a6ebe194686149042a9909",
     "workout-sessions.js": "7b32542a16720fecabf804e313b23bef8ce1d17f5b72a5a142f7bf307f8d908b",
     "workspace-proposal.js": "4e8f5f8d5ee14e9ae40a74086335d372658ca1a7017de7b9311773b12a5d8090"
   }

@@ -2314,7 +2314,7 @@ addEventListener('load', () => {
   }
   async function scanIntake(resetAcknowledged=false){
     if(!NATIVE||!durableStore.active||!real.autoFeed||real.autoFeed.paused||intake.busy||preview||readOnly)return;
-    if(intakeEditing()){intake.deferred=true;document.querySelectorAll('[data-feedback-id="automatic-intake"] .ph .chip').forEach(el=>el.textContent='Waiting for your edits');document.querySelectorAll('#fresh .fresh-label').forEach(el=>el.textContent='Waiting for your edits');return;}
+    if(intakeEditing()){intake.deferred=true;if(manualSaving>0){document.querySelectorAll('#fresh .fresh-label').forEach(el=>el.textContent='Saving…');}return;}   // Fix AC1: a check waits while he types, quietly: the label keeps "Checked <time>", or "Saving…" while a save runs
     const priorRevision=real.revision,priorError=intake.error,priorDeferred=intake.deferred,priorSkipped=intake.skipped.join('|'),priorCheck=intake.lastCheck;
     intake.busy=true;intake.deferred=false;let drain=false;
     try{
@@ -2441,7 +2441,7 @@ addEventListener('load', () => {
   function intakeCard(compact=false){
     const state=S(),feed=state.autoFeed;
     if(compact&&!feed)return '';
-    const status=feed?(feed.capacityReason?'Paused at capacity':feed.paused?'Paused':intake.error?'Needs attention':intake.deferred?'Waiting for your edits':intake.busy?'Checking local files':'Ready while this app is open'):'Folder not connected';
+    const status=feed?(feed.capacityReason?'Paused at capacity':feed.paused?'Paused':intake.error?'Needs attention':intake.busy?'Checking local files':'Ready while this app is open'):'Folder not connected';
     const tone=feed?(feed.capacityReason?' partial':feed.paused?' quiet':intake.error?' partial':''):' quiet';   // chip colour only; mirrors the status order above
     const projection=sourceProjection(state),report=projection?.report;
     // A blocked feed is worth more than an error message: it needs the one control that clears it.
@@ -2765,7 +2765,7 @@ addEventListener('load', () => {
     const {band,when,detail}=freshnessMeta(S().autoFeed);
     button.style.setProperty('--band',band);button.setAttribute('aria-label','Refresh. Last checked '+when);button.title='Refresh · last checked '+when;
     const label=button.querySelector('.fresh-label'),info=document.querySelector('#info-freshness p');
-    if(label)label.textContent=intake.deferred?'Waiting for your edits':when==='Not checked'?'Not checked yet':'Checked '+when;if(info)info.textContent=detail;
+    if(label)label.textContent=intake.deferred&&manualSaving>0?'Saving…':when==='Not checked'?'Not checked yet':'Checked '+when;   // Fix AC1if(info)info.textContent=detail;
     for(const pill of sourcePillData(S())){
       const el=document.querySelector('[data-source-pill="'+pill.id+'"]');if(!el)continue;
       el.title=pill.detail;el.setAttribute('aria-label',pill.name+' — '+pill.word+'. '+pill.detail);
@@ -4989,7 +4989,7 @@ addEventListener('load', () => {
     const u = unitPrefs(st), f1 = v => (+u.lb(v)).toFixed(1), sgn = (g.diff > 0 ? '+' : g.diff < 0 ? '−' : '') + f1(g.abs) + ' ' + u.mass, col = g.level === 'Aligned' ? 'var(--c-green)' : g.level === 'Watch' ? 'var(--c-yellow)' : 'var(--c-orange)', id = 'wgap-' + (key || 'x');
     return '<div class="ne-gap" data-parity="V36-N3-02" data-gap="' + g.abs.toFixed(2) + '" data-gap-signed="' + g.diff.toFixed(2) + '" data-gap-word="' + g.level + '"><div class="ne-west-top"><span class="ne-west-l">🧾 Logging gap' + infoBtn(id, 'Logging gap') + '</span><b style="color:' + col + '">' + sgn + ' · ' + g.level + '</b></div>' +
       infoPop(id, 'From your ' + monthDay(g.from) + ' weigh-in (' + f1(g.fromWeight) + ' ' + u.mass + '), adding food minus resting and active energy for each day up to ' + monthDay(g.to) + ', the log says ' + f1(g.est) + ' ' + u.mass + '; the scale said ' + f1(g.measured) + '. Scale minus estimate is the thing to watch: above it means food was eaten that was not logged; below, more was burned than recorded or food was logged twice. The meter runs 0 to 2 lb.', 'energy-weight') +
-      '<div class="ne-gap-bar" role="img" aria-label="Logging gap ' + esc(sgn) + ', ' + g.level + '"><i class="ne-gap-mark" style="left:' + (Math.min(1, g.abs / g.max) * 100).toFixed(1) + '%"></i></div><div class="ne-west-sub" data-gap-text>' + esc(g.sentence) + '</div></div>';
+      '<div class="ne-gap-bar" role="img" aria-label="Logging gap ' + esc(sgn) + ', ' + g.level + '"><i class="ne-gap-mark" style="left:' + (Math.min(1, g.abs / g.max) * 100).toFixed(1) + '%"></i></div><div class="ne-west-sub" data-gap-text hidden>' + esc(g.sentence) + '</div></div>';
   }
   /* T1, Bevel's Nutritional Details shape: the net number big in kcal (red for a deficit, blue for a surplus: a direction,
      not a grade), the flame (burn, orange) at the left end and the apple (food, blue) at the right, both tap-to-type in
@@ -8006,7 +8006,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const one=sm.days[sm.days.length-1]||{},hit=sm.days.filter(x=>x.full&&x.net<=ot).length;
     const prior=isDay?(()=>{const s0=programStartOf(st,last),f0=addDays(last,-30),f=f0<s0?s0:f0,t=addDays(last,-1);if(t<f)return null;return NetEnergy.summary(st,f,t).days.filter(x=>x.full&&x.net!==null).pop()||null;})():null;
     const dayBlock=isDay?'<p class="ne-before" data-parity="V36-N6-03" data-ne-day="'+esc(last)+'">'+(one.full&&one.net!==null?'<span class="k-status" style="--s:'+(one.net<=ot?'var(--c-green)':'var(--c-orange)')+'">'+(one.net<=ot?'On track that day':'Not on track that day')+'</span>':'')+(prior?'<small data-prev-at="'+prior.date+'">before <span data-net-before="'+Math.round(prior.net)+'" style="color:'+NE.colour(prior.net)+'">'+NE.fmt(prior.net)+'</span> kcal · '+esc(monthDay(prior.date))+'</small>':'<small>no full day in the 30 before it</small>')+'</p>':'';
-    const head=isDay?'<p class="ne-dayline" data-parity="V36-N6-01">'+(one.net!==null?'Net Energy <b style="color:'+NE.colour(one.net)+'">'+NE.fmt(one.net)+' kcal</b><small>🔥 burn '+kcal(one.burn)+' · 🍎 food '+kcal(one.food)+'</small>':'Net Energy —<small>'+esc(NetEnergy.missingText(one.missing))+'</small>')+'</p>'
+    const head=isDay?'<p class="ne-dayline" data-parity="V36-N6-01">'+(one.net!==null?'Net Energy <b style="color:'+NE.colour(one.net)+'">'+NE.fmt(one.net)+' kcal</b><small>🔥 burn '+kcal(one.burn)+' · 🍎 food '+kcal(one.food)+'</small>':'Net Energy <b title="'+esc(NetEnergy.missingText(one.missing))+'">—</b>')+'</p>'
       :'<p class="ne-dayline" data-parity="V36-N6-01">Net Energy <b style="color:'+NE.colour(sm.logged?sm.total:null)+'">'+(sm.logged?NE.fmt(sm.total)+' kcal':'—')+'</b><small>'+sm.logged+' of '+sm.of+' days logged'+(sm.logged?' · ≈ '+NE.lb(sm.pounds)+' lb':'')+'</small></p>';
     // C07 (the Draft's lead): the signed total, its word and the average-a-day bar against the goal tick (Today's Fuel bar)
     const lv=isDay?one.net:sm.logged?sm.total:null,lbar=isDay?one.net:sm.avg;
@@ -8033,7 +8033,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const status = v === null ? (W.day ? 'No record yet' : 'No record in this period') : W.day ? (v >= goal ? '✓ Goal met' : '↗ ' + n(goal - v) + (unit ? ' ' + unit : '') + ' to go') : (met >= W.days.length * .6 ? '✓ ' : '↗ ') + 'Goal ' + met + ' of ' + W.days.length + ' days';
     return '<section class="k-card k-tile fit-tile2" data-parity="' + parity + '" data-tile="' + id + '" data-value="' + (v === null ? '' : Math.round(v)) + '" data-met="' + met + '" data-feedback-id="fitness-tile-' + id + '" data-feedback-label="' + esc(title) + '"><div class="k-head"><span aria-hidden="true">' + emoji + '</span><span class="k-title">' + esc(title) + '</span>' + infoBtn('fit-' + id, title) + '<button type="button" class="k-open" data-act="fitTileOpen" data-tile="' + id + '" aria-label="Open the ' + esc(title) + ' detail">' + kIco('chevron', 14) + '</button></div>' +
       infoPop('fit-' + id, (W.day ? 'The day’s ' : 'The average a day over the period, ') + title.toLowerCase() + ' against the goal of ' + n(goal) + (unit ? ' ' + unit : '') + (W.day ? '.' : ', and the days that met it.') + ' Tap the card for the chart: hours on a day, days across a range.', learn) +
-      (v === null ? '<div class="k-big dim" style="font-size:28px">—</div>' : '<div class="k-big">' + n(v) + (unit ? '<small>' + esc(unit) + '</small>' : '') + '</div>') + '<span class="k-status">' + esc(status) + '</span><div class="fit-prog">' + kFill(v === null ? 0 : v / goal, colour) + '<small data-prog>' + (W.day ? '' : 'avg ') + (v === null ? '—' : n(v)) + ' of ' + n(goal) + (unit ? ' ' + esc(unit) : '') + '</small></div>' + (id === 'workout' ? workoutsThatMake(W) : '') + '</section>';
+      (v === null ? '<div class="k-big dim" style="font-size:28px">—</div>' : '<div class="k-big">' + n(v) + (unit ? '<small>' + esc(unit) + '</small>' : '') + '</div>') + '<span class="k-status">' + esc(status) + '</span><div class="fit-prog">' + kFill(v === null ? 0 : v / goal, colour) + '<small data-prog>' + (v === null ? 'goal ' + n(goal) + (unit ? ' ' + esc(unit) : '') : (W.day ? '' : 'avg ') + n(v) + ' of ' + n(goal) + (unit ? ' ' + esc(unit) : '')) + '</small></div>' + (id === 'workout' && v !== null ? workoutsThatMake(W) : '') + '</section>';
   }
   // V3.7 U6 (the Draft's spare-space list): the workouts that make the minutes, in the tile's window, each with its minutes
   function workoutsThatMake(W){
