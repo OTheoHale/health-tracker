@@ -3929,7 +3929,10 @@ function wsEdit(state,id,changes,date,options={}){
   if(changes.name!==undefined&&!String(changes.name).trim())throw new Error('Enter an activity name.');
   if(options.scope==='occurrence'||options.scope==='this-day'){if(['parentId','childIds','category','recurrence','budgetQ'].some(key=>wsHas(changes,key)))throw new Error('This structural change needs a dated series version.');const allowed={};for(const key of ['name','anchor','window','order','normal','minimum'])if(wsHas(changes,key))allowed[key]=['normal','minimum'].includes(key)?target(changes[key]):changes[key];return overrideOcc(state,id,date,allowed);}
   if(wsHas(changes,'parentId')){wsMove(state,id,changes.parentId,date);changes={...changes};delete changes.parentId;}
-  return wsRevise(state,id,changes,date);
+  const out=wsRevise(state,id,changes,date);
+  // Fix AA7: a routine's steps travel with it: a new group for the routine is the group of its steps from the same date
+  if(wsHas(changes,'category')){const v=versionFor(series,date);for(const cid of (v&&v.childIds)||[]){const c=state.series.find(s=>s.id===cid),cv=c&&versionFor(c,date);if(cv&&(cv.category||c.category)!==changes.category)wsRevise(state,cid,{category:changes.category},date);}}
+  return out;
 }
 function wsMove(state,id,parentId,date){
   const series=state.series.find(s=>s.id===id);if(!series||!validCalendarDate(date))throw new Error('Choose an activity and valid date.');
