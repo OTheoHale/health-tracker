@@ -1,16 +1,16 @@
 {
-  "build": "2026-10-06-V3.7.30",
+  "build": "2026-10-06-V4",
   "files": {
     "body-view.css": "99ac2f68372870c587372c1f4065f47381e29fbfc78009e823e276ece1146ba6",
     "body-view.js": "7e90540fa526da7a54252f51d7317a7c0fb1c97d07641be06c4b054726ffae2f",
     "convert-starter.js": "40c333c133bdb5045fd7fe8660861c723ee1a940628a16d6f9bf05ff9cfa0fc4",
-    "delivery.js": "27612ee37a943be5bd0b9606b1e91f2e5619d56d299195940ac5ef4a3339bf4f",
+    "delivery.js": "b893a81355ca32fab6eadea87271950b92380526734e913a2f3a4229ab7f7b9a",
     "eotc-calendar.js": "1fcc866733b1160d7f01d603aaa191e7f8879a3f844275941078d33bf5dde0c4",
     "fitness-grade.js": "7fac5c48c897b7e7055a98b5b371a76c682a73dea54d70bcfb88202d605bb6c1",
     "glow-cross.webp": "db5eac33a2a9215aebca6f0c19c95fef9b9518c300c7cd3b0e50072057d21fcd",
     "glow-learn.js": "2ec487dd369525d62cf3b46dce8e8c4d25bd3ea1d9da9d6501e91f92fce70303",
     "glow-mark.webp": "6763ef9b3dff3fadd70a266b876302a53fc6810cd203fdf3f86c6ccc9c1546fa",
-    "glow-views.js": "36e8052726a0d8a875cc40312a9742ac9d0993bb6075874c0de637d7660ed6bd",
+    "glow-views.js": "8186cd7489a9d4f0c1f86ced0d0929180a2015e853ffc7e8b0f15426c3b34300",
     "hae-adapter.js": "5f057b40da3a3b000d9e0363ff09faad4254f5309534ecfab61748a32122fb3c",
     "health-domain.js": "3bc41b06dc38f16eb39deba9d384521025ac8770252b228d3c6fdec6af9a496d",
     "health-store.js": "fabc564ff53fbe7c8c89a903c53cb5d7461d7a8dd4c52a431e003e09bf103d25",
@@ -18,7 +18,7 @@
     "icon-192.png": "44ab06f93317174e110f8edba98fd335d37f75d6fc7838844007e8c6617a8909",
     "icon-512.png": "e6857fa64bd57035354f2e0443b5e9d28f67c2242e75282223a4076fd61ba6ec",
     "ifit-reader.js": "7a206ae0d1e4880c5082d1a193961dd66af0148d594b4c1936d1c2559925b0bb",
-    "index.html": "f760939b880d03744284cd4d8d9a6e01df49e20ba76e31f1b2d5527b71f51cae",
+    "index.html": "11d38ef81a549df020a6c4dcaeb0fb15ea96301fdb11b40acb772a7e7f07bcd1",
     "manifest.webmanifest": "1df1641bf89b82effa7b1c00ef3ae33eddc61a0b9d5524b507d076f797097cef",
     "meal-water.js": "2ec35f37435af8cc8e5af71b16b7f3cc13436ef6150aa77c9373422b64e79a4a",
     "model-viewer.min.js": "774edda21e1be2a0934e460ca5943af1fe3f88da130a9f98bd6a9d611576cacf",
@@ -28,7 +28,7 @@
     "quarter-points.js": "7d8a7554b70172264ce5ee8f6897d02ed0a9c7e271a206f53957785cc258e58d",
     "scores.js": "93c631683d100d3904f49024ab521579e410b86d2b4eb047fec6c682ead96afc",
     "scoring-v5.js": "2fd45ed76f1105ba8795e2f392162ed1045fda43385f1f70cdd7833c11afef48",
-    "sw.js": "e8bf9a6abab16ac5025066621db8bc940f204119646e672bcd3ac429f578bd9b",
+    "sw.js": "e32f7257cd055155e3963470fc38cb148991404fd951f6b983826ed7121a2cfa",
     "workout-sessions.js": "7b32542a16720fecabf804e313b23bef8ce1d17f5b72a5a142f7bf307f8d908b",
     "workspace-proposal.js": "4e8f5f8d5ee14e9ae40a74086335d372658ca1a7017de7b9311773b12a5d8090"
   }

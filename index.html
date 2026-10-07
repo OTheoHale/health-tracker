@@ -1624,6 +1624,74 @@ button.dt-door{cursor:pointer}button.dt-door:hover{border-color:var(--brass,#cfa
 .app.siderail:not(.peeking) .side .nav .nav-grp.closed>button{display:flex}.app.siderail:not(.peeking) .side .nav .nav-grp{align-items:center}
 @media (max-width:900px){.side .nav .nav-head{display:none}.side .nav .nav-grp{display:contents}.side .nav .nav-grp.closed>button{display:flex}}
 .pg-wh{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:baseline;gap:10px;width:100%;padding:8px 0;border:0;border-top:1px solid var(--line);background:none;color:var(--ink);font:inherit;text-align:left;cursor:pointer}.pg-wh:first-of-type{border-top:0}.pg-wh b{font-weight:600;font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pg-wh .pg-fx{font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}.pg-wh .pg-ev{font-size:11px;color:var(--muted);white-space:nowrap}.pg-wh:hover b{color:var(--brass,#cfaa5c)}
+/* ---------- V4 polish (W3, Oct 6): one calm system across every page ---------- */
+:root{--sp1:4px;--sp2:8px;--sp3:12px;--sp4:16px;--sp5:24px}
+body{font-variant-numeric:tabular-nums}   /* numbers line up everywhere */
+/* the window chips: one slim row (D W M A C · 3d 7d 30d 60d), a hairline outline, gold for the chosen one; wraps only when the card is narrow */
+.ck-fchip{max-width:none!important;flex-wrap:wrap;row-gap:2px;gap:0;padding:1px 2px;border-radius:999px;background:transparent!important;border:1px solid var(--line)}
+.ck-fchip .fs-row{display:inline-flex;gap:0}.ck-fchip .fs-trail{flex-basis:auto!important}
+.ck-fchip .fs-trail::before{content:"";align-self:center;width:1px;height:11px;margin:0 3px;background:var(--line)}
+.ck-fchip button{padding:3px 6px!important;font-size:11px!important;line-height:1;color:var(--muted);border-radius:999px}
+.ck-fchip button:hover{color:var(--ink);background:rgba(255,255,255,.05)}
+.ck-fchip button[aria-pressed="true"]{background:rgba(214,176,98,.24)!important;color:var(--ink)!important;box-shadow:inset 0 0 0 1px rgba(214,176,98,.55)}
+.ck-fchip .ck-page{display:none}
+.ck-fchip.pinned{border-color:rgba(214,176,98,.55)}
+/* titles never wrap or collapse; the So Far title had shrunk to nothing under its (i) */
+.k-title,.ph>h2,.rail-sofar .ph h2{white-space:nowrap;flex-shrink:0}
+.rail-sofar .ph h2{margin-right:2px!important;min-width:max-content}
+/* the type floor: nothing under 11 px */
+#main small,#ctxRail small,#appSide small,#main .gap,#main .pg-hprev{font-size:max(11px,.85em)}
+/* tappable things answer the finger: a small press, no layout jump */
+button:not(:disabled):active,[role="button"]:active,.k-chip:active{transform:translateY(1px)}
+.k-card,.panelcard{transition:border-color .15s}
+/* the fold caret stays on the title row, at the right, above the chips */
+.k-head>.fold-caret,.ph>.fold-caret,.k-sec-head>.fold-caret{order:18!important;margin-left:auto}
+.k-head>.fold-caret~.ck-fchip,.ph>.fold-caret~.ck-fchip{margin-left:0}
+/* So Far in the rail: every header piece keeps its size; the line under it never breaks a count */
+.rail-sofar .ph{gap:4px!important}.rail-sofar .ph>*{flex:none}.rail-sofar .ph .sofar-review{padding:4px 10px}.rail-sofar .ph .sofar-count{margin-left:auto}
+.today-perfect .k-status{white-space:nowrap}.today-perfect{flex-wrap:wrap;row-gap:4px}
+/* a card head with no chip row stays on one line; a long fixed-window label gives way first */
+.k-head:not(:has(.ck-fchip)){flex-wrap:nowrap!important}
+.k-head:has(>.fixed-win){flex-wrap:wrap!important;row-gap:0}
+.k-head>.fixed-win{order:30;flex:0 0 100%;margin:0;padding-left:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;color:var(--muted)}   /* a quiet subtitle under the title */
+/* Body's four hero cards: no fold caret (they are always shown), the emoji, title and (i) on one line, the age labels unbroken */
+.body-heroes>.k-card>.k-head>.fold-caret{display:none}
+.body-heroes>.k-card>.k-head{gap:6px;column-gap:6px}
+.body-heroes>.k-card>.k-head>.k-title{font-size:13px}
+.body-heroes .age-row span{white-space:nowrap;font-size:12px}
+.body-heroes .k-card>.note-pencil,.body-heroes .k-card>.k-head .k-icon-btn{flex:none}
+/* Body: Weight & Goal across the top, Muscle & Fat, BMI and Age side by side under it (they were 150 px wide at his window) */
+.body-heroes{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+.body-heroes>.wg-card{grid-column:1/-1!important}
+/* a fixed-window label in a panel header is a quiet subtitle too */
+.ph:has(>.fixed-win){flex-wrap:wrap!important;row-gap:0}.ph>.fixed-win{order:30;flex:0 0 100%;font-size:11px;color:var(--muted)}
+/* Checkpoints in the rail: name and date on the first line, days and plan under it */
+.ck-list li{display:grid!important;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;row-gap:1px;align-items:baseline}
+.ck-list li .ck-name{font-weight:600}.ck-list li>span:nth-child(3){grid-column:2;grid-row:1;text-align:right}.ck-list li>span:nth-child(2){grid-column:1;grid-row:2;font-size:12px;color:var(--muted)}.ck-list li>span:nth-child(4){grid-column:1/-1;font-size:12px;color:var(--muted)}
+.ck-list li>button{grid-column:1/-1;justify-self:start}
+/* Growth Flags: a small line per sign, not a poster */
+.gr-flag svg{width:160px!important;height:24px!important;max-height:24px}.gr-flag svg polyline,.gr-flag svg path{stroke-width:1.6!important;vector-effect:non-scaling-stroke}.gr-flag svg circle{r:2.5}
+.gr-flag{padding:4px 0}
+/* the rail: Template's buttons keep their words on one line; So Far's Perfect line fits with its (i) */
+#ctxRail .shelf.template button,#ctxRail .shelf.template .k-btn,#ctxRail .shelf.template .link{white-space:nowrap}
+#ctxRail .shelf.template .shelf-acts,#ctxRail .shelf.template .acts{flex-wrap:wrap;gap:6px}
+.rail-sofar .today-perfect{gap:8px;font-size:12px}.rail-sofar .today-perfect .k-status{font-size:12px}.rail-sofar .today-perfect .info{flex:none;margin-left:auto}
+#ctxRail .rail-filter .filt-seg button{padding:0 7px!important}#ctxRail .rail-filter .filt-seg{max-width:100%;flex-wrap:wrap}
+#ctxRail :has(>.rep-chip){flex-wrap:wrap;row-gap:6px}#ctxRail .rep-chip{padding:3px 9px}
+/* V4 polish: Collection's lists and pager */
+.corr-fold>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px}.corr-fold>summary::-webkit-details-marker{display:none}
+.corr-fold .crow{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+.corr-fold .crow .link{color:var(--brass,#cfaa5c);font-weight:600}
+.weeknav>button{min-width:28px;height:28px;border:1px solid var(--line);border-radius:999px;background:transparent;color:var(--ink);cursor:pointer}.weeknav>button:hover{border-color:var(--brass,#cfaa5c)}
+/* Data's three doors as calm rows: icon, name, where it goes */
+.dt-doors{grid-template-columns:1fr!important;gap:6px}
+.dt-door{flex-direction:row!important;align-items:center!important;gap:10px!important;padding:8px 12px!important}
+.dt-door b{flex:1}.dt-door small{white-space:nowrap}
+button.dt-door::after{content:"›";color:var(--muted);font-size:16px}
+/* Settings: every field and button in the one style */
+#pt-ateOut,.set-ctl input:not([type]),.set-row input[type="text"]{background:var(--sunk,rgba(0,0,0,.25));color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font:inherit;min-height:32px}
+#main .set-row .ghostbtn,#main [data-act="previewToggle"],#main button.ghostbtn{background:transparent;color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:5px 12px}
+#main button.ghostbtn:hover{border-color:var(--brass,#cfaa5c)}
 </style>
 <link rel="stylesheet" href="body-view.css">
 <script type="module" src="model-viewer.min.js"></script>
@@ -6195,7 +6263,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const f = SCORES_ON ? faithReadinessOf(st) : null, fr = f ? (f.difference === null ? null : Math.round(f.difference * 10) / 10) : null;
     const faithCard = f ? '<section class="k-card pg-faith" data-parity="V36-PROGRESS-C04" data-feedback-id="faith-readiness" data-feedback-label="Faith and Readiness"><div class="k-head"><span aria-hidden="true">🙏</span><span class="k-title">Faith × Readiness</span><button type="button" class="info" data-act="learnView" data-learn="faith-readiness" aria-label="Learn about Faith and Readiness">i</button></div>' +
       '<div class="pg-top"><b class="pg-pct" style="color:' + gvTone('violet') + '">' + (fr === null ? '—' : (fr > 0 ? '+' : '') + fr.toFixed(1)) + '</b><span class="pg-of">Readiness points · last ' + f.window + ' days</span></div>' + (f.enough ? '' : '<p class="hint keep" data-faith-need>Needs ' + f.min + ' of each</p>') +
-      (GV ? GV : GVSAFE).twoGroups({label:'After a full Faith day (' + f.kept.length + ')', values:f.kept, colour:'violet'}, {label:'After other days (' + f.other.length + ')', values:f.other, colour:'green'}, {min:0, max:100, unit:'Readiness', label:'Readiness the morning after a full Faith day against other mornings'}) + '</section>' : '';
+      (GV ? GV : GVSAFE).twoGroups({label:'Full Faith day (' + f.kept.length + ')', values:f.kept, colour:'violet'}, {label:'Other days (' + f.other.length + ')', values:f.other, colour:'green'}, {min:0, max:100, unit:'Readiness', label:'Readiness the morning after a full Faith day against other mornings'}) + '</section>' : '';
     const fastCard = SCORES_ON ? fastResilienceCard(st).replace('<section ', '<section data-parity="V36-PROGRESS-C05" ') : '';
     // P6: On the Plan (the Suggested Target row when Behind) and Sleep Credit (H5)
     const plan = onPlanCard(st).replace('<section ', '<section data-parity="V36-PROGRESS-C06" '), sg = deficitSuggestion(st), suggest = sg && sg.reason === 'behind' ? goalSuggestionCard() : '';   // P6: the Suggested Target only when Behind
@@ -6227,7 +6295,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const learn = '<div class="fit-learn pg-learn" data-parity="V36-PROGRESS-C10"><span class="cap">Learn</span>' + PROG_CHIPS.map(([id, l]) => '<button type="button" class="k-chip" data-act="learnView" data-learn="' + id + '">📖 ' + esc(l) + '</button>').join('') + '</div>';
     // V3.7 L4 (A5): a card whose window is fixed by design says so on its face; By Group follows the page (the Overall's period)
     const PW = progWindow(st), byG = byGroup.replace('<section class="k-card pg-groups"', '<section class="k-card pg-groups"' + winAttrs(PW)).replace('<span class="k-title">By Group</span>', '<span class="k-title">By Group</span><i class="fs-break" aria-hidden="true"></i><span class="ck-fchip" data-family="period-chip" role="group" aria-label="Period for this page">' + filtSeg('progress', null, PW.per, true) + '<small class="ck-page">page</small></span>');   // Fix C4: By Group carries the D W M A C chip; it follows the page's period, so its chip sets the page's
-    return '<div class="progress" data-period="' + PW.per + '">' + head + hero + sundayReviewHTML(st) + '<div class="pg-two">' + byG + mom + '</div><div class="pg-two">' + fixedCard(faithCard, 'Last ' + (f ? f.window : 60) + ' mornings') + fixedCard(fastCard, 'Last 180 days') + '</div><div class="pg-two">' + plan.replace(/^(\s*<(?:section|div)\b)/, '$1 data-fixed-window="program"') + sleepCredit + '</div>' + (suggest || '') + hist + '<div class="pg-two">' + fixedCard(review, 'One week of writing') + '</div>' + fixedCard(whCard, 'Last 180 days') + learn + '</div>';
+    return '<div class="progress" data-period="' + PW.per + '">' + head + hero + sundayReviewHTML(st) + '<div class="pg-two">' + byG + mom + '</div><div class="pg-two">' + fixedCard(faithCard, 'Last ' + (f ? f.window : 60) + ' mornings') + fastCard + '</div><div class="pg-two">' + plan.replace(/^(\s*<(?:section|div)\b)/, '$1 data-fixed-window="program"') + sleepCredit + '</div>' + (suggest || '') + hist + '<div class="pg-two">' + fixedCard(review, 'One week of writing') + '</div>' + fixedCard(whCard, 'Last 180 days') + learn + '</div>';
   }
   // P4: momentum over the period's windows (the readings Momentum always used, momentumOf)
   function progMomentum(st, id, win){
@@ -6789,7 +6857,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const explanation=quarter?'<p>Ordinary full actions earn 1.6 × (importance + difficulty), rounded once to a quarter point. Ratings stay on the 1–3 scale. Care routines share one fixed budget across their leaves. Cardio uses the exact accepted duration; 45 minutes earns 8 points and 60 earns 10.</p><p>Full recurring instances build a 5%, 10%, then 20% continuity bonus after 3, 7, and 14 prior full instances. One-off actions have no continuity bonus. Pending evidence holds the bonus until reviewed; partial care retains its earned leaf shares and restarts the full-instance chain.</p><p>The first level costs 65 points; later costs rise with level. After level 10 each level costs 5 more points than the last, so later levels stay meaningful. The invented mixed 90-day reference reaches levels 10, 15 and 21 at days 30, 60 and 90. This is a test reference, not a personal forecast.</p>':'<p>This record still uses its original progression rule. Existing claims keep their original units. Preview the quarter-point proposal below before adopting a new scoring period.</p>';
     return backdateCard(st,rw)+claimsCard()+(SCORES_ON?perfectCard(st):'')+'<div class="cols2"><section class="panelcard"><h2>'+ (quarter?'Current scoring period':'Confirmed points')+'</h2>'+infoBtn('points-level','points and level')+infoPop('points-level','Confirmed claim balances determine points and level. Historical scoring periods stay separate; corrections are reviewed.')+'<div class="jar-row">'+jarHTML(rw,st,112)+'<div><p class="big">'+rw.orbs+' <small>points</small></p><p>Level '+rw.level+' · '+rw.toNext+' to level '+(rw.level+1)+'</p><progress aria-label="Progress to next level" max="'+level.cost+'" value="'+level.within+'"></progress></div></div><p class="hint">Missed routines never erase valid earnings. A reviewed correction can lower the current level.</p><details><summary>How points and levels work</summary>'+explanation+'</details></section><section class="panelcard"><h2>Today’s recognition</h2>'+recognitionCard(todayYmd())+weekRecognitionCard()+'<p class="hint">Recognition and level are separate from body measurements and health grades.</p></section></div>'+
       '<details class="panelcard"><summary>Preserved scoring history</summary><p>Each claim retains its rule and scoring period. Historical periods are not added to the current period or converted into new awards.</p>'+ (st.rewards.epochs||[]).map(e=>'<p>'+esc(e.id)+' · from '+esc(e.effectiveFrom)+' · '+all.filter(c=>c.epochId===e.id).reduce((n,c)=>n+pointAmount(c,claimBalance(c)),0)+' points</p>').join('')+(st.rewards.legacy?'<p>'+esc(st.rewards.legacy.points)+' original points · level '+esc(st.rewards.legacy.level)+'</p>':'')+'</details>'+
-      (review.length?'<section class="panelcard"><h2>Corrections to review</h2>'+review.map(c=>'<div class="crow"><span>'+esc(c.name)+' · '+esc(medDate(c.date))+'</span><button data-act="reviewClaim" data-claim="'+esc(c.id)+'">Review point adjustment</button></div>').join('')+'</section>':'')+
+      (review.length?'<details class="panelcard plan-fold corr-fold" data-fold="corrections"'+(planFold['corrections']?' open':'')+'><summary><h2 style="display:inline">Corrections to review</h2> <span class="lessons-n">'+review.length+'</span></summary>'+review.map(c=>'<div class="crow"><span>'+esc(c.name)+' · '+esc(medDate(c.date))+'</span><button class="link" data-act="reviewClaim" data-claim="'+esc(c.id)+'">Review</button></div>').join('')+'</details>':'')+
       '<section class="panelcard" data-feedback-id="claim-history" data-feedback-label="Claim history"><div class="weeknav"><button data-act="collectionWeek" data-n="-1" aria-label="Previous claim week">‹</button><h2>Claims · '+esc(monthDay(collectionWeek))+' – '+esc(monthDay(end))+'</h2><button data-act="collectionWeek" data-n="1" aria-label="Next claim week">›</button><button data-act="collectionToday">This week</button></div><p class="hint">Grouped by claim or correction date in '+esc(tzName())+'; times shown in Pacific. Action dates stay unchanged.</p>'+(weekly.length?claimWeekHTML(weekly,collectionWeek):'<p class="hint">No claims this week. Confirm an action, then claim when ready.</p>')+'</section>';
   }
 
@@ -6987,7 +7055,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const where = LESSON_PAGES.map(([id, name, sym]) => '<button type="button" class="k-chip lessons-chip' + (noteDraft.area === name ? ' on' : '') + '" data-act="noteWhere" data-v="' + esc(name) + '" aria-pressed="' + (noteDraft.area === name) + '"' + (LESSON_MAIN.has(id) || lessonMoreWhere || noteDraft.area === name ? '' : ' hidden') + '><span aria-hidden="true">' + sym + '</span>' + esc(name) + '</button>').join('') + (lessonMoreWhere ? '' : '<button type="button" class="k-chip lessons-chip" data-act="noteWhereMore" aria-label="More pages">…</button>');
     const len = noteDraft.text.length;
     const compose = '<section class="k-card lessons-composer" data-feedback-id="lessons-compose" data-feedback-label="Your Suggestion" data-parity="V35-K4-01"><div class="k-head"><span class="k-title">Your Suggestion</span>' + infoBtn('lessons-compose', 'Your Suggestion') + '</div>' + infoPop('lessons-compose', 'Saved on this device and included when you export a private backup. No length limit you will meet. Keep health details in your journal or logs unless you mean to share them.') +
-      '<label for="newNote" class="sr-only">Your suggestion</label><textarea id="newNote" class="lessons-ta" rows="7" maxlength="' + NOTE_MAX + '" placeholder="What should change?">' + esc(noteDraft.text) + '</textarea><div class="lessons-countrow"><span class="lessons-count" id="noteCount">' + (len === 1 ? '1 character' : len.toLocaleString('en-US') + ' characters') + '</span><span class="lessons-keys">↵ saves · ⇧↵ new line</span></div>' +
+      '<label for="newNote" class="sr-only">Your suggestion</label><textarea id="newNote" class="lessons-ta" rows="7" maxlength="' + NOTE_MAX + '" placeholder="What should change?">' + esc(noteDraft.text) + '</textarea><div class="lessons-countrow"><span class="lessons-count" id="noteCount">' + (len === 1 ? '1 character' : len.toLocaleString('en-US') + ' characters') + '</span></div>' +
       '<div class="lessons-label" id="noteAreaLabel">Where in the app?</div><div class="lessons-where" id="noteArea" role="group" aria-labelledby="noteAreaLabel" data-value="' + esc(noteDraft.area) + '">' + where + '</div><div class="lessons-saverow"><button class="k-btn save lessons-save" data-act="addNote">Save</button></div></section>';
     const drafts = (st.feedbackDrafts || []).filter(d => d.status === 'draft');
     const privateDrafts = '<details class="k-card lessons-side" data-feedback-id="lessons-drafts" data-feedback-label="Private card drafts"><summary><span class="k-title">Private Card Drafts</span><span class="lessons-n">' + drafts.length + '</span></summary><p class="hint">Not in the brief until you add them to Lessons.</p>' + (drafts.length ? drafts.map(d => '<div class="row compact"><h3>' + esc(d.cardLabel) + '</h3><p class="hint">' + esc(d.area) + '</p><p class="lesson-text">' + esc(noteText(d) || '(Empty draft)') + '</p><button class="ghost" data-act="reviewFeedback" data-draft="' + esc(d.id) + '">Review draft</button></div>').join('') : '<p class="hint">Use the note button on any card to start a draft.</p>') + '</details>';
@@ -7042,7 +7110,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   // Number keys follow the sidebar, so reordering it can never leave the keyboard map behind. Lessons has no number.
   try { for (const g of JSON.parse(localStorage.getItem('ht-nav-closed') || '[]')){ const grp = document.querySelector('.nav-grp[data-g="' + g + '"]'), h = document.querySelector('.nav-head[data-g="' + g + '"]'); if (grp) grp.classList.add('closed'); if (h) h.setAttribute('aria-expanded', 'false'); } } catch (_) {}   // Fix Y1: folded groups are remembered per viewer
   document.addEventListener('keydown', e => { const h = e.target && e.target.closest && e.target.closest('.nav-head'); if (h && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); h.click(); } });
-  function keyAreas(){ return [...document.querySelectorAll('.nav button[data-area]')].map(b => b.dataset.area).filter(a => a !== 'lessons'); }
+  function keyAreas(){ return [...document.querySelectorAll('.nav button[data-area]')].filter(b => !b.hidden).map(b => b.dataset.area).filter(a => a !== 'lessons'); }   // V4 polish: a hidden page (Log) takes no number
 
   // Points table (V2.0): every value Mintay may change, one form; a save starts a new table from a date.
   const POINT_FIELDS=[['sleepTargetMin','Sleep target (hours)',60],['stepsTarget','Steps target',1],['waterTargetOz','Water target (fl oz)',1],['sodaPct','Soda (points off each)',1],['sodaCapPct','Soda (most off)',1],['alcoholPct','Alcohol (points off each)',1],['alcoholCapPct','Alcohol (most off)',1],['perfectDayPct','Perfect day bonus (%)',1],['perfectWeekPct','Perfect week bonus (%)',1],['dailyCapPct','Daily cap (% of item points)',1]];
@@ -7059,7 +7127,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const t=v5Rule(st,todayYmd()),keep=t.ateOutKeepPct||[100,75,50,30];
     return '<section class="panelcard points-card" data-feedback-id="points-table" data-feedback-label="Points"><div class="ph"><h2>Points</h2><span class="hint">Scoring V2 · table from '+esc(medDate(t.effectiveFrom||st.rewards.ruleStep5.effectiveFrom))+'</span></div><div class="form">'+
       POINT_FIELDS.filter(([k])=>!POINT_TARGETS.has(k)).map(([k,l,unit])=>'<div><label for="pt-'+k+'">'+esc(l)+'</label><input id="pt-'+k+'" type="number" step="any" value="'+esc(String(unit===60?t[k]/60:t[k]))+'"></div>').join('')+
-      '<div class="full"><label for="pt-ateOut">Eating out keeps (% for 1, 2, 3 or more times)</label><input id="pt-ateOut" value="'+esc(keep.slice(1).join(', '))+'"></div>'+
+      '<div class="full"><label for="pt-ateOut">Eating out keeps (% for 1, 2, 3 or more times)</label><input id="pt-ateOut" type="text" value="'+esc(keep.slice(1).join(', '))+'"></div>'+
       '<div><label for="pt-from">Starts</label><input id="pt-from" type="date" value="'+esc(todayYmd())+'"></div><div class="acts"><button class="save" data-act="pointsSave">Save points table</button></div></div><p class="hint">Claimed points never change. The new table scores unclaimed days from its start date. Targets for sleep, steps, water and Net Energy live under Targets.</p></section>'+perfectPointsCard(st);
   }
   // V3.5 K7: Settings → Sleep → Add a night (bedtime, wake time, time asleep), marked self-entered. The Watch's night for
@@ -10373,7 +10441,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   Object.defineProperty(window, 'HealthSelectedDay', {get:() => day, configurable:true});   // test hook (Z3)
   // Z1: a visible hint under every multi-line field; Z3 handler
   const kbHint = () => '<small class="kb-hint" data-kb-hint>' + MOD + '↵ to save · ⇧↵ new line</small>';
-  function decorateHints(root){ (root || document).querySelectorAll('#main textarea, #ctxRail textarea, dialog textarea').forEach(t => { if (t.nextElementSibling && t.nextElementSibling.matches('[data-kb-hint]')) return; t.insertAdjacentHTML('afterend', t.id === 'feedbackText' ? '<small class="kb-hint" data-kb-hint>↵ to add · ⇧↵ new line</small>' : kbHint()); }); }
+  function decorateHints(root){ (root || document).querySelectorAll('#main textarea, #ctxRail textarea, dialog textarea').forEach(t => { if (t.nextElementSibling && t.nextElementSibling.matches('[data-kb-hint]')) return; t.insertAdjacentHTML('afterend', t.id === 'feedbackText' ? '<small class="kb-hint" data-kb-hint>↵ to add · ⇧↵ new line</small>' : t.id === 'newNote' ? '<small class="kb-hint" data-kb-hint>↵ saves · ⇧↵ new line</small>' : kbHint()); }); }
   document.addEventListener('keydown', e => {
     if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && String(e.key).toLowerCase() === 'k'){ e.preventDefault(); openSearch(); return; }
     if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key === ','){ e.preventDefault(); go('settings'); return; }
