@@ -1379,7 +1379,7 @@ const gradeMean=list=>{let w=0,s=0;for(const x of list)if(x.score!==null&&x.incl
    item the level is Required alone, 100 x R, with no cap (A9); where Stretch exists, 95 or more with T under 95 percent is 94.4.
    A dated rule: a window ending before V37_RULE_DAY keeps the old mean. A tier is dated from the day he sets it (tierFrom);
    the defaults (A10): Morning and Night prayer Stretch, everything else Required. */
-const GRADE_TIER_DEFAULTS={'dw-prayer-am':'stretch','dw-prayer-pm':'stretch'};
+const GRADE_TIER_DEFAULTS={};   // Fix T1: his prayers are Required (his words, Oct 6: "clearly required"); nothing is Stretch until he says so
 // Review F5: the tier history is an append-only list [{from, tier}], so a past day keeps the tier it had whatever is flipped later
 function gradeTierOf(cfg,seriesId,to){const c=cfg.items[seriesId]||{},def=GRADE_TIER_DEFAULTS[seriesId]||'required',ok=t=>t==='required'||t==='stretch';
   if(Array.isArray(c.tiers)&&c.tiers.length){let t=def;for(const x of c.tiers)if(x&&validCalendarDate(x.from)&&x.from<=to&&ok(x.tier))t=x.tier;return t;}
@@ -1387,9 +1387,11 @@ function gradeTierOf(cfg,seriesId,to){const c=cfg.items[seriesId]||{},def=GRADE_
 function gradeTiered(list,tierOf){
   const req=list.filter(x=>tierOf(x)!=='stretch'),str=list.filter(x=>tierOf(x)==='stretch'),R0=gradeMean(req),T0=gradeMean(str),cnt=l=>l.filter(x=>x.score!==null&&x.included&&x.importance>0);
   if(R0===null&&T0===null)return {score:null,R:null,T:null,hasStretch:false};
-  // review F4 (ASSUMED V37-A72): with no Required item the level is graded on Stretch alone (100 x T), so doing nothing never scores 85
+  /* Fix T1 (Mintay, Oct 6: "only grade Required"): the grade is the Required percent and nothing else, on every date. Stretch never lowers it; it lifts in one way only: the top
+     rung (SSS, 95) needs at least 95 percent of the Stretch items done, so Required alone tops out at SS (94.4) where the group has Stretch, and a group with none can reach SSS.
+     A group with no Required item due is not graded (Stretch alone is not a grade). This supersedes the 85/15 blend (V3.7 A9/A59) and the rule-day split. */
   const R=R0===null?null:R0/100,hasStretch=T0!==null,T=hasStretch?T0/100:null;
-  let pct=R===null?100*T:hasStretch?100*(0.85*R+0.15*T*R):100*R;if(hasStretch&&R!==null&&pct>=95&&T<0.95)pct=94.4;
+  let pct=R===null?null:100*R;if(hasStretch&&pct!==null&&pct>=95&&T<0.95)pct=94.4;
   return {score:pct,R,T,hasStretch,reqDone:cnt(req).reduce((n,x)=>n+(x.done||0),0),reqDue:cnt(req).reduce((n,x)=>n+(x.planned||0),0),strDone:cnt(str).reduce((n,x)=>n+(x.done||0),0),strDue:cnt(str).reduce((n,x)=>n+(x.planned||0),0)};
 }
 /* umbrellaGradeReport(state, today, period, range): {from, to, overall, letter, umbrellas:[{id, name, own, displayed, faithOn,
@@ -1406,9 +1408,7 @@ function umbrellaGradeReport(state,today,period,range,measured,opts){
   // wholly on one side is graded exactly as before, so a past week viewed as a week never moves (A59).
   // Review R1: a weekly target or a goal window is met over the whole window, not per part: each part keeps its own due count and
   // takes the whole window's share done (a target met on Oct 1 to 3 is met in a Last 7 days window that ends Oct 7)
-  if(from<V37_RULE_DAY&&to>=V37_RULE_DAY){const whole=new Map(gradeRows(state,from,to).filter(r=>(r.target||r.goal)&&!r.derived&&r.planned>0).map(r=>[r.seriesId,Math.min(1,r.done/r.planned)])),share=r=>whole.has(r.seriesId)&&(r.target||r.goal)&&!r.derived?{...r,done:r.planned*whole.get(r.seriesId)}:r;
-    return gradeSplit(gradeReportOver(state,from,addDays(V37_RULE_DAY,-1),program,period,measured,false,share),gradeReportOver(state,V37_RULE_DAY,to,program,period,measured,true,share,tierDay));}
-  return gradeReportOver(state,from,to,program,period,measured,to>=V37_RULE_DAY,undefined,tierDay);
+  return gradeReportOver(state,from,to,program,period,measured,true,undefined,tierDay);   // Fix T1: one rule for every date, no split at the Oct 5 rule day
 }
 function gradeReportOver(state,from,to,program,period,measured,tiered,share,tierDay){
   const cfg=gradeConfig(state),rows=share?gradeRows(state,from,to).map(share):gradeRows(state,from,to),tierAt=tierDay||to,tierOf=x=>x.tier||gradeTierOf(cfg,x.seriesId,tierAt);
@@ -1422,7 +1422,7 @@ function gradeReportOver(state,from,to,program,period,measured,tiered,share,tier
     // Y3 at umbrella level: R and T are the importance-weighted means of the groups' R and T (the measured groups count in R)
     let own=gradeMean(groups),tiers=null;
     if(tiered){const lv=groups.filter(g=>g.score!==null&&g.included&&g.importance>0),rg=lv.map(g=>({score:g.tiers?(g.tiers.R===null?null:100*g.tiers.R):g.score,importance:g.importance,included:true})),tg=lv.filter(g=>g.tiers&&g.tiers.hasStretch).map(g=>({score:100*g.tiers.T,importance:g.importance,included:true}));
-      const R0=gradeMean(rg),T0=gradeMean(tg);if(R0!==null||T0!==null){const R=R0===null?null:R0/100,hasStretch=T0!==null,T=hasStretch?T0/100:null;let pct=R===null?100*T:hasStretch?100*(0.85*R+0.15*T*R):100*R;if(hasStretch&&R!==null&&pct>=95&&T<0.95)pct=94.4;own=pct;
+      const R0=gradeMean(rg),T0=gradeMean(tg);if(R0!==null||T0!==null){const R=R0===null?null:R0/100,hasStretch=T0!==null,T=hasStretch?T0/100:null;let pct=R===null?null:100*R;if(hasStretch&&pct!==null&&pct>=95&&T<0.95)pct=94.4;own=pct;
         const sum=(k)=>lv.reduce((n,g)=>n+(g.tiers?g.tiers[k]||0:0),0);tiers={R,T,hasStretch,reqDone:sum('reqDone'),reqDue:sum('reqDue'),strDone:sum('strDone'),strDue:sum('strDue')};}}
     return {id:u.id,name:u.name,emoji:u.emoji,groups,own,tiers,importance:set.importance,included:set.included,faithOn:set.faith,faithShare:set.faithShare};
   });
