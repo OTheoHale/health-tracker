@@ -1573,7 +1573,8 @@ button.today-fend:hover{background:var(--sunk-2)}.today-fend b{font:600 24px var
 .rail-top{display:flex;flex-direction:column;gap:6px;padding:8px 10px;border:1px solid var(--line);border-radius:14px;background:var(--panel-2,rgba(12,34,26,.92))}
 .rail-top .rh-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}.rail-top .rh-top b{font:600 15px var(--serif,inherit)}.rail-top .rh-top small{font-size:11px;color:var(--muted)}
 .rail-top .rh-date{display:flex;align-items:center;gap:6px}.rail-top .rh-date b{font-size:13px;white-space:nowrap}.rail-top .rh-date .k-btn{height:26px;padding:0 10px;font-size:12px;margin-left:auto}
-.rail-top .filt-bar{margin:0;gap:6px;flex-wrap:wrap}.rail-top .filt-seg button{min-height:26px;height:26px;padding:0 9px;font-size:12px}.rail-top .filt-range{height:26px;padding:0 10px;font-size:12px}
+.rail-top .filt-bar,.rail-filter .filt-bar{margin:0;gap:6px;flex-wrap:wrap}.rail-top .filt-seg button,.rail-filter .filt-seg button{min-height:26px;height:26px;padding:0 9px;font-size:12px}.rail-top .filt-range,.rail-filter .filt-range{height:26px;padding:0 10px;font-size:12px}
+.rail-filter{padding:8px 10px;border:1px solid var(--line);border-radius:14px;background:var(--panel-2,rgba(12,34,26,.92))}
 .rail-pin .rail-sofar{margin:0;padding:12px 14px}.rail-sofar .ph{flex-wrap:nowrap;gap:6px}.rail-sofar .ph h2{white-space:nowrap;font-size:16px;margin-right:24px}.rail-sofar .sofar-line,.rail-sofar .today-perfect{font-size:13px}
 /* Fix R1: the page filter's two chip rows and a card's two chip rows */
 .filt-segs{display:flex;flex-direction:column;gap:4px;align-items:flex-start}.filt-segs .filt-seg button{min-width:0}.filt-trails button{font-size:12px}
@@ -3644,7 +3645,7 @@ addEventListener('load', () => {
     const flags = [flagOf('rr', 'Breathing', '🫁', 'rr'), flagOf('spo2', 'Blood Oxygen', '🩸', 'spo2'), flagOf('temp', 'Wrist Temperature', '🌡️', 'temp'), floorOf(s0.floors[0], 'Walking Speed', '🚶'), floorOf(s0.floors[1], 'Six-Minute Walk', '🏁')], outN = flags.filter(f => f.out).length;
     const flagCard = '<section class="k-card gr-flags" data-parity="V36-GROWTH-C06" data-feedback-id="growth-flags" data-feedback-label="Flags"><div class="k-head"><span aria-hidden="true">🚩</span><span class="k-title">Flags</span><button type="button" class="info" data-act="learnView" data-learn="early-warning" aria-label="Learn about Early Warning">i</button></div><p class="gr-fsum" data-flag-sum style="color:' + GV.tone(outN ? 'orange' : 'green') + '">' + (outN ? '● ' + outN + ' outside' : '✓ All normal') + '</p>' + flags.map(f => f.html).join('') + '</section>';
     const learn = '<div class="fit-learn gr-learn" data-parity="V36-GROWTH-C07"><span class="cap">Learn</span>' + GROWTH_CHIPS.map(([id, l]) => '<button type="button" class="k-chip" data-act="learnView" data-learn="' + id + '">📖 ' + esc(l) + '</button>').join('') + '</div>';
-    return '<div class="growth" data-period="' + W.per + '">' + ref + '<div class="gr-two">' + hero + fitTileG + '</div>' + gainCard + '<div class="gr-two">' + fh + ab + '</div>' + flagCard + learn + '</div>';
+    return '<div class="growth" data-period="' + W.per + '">' + ref + '<div class="gr-two">' + fixedCard(hero, 'latest estimate') + fitTileG + '</div>' + gainCard + '<div class="gr-two">' + fh + ab + '</div>' + fixedCard(flagCard, 'latest readings') + learn + '</div>';
   }
   // G1: the Overall Grade in Growth's rail, compact (its period is the page's own control)
   function growthRailOverall(st){
@@ -4223,17 +4224,27 @@ addEventListener('load', () => {
       (est ? '<div class="ck-pv hero-proj" data-parity="V35-B5-01" data-est="' + est.point.toFixed(2) + '" title="' + esc('logged ' + est.logged + ' of ' + est.of + ' days' + (wgap ? ' · gap ' + NE.lb(u.lb(wgap.diff)) + ' ' + u.mass : '')) + '"><small>Est.' + infoBtn('weight-proj', 'Weight estimate') + '</small><b data-est-v>' + u.lb(est.point).toFixed(1) + '<small>' + esc(u.mass) + '</small></b></div>' : '') + '</div>' : '<div class="k-big dim">—</div>';
     const wgLogged = est ? '<small class="wg-logged">logged ' + est.logged + ' of ' + est.of + ' days' + (wgap ? ' · <span class="hero-gap" data-gap-signed="' + wgap.diff.toFixed(2) + '">gap ' + NE.lb(u.lb(wgap.diff)) + ' ' + esc(u.mass) + '</span>' : '') + '</small>' : '';
     const weightGoal = withChip(card('wg-card', 'BODY-22', 'Weight & Goal', '⚖️', 'weight', '<div class="wg-top">' + wgPair + wgSide + '</div>' + projPop + weightPlanChart(st, HW, {h:92}) + (w ? '<div class="body-hero-line">' + freshChip(w.date, 'BODY-24', asOf) + windows(w.value, 'weight_body_mass', w.date, down) + differ('w') + '</div>' : ''), ' data-family="weight-plan"' + (HW.day ? ' data-win-day' : '')), 'profile', 'weightgoal', HW);   // V3.7 L2: at Day the two-week and four-week windows stay in the page, hidden (B1's Day shows the weigh-in before as a number)
+    /* Fix V1: Muscle & Fat and BMI read as of the end of their window and show the change over it (the last reading before the window
+       to the last reading in it); at Day they keep the comparison they had. Age is the latest estimate and says so. */
+    const MFW = filtWin('profile', 'musclefat'), BMW = filtWin('profile', 'bmi'), asOfW = W => W.to < asOf ? W.to : asOf;
+    const sinceBefore = (metric, W) => W.from === W.to || !x ? null : Scores.latestReading(x, metric, addDays(W.from, -1), 120);
+    const sinceChip = (W, delta, text, goodDown) => '<span class="k-status hero-window" data-window="' + W.per + '" data-since="' + W.from + '"' + (goodDown === null ? '' : ' style="--s:var(--c-' + ((delta < 0) === goodDown ? 'green' : 'orange') + ')"') + '><i aria-hidden="true">' + (delta < 0 ? '↓' : '↑') + '</i>' + text + ' since ' + esc(monthDay(W.from)) + '</span>';
+    const leanW = lean && MFW.to < asOf ? bodyReading(st, ['lean_body_mass'], fitdays, asOfW(MFW)) : lean, fatW = fat && MFW.to < asOf ? bodyReading(st, ['body_fat_percentage'], fitdays, asOfW(MFW)) : fat;
+    const leanBefore = leanW ? sinceBefore('lean_body_mass', MFW) : null, fatBefore = fatW ? sinceBefore('body_fat_percentage', MFW) : null, ftW = fatW && SCORES_ON ? Scores.tier('body_fat_percentage', fatW.value, whoOf(p)) : null;
+    const leanLb = leanW && leanBefore ? u.lb((leanW.value - leanBefore.value) / .45359237) : null;
+    const leanLine = !leanW ? '' : freshChip(leanW.date, 'V35-B4-03', asOfW(MFW)) + (leanLb !== null ? (Math.abs(leanLb) >= .05 ? sinceChip(MFW, leanLb, Math.abs(leanLb).toFixed(1) + ' ' + esc(u.mass), null) : '') : MFW.from === MFW.to ? windows(leanW.value, 'lean_body_mass', leanW.date, false) : '');
+    const fatLine = !fatW ? '' : freshChip(fatW.date, 'V35-B4-02', asOfW(MFW)) + (fatBefore ? (Math.abs(fatW.value - fatBefore.value) >= .05 ? sinceChip(MFW, fatW.value - fatBefore.value, Math.abs(fatW.value - fatBefore.value).toFixed(1) + '%', true) : '') : MFW.from === MFW.to ? arrow(fatW.value, fPrev ? fPrev.value : null, true, '%', 1) : '');
     const mfRow = (id, name, r, val, tone2, word, line) => '<div class="mf-row" data-parity="' + id + '" data-metric-open="' + metricOf[id] + '"><span class="mf-n">' + name + '</span>' + (r ? '<b class="mf-v"' + (tone2 ? ' style="color:' + tone2 + '"' : '') + '>' + val + '</b>' + (word ? '<small class="mf-w" style="color:' + tone2 + '">' + esc(word) + '</small>' : '') + '<span class="mf-line">' + line + '</span>' : '<b class="mf-v dim">—</b><span class="mf-line"><span class="k-status">No reading yet</span></span>') + '</div>';   // as V3.6's tiles said
     const muscleFat = card('mf-card', null, 'Muscle & Fat', '💪', null,
-      mfRow('BODY-96', 'Muscle', lean, lean ? u.lb(lean.value / .45359237).toFixed(1) + '<small>' + esc(u.mass) + '</small>' : '', null, '', lean ? freshChip(lean.date, 'V35-B4-03', asOf) + windows(lean.value, 'lean_body_mass', lean.date, false) : '') +
-      mfRow('BODY-FAT', 'Body fat', fat, fat ? fat.value.toFixed(1) + '<small>%</small>' : '', fat ? tone : null, ft ? ft.word : '', fat ? freshChip(fat.date, 'V35-B4-02', asOf) + arrow(fat.value, fPrev ? fPrev.value : null, true, '%', 1) : '') + differ('mf'));
-    const hIn = Number(g.heightIn) || (p && p.heightCm ? p.heightCm / 2.54 : null), bmi = w && hIn ? (w.value) / Math.pow(hIn * .0254, 2) : null, bmiB = bandsFor(st, 'bmi'), bk = bandKindOf(bmiB, bmi);   // a missing module never stops the page (review: Learn not loaded)
-    const bmiCard = card('bmi-card', null, 'BMI', '📏', 'bmi', bmi !== null ? '<div class="k-big" data-bmi="' + bmi.toFixed(1) + '"' + (bk ? ' style="color:var(--c-' + (bk === 'ideal' ? 'green' : bk === 'close' ? 'yellow' : 'red') + ')"' : '') + '>' + bmi.toFixed(1) + '</div>' + bandStrip(bmiB, bmi) + (bmi > 25 ? '<p class="bmi-extra" data-spare="bmi-to-ideal" data-source="the latest weigh-in and your height; BMI 25, the top of the reference range">−' + u.lb((w.value - 25 * Math.pow(hIn * .0254, 2)) / .45359237).toFixed(1) + ' ' + esc(u.mass) + ' to BMI 25</p>' : '')   /* Fix O: one line; the source is in the (i) */ : '<p class="hint keep">Needs a weigh-in and your height (Body → Goals).</p>');   /* V3.7 U6 */
+      mfRow('BODY-96', 'Muscle', leanW, leanW ? u.lb(leanW.value / .45359237).toFixed(1) + '<small>' + esc(u.mass) + '</small>' : '', null, '', leanLine) +
+      mfRow('BODY-FAT', 'Body fat', fatW, fatW ? fatW.value.toFixed(1) + '<small>%</small>' : '', fatW ? (ftW ? GV.tone(ftW.tone === 'blue' ? 'tierBlue' : ftW.tone) : 'var(--ink)') : null, ftW ? ftW.word : '', fatLine) + differ('mf'));
+    const hIn = Number(g.heightIn) || (p && p.heightCm ? p.heightCm / 2.54 : null), wB = w && BMW.to < asOf ? bodyReading(st, ['weight_body_mass','weight_&_body_mass'], fitdays, asOfW(BMW)) : w, bmi = wB && hIn ? (wB.value) / Math.pow(hIn * .0254, 2) : null, bmiBefore = wB ? sinceBefore('weight_body_mass', BMW) : null, bmiDelta = bmi !== null && bmiBefore ? bmi - bmiBefore.value / Math.pow(hIn * .0254, 2) : null, bmiB = bandsFor(st, 'bmi'), bk = bandKindOf(bmiB, bmi);   // a missing module never stops the page (review: Learn not loaded)
+    const bmiCard = card('bmi-card', null, 'BMI', '📏', 'bmi', bmi !== null ? '<div class="k-big" data-bmi="' + bmi.toFixed(1) + '"' + (bk ? ' style="color:var(--c-' + (bk === 'ideal' ? 'green' : bk === 'close' ? 'yellow' : 'red') + ')"' : '') + '>' + bmi.toFixed(1) + '</div>' + bandStrip(bmiB, bmi) + (bmi > 25 ? '<p class="bmi-extra" data-spare="bmi-to-ideal" data-source="the latest weigh-in and your height; BMI 25, the top of the reference range">−' + u.lb((wB.value - 25 * Math.pow(hIn * .0254, 2)) / .45359237).toFixed(1) + ' ' + esc(u.mass) + ' to BMI 25</p>' : '') + (bmiDelta !== null && Math.abs(bmiDelta) >= .05 ? '<div class="body-hero-line">' + sinceChip(BMW, bmiDelta, Math.abs(bmiDelta).toFixed(1), true) + '</div>' : '')   /* Fix O: one line; the source is in the (i) */ : '<p class="hint keep">Needs a weigh-in and your height (Body → Goals).</p>');   /* V3.7 U6 */
     const hA = SCORES_ON ? healthAgeOf(st) : null, now = hA && hA.now, fitA = hA && hA.fitness, noBirth = !p || p.age === null;
     const ageVal = (t, v, which) => '<button type="button" class="age-row" data-act="growthAge" data-age="' + which + '" aria-label="' + esc('Open ' + t + ' in Growth') + '"><span>' + t + '</span><b>' + (v === null || v === undefined ? '—' : esc(String(v))) + '<small>' + (v === null || v === undefined ? '' : 'yr') + '</small></b></button>';
     const ageCard = card('age-card', null, 'Age', '🧬', null, noBirth ? '<p class="hint keep gr-empty" data-age-empty>Enter your birth year in Body → Goals.</p>' : ageVal('Health Age', now && now.value !== null ? now.value : null, 'health') + ageVal('Fitness Age', fitA && fitA.value !== null ? fitA.label : null, 'fitness') + '');
-    const hc = (html, id) => withChip(html, 'profile', id);   // Fix C3: every hero card carries the D W M A C chips
-    return '<div class="k-grid body-heroes" data-parity="V37-B3-01">' + weightGoal + hc(muscleFat, 'musclefat') + hc(bmiCard, 'bmi') + hc(ageCard, 'age') + '</div>';
+    const hc = (html, id) => withChip(html, 'profile', id);   // Fix C3: the hero cards that read a window carry the chips
+    return '<div class="k-grid body-heroes" data-parity="V37-B3-01">' + weightGoal + hc(muscleFat, 'musclefat') + hc(bmiCard, 'bmi') + fixedCard(ageCard, 'latest estimate') + '</div>';   // Fix V1: Age has no window of its own
   }
   function bodyOverview(st){
     if (!SCORES_ON) return '';
@@ -4945,7 +4956,7 @@ addEventListener('load', () => {
       '<div class="today-wmore">' + custom + (live ? '<button type="button" class="today-undo" data-act="waterUndo" data-parity="V35-T10-05">Undo</button>' : '') + '</div></div></div>' +
       '<div class="today-steps" data-parity="TODAY-15"><div class="today-steps-top"><span class="today-fname"><span aria-hidden="true">👟</span>Steps</span><span class="today-fgoal" data-steps-goal="' + sg + '">' + (steps === null ? '—' : Math.round(steps).toLocaleString('en-US')) + ' of ' + sg.toLocaleString('en-US') + '</span></div>' + kFill(steps === null ? 0 : steps / sg, 'var(--c-yellow)') + '</div></section>';
     const lock = dayClosed(st, date) ? closedWord(date) : w.locked ? w.why : '';   // V3.5 review S1, S5: the controls show only where they work
-    return lock ? card.replace(/(data-act="(?:waterGlass|waterStep|waterCustomOpen|waterTotalEdit|waterCustomAdd|waterTotalSave)")/g, '$1 disabled').replace('<div class="today-wmore">', '<p class="today-wnote" data-parity="V35-T10-06">' + esc(lock) + '</p><div class="today-wmore">') : card;
+    return fixedCard(lock ? card.replace(/(data-act="(?:waterGlass|waterStep|waterCustomOpen|waterTotalEdit|waterCustomAdd|waterTotalSave)")/g, '$1 disabled').replace('<div class="today-wmore">', '<p class="today-wnote" data-parity="V35-T10-06">' + esc(lock) + '</p><div class="today-wmore">') : card, 'the selected day');
   }
   /* T11, Bevel's Nutritional Details shape: three dot-matrix columns Fat (periwinkle), Carbs (amber), Protein (pink), each
      a big percent (or grams) and its name; a g or % toggle; an arrow to a drawer with the day's entries and the 7- and
@@ -5141,7 +5152,7 @@ addEventListener('load', () => {
      or the 7 days ending on it); Month the calendar month to the day; All the Program start to the day; Custom his two dates.
      Every windowed visual says its window (data-win-from, data-win-to) so the strict window test (L8) can read it. Per viewer
      (localStorage, like the old gradePeriod), nothing in his record. */
-  const FILT_MAIN = [['day','Day'],['week','Week'],['month','Month'],['all','All'],['custom','Custom']], FILT_TRAILS = [['3d','3d',3],['7d','7d',7],['30d','30d',30],['60d','60d',60]], FILT_PERS = FILT_MAIN.concat(FILT_TRAILS.map(([k, l]) => [k, l])), FILT_PAGES = ['home','profile','fitness','progress','stand'];
+  const FILT_MAIN = [['day','Day'],['week','Week'],['month','Month'],['all','All'],['custom','Custom']], FILT_TRAILS = [['3d','3d',3],['7d','7d',7],['30d','30d',30],['60d','60d',60]], FILT_PERS = FILT_MAIN.concat(FILT_TRAILS.map(([k, l]) => [k, l])), FILT_PAGES = ['home','profile','fitness','progress','stand','plan','faith'];
   const filtKey = page => 'health-tracker.filter.v37.' + page, filtOk = p => FILT_PERS.some(([k]) => k === p);
   const filtRange = c => c && validCalendarDate(c.from) && validCalendarDate(c.to) ? {from:c.from, to:c.to} : null;
   function filtState(page){ let v = null; try { v = JSON.parse(localStorage.getItem(filtKey(page)) || 'null'); } catch (_) { v = null; } v = v && typeof v === 'object' ? v : {}; const pins = {}; for (const [k, x] of Object.entries(v.pins && typeof v.pins === 'object' ? v.pins : {})) if (x && filtOk(x.per)) pins[k] = {per:x.per, custom:filtRange(x.custom)}; return {per:filtOk(v.per) ? v.per : 'day', custom:filtRange(v.custom), pins}; }
@@ -5210,6 +5221,8 @@ addEventListener('load', () => {
   }
   // A card whose window is fixed by design says so on its face (A5)
   const fixedWin = text => '<small class="fixed-win" data-fixed-window>' + esc(text) + '</small>';
+  // Fix V1: a card whose figure is fixed by nature (the latest reading, the selected day) says so in its own header
+  const fixedCard = (html, text) => html ? html.replace(/^(\s*<(?:section|div)\b)/, '$1 data-fixed-window="' + esc(text) + '"').replace(/(<span class="k-title">[\s\S]*?<\/span>|<\/h2>)/, '$1' + fixedWin(text)) : '';
   const filtSet = (page, f) => { const s = filtState(page); f(s); filtSave(page, s); };
   const GRADE_PERIODS = [['day','Day'],['week','Week'],['month','Month'],['all','All'],['custom','Custom']];
   let gradePer = 'day';   // V3.7 L1: set from the one filter at the start of every draw (gradePerSync)
@@ -5243,7 +5256,7 @@ addEventListener('load', () => {
   }
   /* V3.7 L1: the grade period is the one filter: on Today the Overall card's chip, on Growth and Progress the page filter (in
      the header). gradePer and gradeRange are set from it at the start of every draw (gradePerSync); they are no longer stored. */
-  const gradePage = () => area === 'stand' ? 'stand' : area === 'progress' ? 'progress' : 'home';
+  const gradePage = () => area === 'stand' ? 'stand' : area === 'progress' ? 'progress' : area === 'plan' ? 'plan' : area === 'faith' ? 'faith' : 'home';   // Fix V1: Quests and Faith carry the page filter too
   function gradePerSync(){ const pg = gradePage(), w = filtWin(pg, pg === 'home' ? 'overall' : null); gradePer = w.per; gradeRange = w.per === 'custom' ? {from:w.from, to:w.to} : null; }
   const gradePeriodHTML = () => gradePage() === 'home' ? filtChipHTML('home', 'overall') : '';
   const gradeCustomHTML = () => '';
@@ -6159,7 +6172,6 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     // P10: Learn chips
     const learn = '<div class="fit-learn pg-learn" data-parity="V36-PROGRESS-C10"><span class="cap">Learn</span>' + PROG_CHIPS.map(([id, l]) => '<button type="button" class="k-chip" data-act="learnView" data-learn="' + id + '">📖 ' + esc(l) + '</button>').join('') + '</div>';
     // V3.7 L4 (A5): a card whose window is fixed by design says so on its face; By Group follows the page (the Overall's period)
-    const fixedCard = (html, text) => html ? html.replace(/^(\s*<(?:section|div)\b)/, '$1 data-fixed-window="' + esc(text) + '"').replace(/(<span class="k-title">[\s\S]*?<\/span>|<\/h2>)/, '$1' + fixedWin(text)) : '';
     const PW = progWindow(st), byG = byGroup.replace('<section class="k-card pg-groups"', '<section class="k-card pg-groups"' + winAttrs(PW)).replace('<span class="k-title">By Group</span>', '<span class="k-title">By Group</span><i class="fs-break" aria-hidden="true"></i><span class="ck-fchip" data-family="period-chip" role="group" aria-label="Period for this page">' + filtSeg('progress', null, PW.per, true) + '<small class="ck-page">page</small></span>');   // Fix C4: By Group carries the D W M A C chip; it follows the page's period, so its chip sets the page's
     return '<div class="progress" data-period="' + PW.per + '">' + head + hero + sundayReviewHTML(st) + '<div class="pg-two">' + byG + mom + '</div><div class="pg-two">' + fixedCard(faithCard, 'Last ' + (f ? f.window : 60) + ' mornings') + fixedCard(fastCard, 'Last 180 days · needs 20 fast days') + '</div><div class="pg-two">' + fixedCard(plan, 'Since ' + monthDay(programStart(st))) + sleepCredit + '</div>' + (suggest || '') + hist + '<div class="pg-two">' + fixedCard(review, 'One week of writing') + '</div>' + fixedCard(whCard, '60 days of a habit before it says anything') + learn + '</div>';
   }
@@ -7947,7 +7959,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const wk = fitWindow(st, 'workouts');
     return seg + tiles + '<div class="fit-two"><div class="fit-col">' + card('sleep', fitSleepCard(st, fitWindow(st, 'sleep'))) + card('load', fitLoadCard(st, fitWindow(st, 'load'))) + card('insights', fitInsightsCard(st, fitWindow(st, 'insights'))) + '</div><div class="fit-col">' + energy + '</div></div>' + card('workouts', fitWorkoutsCard(st, wk, fitSources(st, wk).sessions)) +
       // Kept (V3.4 TODAY-16, ASSUMED TODAY-50): the rings card and Readiness moved here from Today; they read the selected day (fixed, A5).
-      '<div class="cols2 moved-from-today" data-parity="V36-F4-03" data-fixed-day="' + day + '">' + ringsSection(day) + readinessCard(day) + '</div>' + links + chips + dailyLearnList('fitness', W.to, W.from);
+      '<div class="cols2 moved-from-today" data-parity="V36-F4-03" data-fixed-day="' + day + '">' + fixedCard(ringsSection(day), 'the selected day') + fixedCard(readinessCard(day), 'the selected day') + '</div>' + links + chips + dailyLearnList('fitness', W.to, W.from);
   }
   function fitnessCards(st,from,end){
     const today=todayYmd(),{first,last,days}=fitnessWindow(from,end);
@@ -8946,20 +8958,22 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   /* Fix Q1, Q2 (Mintay, Oct 6: "so that as I scroll down I can still see things"): on these pages the page name, the day with its arrows, the D W M A C filter and
      the last check live in a pinned block at the top of the right rail, and on Today and Quests the So Far card sits under it. The main column does not draw
      them again; with the rail collapsed to its strip they come back into the main column. */
-  const RAIL_HEAD_AREAS = ['home', 'profile', 'fitness', 'progress', 'stand', 'plan'];
+  const RAIL_HEAD_AREAS = ['home', 'profile', 'fitness', 'progress', 'stand', 'plan', 'faith'];
+  const FILTER_AREAS = ['home', 'profile', 'fitness', 'progress', 'stand', 'plan', 'faith'];
   const railHosts = () => !railHidden() && RAIL_HEAD_AREAS.includes(area);
   function railHeadHTML(st){
-    const page = ['home', 'profile', 'fitness', 'progress', 'stand'].includes(area) ? area : null, d = new Date(day + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
+    const d = new Date(day + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
     let when = 'Not checked'; try { if (st.autoFeed) when = freshnessMeta(st.autoFeed).when; } catch (_) {}
     return '<div class="rail-top" data-parity="Q1-HEAD"><div class="rh-top"><b>' + esc(TITLES[area][0]) + '</b><small>' + (when === 'Not checked' ? 'Not checked yet' : 'Checked ' + esc(when)) + '</small></div>' +
-      '<div class="rh-date"><button class="k-icon-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b title="' + esc(longDate(day)) + '">' + esc(d) + '</b><button class="k-icon-btn" data-act="step" data-n="1" aria-label="Next day">›</button>' + (day !== todayYmd() ? '<button class="k-btn" data-act="jumpToday">Today</button>' : '') + '</div>' +
-      (page ? filtPageHTML(page, {noDay:true, rail:true}) : '') + '</div>';
+      '' + (area === 'faith' ? '' : '<div class="rh-date"><button class="k-icon-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b title="' + esc(longDate(day)) + '">' + esc(d) + '</b><button class="k-icon-btn" data-act="step" data-n="1" aria-label="Next day">›</button>' + (day !== todayYmd() ? '<button class="k-btn" data-act="jumpToday">Today</button>' : '') + '</div>') + '</div>';
   }
+  /* Fix V3: the main filter is drawn once, in the pinned block, directly under So Far (his words: "right under where we have the claim stuff") */
+  const railFilterHTML = () => FILTER_AREAS.includes(area) ? '<div class="rail-filter" data-parity="V3-FILTER">' + filtPageHTML(area, {noDay:true, rail:true}) + '</div>' : '';
   function soFarRailHTML(st){
     let h = soFarCard(); if (area === 'home') h = h.replace('data-act="reviewPass"', 'data-act="todayReview"');
     return h.replace('<section class="panelcard sofar"', '<section class="panelcard sofar today-sofar rail-sofar" data-parity="Q2-SOFAR"').replace('</section>', perfectLine(day) + unplacedLine(st) + claimChipHTML(st) + '</section>');
   }
-  const railPinHTML = st => '<div class="rail-pin" data-parity="Q1-PIN">' + railHeadHTML(st) + (area === 'home' || area === 'plan' ? soFarRailHTML(st) : '') + '</div>';
+  const railPinHTML = st => '<div class="rail-pin" data-parity="Q1-PIN">' + railHeadHTML(st) + (area === 'home' || area === 'plan' ? soFarRailHTML(st) : '') + railFilterHTML() + '</div>';
   function todayPointsHTML(st){
     let rw=null;try{rw=rewardReport(st,todayYmd());}catch(_){rw=null;}
     if(!rw)return '';
