@@ -5178,7 +5178,7 @@ addEventListener('load', () => {
       const any = days.some(d => NutritionGrade.COMPONENTS.length && ['sat', 'sodium', 'fibre', 'potassium', 'calcium'].some(k => Number.isFinite(d[k]) && d[k] > 0));
       return {...r, days, any, from, to, per};
   }
-  const nutNeed = r => r && r.graded >= NutritionGrade.MIN_DAYS && !r.present ? 'No nutrient detail yet' : 'Need ' + NutritionGrade.MIN_DAYS + ' of 7 days';   // Fix Z7: enough food days but no nutrient rows is not a days problem
+  const nutNeed = r => r && r.note ? r.note : r && r.graded >= NutritionGrade.MIN_DAYS && !r.present ? 'No nutrient detail yet' : 'Need ' + NutritionGrade.MIN_DAYS + ' of 7 days';   // Fix AD1: the grade's own reason first ("Building 6 of 7 days")   // Fix Z7: enough food days but no nutrient rows is not a days problem
   /* V3.7 U1 (note 22): Macros and the Nutrition Grade in one card, side by side at roomy widths and stacked below, one shared
      period chip; each half keeps its parity id, the grade its empty state, collapse and ⓘ. */
   function macrosNutritionCard(date){
@@ -5215,7 +5215,8 @@ addEventListener('load', () => {
   window.HealthNutSpectrum = (r, c) => nutSpectrum(S(), r, c);   // test hook (U2)
   function nutritionCardV36(W){
     const st = S(), r = W ? (() => { /* Fix Z7: the card's window; closed days only (an open today is left out), as the grade always did */ const y = addDays(todayYmd(), -1), to = W.to < todayYmd() ? W.to : y, span = calendarDistance(W.from, W.to) + 1, per = span <= 1 ? 'day' : span <= 10 ? 'week' : span <= 45 ? 'month' : 'all';
-      return drawn('nutGradeW|' + W.from + '|' + to + '|' + per, () => nutritionGradeOver(st, W.from, to < W.from ? W.from : to, per)); })() : nutritionGradeNow(st); if (!r) return '';
+      const from = per === 'week' || per === 'day' ? addDays(to, -6) : W.from;   // Fix AD1: the grade scores whole blocks of 7 closed days; a week that ends on the open day grades the 7 closed days before it
+      return drawn('nutGradeW|' + from + '|' + to + '|' + per, () => nutritionGradeOver(st, from, to, per === 'day' ? 'week' : per)); })() : nutritionGradeNow(st); if (!r) return '';
     const head = '<div class="k-head"><span aria-hidden="true">🥗</span><span class="k-title">Nutrition Grade</span>' + infoBtn('nutrition-grade', 'Nutrition Grade') + '</div>' +
       infoPop('nutrition-grade', 'A nutrient profile, not diet quality: it grades how closely your logged nutrient totals match published limits and targets (saturated fat, sodium, fibre, fat quality, potassium, calcium and a basket of vitamins and minerals). It cannot see foods, food groups, added sugar or supplements, and a food database undercounts vitamins and minerals. A day with less than 800 kcal of food is not graded, never a zero; a grade needs 4 logged days in 7. Protein is counted in the Fitness Grade. Day shows the 7-day grade as of yesterday.');
     if (!r.any) return '<section class="k-card nut-card" data-parity="V36-R2-01" data-feedback-id="nutrition-grade" data-feedback-label="Nutrition Grade">' + head + '<p class="today-mempty" data-nutri-empty>Log food to see your nutrition grade</p></section>';
