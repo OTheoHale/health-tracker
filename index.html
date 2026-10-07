@@ -1721,6 +1721,11 @@ button.dt-door::after{content:"›";color:var(--muted);font-size:16px}
 .pg-bar.on{box-shadow:0 0 0 2px var(--brass,#cfaa5c);border-radius:6px}
 .journal-page>.jn-card,.journal-page>.jn-entries{width:100%;max-width:none;grid-column:1/-1}   /* AB3 */
 .rail-sofar .ph .fold-caret{display:none}   /* AB5: the rail's So Far does not fold; its caret wrapped alone */
+/* Fix AD2: a component row is name (with its day value), the spectrum, then the percent in its own column; the axis is its two ends */
+.g-comp.nu-row{grid-template-columns:minmax(0,1.1fr) minmax(110px,1.5fr) 44px!important;align-items:center;column-gap:12px}
+.nu-row .nu-name{display:flex;flex-direction:column;min-width:0}.nu-row .nu-val{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nu-row .nu-pct{text-align:right;white-space:nowrap}
+.nu-row .sp-ends{white-space:nowrap}
 </style>
 <link rel="stylesheet" href="body-view.css">
 <script type="module" src="model-viewer.min.js"></script>
@@ -5207,10 +5212,12 @@ addEventListener('load', () => {
       zones = [[-Infinity, v.target * .55, 'bad'], [v.target * .55, v.target, 'close'], [v.target, ul || Infinity, 'ideal']].concat(ul ? [[ul, Infinity, 'bad']] : []); }
     else if (c.id === 'basket'){ if (!Number.isFinite(c.score)) return null; x = c.score; unit = '% of the targets, mean'; zones = [[-Infinity, 55, 'bad'], [55, 80, 'close'], [80, Infinity, 'ideal']]; }
     if (!Number.isFinite(x)) return null;
+    { const SHORT = {'% of kcal':'% of kcal', 'mg per 1,000 kcal':'mg per 1,000 kcal', 'unsaturated ÷ saturated':'unsat ÷ sat', 'g per 1,000 kcal':'g per 1,000 kcal', 'mg a day':'mg a day', '% of the targets, mean':'% of targets'};
+      nutSpectrum.vals = nutSpectrum.vals || {}; nutSpectrum.vals[c.id] = c.id === 'sodium' && Number.isFinite(v.mean) ? n0(v.mean) + ' mg a day' : fmt(x) + (SHORT[unit] && SHORT[unit][0] === '%' ? '' : ' ') + (SHORT[unit] || unit); }   // Fix AD2: the day value beside the name
     const finite = zones.flatMap(z => [z[0], z[1]]).filter(Number.isFinite), lo = 0, hi = Math.max(...finite) * 1.25, top = Math.max(hi, x * 1.05), pc = t => (Math.max(lo, Math.min(top, t)) - lo) / (top - lo) * 100;
     const segs = zones.map(([a, b, k]) => '<i class="sp-z ' + k + '" style="left:' + pc(a).toFixed(1) + '%;width:' + (pc(b) - pc(a)).toFixed(1) + '%"></i>').join('');
     const kind = (zones.find(([a, b]) => x >= a && x < b) || [])[2] || null;
-    return '<div class="spec" data-family="spectrum" data-spec="' + c.id + '" data-value="' + x.toFixed(3) + '" data-kind="' + kind + '" data-edges="' + [...new Set(finite.map(e => +e.toFixed(3)))].join(',') + '" role="img" aria-label="' + esc(c.name + ' ' + fmt(x) + ' ' + unit + ', ' + (kind === 'ideal' ? 'in the ideal zone' : kind === 'close' ? 'close' : 'outside it')) + '"><div class="sp-track">' + segs + '<i class="sp-mark" style="left:' + pc(x).toFixed(1) + '%"></i></div><div class="sp-ends"><small>' + fmt(lo) + '</small><small class="sp-unit">' + esc(unit) + (extra ? ' · ' + esc(extra) : '') + '</small><small>' + fmt(top) + '</small></div></div>';
+    return '<div class="spec" data-family="spectrum" data-spec="' + c.id + '" data-value="' + x.toFixed(3) + '" data-kind="' + kind + '" data-edges="' + [...new Set(finite.map(e => +e.toFixed(3)))].join(',') + '" role="img" aria-label="' + esc(c.name + ' ' + fmt(x) + ' ' + unit + ', ' + (kind === 'ideal' ? 'in the ideal zone' : kind === 'close' ? 'close' : 'outside it')) + '"><div class="sp-track">' + segs + '<i class="sp-mark" style="left:' + pc(x).toFixed(1) + '%"></i></div><div class="sp-ends" title="' + esc(unit) + '"><small>' + fmt(lo) + '</small><small>' + fmt(top) + '</small></div></div>';   // Fix AD2: the two ends only, on one line; the unit is in the title and the value beside the name
   }
   window.HealthNutSpectrum = (r, c) => nutSpectrum(S(), r, c);   // test hook (U2)
   function nutritionCardV36(W){
@@ -5222,7 +5229,8 @@ addEventListener('load', () => {
     if (!r.any) return '<section class="k-card nut-card" data-parity="V36-R2-01" data-feedback-id="nutrition-grade" data-feedback-label="Nutrition Grade">' + head + '<p class="today-mempty" data-nutri-empty>Log food to see your nutrition grade</p></section>';
     const ok = r.shown !== null && r.qualifying > 0, cov = 'nutrient profile · ' + r.present + ' of 7 components · ' + (r.qualifying ? r.coverage.split(', ')[1] : r.graded + ' of ' + r.days.length + ' days graded');
     const top = '<button type="button" class="nu-top" data-act="nutritionOpen" data-nutri-grade="' + esc(r.letter || '') + '" aria-label="' + esc('Nutrition Grade ' + (r.letter || 'not yet') + '. Open the nutrients') + '"><b class="g-letter big" style="color:' + gradeTone(r.letter ? r.percent : null) + '">' + (r.letter || '–') + '</b><span class="nu-side"><span class="g-pct">' + (ok ? r.shown + '%' + (r.provisional ? ' · provisional' : '') : esc(nutNeed(r))) + '</span>' + gradeBar(r.letter ? r.percent : null, 12) + '<small data-nutri-cov>' + esc(cov) + (r.capped ? ' · capped at A' : '') + '</small></span></button>';
-    const rows = r.components.map(c => '<div class="g-comp nu-row" data-comp="' + c.id + '"><span><span aria-hidden="true">' + NUT_EMOJI[c.id] + '</span> ' + esc(c.name) + (c.low ? ' <small class="nu-low">lowest confidence</small>' : '') + '</span>' + (nutSpectrum(st, r, c) || gradeBar(c.score, 10)) + '<b>' + (c.score === null ? '–' : c.score + '%') + '</b></div>').join('');
+    const rows = r.components.map(c => { const sp = nutSpectrum(st, r, c), val = sp && nutSpectrum.vals ? nutSpectrum.vals[c.id] : '';
+      return '<div class="g-comp nu-row" data-comp="' + c.id + '"><span class="nu-name"><span><span aria-hidden="true">' + NUT_EMOJI[c.id] + '</span> ' + esc(c.name) + (c.low ? ' <small class="nu-low">lowest confidence</small>' : '') + '</span>' + (val ? '<small class="nu-val">' + esc(val) + '</small>' : '') + '</span>' + (sp || gradeBar(c.score, 10)) + '<b class="nu-pct">' + (c.score === null ? '–' : c.score + '%') + '</b></div>'; }).join('');   // Fix AD2: name and value, the bar, then the percent in its own column
     return '<section class="k-card nut-card" data-parity="V36-R2-01" data-feedback-id="nutrition-grade" data-feedback-label="Nutrition Grade">' + head + top +
       '<details class="nu-fold" data-key="nutrition-components" open><summary>Components</summary><div class="g-comps" data-nutri-list>' + rows + '</div></details>' +
       (r.lowIntake ? '<p class="hint keep" data-nutri-low>Nutrient targets are hard to meet at this intake.</p>' : '') + '</section>';
