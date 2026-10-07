@@ -876,7 +876,7 @@
     const rhr=values('resting_heart_rate'),hrv=values('heart_rate_variability','overnight');
     push(stand('resting_heart_rate',pick(rhr,median),who),rhr.length>=10?'High':rhr.length>=5?'Medium':rhr.length?'Low':null,{group:'fitness',days:rhr.length,historyDays:fromFile('resting_heart_rate')});
     push(stand('heart_rate_variability',pick(hrv,median),who),hrv.length>=10?'High':hrv.length>=5?'Medium':hrv.length?'Low':null,{group:'fitness',days:hrv.length});
-    const steps=[],nights=[];for(let d=from;d<=day;d=addDays(d,1)){const s=stepsOn(x,d,o.steps);if(s!==null&&d<day)steps.push(s);const n=night(x,d);if(n)nights.push(n.tst);}
+    const steps=[],nights=[];for(let d=from;d<=day;d=addDays(d,1)){const s=stepsOn(x,d,o.steps);if(s!==null&&(d<day||from===day))steps.push(s);const n=night(x,d);if(n)nights.push(n.tst);}
     push(stand('step_count',pick(steps,mean),who),steps.length>=10?'High':steps.length>=5?'Medium':steps.length?'Low':null,{group:'body',days:steps.length});
     const fat=latestReading(x,'body_fat_percentage',day,90);
     push(range('body_fat_percentage',fat?fat.value:null,who),fat?(fat.age<=30?'High':'Medium'):null,{group:'body',asOf:fat?fat.day:null});

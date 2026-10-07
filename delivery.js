@@ -3,7 +3,7 @@
    ship.sh stamps BUILD here and in sw.js together: if they drift, an updated page keeps being
    served the previous shell out of the old cache. */
 window.HealthDelivery = (() => {
-  const BUILD = '2026-10-06-V4';
+  const BUILD = '2026-10-06-V4.0.1';
   const host = location.hostname;
   const local = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(host);
   const wrapper = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.native);
@@ -103,8 +103,20 @@ window.HealthDelivery = (() => {
       'n-feedback-muu60747-kp3a1':'V3.7',
       'n-feedback-muru5grf-y22z8':'V3.7',
       'n-feedback-muu5hujo-x05it':'V3.7',
-      'n-feedback-muu589z9-glwzt':'V3.7'
-    },   // V3.5 release (Oct 2): 41 of his 46 suggestions; O-07, O-09, O-10, O-12 and C-05 stay Open for his look on the Mac.
+      'n-feedback-muu589z9-glwzt':'V3.7',
+      'n-feedback-mujibu7f-m1lfe':'V3.7.29',
+      'n-feedback-mukqanot-cghiq':'V3.7.29',
+      'n-feedback-mukqbf4j-jzq2e':'V3.7.29',
+      'n-feedback-mukqk617-92fhk':'V3.7.29',
+      'n-muq6x453-heu5o':'V3.7.29',
+      'n-muudzjow-bccu5':'V3.7.29',
+      'n-feedback-muvukt34-li8wf':'V3.7.29',
+      'n-feedback-muwzw05y-k1dvq':'V3.7.29',
+      'n-feedback-mux0l05p-z02ia':'V3.7.29',
+      'n-feedback-mux0qht2-uuhwy':'V3.7.29',
+      'n-feedback-mux0rm04-wd47c':'V3.7.29',
+      'n-feedback-mux0sas7-6b6am':'V3.7.29'
+    },   // Fix list X1 to X12 (his open Lessons notes), shipped in V3.7.29 (Oct 6); only he resolves them, in Lessons   // V3.5 release (Oct 2): 41 of his 46 suggestions; O-07, O-09, O-10, O-12 and C-05 stay Open for his look on the Mac.
     // V3.6 release (Oct 3): NEW notes 1 to 11 of the V3.6 brief §2.1 shipped; only he resolves them, in Lessons
     // V3.7 release (Oct 5): his 27 NEW notes of the V3.7 brief §2.1 (31 ids) shipped; the optional drag to reorder (note 4) was dropped on his word; only he resolves them, in Lessons
     resolved: {}

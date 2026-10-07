@@ -395,6 +395,8 @@ class HealthBodyView extends HTMLElement {
         // Whole-body figures travel too, so the website and the phone can date each one the same
         // way the Mac does instead of showing regions with no reading beside them.
         wholeBody: this.fitdays.wholeBody || null,
+        // Fix Z1: the report's other figures (bone, water, protein...) and its words travel too, so Data and every page read the one report
+        extras: this.fitdays.extras || null, statuses: this.fitdays.statuses || null, labels: this.fitdays.labels || null, control: this.fitdays.control || null,
         previous: this.fitdays.previous ? {measurementDate:this.fitdays.previous.measurementDate, wholeBody:this.fitdays.previous.wholeBody, segments:this.fitdays.previous.segments} : null,
         segments: (this.fitdays.segments || []).map(row => ({
           id: row.id, label: row.label, fatMassLb: row.fatMassLb,
