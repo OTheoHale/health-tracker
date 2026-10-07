@@ -2454,6 +2454,34 @@ function whatHelps(state,from,to,readings){
   rows.sort((x,y)=>Math.abs(y.effect)-Math.abs(x.effect));
   return {rows,short:short.sort((x,y)=>y.days-x.days),minDays:WHAT_HELPS.minDays};
 }
+/* Fix Y2 (planner's default, his to change; the V3.7 note: "generalise the Fast Resilience method"). For each habit, the next morning after
+   the days he kept it is set against the next morning after his other due days, as Fast Resilience sets fast days against other days:
+   effect = (kept mean − other mean) / the spread of his other mornings (never below a floor), at least 8 days on each side, over 180 days.
+   A habit shows only with a real effect (0.3 of his spread or more) on Readiness, HRV, resting heart rate or Sleep; its strongest one is
+   the row; at most three habits. It is an association on his own record, never a cause. */
+const WHAT_HELPS2={minEach:8,minEffect:0.3,max:3,metrics:[['readiness','Readiness',1,3,v=>v],['hrv','HRV',1,0.05,v=>v>0?Math.log(v):null],['rhr','Resting HR',-1,1.5,v=>v],['sleep','Sleep',1,0.25,v=>v]]};
+function whatHelpsV2(state,from,to,readings){
+  const rows=[],near=[],mean=a=>a.reduce((n,v)=>n+v,0)/a.length,sd=(a,m)=>Math.sqrt(a.reduce((n,v)=>n+(v-m)*(v-m),0)/Math.max(1,a.length-1));
+  const R=Object.fromEntries(WHAT_HELPS2.metrics.map(([k])=>[k,(readings&&readings(k))||new Map()])),memo={};
+  for(const series of state.series||[]){
+    if(series.demo||series.archivedAt&&series.archivedAt<=from)continue;
+    const kept=[],other=[];
+    for(let d=from;d<=to;d=addDays(d,1)){const v=versionFor(series,d);if(!v||v.childIds||!GoalEngine.dueFor(state,series,v,d,memo))continue;const o=state.occurrences[occKey(series.id,d)];if(o&&o.status==='done')kept.push(d);else if(!o||!o.status||o.status==='skipped')other.push(d);}
+    const name=(latestVersion(series)||{}).name||'Habit';
+    if(kept.length<WHAT_HELPS2.minEach||other.length<WHAT_HELPS2.minEach){if(kept.length+other.length>0)near.push({seriesId:series.id,name,kept:kept.length,other:other.length});continue;}
+    let best=null;
+    for(const [k,label,better,floor,tf] of WHAT_HELPS2.metrics){
+      const pick=ds=>ds.map(d=>{const v=R[k].get(addDays(d,1));return Number.isFinite(v)?tf(v):null;}).filter(Number.isFinite);
+      const a=pick(kept),b=pick(other);if(a.length<WHAT_HELPS2.minEach||b.length<WHAT_HELPS2.minEach)continue;
+      const ma=mean(a),mb=mean(b),s=Math.max(sd(b,mb),floor),eff=(ma-mb)/s*better;
+      const plain=k==='hrv'?(Math.exp(ma-mb)-1)*100:ma-mb;
+      if(Math.abs(eff)>=WHAT_HELPS2.minEffect&&(!best||Math.abs(eff)>Math.abs(best.effect)))best={seriesId:series.id,name,metric:k,label,effect:eff,helps:eff>0,plain,unit:k==='hrv'?'%':k==='rhr'?' bpm':k==='sleep'?' h':'',kept:a.length,other:b.length};
+    }
+    if(best)rows.push(best);
+  }
+  rows.sort((x,y)=>Math.abs(y.effect)-Math.abs(x.effect));
+  return {rows:rows.slice(0,WHAT_HELPS2.max),near:near.sort((x,y)=>Math.min(y.kept,y.other)-Math.min(x.kept,x.other)),minEach:WHAT_HELPS2.minEach};
+}
 /* V3.6 R7: one rule for a graded food day, read by the Fitness Grade's protein and the Nutrition Grade alike: the day's
    food energy (NetEnergy.day, the figure Net Fuel uses) is at least 800 kcal. A no-food day is never a zero: the weight
    estimate counts it at food 0 (N3), Net Fuel, protein and the Nutrition Grade skip it. */
