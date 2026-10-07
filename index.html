@@ -1600,6 +1600,20 @@ button.dt-door{cursor:pointer}button.dt-door:hover{border-color:var(--brass,#cfa
 .dt-door b{font-size:13px;font-weight:600}.dt-door small{font-size:11px;color:var(--muted)}.dt-door span{font-size:16px}
 .dt-other>summary{cursor:pointer;font-size:12px;color:var(--muted);padding:4px 0}
 @media (max-width:1180px){.dt-doors{grid-template-columns:1fr}}
+.ne-grad{position:relative;height:8px;border-radius:4px;background:linear-gradient(90deg,#e0645c,#f39a8d 30%,rgba(255,255,255,.18) 50%,#9cc8ea 70%,#6fb6e0)!important;overflow:visible}
+.ne-grad .ne-notch{position:absolute;top:-3px;width:4px;height:14px;margin-left:-2px;border-radius:2px;background:var(--ink,#f3f0e6);box-shadow:0 0 0 1.5px rgba(0,0,0,.5)}
+.ne-grad .mark{position:absolute;top:-2px;bottom:-2px;width:0;border-left:2px dashed rgba(255,255,255,.75)}
+.gtrack .pace{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--muted,#9aa);border-radius:1px;opacity:.9}
+.cb.io-auto:not(.on){border-style:dashed!important;opacity:.75;cursor:default}   /* Fix X2, X9: a measured row fills itself; the dashed ring says there is nothing to tap */
+.lessons-countrow{display:flex;justify-content:space-between;gap:8px}.lessons-keys{font-size:11px;color:var(--muted)}
+/* Fix X8 (his note, Oct 6: "the color code right now is overlapping the quick action buttons"): on a Today row the bar, its figure, the stepper and the
+   synced / added-by-you legend wrap inside the name column; the quick icons keep their own column */
+.daily-row .daily-label .ibar{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;max-width:100%;min-width:0}
+.daily-row .daily-label .ibar>.k-fill{flex:1 1 90px;max-width:220px;min-width:60px}
+.daily-row .daily-label .ibar>small{white-space:nowrap}
+.daily-row .daily-label .ck-stepper{flex:none}
+.daily-row .daily-label .gt-leg{flex-basis:100%;display:flex;gap:12px;white-space:nowrap}
+.daily-row>.rowhead>.row-acts,.daily-row>.rowhead>details.more{flex:none}
 </style>
 <link rel="stylesheet" href="body-view.css">
 <script type="module" src="model-viewer.min.js"></script>
@@ -4296,13 +4310,18 @@ addEventListener('load', () => {
     const g = itemGoal(n, date); if (!g || g.goal.measure.kind === 'check') return null;
     const p = GoalEngine.progress(st, g.series, date); if (!p) return null;
     const u = p.unit ? ' ' + p.unit : '', reading = p.measure === 'average' || p.measure === 'latest', lim = p.op === 'atMost' && !reading;
-    const text = reading ? goalNum(p.value) + u + ' · target ' + (p.op === 'atMost' ? 'at most ' : p.op === 'between' ? goalNum(p.target) + ' to ' : p.op === 'exactly' ? '' : 'at least ') + goalNum(p.op === 'between' ? p.target2 : p.target)
+    let text = reading ? goalNum(p.value) + u + ' · target ' + (p.op === 'atMost' ? 'at most ' : p.op === 'between' ? goalNum(p.target) + ' to ' : p.op === 'exactly' ? '' : 'at least ') + goalNum(p.op === 'between' ? p.target2 : p.target)
       : lim ? goalNum(p.value) + ' of at most ' + goalNum(p.target) + u + (p.over ? ' · over' : '') : p.op === 'between' ? goalNum(p.value) + u + ' · aim ' + goalNum(p.target) + ' to ' + goalNum(p.target2) : goalNum(p.value) + ' of ' + (p.op === 'exactly' ? 'exactly ' : '') + goalNum(p.target) + u;
     const src = g.goal.source || {};
-    return {have:reading ? p.share : p.value || 0, need:reading ? 1 : p.target || 0, text, met:p.met, goal:true, p, kind:reading ? 'reading' : lim ? 'limit' : 'bar', count:p.measure === 'count', shape:!p.unit || p.unit === 'times' ? 'circle' : 'box', over:!!p.over, colour:lim && p.over ? GOAL_WARM : null,
+    /* Fix X9 (his note, Oct 6: "more like okay you are on track ... divide my goal by 7 and bar"): a sum or count goal over a week or longer
+       shows where he should be by the selected day (the goal times the share of the window gone) and says on track or how far behind */
+    const span = p.window && p.window.from && p.window.to ? calendarDistance(p.window.from, p.window.to) + 1 : 1, gone = span > 1 ? Math.min(span, Math.max(1, calendarDistance(p.window.from, date < p.window.to ? date : p.window.to) + 1)) : 0;
+    const pace = !reading && !lim && span > 1 && p.op !== 'between' && Number.isFinite(p.target) && p.target > 0 ? p.target * gone / span : null, behind = pace !== null ? pace - (p.value || 0) : null;
+    const paceText = pace === null || p.met ? '' : behind <= 0.005 * p.target ? ' · on track' : ' · ' + goalNum(Math.round(behind * 10) / 10) + u + ' behind';
+    return {pace, have:reading ? p.share : p.value || 0, need:reading ? 1 : p.target || 0, text:text + paceText, met:p.met, goal:true, p, kind:reading ? 'reading' : lim ? 'limit' : 'bar', count:p.measure === 'count', shape:!p.unit || p.unit === 'times' ? 'circle' : 'box', over:!!p.over, colour:lim && p.over ? GOAL_WARM : null,
       ...(p.measure === 'sum' || p.measure === 'count' ? (() => { const ver = versionFor(g.series, date), e = GoalEngine.entries(st, g.series, ver, p.window.from, p.window.to < date ? p.window.to : date), man = e.list.filter(x => x.origin === 'added').reduce((n, x) => n + (Number.isFinite(x.value) ? x.value : 1), 0);
         return {man, hand:p.measure === 'sum', handUnit:p.unit || '', step:{kind:'goal', whole:p.measure === 'count', n:p.measure === 'count' ? 1 : Math.max(1, Math.round((p.target || 10) / 10)), unit:p.measure === 'count' ? '' : p.unit || '', label:p.measure === 'count' ? 'count' : p.unit || 'amount'}}; })() : {}),
-      auto:src.kind === 'auto', autoName:src.metric === 'walking_running_distance' ? 'Daily walking + running distance' : 'Workouts' + (src.types && src.types.length ? ': ' + src.types.join(', ') : ''), unit:p.unit || '', log:p.measure === 'sum' || p.measure === 'count', seriesId:g.series.id, date, state:p.state};
+      paceText, auto:src.kind === 'auto', autoName:src.metric === 'walking_running_distance' ? 'Daily walking + running distance' : 'Workouts' + (src.types && src.types.length ? ': ' + src.types.join(', ') : ''), unit:p.unit || '', log:p.measure === 'sum' || p.measure === 'count', seriesId:g.series.id, date, state:p.state};
   }
   // "N days after the last one done": days since and days to go (a check item with the after rule).
   function goalAfterLine(st, n, date){
@@ -4597,13 +4616,13 @@ addEventListener('load', () => {
   /* V3.7 T1 to T3 (A16 to A18, A68): a continuous bar with a goal runs to at least 125 percent of it with a tick at the goal;
      the part past the tick is the bonus colour (a limit over is warm); what he added by hand is a second palette colour beside
      what a sync brought, with a legend under the bar; the stepper's number applies the amount (− and + change it). */
-  const GT_BONUS = 'var(--c-yellow,#efd070)', manColour = col => /blue|6fb6e0/.test(String(col || '')) ? 'var(--c-violet,#b394ff)' : 'var(--c-blue,#6fb6e0)';
+  const GT_BONUS = 'var(--c-violet,#b394ff)'   /* Fix X10, X11 (his notes, Oct 6): past the goal is purple; the gap is left blank */, manColour = col => /blue|6fb6e0/.test(String(col || '')) ? 'var(--c-violet,#b394ff)' : 'var(--c-blue,#6fb6e0)';
   function goalTrack(ms, colour){
     const need = Math.abs(ms.need || 0), have = ms.net ? (ms.have < 0 && ms.need < 0 ? -ms.have : 0) : Math.max(0, ms.have || 0), tot = need ? have / need : 0;
     const man = need && ms.man > 0 ? Math.min(tot, ms.man / need) : 0, syn = Math.max(0, tot - man), M = Math.max(1.25, tot * 1.04), lim = ms.kind === 'limit', col = colour, mc = manColour(col), past = lim ? GOAL_WARM : GT_BONUS;
     const pc = v => (v / M * 100).toFixed(2) + '%';
     const seg = (kind, a, b, c) => { const out = []; const mk = (x, y, isPast) => y > x ? out.push('<i class="' + kind + (isPast ? ' past' : '') + '" style="left:' + pc(x) + ';width:' + pc(y - x) + ';background:' + (isPast ? past : c) + '"></i>') : 0; if (b <= 1) mk(a, b, false); else if (a >= 1) mk(a, b, true); else { mk(a, 1, false); mk(1, b, true); } return out.join(''); };
-    return '<div data-family="goal-bar" class="k-fill gtrack' + (tot > 1 ? ' past' : '') + (lim ? ' limit' : '') + '" role="img" aria-label="' + Math.round(tot * 100) + '% of the goal' + (man ? ', ' + Math.round(man / (tot || 1) * 100) + '% of it added by you' : '') + '" data-share="' + tot.toFixed(3) + '" data-man="' + man.toFixed(3) + '" data-tick="' + (1 / M * 100).toFixed(2) + '">' + seg('syn', 0, syn, col) + seg('man', syn, tot, mc) + '<b class="mark" style="left:' + pc(1) + '" title="Goal"></b></div>';
+    return '<div data-family="goal-bar" class="k-fill gtrack' + (tot > 1 ? ' past' : '') + (lim ? ' limit' : '') + '" role="img" aria-label="' + Math.round(tot * 100) + '% of the goal' + (man ? ', ' + Math.round(man / (tot || 1) * 100) + '% of it added by you' : '') + '" data-share="' + tot.toFixed(3) + '" data-man="' + man.toFixed(3) + '" data-tick="' + (1 / M * 100).toFixed(2) + '">' + seg('syn', 0, syn, col) + seg('man', syn, tot, mc) + '<b class="mark" style="left:' + pc(1) + '" title="Goal"></b>' + (Number.isFinite(ms.pace) && need && ms.pace < need ? '<b class="pace" data-pace="' + ms.pace.toFixed(2) + '" style="left:' + pc(ms.pace / need) + '" title="Where you would be on an even pace"></b>' : '') + '</div>';
   }
   const goalLegend = (ms, colour) => ms.hand ? '<span class="gt-leg keep" data-bar-legend><span><i style="background:' + colour + '"></i>synced</span><span><i style="background:' + manColour(colour) + '"></i>added by you' + (ms.man > 0 ? ' ' + goalNum(Math.round(ms.man * 10) / 10) + (ms.handUnit ? ' ' + esc(ms.handUnit) : '') : '') + '</span></span>' : '';
   const stepperHTML = ms => ms.step && ms.date && ms.date <= todayYmd() ? '<span class="ck-stepper keep" role="group" data-family="stepper" data-stepper' + (ms.step.whole ? ' data-whole="1"' : '') + ' data-kind="' + ms.step.kind + '" data-series="' + esc(ms.seriesId || '') + '" data-date="' + ms.date + '" data-unit="' + esc(ms.step.unit) + '" aria-label="' + esc(ms.step.label + ' stepper') + '"><button type="button" class="ck-stp-b" data-act="stpNudge" data-d="-1" aria-label="' + esc('Less ' + ms.step.label) + '">−</button><input class="ck-stp-n" type="text" inputmode="decimal" size="4" data-stp-apply data-n="' + ms.step.n + '" value="+' + ms.step.n + '" aria-label="' + esc('Amount to add' + (ms.step.unit ? ' in ' + ms.step.unit : '') + ', tap to apply') + '" title="' + esc('Tap to add +' + ms.step.n + (ms.step.unit ? ' ' + ms.step.unit : '') + (ms.step.note ? '. ' + ms.step.note : '')) + '"><button type="button" class="ck-stp-b" data-act="stpNudge" data-d="1" aria-label="' + esc('More ' + ms.step.label) + '">+</button></span>' : '';
@@ -4646,7 +4665,11 @@ addEventListener('load', () => {
     return '<span class="ipips ' + (o.shape === 'circle' ? 'circle' : 'box') + '" data-family="pips" role="img" aria-label="' + filled + ' of ' + (o.limit ? 'at most ' : '') + total + '" data-pips data-done="' + filled + '" data-total="' + total + '" data-extra="' + Math.max(0, filled - total) + '">' + out.join('') + '</span>';
   }
   const itemBar = (ms, colour) => ms && pipsFor(ms) ? '<span class="ibar ipb keep' + (ms.goal ? ' g-bar' + (ms.kind === 'limit' ? ' limit' : '') + (ms.over ? ' over' : '') : '') + '"' + (ms.goal ? ' data-goal-kind="' + ms.kind + '" data-goal-state="' + ms.state + '" data-over="' + ms.over + '"' : '') + ' data-share="' + Math.max(0, Math.min(1, ms.have / ms.need)).toFixed(3) + '">' + pipsHTML(ms.have, ms.need, {limit:ms.kind === 'limit', shape:ms.shape, colour:ms.colour || colour}) + '<small>' + esc(ms.text) + '</small>' + stepperHTML(ms) + '</span>'
-    : ms ? '<span class="ibar keep' + (ms.goal ? ' g-bar' + (ms.kind === 'limit' ? ' limit' : '') + (ms.over ? ' over' : '') : '') + '"' + (ms.goal ? ' data-goal-kind="' + ms.kind + '" data-goal-state="' + ms.state + '" data-over="' + ms.over + '"' : '') + ' data-share="' + (ms.need ? Math.max(0, Math.min(1, ms.have / ms.need)) : 0).toFixed(3) + '"' + (ms.net ? ' data-net="' + Math.round(ms.have) + '" data-goal="' + ms.need + '"' : '') + '>' + (ms.kind === 'reading' || !ms.need ? kFill(ms.need ? ms.have / ms.need : 0, ms.colour || colour || 'var(--category,var(--verd))') : goalTrack(ms, ms.colour || colour || 'var(--category,var(--verd))')) + '<small>' + (ms.net && / of /.test(ms.text) ? '<b class="ne-v" style="color:' + NE.colour(ms.have) + '">' + esc(ms.text.split(' of ')[0]) + '</b> of ' + esc(ms.text.split(' of ').slice(1).join(' of ')) : esc(ms.text)) + '</small>' + stepperHTML(ms) + (ms.kind === 'reading' ? '' : goalLegend(ms, ms.colour || colour || 'var(--category,var(--verd))')) + '</span>' : '';   // V3.7 X4: the signed net in its colour
+    : ms ? '<span class="ibar keep' + (ms.goal ? ' g-bar' + (ms.kind === 'limit' ? ' limit' : '') + (ms.over ? ' over' : '') : '') + '"' + (ms.goal ? ' data-goal-kind="' + ms.kind + '" data-goal-state="' + ms.state + '" data-over="' + ms.over + '"' : '') + ' data-share="' + (ms.need ? Math.max(0, Math.min(1, ms.have / ms.need)) : 0).toFixed(3) + '"' + (ms.net ? ' data-net="' + Math.round(ms.have) + '" data-goal="' + ms.need + '"' : '') + '>' + (ms.net ? neGrad(ms) : ms.kind === 'reading' || !ms.need ? kFill(ms.need ? ms.have / ms.need : 0, ms.colour || colour || 'var(--category,var(--verd))') : goalTrack(ms, ms.colour || colour || 'var(--category,var(--verd))')) + '<small>' + (ms.net && / of /.test(ms.text) ? '<b class="ne-v" style="color:' + NE.colour(ms.have) + '">' + esc(ms.text.split(' of ')[0]) + '</b> of ' + esc(ms.text.split(' of ').slice(1).join(' of ')) : esc(ms.text)) + '</small>' + stepperHTML(ms) + (ms.kind === 'reading' ? '' : goalLegend(ms, ms.colour || colour || 'var(--category,var(--verd))')) + '</span>' : '';   // V3.7 X4: the signed net in its colour
+  /* Fix X12 (his note, Oct 6: "this should be the color gradient from red to blue"): Net Energy's row bar is the diverging scale, red for a deficit
+     through neutral to blue for a surplus, a notch at the day's value and a tick at the goal; no yellow, no purple */
+  function neGrad(ms){ const st = S(), R = NE.range(st, ms.have), p = x => Math.min(100, Math.max(0, (x + R) / (2 * R) * 100)).toFixed(1), v = Number.isFinite(ms.have) && ms.text && !/^—/.test(ms.text) ? ms.have : null;
+    return '<div class="k-fill ne-grad" data-family="net-bar" role="img" aria-label="' + esc('Net Energy ' + (v === null ? 'unknown' : NE.fmt(v) + ' kcal') + ', goal ' + NE.plain(ms.need)) + '"><b class="mark" style="left:' + p(ms.need) + '%" title="Goal"></b>' + (v === null ? '' : '<i class="ne-notch" style="left:' + p(v) + '%"></i>') + '</div>'; }
   const quotaBar = q => itemBar({have:q.count, need:q.target, text:q.count + ' of ' + q.target, count:true, shape:'circle'}).replace(/class="ibar( ipb)? keep"/, 'class="ibar$1 quota keep" title="Done in this window"');   // the week's (or month's) count on a target row
   // T6 (tap map, Do): on Today a row's name opens Quests at that item, highlighted; elsewhere it opens the row's details.
   const openAt = r => area === 'home' ? 'data-act="tap" data-tap="item" data-arg="' + esc(r.seriesId) + '" data-date="' + esc(r.date) + '"' : 'data-act="openRow"';
@@ -4731,6 +4754,10 @@ addEventListener('load', () => {
     // after: this comes before the required rule, which would keep asking.
     // V3.7.1 review R3: "Not today", a rest day or a removed day is not asked, a prayer and a weekly check item included
     const o = st.occurrences[r.key], g = goalOf(st, r.seriesId, date), off = !!(o && (o.removed || o.disposition === 'excused' || o.disposition === 'rest'));
+    /* Fix D1 (his call, Oct 6: "finish everything"): an item met once in its week (a weekly check, a week goal, a quota) counts once in that week.
+       A day already past is never left one short by it: only a check-off on that day counts there; today and later still ask while the week is open. */
+    const weekly = !!((g && (g.kind === 'prayer' || (r.optional && !r.targetProgress))) || weekCheckGoal(st, r.seriesId, date) || (r.optional && r.targetProgress));
+    if (weekly && date < todayYmd()) return false;
     if (g && g.kind === 'prayer') return !off && !g.complete && date >= g.window.from && date <= g.window.to;
     if (weekCheckGoal(st, r.seriesId, date)){ const q = quotaOf(st, r, date); return !off && !!q && q.count < q.target && date >= q.from && date <= q.to; }   // V3.7.1 F2
     if (typeof wsRequired === 'function' ? wsRequired(st, r) : !r.optional) return true;
@@ -6939,7 +6966,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const where = LESSON_PAGES.map(([id, name, sym]) => '<button type="button" class="k-chip lessons-chip' + (noteDraft.area === name ? ' on' : '') + '" data-act="noteWhere" data-v="' + esc(name) + '" aria-pressed="' + (noteDraft.area === name) + '"' + (LESSON_MAIN.has(id) || lessonMoreWhere || noteDraft.area === name ? '' : ' hidden') + '><span aria-hidden="true">' + sym + '</span>' + esc(name) + '</button>').join('') + (lessonMoreWhere ? '' : '<button type="button" class="k-chip lessons-chip" data-act="noteWhereMore" aria-label="More pages">…</button>');
     const len = noteDraft.text.length;
     const compose = '<section class="k-card lessons-composer" data-feedback-id="lessons-compose" data-feedback-label="Your Suggestion" data-parity="V35-K4-01"><div class="k-head"><span class="k-title">Your Suggestion</span>' + infoBtn('lessons-compose', 'Your Suggestion') + '</div>' + infoPop('lessons-compose', 'Saved on this device and included when you export a private backup. No length limit you will meet. Keep health details in your journal or logs unless you mean to share them.') +
-      '<label for="newNote" class="sr-only">Your suggestion</label><textarea id="newNote" class="lessons-ta" rows="7" maxlength="' + NOTE_MAX + '" placeholder="What should change?">' + esc(noteDraft.text) + '</textarea><div class="lessons-countrow"><span class="lessons-count" id="noteCount">' + (len === 1 ? '1 character' : len.toLocaleString('en-US') + ' characters') + '</span></div>' +
+      '<label for="newNote" class="sr-only">Your suggestion</label><textarea id="newNote" class="lessons-ta" rows="7" maxlength="' + NOTE_MAX + '" placeholder="What should change?">' + esc(noteDraft.text) + '</textarea><div class="lessons-countrow"><span class="lessons-count" id="noteCount">' + (len === 1 ? '1 character' : len.toLocaleString('en-US') + ' characters') + '</span><span class="lessons-keys">↵ saves · ⇧↵ new line</span></div>' +
       '<div class="lessons-label" id="noteAreaLabel">Where in the app?</div><div class="lessons-where" id="noteArea" role="group" aria-labelledby="noteAreaLabel" data-value="' + esc(noteDraft.area) + '">' + where + '</div><div class="lessons-saverow"><button class="k-btn save lessons-save" data-act="addNote">Save</button></div></section>';
     const drafts = (st.feedbackDrafts || []).filter(d => d.status === 'draft');
     const privateDrafts = '<details class="k-card lessons-side" data-feedback-id="lessons-drafts" data-feedback-label="Private card drafts"><summary><span class="k-title">Private Card Drafts</span><span class="lessons-n">' + drafts.length + '</span></summary><p class="hint">Not in the brief until you add them to Lessons.</p>' + (drafts.length ? drafts.map(d => '<div class="row compact"><h3>' + esc(d.cardLabel) + '</h3><p class="hint">' + esc(d.area) + '</p><p class="lesson-text">' + esc(noteText(d) || '(Empty draft)') + '</p><button class="ghost" data-act="reviewFeedback" data-draft="' + esc(d.id) + '">Review draft</button></div>').join('') : '<p class="hint">Use the note button on any card to start a draft.</p>') + '</details>';
@@ -8210,6 +8237,30 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       '<button class="ghost" data-act="wsComposerCancel">Cancel</button><label class="cmp-counts"><input type="checkbox" id="wsComposerCounts"' + (c.counts ? ' checked' : '') + '> Counts toward grade</label></div>' +
       (c.error ? '<p class="err" role="alert">' + esc(c.error) + '</p>' : '') + more + '</div>';
   }
+  /* Fix X7 (his note, Oct 5: "Each Laundry item ... should come in a package ... subitems called Wash, Dry, Fold ... Color 1, Color 2"): a new item on a
+     Laundry card comes with the three steps; an existing one gets them from its ⋯ (Wash · Dry · Fold), and "Add another load" makes Colors 2 (the first
+     becomes Colors 1). A single load keeps its plain name. Planner's default, his to change (CHANGE_DECISIONS X7). */
+  const LAUNDRY_STEPS = ['Wash', 'Dry', 'Fold'];
+  const laundryGroup = gid => { const g = gid && groupById(S(), gid); return !!(g && /laundry/i.test(g.name || '')); };
+  const laundryAuto = c => !c.editSeries && c.kind !== 'subgroup' && c.repeat !== 'goal' && !String(c.subs || '').trim() && !c.parentSeries && laundryGroup(c.card || c.groupId);
+  async function laundryPack(seriesId){
+    // the composer's own path (Workspace.addChild with the item's recurrence), so the steps follow the item's days and counts
+    const st = S(), from = todayYmd(), src = st.series.find(x => x.id === seriesId), v = src && versionFor(src, from), onDay = !!findPlanRow(st, seriesId, from); if (!v){ toast('This item is not on today.'); return; }
+    const r = await manualActionTransaction(st, d => { for (const [i, name] of LAUNDRY_STEPS.entries()){ const x = Workspace.addChild(d, seriesId, {id:seriesId + '-' + name.toLowerCase(), name, order:i + 1, category:src.category, recurrence:v.recurrence}, from, {scope:'future'}); if (!(x && x.ok)) return x || {ok:false, error:'Not added.'}; } if (onDay) Workspace.placeMany(d, LAUNDRY_STEPS.map(name => seriesId + '-' + name.toLowerCase()), from, {place:true, category:null}); return {ok:true}; }, {persist:!preview});   // on the day it was, so it does not slip into Template
+    render(); toast(r.ok ? 'Wash, Dry and Fold added from today. Earlier days stay as recorded.' : 'Not changed. ' + (r.error || ''));
+  }
+  async function laundryLoad(seriesId){
+    const st = S(), from = todayYmd(), src = st.series.find(x => x.id === seriesId), v = src && versionFor(src, from); if (!v){ toast('This item is not on today.'); return; }
+    const base = String(v.name || 'Load').replace(/\s+\d+$/, ''), same = st.series.filter(x => { const xv = versionFor(x, from); return xv && !x.parentId && x.category === src.category && String(xv.name || '').replace(/\s+\d+$/, '') === base; }), n = same.length + 1;
+    const r = await manualActionTransaction(st, d => {
+      if (!/\s\d+$/.test(v.name || '')) reviseSeries(d, seriesId, {name:base + ' 1'}, from, from);
+      const fields = {...v, name:base + ' ' + n, category:src.category}; delete fields.childIds; delete fields.version; delete fields.effectiveFrom;
+      const copy = createSeries(d, fields, from);
+      if (Array.isArray(v.childIds) && v.childIds.length) convertToFamily(d, copy.id, LAUNDRY_STEPS.map(name => ({name})), from, from);
+      return {ok:true};
+    }, {persist:!preview});
+    render(); toast(r.ok ? base + ' ' + n + ' added from today.' : 'Not added. ' + (r.error || ''));
+  }
   async function composerSave(){
     if (!composer || composer.busy) return;
     composerRead();
@@ -8218,7 +8269,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (!wsHas('create') || (c.parentId && !wsHas('addChild'))){ c.error = 'This build cannot save new items: Workspace.create/addChild is not loaded.'; render(); return; }
     if (c.askCard && !c.card){ c.error = 'Choose the card first.'; render(); return; }
     c.busy = true; c.error = ''; render();
-    const rec = composerRecurrence(c), subs = c.kind === 'subitem' ? [] : String(c.subs || '').split('\n').map(x => x.trim()).filter(Boolean).slice(0, 20);
+    const rec = composerRecurrence(c), subs = laundryAuto(c) ? LAUNDRY_STEPS.slice() : c.kind === 'subitem' ? [] : String(c.subs || '').split('\n').map(x => x.trim()).filter(Boolean).slice(0, 20);
     const card = c.parentId ? null : c.card || c.groupId || null;
     const extra = c.more ? {scoring:{importance:c.importance, difficulty:c.difficulty}, ...(c.note.trim() ? {normal:{label:c.note.trim(), minutes:null}} : {})} : {};
     const goal = c.repeat === 'goal' && c.goal ? GoalEngine.normalize({...c.goal, period:{...c.goal.period, ...(c.goal.period.kind === 'week' ? {weekStart:S().prefs.weekStart === 0 ? 0 : 1} : {})}}) : null;   // V3.6 M6: one definition, stored on the version, with the week start he chose (review F9)
@@ -8512,6 +8563,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       !container ? '<button class="link" data-act="wsMoveCard">Move to another card</button>' : '',
       '<button class="link" data-act="saveTemplate">Save as template</button>',
       onceStreak(n) ? '<button class="link" data-act="wsMakeDaily">Make it daily</button>' : '',
+      laundryGroup(n.group || n.category) && n.seriesId && !n.parentId ? (!container ? '<button class="link" data-act="laundryPack">Wash · Dry · Fold</button>' : '') + '<button class="link" data-act="laundryLoad">Add another load</button>' : '',
       !container && n.matching ? '<button class="link" data-act="wsEvidence">Review source evidence</button>' : '',
       auto && n.occurrence.confirmation.kind === 'source' ? '<button class="link" data-act="wsDeclineAuto">Not this — unlink</button>' : '',
       !container && n.recurrence?.kind === 'target' && !n.occurrence?.committed && !future ? '<button class="link" data-act="wsCommit">Plan for this day</button>' : ''
@@ -8519,6 +8571,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     let out = '<div class="ws-node' + tone + (met ? ' met' : '') + '" data-depth="' + depth + '" data-series="' + esc(n.seriesId || '') + '" data-date="' + esc(n.date || day) + '" data-key="' + esc(key) + '"' + (n.seriesId && (n.date || day) >= todayYmd() && !n.demo ? ' draggable="true"' : '') + '><div class="nrow">' +
       (container
         ? '<button class="tw" data-act="wsToggleGroup" data-node="' + esc(nid) + '" aria-expanded="' + (!collapsed) + '" aria-label="' + (collapsed ? 'Expand ' : 'Collapse ') + esc(label) + '">' + (collapsed ? '▸' : '▾') + '</button>'
+        : measure ? '<span class="cb io-auto' + (measure.met && measure.kind !== 'limit' ? ' on' : '') + '" aria-hidden="true" title="Fills itself from your data">' + (measure.met && measure.kind !== 'limit' ? '✓' : '') + '</span>'   /* Fix X2, X9 (his notes): Net Energy, Active Miles and every measured bar fill themselves; nothing to check off */
         : (() => {
             // Marks (Mintay, Sept 24 evening): ✓ done, ✕ skipped (red), ◐ partial (neutral), — exempt / not today.
             const excused = n.occurrence?.disposition === 'excused', mark = confirmed ? '' : st === 'skipped' ? ' skip' : st === 'partial' ? ' part' : excused ? ' exempt' : '';
@@ -9766,6 +9819,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       case 'shelfReset': { if (!confirm('Reset templates to your default set?\n\nChanges since you last set a default are replaced. Items already added to days stay.')) return; saveTemplates(st, tplCopy(templateDefaults(st)), 'Templates reset to your default.'); return; }
       case 'shelfAdd': { if (!shelfPicked.size || preview && false) return; const {result, list} = await addTemplatesToday(st, shelfPicked); if (!result.ok){ toast('Not added. ' + result.error); render(); return; } const streak = list.find(t => { const u = (S().prefs.templateUse || {})[t.id] || []; return [0,1,2].every(n => u.includes(addDays(day, -n))); }); shelfPicked.clear(); render(); toast('Added ' + list.map(t => t.name).join(', ') + ' to ' + medDate(day) + '.' + (streak ? ' ' + streak.name + ' three days running: make it daily from its Edit.' : '')); return; }
       case 'shelfDaily': { const t = templatesOf(st).find(x => x.id === btn.dataset.tpl); if (!t) return; const r = await makeDaily(st, t.name, t.group, t.items || []); if (!r.ok){ toast('Not made daily. ' + r.error); render(); return; } toast(t.name + ' is now daily from ' + medDate(day) + '.'); return; }
+      case 'laundryPack': await laundryPack(seriesId); return;
+      case 'laundryLoad': await laundryLoad(seriesId); return;
       case 'wsMakeDaily': { const row = findPlanRow(st, seriesId, date); if (!row){ toast('This item is not on this day.'); return; } const tree = x => ({name:x.name, items:(x.children || []).map(tree)}); const r = await makeDaily(st, row.name, row.group || row.category, (row.children || []).map(tree)); if (!r.ok){ toast('Not made daily. ' + r.error); render(); return; } toast(row.name + ' is now daily from ' + medDate(day) + '.'); return; }
       case 'waterStep': { const inp = $('#mw-water-value'); if (!inp) return; const unit = ($('#mw-water-unit') || {}).value || 'US fl oz', step = unit === 'ml' ? 50 : unit === 'l' ? 0.1 : 4, v = Math.max(0, (Number(inp.value) || 0) + step * Number(btn.dataset.d)); inp.value = unit === 'l' ? v.toFixed(1) : String(Math.round(v)); inp.dispatchEvent(new Event('input', {bubbles:true})); return; }
       case 'mfWindow': mfWindow = btn.dataset.w; render(); return;
@@ -10315,6 +10370,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const t = e.target;
     // The draft may still be saving from the last keystroke: wait for it, then add the note.
     if (t.id === 'feedbackText'){ if (e.shiftKey) return; e.preventDefault(); (async () => { for (let i = 0; i < 40 && manualSaving; i++) await new Promise(r => setTimeout(r, 75)); await persistFeedback(); const b = document.querySelector('[data-act=approveFeedback]'); if (b && !b.disabled) b.click(); })(); return; }
+    /* Fix X6 (his note, Oct 4: "enter works when I'm writing a comment for each card, but it doesn't work in Lessons"): the suggestion box saves like a card
+       note: Enter (or Cmd+Enter) saves, Shift+Enter is a new line */
+    if (t.id === 'newNote'){ if (e.shiftKey) return; e.preventDefault(); const b = document.querySelector('[data-act="addNote"]:not([disabled])'); if (b && t.value.trim()) setTimeout(() => b.click(), 0); return; }
     if ((e.metaKey || e.ctrlKey) && t.closest('.ws-composer')){ const b = document.querySelector('.ws-composer [data-act="wsComposerSave"]:not([disabled])'); if (b){ e.preventDefault(); b.click(); } return; }   // V3.7 X10: Cmd or Ctrl+Enter saves from any builder field
     if (t.id === 'wsComposerTitle' || t.dataset.autosave || t.closest('#journalPanel')) return;
     // A held key is one press. Pickers (date, time, range) keep Enter for themselves.
