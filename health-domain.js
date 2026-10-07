@@ -1536,7 +1536,7 @@ function linkLogAction(state,kind,id,key){
 }
 function weeklyLearning(state,start){
   const days=weekDays(start).filter(d=>d<=todayYmd()),rows=days.flatMap(d=>flatPlanFor(state,d)).filter(r=>!r.demo),done=rows.filter(r=>r.status==='done'),covered=new Set(rows.filter(r=>r.status!==null&&r.status!=='tentative').map(r=>r.date));
-  return {start,days:days.length,covered:covered.size,planned:rows.length,confirmed:done.length,ids:done.map(r=>r.key),text:covered.size<4?'Too few reviewed days for a weekly pattern. You can still reflect on what you recorded.':done.length+' of '+rows.length+' planned actions confirmed across '+covered.size+' reviewed days. Different plans and missing entries limit comparisons.'};
+  return {start,days:days.length,covered:covered.size,planned:rows.length,confirmed:done.length,ids:done.map(r=>r.key),text:covered.size<4?'Too few reviewed days for a pattern yet.':done.length+' of '+rows.length+' planned actions confirmed across '+covered.size+' reviewed days. Different plans and missing entries limit comparisons.'};
 }
 function decideLearning(state,start,decision,text,followUp){
   if(!['accepted','modified','declined','undone','followed-up'].includes(decision))return null;
@@ -2369,7 +2369,7 @@ const NetEnergy={
     const t=asOf||todayYmd(),w=latestWeightLb(state,t);if(!w)return null;const p=latestWeightLb(state,addDays(w.date,-1));if(!p)return null;
     const x=NetEnergy.estimateDays(state,p.date,addDays(w.date,-1),todayYmd()),est=p.lb+x.net/NET_KCAL_PER_LB,diff=w.lb-est,a=Math.abs(diff);
     const level=a<.5?'Aligned':a<1.2?'Watch':'Big gap';   // ASSUMED A7: the Draft's words and 0 to 2 lb meter, a display choice
-    const sentence=a<.05?'The scale matches the estimate':'Scale is '+a.toFixed(1)+' lb '+(diff>0?'above the estimate: probably food you did not log':'below the estimate: more burned than recorded, or food logged twice');
+    const sentence=a<.05?'The scale matches the estimate':'Scale is '+a.toFixed(1)+' lb '+(diff>0?'above the estimate':'below the estimate');
     return {est,measured:w.lb,diff,abs:a,level,sentence,from:p.date,to:w.date,fromWeight:p.lb,logged:x.logged,of:x.of,skipped:x.skipped,max:2};
   }
 };
