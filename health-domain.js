@@ -404,7 +404,7 @@ function scheduledOn(ver, date){
   if (ver.goal && ver.goal.v === 1 && ver.goal.period && ver.goal.period.kind === 'range' && ((ver.goal.period.from && date < ver.goal.period.from) || (ver.goal.period.to && date > ver.goal.period.to))) return false;   // V3.6 M2 (review F3)
   if (ver.goal && ver.goal.v === 1 && typeof GoalEngine !== 'undefined' && ver.goal.when && ver.goal.when.kind !== 'any' && ver.goal.when.kind !== 'days') return date >= ver.effectiveFrom && GoalEngine.dueOn(ver.goal, date, ver);   // V3.6 M2
   const r = ver.recurrence || {};
-  if (r.kind === 'once') return r.date === date;
+  if (r.kind === 'once') return !ver.needsDate && r.date === date;   // AG2: an "I set each date" item with no date yet is on no day
   if (r.startDate && date < r.startDate) return false;
   if (r.endDate && date > r.endDate) return false;
   const variant = recurrenceVariant(ver, date);
@@ -776,7 +776,7 @@ function versionFrom(f, version, effectiveFrom){
     scoring: scoringRule(f.scoring),
     matching: f.matching ? JSON.parse(JSON.stringify(f.matching)) : null,
   };
-  for(const key of ['parentId','category','workspaceKind','budgetQ','deadlineDay'])if(Object.prototype.hasOwnProperty.call(f,key))out[key]=f[key];
+  for(const key of ['parentId','category','workspaceKind','budgetQ','deadlineDay','setEach','needsDate','secondChance'])if(Object.prototype.hasOwnProperty.call(f,key))out[key]=f[key];   // AG2: setEach (I set each date), needsDate (no date yet), secondChance (Night after 7 PM)
   if (f.goal && typeof GoalEngine !== 'undefined'){ const g = GoalEngine.normalize(f.goal); if (g){ out.goal = g; if (g.v === 1 && !(f.recurrence && f.recurrence.kind === 'once')) out.recurrence = normalizeRecurrence(GoalEngine.legacyRecurrence(g, effectiveFrom), effectiveFrom); } }   // V3.6 M1
   if (Array.isArray(f.childIds)) out.childIds = [...new Set(f.childIds)];
   return out;

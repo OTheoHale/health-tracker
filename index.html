@@ -965,8 +965,9 @@ details.fit-workouts>summary{display:flex;align-items:center;gap:10px;cursor:poi
 .cmp-more{display:grid;gap:8px;border-top:1px solid var(--line);padding-top:8px}
 .cmp-row{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
 /* AG1: Edit is the composer; what only editing needs folds under More */
+.nd-card .nd-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--line)}.nd-card .nd-row:first-of-type{border-top:0}.nd-card .nd-name{display:grid;flex:1 1 180px;min-width:0}.nd-card .nd-name small{color:var(--muted);font-size:12px}.nd-card .nd-date{font:inherit;font-size:13px;min-height:30px}
 .due-row .due-edit{border:0;background:none;color:var(--muted);font-size:13px;min-width:24px;min-height:24px;cursor:pointer;padding:0 2px;opacity:.7}.due-row .due-edit:hover,.due-row .due-edit:focus-visible{opacity:1;color:var(--ink)}
-.cmp-editmore{border-top:1px solid var(--line);padding-top:6px}.cmp-editmore>summary{cursor:pointer;font-weight:600;font-size:13px;min-height:28px;display:flex;align-items:center}.cmp-em{display:grid;gap:8px;padding-top:6px;min-width:0}.cmp-em .cmp-row{flex-wrap:nowrap;min-width:0}.cmp-em .cmp-row>.scope:first-child{flex:0 0 84px}.cmp-em input[type=text],.cmp-em select{min-width:0;flex:1 1 140px;max-width:100%}.cmp-em input.cmp-min{width:58px;flex:0 0 58px}.cmp-em input[type=date]{flex:0 1 160px;min-width:0;width:auto}.cmp-em .cmp-counts{white-space:nowrap}.ws-composer .hint.cmp-rule{margin:0;font-size:12px}.ws-editcard{margin:6px 0;overflow:hidden}.ws-editcard .ws-composer{max-width:100%;min-width:0}
+.cmp-editmore{border-top:1px solid var(--line);padding-top:6px}.cmp-editmore>summary{cursor:pointer;font-weight:600;font-size:13px;min-height:28px;display:flex;align-items:center}.cmp-em{display:grid;gap:8px;padding-top:6px;min-width:0}.cmp-em .cmp-row{flex-wrap:nowrap;min-width:0}.cmp-em .cmp-row>.scope:first-child{flex:0 0 84px}.cmp-em input[type=text],.cmp-em select{min-width:0;flex:1 1 140px;max-width:100%}.cmp-em input.cmp-min{width:58px;flex:0 0 58px}.cmp-em input[type=date]{flex:0 1 160px;min-width:0;width:auto}.cmp-em .cmp-counts{white-space:nowrap}.ws-composer .hint.cmp-rule,.ws-composer .hint.cmp-cap{margin:0;font-size:12px}.ws-composer .cmp-row .days{display:inline-flex;flex-wrap:wrap;gap:4px}.ws-composer .cmp-row .days label{padding:0 6px}.ws-editcard{margin:6px 0;overflow:hidden}.ws-editcard .ws-composer{max-width:100%;min-width:0}
 .cmp-row .scope{min-width:72px}
 .cmp-more textarea{width:100%;min-height:44px;font:inherit}
 .cmp-more input[type=number]{width:64px}
@@ -4137,11 +4138,11 @@ addEventListener('load', () => {
     },
     'goal-builder': st => {
       const t = todayYmd(), goals = st.series.filter(s => !s.archivedAt && latestVersion(s).goal)   /* review F8: the item as it stands */.map(s => ({s, m:goalMeasure(st, {seriesId:s.id}, t)}));
-      return {id:'goal-builder', name:'Goal items', line:'an item that counts toward a target over a period',
-        score:{value:goals.length, word:goals.length === 1 ? 'goal item' : 'goal items', colour:'neutral', change:goals.filter(x => x.m && x.m.met).length + ' met today'},
+      return {id:'goal-builder', name:'Measured items', line:'a number, a limit or a reading over a period, typed or from Apple Health',
+        score:{value:goals.length, word:goals.length === 1 ? 'measured item' : 'measured items', colour:'neutral', change:goals.filter(x => x.m && x.m.met).length + ' met today'},
         breakdown:goals.slice(0, 12).map(x => ({name:latestVersion(x.s).name, yours:x.m ? x.m.text : 'open', weight:latestVersion(x.s).goal.period.kind, colour:x.m && x.m.met ? 'green' : 'neutral'})),
-        moved:goals.length ? '' : 'No goal items yet: + Add on Quests, then Goal or repeat.',
-        what:'A goal item counts something over a period: done or not (check), how many times (count), an amount (sum), an average or the latest reading, against at least, at most, between or exactly. The period is a day, week, month, every N days, a date range or a rolling window. How it looks: a count of 10 or less is a row of boxes (circles for times), a limit over its number turns warm, an amount is a bar with a tick at the goal that fills past it in gold, what you added by hand is a second colour beside what a sync brought (a sync never overwrites it), the stepper adds an amount, and a yes-or-no item has a third state, partly done.',
+        moved:goals.length ? '' : 'No measured items yet: + Add on Quests, then Measured.',
+        what:'A measured item counts something over a period: done or not (check), how many times (count), an amount (sum), an average or the latest reading, against at least, at most, between or exactly. The period is a day, week, month, every N days, a date range or a rolling window. How it looks: a count of 10 or less is a row of boxes (circles for times), a limit over its number turns warm, an amount is a bar with a tick at the goal that fills past it in gold, what you added by hand is a second colour beside what a sync brought (a sync never overwrites it), the stepper adds an amount, and a yes-or-no item has a third state, partly done.',
         how:'Presets only fill the form; nothing is added for you. A windowed goal counts once per window: each due day carries its share, paid the credit the window holds at its end. Partially done earns what partial already earns: half credit in the grade, never Perfect. A goal pays the item’s own points times its credit share.',
         optimal:'Set the target you mean to keep; the builder has no recommended numbers.', why:'One item can stand for a week’s running or a month’s reading without a check-off every day.',
         improve:['Start with one goal per area.', 'Use a week period for anything you do several times a week.', 'Log an entry from the item’s row; its drawer lists every entry.'], related:[{name:'Quests', area:'plan'}]};
@@ -4586,7 +4587,7 @@ addEventListener('load', () => {
     const num = (id, v, label, step) => '<input id="' + id + '" type="number" inputmode="decimal" step="' + (step || 'any') + '" min="0" value="' + (v === null || v === undefined ? '' : v) + '" aria-label="' + esc(label) + '">';
     const date = (id, v, label) => '<input id="' + id + '" type="date" value="' + esc(v || '') + '" aria-label="' + esc(label) + '">';
     const days = (k, list, label) => '<span class="gb-days" role="group" aria-label="' + esc(label) + '">' + [1, 2, 3, 4, 5, 6, 0].map(i => chip(k, i, GB_WD[i].slice(0, 3), list.includes(i))).join('') + '</span>';
-    const presets = '<p class="hint keep"><button type="button" class="link" data-act="learnView" data-learn="goal-builder">How goal items work</button></p><div class="gb-presets" role="group" aria-label="Presets">' + GOAL_PRESETS().map(p => '<button type="button" class="gb-preset" data-act="wsGoalPreset" data-v="' + p[0] + '" data-preset="' + p[0] + '" aria-pressed="' + (c.gpreset === p[0]) + '"><b>' + esc(p[1]) + '</b><small>e.g. ' + esc(p[2]) + '</small></button>').join('') + '</div>';
+    const presets = '<p class="hint keep"><button type="button" class="link" data-act="learnView" data-learn="goal-builder">How measured items work</button></p><div class="gb-presets" role="group" aria-label="Presets">' + GOAL_PRESETS().map(p => '<button type="button" class="gb-preset" data-act="wsGoalPreset" data-v="' + p[0] + '" data-preset="' + p[0] + '" aria-pressed="' + (c.gpreset === p[0]) + '"><b>' + esc(p[1]) + '</b><small>e.g. ' + esc(p[2]) + '</small></button>').join('') + '</div>';
     let s1 = row(GB_MEASURES.map(([id, t]) => chip('measure', id, t, m === id)).join(''));
     if (m === 'sum') s1 += row('<span class="scope">Unit</span>' + GB_UNITS.map(u => chip('unit', u, u, g.measure.unit === u)).join('') + chip('unit', 'custom', 'My own unit', !GB_UNITS.includes(g.measure.unit)) + (!GB_UNITS.includes(g.measure.unit) ? '<input id="wsComposerGUnit" type="text" maxlength="14" placeholder="unit, e.g. laps" aria-label="Your own unit" value="' + esc(g.measure.unit) + '">' : ''));
     if (m === 'average' || m === 'latest') s1 += row('<span class="scope">Reading</span>' + GB_READINGS.map(r => chip('reading', r[0], r[1], g.measure.reading === r[0])).join(''));
@@ -5690,7 +5691,7 @@ addEventListener('load', () => {
     const upnext = '<section class="k-sec today-next-sec"><div class="k-sec-head"><h2>Up Next' + infoBtn('upnext', 'Up Next') + '</h2><button class="link" data-act="todayTab" data-tab="activities" data-parity="TODAY-36">See all ›</button></div>' + infoPop('upnext', 'What is due today by its own days, one routine at a time with every step in view. Skip for now sends one to the back of today’s queue; ‹ › go through what is left. The full day is on Quests.') + next.replace('<section class="panelcard next-action"', '<section class="panelcard next-action" data-parity="TODAY-10"') + '</section>';
     const week = '<section class="k-sec"><div class="k-sec-head"><h2>This Week' + infoBtn('wkstrip', 'This Week') + '</h2>' + filtChipHTML('home', 'week') + '<button class="link" data-act="questTab" data-tab="week">Week ›</button></div>' + infoPop('wkstrip', 'Each day of this week: what it asked, and how much is done (brighter is more). Tap a day to open it on Quests. Your weekly goals (Prayer 3 of 5 and the rest) are on Quests → Week.') + weekStripV34(st) + '</section>';
     const added = composer && composer.area === 'home' ? '<section class="k-card today-add" data-feedback-id="today-add" data-feedback-label="Add an item">' + composerHTML() + '</section>' : '';
-    return head + strip + added + gradeArea('home', () => gradeHero(st) + gradeStrip(st), st) + sundayReviewToday(st) + dayEditor() + quickPanel() + (railHosts() ? '' : sofar) + heroCard(day, {tiles:true}) + '<div class="today-two">' + upnext + week + '</div><div class="today-two today-two-energy"><div class="today-stack">' + fuelCardV35(day) + '</div>' + waterStepsCardV35(day) + '</div>' + macrosNutritionCard(day) + dailyLearnList('today', day);
+    return head + strip + added + nextDatesCard(st) + gradeArea('home', () => gradeHero(st) + gradeStrip(st), st) + sundayReviewToday(st) + dayEditor() + quickPanel() + (railHosts() ? '' : sofar) + heroCard(day, {tiles:true}) + '<div class="today-two">' + upnext + week + '</div><div class="today-two today-two-energy"><div class="today-stack">' + fuelCardV35(day) + '</div>' + waterStepsCardV35(day) + '</div>' + macrosNutritionCard(day) + dailyLearnList('today', day);
   }
 
   function starterFilePanel(){
@@ -5953,7 +5954,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function questActivities(){
     const st = S(), swept = questSwept.has(day);
     const add = composer && composer.area === 'plan' ? composerHTML() : '<div class="q-add"><button class="q-addline" data-act="questAdd" data-parity="QUESTS-01"><span aria-hidden="true">＋</span>Add a task</button><button class="k-icon-btn q-sweep" data-act="questSweep" aria-pressed="' + swept + '" aria-label="' + (swept ? 'Show finished cards' : 'Sweep finished cards out of view') + '" title="' + (swept ? 'Show finished cards' : 'Sweep finished cards') + '" data-parity="QUESTS-13">🧹</button></div>';
-    return questDayNav() + dayEditor() + add + gradeArea('plan', () => gradeStrip(st), st) + umbrellaChips(st) +
+    return questDayNav() + dayEditor() + add + nextDatesCard(st) + gradeArea('plan', () => gradeStrip(st), st) + umbrellaChips(st) +
       (activitiesPending(st) && !(typeof structureV2Adopted === 'function' && structureV2Adopted(st)) ? scoringProposalCard() : '') +
       quickPanel() + wsActivities({includeClaims:false, umbrella:questUmbrella === 'all' ? null : questUmbrella, swept}) + removedFold(st);
   }
@@ -8329,7 +8330,11 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
      date, Daily, Days, N per week), importance and difficulty, a note and the card it belongs to. What is typed stays
      across a page switch (1.8). Where it lands follows the day rule (2.2, 2.3): a weekly-count item starts in
      Template → Due This Week; a daily, day-bound or one-off item fills its day. */
-  const REPEATS = [['once','Once'],['daily','Daily'],['days','Days'],['week','N per week'],['goal','Goal or repeat']];   // V3.6 M6
+  const REPEATS = [['once','Once'],['daily','Daily'],['days','Days'],['week','N per week'],['biweek','Every 2 weeks'],['month','Monthly'],['dates','I set each date'],['goal','Measured']];   // AJ1: the real divider is checklist versus measured   // V3.6 M6; AG2 adds Every 2 weeks, Monthly, I set each date
+  /* AG2 (his answers, Oct 8): Monthly is once in each calendar month, any day (RX, Shower Curtains); "I set each date" has a next date or none yet and,
+     once that day is done or past, asks "When is the next one?" under Next dates (SUD Individual, a mentor's next session). */
+  const monthGoalDef = () => GoalEngine.normalize({v:1, measure:{kind:'check', unit:''}, source:{kind:'manual'}, target:{op:'atLeast', value:1}, period:{kind:'month'}, when:{kind:'any'}, credit:'all'});
+  const isMonthGoal = g => !!(g && g.v === 1 && g.measure && g.measure.kind === 'check' && g.period && g.period.kind === 'month' && (!g.when || g.when.kind === 'any') && g.target && g.target.value === 1);
   /* Fix G3 (Mintay, Oct 6): one weight, said in words. 5 is the average item; 10 counts twice as much; 0 is left out of the grade. */
   const gimpWords = v => { v = Math.max(0, Math.min(10, Math.round(+v || 0))); const x = v / GRADE_ITEM_IMPORTANCE; return v === 0 ? 'Left out of the grade.' : v === GRADE_ITEM_IMPORTANCE ? 'Counts like the average item.' : x > 1 ? 'Counts ' + (Math.round(x * 10) / 10) + ' times as much as the average item.' : 'Counts ' + Math.round(x * 100) + '% as much as the average item.'; };
   document.addEventListener('input', e => { const t = e.target; if (t && t.id === 'wsComposerGImp'){ const out = t.parentElement && t.parentElement.querySelector('.g-sval'), words = document.getElementById('wsGimpWords'); if (out) out.textContent = t.value; if (words) words.textContent = gimpWords(t.value) + ' The Importance dots above set its points; this sets how much it moves its Focus’s grade.'; } });
@@ -8343,7 +8348,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const pageUmb = o.umb || (groupId ? null : {faith:'faith', fitness:'health', body:'health', stand:'health'}[area]) || null;
     const card = groupId || (pageUmb && !o.askCard && (visibleGroups(S()).find(g => gradeGroupUmbrella(S(), g.id) === pageUmb) || {}).id) || (visibleGroups(S())[0] || {}).id || '';
     composer = { date:o.date || day, kind, parentId: parentId || null, groupId: groupId || null, fieldId: newDraftId(), title: title || '', ideaId: ideaId || null, error:'', busy:false,
-      template: !!o.template, more: !!o.more, subs: '', repeat: o.repeat || 'once', days: [1, 2, 3, 4, 5], count: 3, importance: 2, difficulty: 1, note: '', card: o.askCard ? '' : card, askCard: !!o.askCard, area: o.area || null, counts: true, gimp: 5, tier: 'required', umb: (card && !o.askCard && gradeGroupUmbrella(S(), card)) || (!o.askCard && pageUmb) || null };   // V3.5 G8: Counts toward grade, grade importance, the umbrella
+      template: !!o.template, more: !!o.more, subs: '', repeat: o.repeat || 'once', days: [1, 2, 3, 4, 5], count: 3, wdays: [], every: 2, bstart: o.date || day, ndate: o.date || day, importance: 2, difficulty: 1, note: '', card: o.askCard ? '' : card, askCard: !!o.askCard, area: o.area || null, counts: true, gimp: 5, tier: 'required', umb: (card && !o.askCard && gradeGroupUmbrella(S(), card)) || (!o.askCard && pageUmb) || null };   // V3.5 G8: Counts toward grade, grade importance, the umbrella
     unsavedForm = true; render(); focusFirst('#wsComposerTitle');
   }
   // What the composer's fields say now, so a re-draw (More, a repeat chip, a page switch) never loses a word.
@@ -8363,11 +8368,16 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       if (g('wsEditDay')) composer.editScope = g('wsEditDay').checked ? 'day' : 'future';
       if (g('wsEditParent')) composer.parentSel = g('wsEditParent').value;
       if (g('wsEditOpt')) composer.optional = g('wsEditOpt').checked;
+      if (g('wsEditSecond')) composer.second = g('wsEditSecond').checked;
       if (g('wsEditMk')) composer.mk = g('wsEditMk').value;
       for (const [id, k] of [['wsEditNl', 'nl'], ['wsEditNm', 'nm'], ['wsEditMl', 'ml'], ['wsEditMm', 'mm'], ['wsEditSession', 'session'], ['wsEditInterval', 'interval'], ['wsEditIStart', 'istart'], ['wsEditTCount', 'tcount'], ['wsEditTWeeks', 'tweeks'], ['wsEditMt', 'mt'], ['wsEditMmin', 'mmin'], ['wsEditEach', 'each']]) if (g(id)) composer[k] = g(id).value;
     }
     if (g('wsComposerCard') && g('wsComposerCard').tagName === 'SELECT') composer.card = g('wsComposerCard').value;   // V3.4: chips set composer.card directly
     const days = [...document.querySelectorAll('input[name="wsComposerDay"]')]; if (days.length) composer.days = days.filter(i => i.checked).map(i => +i.value);
+    const wdays = [...document.querySelectorAll('input[name="wsComposerWDay"]')]; if (wdays.length) composer.wdays = wdays.filter(i => i.checked).map(i => +i.value);   // AG2
+    if (g('wsComposerEvery')) composer.every = Math.max(2, Math.min(12, Math.round(+g('wsComposerEvery').value) || 2));
+    if (g('wsComposerBStart') && /^\d{4}-\d{2}-\d{2}$/.test(g('wsComposerBStart').value)) composer.bstart = g('wsComposerBStart').value;
+    if (g('wsComposerNDate')) composer.ndate = /^\d{4}-\d{2}-\d{2}$/.test(g('wsComposerNDate').value) ? g('wsComposerNDate').value : '';
     keepComposerDraft();
   }
   // A word he typed is stashed by field (1.8) and would come back in the next composer; once added or cancelled it is forgotten.
@@ -8378,14 +8388,20 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const all = [0, 1, 2, 3, 4, 5, 6];
     if (c.repeat === 'daily') return {kind:'weekly', days:all, intervalWeeks:1, count:1, weeks:1, mode:'fixed', startDate:c.date, session:''};
     if (c.repeat === 'days') return {kind:'weekly', days:(c.days && c.days.length ? c.days : all).slice().sort(), intervalWeeks:1, count:1, weeks:1, mode:'fixed', startDate:c.date, session:''};
-    if (c.repeat === 'week') return {kind:'target', days:all, count:c.count || 1, weeks:1, mode:'fixed', startDate:c.date, session:''};
+    if (c.repeat === 'week') return {kind:'target', days:(c.wdays && c.wdays.length ? c.wdays : all).slice().sort(), count:c.count || 1, weeks:1, mode:'fixed', startDate:c.date, session:''};
+    if (c.repeat === 'biweek') return {kind:'weekly', days:(c.days && c.days.length ? c.days : all).slice().sort(), intervalWeeks:Math.max(2, c.every || 2), count:1, weeks:1, mode:'fixed', startDate:c.bstart || c.date, session:''};   // AG2: anchored to the week of its first date, never to a check-off
+    if (c.repeat === 'month') return GoalEngine.legacyRecurrence(monthGoalDef(), c.date);
+    if (c.repeat === 'dates') return {kind:'once', date:c.ndate || c.date};
     if (c.repeat === 'goal' && c.goal) return GoalEngine.legacyRecurrence(GoalEngine.normalize(c.goal), c.date);   // V3.6 M6: what an older build reads
     return {kind:'once', date:c.date};
   }
   function composerLands(c){
     if (c.repeat === 'goal' && c.goal) return 'A goal on ' + (groupName(c.card) || 'its card') + ', from ' + medDate(c.date) + '; it shows on Quests, Today and Up Next when due.';
     const cardName = groupName(c.card) || 'its card';
-    if (c.repeat === 'week') return 'Lands in Template · Due This Week, ' + c.count + ' a week; place it on the days you will do it.';
+    if (c.repeat === 'week') return (c.wdays && c.wdays.length ? 'Shows on ' + dayLabels().filter(l => c.wdays.includes(l.dow)).map(l => l.label).join(' or ') + ' until ' + c.count + ' are done that week.' : 'Lands in Template · Due This Week, ' + c.count + ' a week; place it on the days you will do it.');
+    if (c.repeat === 'biweek') return 'Every ' + (c.every || 2) + ' weeks on ' + (c.days && c.days.length ? dayLabels().filter(l => c.days.includes(l.dow)).map(l => l.label).join(', ') : 'any day') + ', from the week of ' + medDate(c.bstart || c.date) + '.';
+    if (c.repeat === 'month') return 'Once in each calendar month, on ' + cardName + '; it waits under This Month until done.';
+    if (c.repeat === 'dates') return c.ndate ? 'On ' + medDate(c.ndate) + '; once done it asks for the next date.' : 'Waits under Next dates until you pick its day.';
     if (c.repeat === 'daily') return 'Fills every day on ' + cardName + ' from ' + medDate(c.date) + '.';
     if (c.repeat === 'days') return 'Fills ' + (c.days && c.days.length ? dayLabels().filter(l => c.days.includes(l.dow)).map(l => l.label).join(', ') : 'the chosen days') + ' on ' + cardName + '.';
     return 'On ' + cardName + ' for ' + medDate(c.date) + ' only.';
@@ -8399,10 +8415,13 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const dots = k => '<span class="rate" role="group" aria-label="' + k + '">' + [1, 2, 3].map(v => '<button type="button" class="rate-dot" data-act="wsComposerRate" data-k="' + k + '" data-v="' + v + '" aria-pressed="' + (c[k] >= v) + '" aria-label="' + k + ' ' + v + ' of 3"></button>').join('') + '</span>';
     const detail = c.repeat === 'once' ? '<label for="wsComposerDate" class="scope">on</label><input id="wsComposerDate" type="date" value="' + esc(c.date) + '">'
       : c.repeat === 'days' ? '<div class="days">' + labels.map(l => '<label class="' + (c.days.includes(l.dow) ? 'on' : '') + '"><input type="checkbox" name="wsComposerDay" value="' + l.dow + '"' + (c.days.includes(l.dow) ? ' checked' : '') + '>' + esc(l.label) + '</label>').join('') + '</div>'
-      : c.repeat === 'week' ? '<input id="wsComposerCount" type="number" inputmode="numeric" min="1" max="14" value="' + c.count + '" aria-label="Times a week"><span class="scope">a week</span>' + (ed && c.each != null ? '<span class="scope">each</span><input id="wsEditEach" type="number" inputmode="numeric" min="1" max="600" value="' + esc(String(c.each)) + '" aria-label="Minutes each time"><span class="scope">min</span>' : '') : '';
+      : c.repeat === 'week' ? '<input id="wsComposerCount" type="number" inputmode="numeric" min="1" max="14" value="' + c.count + '" aria-label="Times a week"><span class="scope">a week</span>' + (ed && c.each != null ? '<span class="scope">each</span><input id="wsEditEach" type="number" inputmode="numeric" min="1" max="600" value="' + esc(String(c.each)) + '" aria-label="Minutes each time"><span class="scope">min</span>' : '') + '<span class="scope">on</span><div class="days" role="group" aria-label="Only on these days">' + labels.map(l => '<label class="' + ((c.wdays || []).includes(l.dow) ? 'on' : '') + '"><input type="checkbox" name="wsComposerWDay" value="' + l.dow + '"' + ((c.wdays || []).includes(l.dow) ? ' checked' : '') + '>' + esc(l.label) + '</label>').join('') + '</div><span class="scope">' + ((c.wdays || []).length ? 'a later day shows only while the week is not met' : 'any day') + '</span>'
+      : c.repeat === 'biweek' ? '<div class="days">' + labels.map(l => '<label class="' + (c.days.includes(l.dow) ? 'on' : '') + '"><input type="checkbox" name="wsComposerDay" value="' + l.dow + '"' + (c.days.includes(l.dow) ? ' checked' : '') + '>' + esc(l.label) + '</label>').join('') + '</div><span class="scope">every</span><input id="wsComposerEvery" type="number" inputmode="numeric" min="2" max="12" value="' + esc(String(c.every || 2)) + '" aria-label="Every how many weeks"><span class="scope">weeks, first week of</span><input id="wsComposerBStart" type="date" value="' + esc(c.bstart || c.date) + '" aria-label="Starting">'
+      : c.repeat === 'month' ? '<span class="scope">once each calendar month, any day</span>'
+      : c.repeat === 'dates' ? '<span class="scope">next on</span><input id="wsComposerNDate" type="date" value="' + esc(c.ndate || '') + '" aria-label="Next date (empty: not known yet)"><span class="scope">empty if not known yet</span>' : '';
     const more = c.more && c.kind !== 'subgroup' ? '<div class="cmp-more">' +
         (c.kind === 'subitem' || ed ? '' : '<div><label for="wsComposerSubs">Sub-items, one per line</label><textarea id="wsComposerSubs" rows="2" placeholder="Each line becomes a step">' + esc(c.subs) + '</textarea></div>') +
-        '<div class="cmp-row"><span class="scope">Repeat</span>' + REPEATS.concat(ed && c.origRepeat === 'keep' ? [['keep', 'As set']] : []).map(chip).join('') + detail + '</div>' + (ed && c.repeat === 'keep' ? '<p class="hint keep cmp-rule" data-parity="AG1-RULE">' + esc(c.ruleWords || '') + ' Its exact fields are under More.</p>' : '') + (c.repeat === 'goal' && c.goal ? (c.flow ? goalFlowHTML(c) : goalBuilderHTML(c)) : '') +
+        '<div class="cmp-row"><span class="scope">Repeat</span>' + REPEATS.concat(ed && c.origRepeat === 'keep' ? [['keep', 'As set']] : []).map(chip).join('') + detail + '</div><p class="hint keep cmp-cap" data-parity="AJ1-CAPTION">' + (c.repeat === 'goal' ? 'Measured: a number, a limit, or data from Apple Health.' : 'A checklist: done or not. Measured is a number, a limit, or data from Apple Health.') + '</p>' + (ed && c.repeat === 'keep' ? '<p class="hint keep cmp-rule" data-parity="AG1-RULE">' + esc(c.ruleWords || '') + ' Its exact fields are under More.</p>' : '') + (c.repeat === 'goal' && c.goal ? (c.flow ? goalFlowHTML(c) : goalBuilderHTML(c)) : '') +
         '<div class="cmp-row"><span class="scope">Importance</span>' + dots('importance') + '<span class="scope">Difficulty</span>' + dots('difficulty') + '</div>' +
         (ed ? '' : '<div class="cmp-row"><label for="wsComposerNote" class="scope">Note</label><input id="wsComposerNote" type="text" maxlength="140" placeholder="What a normal day looks like" value="' + esc(c.note) + '"></div>') +
         '<div class="cmp-row"><label for="wsComposerGImp" class="scope">Weight in the grade</label><input id="wsComposerGImp" type="range" min="0" max="10" step="1" value="' + c.gimp + '" aria-describedby="wsGimpWords"><b class="g-sval">' + c.gimp + '</b></div><p class="hint keep" id="wsGimpWords" data-parity="G3-WORDS">' + esc(gimpWords(c.gimp)) + ' The Importance dots above set its points; this sets how much it moves its Focus’s grade.</p>' +
@@ -8414,7 +8433,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     return '<div class="ws-composer' + (ed ? ' cmp-edit' : '') + '" data-parity="' + (ed ? 'AG1-EDIT' : 'V35-G8-01') + '" data-composer="' + esc(c.kind) + '" data-key="composer:' + esc(ed ? 'edit:' + c.editSeries : c.template ? 'template' : c.area === 'plan' ? 'plan' : (c.parentId || c.groupId || '')) + '"><label for="wsComposerTitle">' + (ed ? 'Edit ' + (c.isChild ? 'subtask' : 'task') : 'New ' + what + (c.template ? ' · tied to a Focus' : '')) + '</label>' + (cardChip ? '<div class="line">' + cardChip + '</div>' : '') +
       '<div class="line"><input id="wsComposerTitle" type="text" maxlength="90" autocomplete="off" placeholder="Name it, then Enter" value="' + esc(c.title) + '"' + (c.busy ? ' disabled' : '') + '>' +
       '<button class="save" data-act="wsComposerSave"' + (c.busy ? ' disabled' : '') + '>' + (c.busy ? 'Saving…' : ed ? 'Save' : 'Just add') + '</button>' +
-      (c.kind === 'subgroup' || ed ? '' : '<button type="button" class="link" data-act="wsComposerMore" aria-expanded="' + c.more + '">More ' + (c.more ? '▾' : '▸') + '</button>') + (c.kind === 'item' && !ed && !(c.more && c.repeat === 'goal') ? '<button type="button" class="link" data-act="wsComposerRepeat" data-v="goal" data-open="1">Goal or repeat</button>' : '') +
+      (c.kind === 'subgroup' || ed ? '' : '<button type="button" class="link" data-act="wsComposerMore" aria-expanded="' + c.more + '">More ' + (c.more ? '▾' : '▸') + '</button>') + (c.kind === 'item' && !ed && !(c.more && c.repeat === 'goal') ? '<button type="button" class="link" data-act="wsComposerRepeat" data-v="goal" data-open="1">Measured</button>' : '') +
       '<button class="ghost" data-act="wsComposerCancel">Cancel</button><label class="cmp-counts"><input type="checkbox" id="wsComposerCounts"' + (c.counts ? ' checked' : '') + '> Counts toward grade</label></div>' +
       (c.error ? '<p class="err" role="alert">' + esc(c.error) + '</p>' : '') + more + '</div>';
   }
@@ -8484,11 +8503,11 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const rec = composerRecurrence(c), subs = laundryAuto(c) ? LAUNDRY_STEPS.slice() : c.kind === 'subitem' ? [] : String(c.subs || '').split('\n').map(x => x.trim()).filter(Boolean).slice(0, 20);
     const card = c.parentId ? null : c.card || c.groupId || null;
     const extra = c.more ? {scoring:{importance:c.importance, difficulty:c.difficulty}, ...(c.note.trim() ? {normal:{label:c.note.trim(), minutes:null}} : {})} : {};
-    const goal = c.repeat === 'goal' && c.goal ? GoalEngine.normalize({...c.goal, period:{...c.goal.period, ...(c.goal.period.kind === 'week' ? {weekStart:S().prefs.weekStart === 0 ? 0 : 1} : {})}}) : null;   // V3.6 M6: one definition, stored on the version, with the week start he chose (review F9)
+    const goal = c.repeat === 'goal' && c.goal ? GoalEngine.normalize({...c.goal, period:{...c.goal.period, ...(c.goal.period.kind === 'week' ? {weekStart:S().prefs.weekStart === 0 ? 0 : 1} : {})}}) : c.repeat === 'month' ? monthGoalDef() : null;   // V3.6 M6; AG2 Monthly: one definition, stored on the version, with the week start he chose (review F9)
     if (goal && goal.source.kind === 'auto' && !gbSources(S(), goal).some(x => x.metric === goal.source.metric)) goal.source = {kind:'manual'};
     if (c.editSeries && !(c.flow && c.flow.convert)){ await composerEditSave(c, title); return; }
     if (c.editSeries){ const id = c.editSeries, today = todayYmd(), changes = goal ? {name:title, goal} : {name:title, goal:null, recurrence:rec}; const r0 = await manualActionTransaction(S(), d => { if (!reviseSeries(d, id, changes, today, today)) return {ok:false, error:'Not saved: the item cannot change before today.'}; if ((c.tier === 'stretch' || c.tier === 'required') && gradeTierOf(gradeConfig(d), id, today) !== c.tier) setGradeConfig(d, 'items', id, 'tier', c.tier); return {ok:true}; }, {persist:!preview, undo:'goal-edit'});   /* V3.7 W2, W3: Convert revises from today (earlier versions stay) and the tier moves with it */ /* edit mode always revises the same item, goal or not (review F8) */ c.busy = false; if (!r0.ok){ c.error = r0.error || 'Not saved.'; render(); return; } composer = null; unsavedForm = false; forgetComposerDrafts(); render(); toast((goal ? 'Goal' : 'Item') + ' changed from today; earlier days keep what they had.'); return; }
-    const fields = { id: c.fieldId, name: title, ...(card ? {category:card} : {}), container: c.kind === 'subgroup' || subs.length > 0, recurrence: rec, ...(goal ? {goal} : {}), ...extra };
+    const fields = { id: c.fieldId, name: title, ...(card ? {category:card} : {}), container: c.kind === 'subgroup' || subs.length > 0, recurrence: rec, ...(goal ? {goal} : {}), ...(c.repeat === 'dates' ? {setEach:true, needsDate:!c.ndate} : {}), ...extra };
     const opts = { scope: rec.kind === 'once' ? 'occurrence' : 'future' }, parentId = c.parentId, ideaId = c.ideaId, date = c.date;
     const result = await manualActionTransaction(S(), d => {
       const children = subs.map((name, i) => ({id:c.fieldId + '-' + (i + 1), name, ...(card ? {category:card} : {}), recurrence:rec, ...(c.more ? {scoring:{importance:c.importance, difficulty:c.difficulty}} : {})}));
@@ -8515,6 +8534,10 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   const editWorkoutMinGoal = g => !!(g && g.v === 1 && g.measure && g.measure.kind === 'sum' && g.measure.unit === 'min' && g.period && g.period.kind === 'week' && g.target && g.target.op === 'atLeast' && g.source && g.source.kind === 'auto' && g.source.metric === 'workouts');
   function editRepeatOf(v){
     const r = v.recurrence || {}, g = v.goal;
+    if (g && g.v === 1 && isMonthGoal(g)) return {repeat:'month'};   // AG2
+    if (r.kind === 'once' && v.setEach) return {repeat:'dates', ndate:v.needsDate ? '' : r.date};
+    if (r.kind === 'weekly' && (r.intervalWeeks || 1) > 1 && !(r.variants || []).length) return {repeat:'biweek', every:r.intervalWeeks, bstart:r.startDate, days:(r.days || []).slice()};
+    if (r.kind === 'target' && (r.weeks || 1) === 1 && (r.days || []).length && (r.days || []).length < 7 && !g) return {repeat:'week', count:r.count || 1, wdays:r.days.slice()};
     if (g && g.v === 1){ if (editWeekCountGoal(g)) return {repeat:'week', count:Math.max(1, Math.round(g.target.value || 1))}; if (editWorkoutMinGoal(g)) return {repeat:'week', count:1, each:g.target.value}; return {repeat:'goal'}; }
     if (r.kind === 'once') return {repeat:'once'};
     if (r.kind === 'weekly' && (r.intervalWeeks || 1) === 1) return (r.days || []).length === 7 ? {repeat:'daily'} : {repeat:'days', days:(r.days || []).slice()};
@@ -8536,6 +8559,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     openComposer('item', null, wsGroup(s, from) || s.category, v.name, null, {area:o.area || 'edit', more:true, repeat:m.repeat, date:r.kind === 'once' && r.date ? r.date : from});
     document.querySelectorAll('.ws-composer').forEach(x => x.remove());   // that first draw holds the add form's defaults (3 a week, Mon to Fri); the next draw reads fields back, so it must not find them (planner, Journal 3 vs 2, Oct 8)
     Object.assign(composer, {editSeries:s.id, editDate:at, editFrom:from, editScope:'future', origRepeat:m.repeat, origCount:m.count || 1, origEach:m.each == null ? null : m.each, each:m.each == null ? null : m.each, origDate:r.kind === 'once' ? r.date : null,
+      wdays:(m.wdays || []).slice(), origWdays:(m.wdays || []).slice().sort().join(','), every:m.every || 2, origEvery:m.every || 2, bstart:m.bstart || from, origBstart:m.bstart || from, ndate:m.ndate != null ? m.ndate : from, origNdate:m.ndate != null ? m.ndate : null, second:!!v.secondChance,
       count:m.count || 1, days:(m.days || (Array.isArray(r.days) && r.days.length ? r.days : [1, 2, 3, 4, 5])).slice(), origDays:(Array.isArray(r.days) ? r.days : []).slice().sort().join(','),
       parentSel:parent, origParent:parent, isChild:!!parent, ruleWords:m.repeat === 'keep' ? editRuleWords(v) : '',
       nl:(v.normal && v.normal.label) || '', nm:v.normal && v.normal.minutes != null ? String(v.normal.minutes) : '', ml:(v.minimum && v.minimum.label) || '', mm:v.minimum && v.minimum.minutes != null ? String(v.minimum.minutes) : '',
@@ -8561,6 +8585,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       row('<label for="wsEditSession" class="scope">Session</label><input id="wsEditSession" type="text" maxlength="40" placeholder="Morning, evening… (optional)" value="' + esc(c.session) + '">') +
       row('<label for="wsEditMk" class="scope">Checks off from</label><select id="wsEditMk">' + [['', 'Nothing: I check it'], ['workout', 'A workout'], ['steps', 'Steps'], ['sleep', 'Sleep'], ['toothbrushing', 'Brushing']].map(x => '<option value="' + x[0] + '"' + (c.mk === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select>' + (c.mk ? '<input id="wsEditMt" type="text" maxlength="40" placeholder="Workout type (optional)" value="' + esc(c.mt) + '"><span class="scope">at least</span><input id="wsEditMmin" type="number" inputmode="numeric" min="1" class="cmp-min" aria-label="At least" value="' + esc(c.mmin) + '">' : '')) +
       row('<label class="cmp-counts"><input type="checkbox" id="wsEditOpt"' + (c.optional ? ' checked' : '') + '> Optional: resting is fine</label>') +
+      row('<label class="cmp-counts" data-parity="AG2-SECOND"><input type="checkbox" id="wsEditSecond"' + (c.second ? ' checked' : '') + '> Second chance: after 7 PM, show it on Night if not done</label>') +
       (variants ? '<p class="hint keep">Dated versions, kept as they are: ' + esc(variants) + '.</p>' : '') + '</div></details>';
   }
   document.addEventListener('toggle', e => { const d = e.target; if (composer && d && d.matches && d.matches('details.cmp-editmore')) composer.emOpen = d.open; }, true);
@@ -8575,9 +8600,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const rec = composerRecurrence({...c, date:c.repeat === 'once' ? c.date : from});
     if (rec.kind === 'once') return rec;
     const iv = int(c.interval, 1, 52, 1);
-    if (rec.kind === 'weekly' && iv > 1){ rec.intervalWeeks = iv; rec.startDate = validCalendarDate(c.istart) ? c.istart : from; }
+    if (rec.kind === 'weekly' && iv > 1 && (c.repeat === 'daily' || c.repeat === 'days')){ rec.intervalWeeks = iv; rec.startDate = validCalendarDate(c.istart) ? c.istart : from; }
     if (rec.kind === 'target') rec.startDate = weekStartOf(from, 1);   // the calendar week it starts in
-    if (rec.kind === 'target' && r0.kind === 'target' && (r0.weeks || 1) === 1){ rec.startDate = r0.startDate || rec.startDate; rec.mode = r0.mode || rec.mode; if (Array.isArray(r0.days) && r0.days.length) rec.days = r0.days.slice(); }
+    if (rec.kind === 'target' && r0.kind === 'target' && (r0.weeks || 1) === 1){ rec.startDate = r0.startDate || rec.startDate; rec.mode = r0.mode || rec.mode; }
     return {...rec, ...carry};
   }
   const recSame = (a, b) => { const k = r => JSON.stringify([r.kind, (r.days || []).slice().sort(), r.kind === 'target' ? [r.count || 1, r.weeks || 1, r.startDate || ''] : null, (r.intervalWeeks || 1) > 1 ? [r.intervalWeeks, r.startDate] : 1, r.kind === 'once' ? r.date : null, r.session || '', (r.variants || []).length]); return k(a || {}) === k(b || {}); };
@@ -8595,8 +8620,10 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (!same(minimum, tgt(base.minimum))) changes.minimum = minimum;
     if (c.editScope !== 'day'){
       const each = c.each == null || String(c.each).trim() === '' ? null : Math.max(1, Math.min(600, Math.round(+c.each) || 1));
-      const daysNow = (c.days || []).slice().sort().join(','), repeatMoved = c.repeat !== c.origRepeat || (c.repeat === 'week' && (c.count !== c.origCount || each !== c.origEach)) || (c.repeat === 'days' && daysNow !== c.origDays) || (c.repeat === 'once' && c.date !== c.origDate);
-      if (c.repeat === 'goal' && c.goal){ const g = GoalEngine.normalize({...c.goal, period:{...c.goal.period, ...(c.goal.period.kind === 'week' ? {weekStart:S().prefs.weekStart === 0 ? 0 : 1} : {})}}); if (g.source.kind === 'auto' && !gbSources(S(), g).some(x => x.metric === g.source.metric)) g.source = {kind:'manual'}; if (!same(g, base.goal)) changes.goal = g; }
+      const daysNow = (c.days || []).slice().sort().join(','), repeatMoved = c.repeat !== c.origRepeat || (c.repeat === 'week' && (c.count !== c.origCount || each !== c.origEach || (c.wdays || []).slice().sort().join(',') !== c.origWdays)) || ((c.repeat === 'days' || c.repeat === 'biweek') && daysNow !== c.origDays) || (c.repeat === 'biweek' && (c.every !== c.origEvery || c.bstart !== c.origBstart)) || (c.repeat === 'once' && c.date !== c.origDate) || (c.repeat === 'dates' && (c.ndate || '') !== (c.origNdate || ''));
+      if (c.repeat === 'month'){ if (!isMonthGoal(base.goal)) changes.goal = monthGoalDef(); }   // AG2
+      else if (c.repeat === 'dates'){ if (repeatMoved || !base.setEach){ changes.recurrence = {kind:'once', date:c.ndate || from}; changes.setEach = true; changes.needsDate = !c.ndate; if (base.goal) changes.goal = null; } }
+      else if (c.repeat === 'goal' && c.goal){ const g = GoalEngine.normalize({...c.goal, period:{...c.goal.period, ...(c.goal.period.kind === 'week' ? {weekStart:S().prefs.weekStart === 0 ? 0 : 1} : {})}}); if (g.source.kind === 'auto' && !gbSources(S(), g).some(x => x.metric === g.source.metric)) g.source = {kind:'manual'}; if (!same(g, base.goal)) changes.goal = g; }
       else if (base.goal && c.repeat === 'week' && c.origRepeat === 'week'){
         if (repeatMoved){ const g = JSON.parse(JSON.stringify(base.goal));
           if (editWorkoutMinGoal(g)) changes.goal = GoalEngine.normalize({...g, measure:{kind:'count', unit:'times'}, target:{op:'atLeast', value:c.count}, credit:'proportional', source:{...g.source, field:'count', unit:'times', minMinutes:each || g.target.value}});   // "45 min a week" made N times a week: N workouts of at least that long
@@ -8610,6 +8637,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       const sc = scoringRule(base.scoring); if (sc.importance !== c.importance || sc.difficulty !== c.difficulty) changes.scoring = {...(base.scoring || {}), importance:c.importance, difficulty:c.difficulty};
       const match = c.mk ? {kind:c.mk, type:String(c.mt || '').trim(), minimum:Math.max(1, Math.round(+c.mmin) || 1)} : null; if (!same(match, base.matching || null)) changes.matching = match;
       if (!!base.optional !== !!c.optional) changes.optional = !!c.optional;
+      if (!!base.secondChance !== !!c.second) changes.secondChance = !!c.second;
+      if (base.setEach && c.repeat !== 'dates' && ('recurrence' in changes || 'goal' in changes)){ changes.setEach = false; changes.needsDate = false; }
     }
     const moveTo = c.editScope !== 'day' && (c.parentSel || '') !== (c.origParent || '') ? (c.parentSel || null) : undefined;
     c.busy = true; c.error = ''; render();
@@ -8627,6 +8656,42 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (!r0.ok){ c.error = r0.error || 'Not saved. Your changes are still here.'; render(); return; }
     composer = null; unsavedForm = false; forgetComposerDrafts(); render();
     toast(c.editScope === 'day' ? 'Changed ' + (from === today ? 'today' : medDate(from)) + ' only.' : 'Saved from ' + (from === today ? 'today' : medDate(from)) + '. Earlier days keep what they had.');
+  }
+  /* AG2 (a): "I set each date". An item whose day is done or past (or that has no day yet) asks "When is the next one?" here; Later hides it
+     until the next page load. A new date is a dated version from today, or from tomorrow when today's was done today (the record stays). */
+  const ndLater = new Set();
+  function nextDateItems(st){
+    const today = todayYmd(), out = [];
+    for (const s of st.series || []){ if (s.demo || (s.archivedAt && s.archivedAt <= today)) continue; const v = versionFor(s, '9999-12-31'); if (!v || !v.setEach || !v.recurrence || v.recurrence.kind !== 'once') continue;
+      const d = v.recurrence.date, o = st.occurrences[occKey(s.id, d)], happened = !!(o && o.status && !v.needsDate);
+      if (!(v.needsDate || happened || d < today) || ndLater.has(s.id + '|' + (v.needsDate ? '' : d))) continue;
+      out.push({id:s.id, name:v.name, date:v.needsDate ? null : d, happened, status:o && o.status}); }
+    return out;
+  }
+  function nextDatesCard(st){
+    const list = nextDateItems(st); if (!list.length) return '';
+    return '<section class="k-card nd-card" data-parity="AG2-NEXTDATES" data-feedback-id="next-dates" data-feedback-label="Next dates"><div class="k-head"><span class="k-title">Next dates</span></div>' + list.map(x => '<div class="nd-row" data-series="' + esc(x.id) + '" data-date="' + esc(x.date || '') + '"><span class="nd-name"><b>' + esc(x.name) + '</b><small>' + esc(x.date ? (x.happened ? (x.status === 'skipped' ? 'Skipped ' : 'Done ') : 'Was ') + medDate(x.date) + '. When is the next one?' : 'No date yet') + '</small></span><input type="date" class="nd-date" min="' + todayYmd() + '" aria-label="Next date for ' + esc(x.name) + '"><button class="save" data-act="ndSave">Save</button><button class="link" data-act="ndLater">Later</button></div>').join('') + '</section>';
+  }
+  async function nextDateSave(seriesId, to){
+    const st = S(), today = todayYmd(), x = nextDateItems(st).find(z => z.id === seriesId); if (!x) return;
+    if (!validCalendarDate(to)){ toast('Pick the next date first.'); return; }
+    const from = x.date === today && x.happened ? addDays(today, 1) : today;
+    if (to < from){ toast(from > today ? 'Today’s is done; pick tomorrow or later.' : 'Pick today or a later day.'); return; }
+    const r = await manualActionTransaction(st, d => Workspace.edit(d, seriesId, {recurrence:{kind:'once', date:to}, needsDate:false}, from), {persist:!preview, undo:'next-date'});
+    render(); toast(r.ok ? x.name + ' is on ' + medDate(to) + '.' : 'Not saved. ' + (r.error || ''));
+  }
+  /* AG2 (e), his words: "if i dont do it during the morning (anytime before 7pm, those items should move to night to give me another shot)". After
+     7:00 PM on today, an open item marked Second chance moves from its routine to the Night routine of the same Focus (display only; checking it
+     there checks the same day's item). */
+  function secondChanceShift(st, rows, date){
+    if (date !== todayYmd() || new Date().getHours() < 19 || !Array.isArray(rows)) return rows;
+    const isNight = r => Array.isArray(r.children) && /night/i.test(r.name || ''), gid = r => r.group || r.groupId;
+    const emptied = new Set();
+    for (const top of rows){ if (!Array.isArray(top.children) || isNight(top)) continue; const night = rows.find(x => x !== top && isNight(x) && gid(x) === gid(top)); if (!night) continue;
+      const keep = [];
+      for (const ch of top.children){ const sx = st.series.find(z => z.id === ch.seriesId), v = sx && versionFor(sx, date); if (v && v.secondChance && !ch.status && !Array.isArray(ch.children) && !(ch.occurrence && ch.occurrence.disposition)) night.children.push({...ch, chance:true}); else keep.push(ch); }
+      if (!keep.length && top.children.length) emptied.add(top); top.children = keep; }
+    return rows.filter(r => !emptied.has(r));
   }
   function wsAddControls(parent, childDepth){
     const pid = parent ? (parent.id || parent.seriesId || '') : '';
@@ -9020,6 +9085,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     // card with nothing on the day waits in Template → Cards (a page that asks for one card still shows it).
     const v33 = templateLayout(st) === 'v33', parked = parkedCards(st, day), hidden = hiddenToday(st, day), placedCards = cardsOnDay(st, day), oneCard = !!(options && options.groupId);
     if (v33) rows = templatePrune(st, rows, day);
+    rows = secondChanceShift(st, rows, day);   // AG2 (e)
     // Groups by the V2 card order; a retired group still shows on a day that has its items (V2.0).
     const v2 = typeof structureV2Adopted === 'function' && structureV2Adopted(st), order = id => { const i = typeof V2_CARD_ORDER !== 'undefined' ? V2_CARD_ORDER.indexOf(id) : -1; return i < 0 ? 99 : i; };
     const groups = groupsOf(st).filter(g => !groupOff(st, g.id, day) && (!options || !options.groupId || g.id === options.groupId) && (!options || !options.umbrella || g.umbrella === options.umbrella) && (!g.retiredFrom || day < g.retiredFrom || rows.some(r => (r.group || r.groupId) === g.id)) && (oneCard || (placedCards.has(g.id) && !hidden.has(g.id)) || (!parked.has(g.id) && !hidden.has(g.id) && (!v33 || rows.some(r => (r.group || r.groupId) === g.id) || placedCards.has(g.id) || (g.custom && !cardItemCount(st, g, day)))))).sort((x, y) => (v2 ? order(x.id) - order(y.id) : 0));
@@ -9935,6 +10001,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       commit('skipRest', 'Skipped ' + pl(open.length, 'step') + ' of ' + r.name + '. The steps you marked keep their marks.'); return;
     }
     if (act === 'wsRemoveToday'){ rowRemoveToday(st, seriesId, date); return; }
+    if (act === 'ndSave'){ const rowEl = btn.closest('.nd-row'), inp = rowEl && rowEl.querySelector('.nd-date'); await nextDateSave(seriesId, inp ? inp.value : ''); return; }   // AG2
+    if (act === 'ndLater'){ const rowEl = btn.closest('.nd-row'); ndLater.add(seriesId + '|' + ((rowEl && rowEl.dataset.date) || '')); render(); return; }
     if (act === 'rowMove'){ rowMoveTo(seriesId, date, btn.dataset.to); return; }   // AH1
     if (act === 'rowMovePick'){ const inp = btn.parentElement && btn.parentElement.querySelector('.row-move-date'); if (inp){ try { inp.showPicker(); } catch (_) { inp.classList.add('show'); inp.focus(); } } return; }
     if (act === 'dupKeep'){ const stop = String(btn.dataset.stop || '').split(',').filter(Boolean), date = day < todayYmd() ? todayYmd() : day; if (!stop.length) return;
