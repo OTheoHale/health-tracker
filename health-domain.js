@@ -3603,8 +3603,12 @@ function rollupKeep(state){
   for(const o of Object.values(state.occurrences||{}))for(const id of o?.confirmation?.sourceIds||[])keep.add(id);
   return keep;
 }
+/* AI1 (his yes, Oct 8: "if i kept it for 7 days - nothing really changes except that the storage frees up and likley it will be faster"): minute
+   detail is kept 7 days, not 35 (planner's default, his to change to 14). Rehearsed on his Oct 8 export: 143 metric-days roll up, every projected
+   day total is unchanged, the source rows go from 163 MB to 85 MB. */
+const ROLLUP_AFTER_DAYS=7;
 function compactAgedDays(state,today,options){
-  const days=Number.isInteger(options?.days)?options.days:35,H=globalThis.HealthAutoExport;
+  const days=Number.isInteger(options?.days)?options.days:ROLLUP_AFTER_DAYS,H=globalThis.HealthAutoExport;
   if(!state.autoFeed||!H||typeof H.rollup!=='function')return {ok:true,rolled:[],removedIds:[]};
   const before=addDays(today||todayYmd(),-days),r=H.rollup(state.sourceRecords||[],state.autoFeed.contract,{before,keep:rollupKeep(state),at:nowIso()});
   if(!r.ok)return {ok:false,error:r.error,rolled:[],removedIds:[]};
