@@ -89,12 +89,13 @@
    groups or added sugar. Seven components scored 0 to 100 (HEI-2020's method: proportional between published standards,
    by density per 1,000 kcal; DRI adequacy as percent of the RDA or AI, capped, with a UL guard), the unweighted mean of
    those present, the letter from Glow's ladder (Life's Essential 8's shape). Pure: days in, scores out.
-   Days: a graded day has dietary energy of at least 800 kcal; a day with no food is not graded, never zero. A block is 7
-   closed days with at least 4 graded. Each component reads the block's pooled intake over the graded days that report
-   that nutrient; zero or absent is "not reported", never zero intake. Day = the trailing 7 closed days ("7-day grade as
-   of D"), Week = the last 7, Month = the last 28 (a letter needs 2 of the 4 blocks), All = the complete blocks since the
-   program start. No single-day grade. A letter needs 5 of 7 components and one block; S, SS and SSS need all 7 and 6 of
-   7 graded days in every counted block, otherwise the letter caps at A. Sex unset: potassium and the basket are missing
+   Fix AZ1 (his decision, Oct 9; retires AD1's 7-closed-day blocks): the grade grades exactly the days it is given (a
+   day, 3 days, a week, a month, all), pooled over the window's graded days. A graded day has dietary energy of at least
+   300 kcal (his change from 800); no food in the window is no grade (a dash, never an F). The open day is graded as soon
+   as it reaches 300 kcal and is reported "so far". Each component reads the pooled intake over the graded days that
+   report that nutrient, and counts when it is reported on at least half of them (1 of 1, 2 of 3, 4 of 7); zero or absent
+   is "not reported", never zero intake. All seven components count on any window, the basket included. A letter needs 5
+   of 7 components; S, SS and SSS need all 7, otherwise the letter caps at A. Sex unset: potassium and the basket are missing
    ("set sex in Settings"; no male fallback). The RDA, AI and UL values were verified at the NASEM summary tables (below). */
 (function(root,factory){
   if(typeof module==='object'&&module.exports)module.exports.NutritionGrade=factory();
@@ -103,7 +104,8 @@
   'use strict';
   const CUTS=[[95,'SSS'],[90,'SS'],[85,'S'],[80,'A'],[70,'B'],[55,'C'],[40,'D'],[0,'F']];   // RANK_CUTOFFS, unchanged
   const letterOf=p=>Number.isFinite(p)?CUTS.find(([c])=>p>=c)[1]:null;
-  const FLOOR_KCAL=800,MIN_DAYS=4,LOW_KCAL=1500;
+  const FLOOR_KCAL=300,MIN_DAYS=1,LOW_KCAL=1500;   // AZ1: 300 kcal makes a graded day; one graded day can be graded
+  const need=n=>Math.max(1,Math.ceil(n/2));   // AZ1: a nutrient counts when reported on at least half the graded days
   const COMPONENTS=[
     {id:'satfat',name:'Saturated fat',group:'limits'},{id:'sodium',name:'Sodium',group:'limits'},{id:'fatq',name:'Fat quality',group:'limits'},
     {id:'fibre',name:'Fibre',group:'adequacy'},{id:'potassium',name:'Potassium',group:'adequacy'},{id:'calcium',name:'Calcium',group:'adequacy'},{id:'basket',name:'Vitamins and minerals',group:'adequacy',low:true}];
@@ -136,19 +138,21 @@
     if(Number.isFinite(ul)&&intake>ul){s=Math.min(s,clamp(100-100*(intake-ul)/(0.5*ul)));flag=true;}
     return {score:s,ul:flag};
   }
-  /* One block of 7 closed days: [{kcal, sat, mufa, pufa, fibre, sodium, potassium, calcium, mg, zn, fe, vitA, vitC, vitE,
-     vitK, b6}] (g, mg, mcg as the adapter declares). Returns each component's score or null, the graded-day count and why. */
+  /* The window's days, pooled (AZ1: any number of days): [{kcal, sat, mufa, pufa, fibre, sodium, potassium, calcium, mg, zn,
+     fe, vitA, vitC, vitE, vitK, b6}] (g, mg, mcg as the adapter declares). Returns each component's score or null, the
+     graded-day count and why. */
   function block(days,o){
     const g=days.filter(graded),sex=o.sex==='male'?'m':o.sex==='female'?'f':null,age=Number.isFinite(o.age)?o.age:null,b=age===null?null:band(age);
     const out={graded:g.length,kcal:g.length?mean(g.map(d=>d.kcal)):null,scores:{},vals:{},ul:[],why:{}};
-    if(g.length<MIN_DAYS){out.why.block='needs '+MIN_DAYS+' of 7 days logged';return out;}
-    const rep=k=>g.filter(d=>has(d[k])),pool=k=>{const r=rep(k);return r.length>=MIN_DAYS?{n:r.length,sum:sum(r.map(d=>d[k])),kcal:sum(r.map(d=>d.kcal)),mean:mean(r.map(d=>d[k]))}:null;};
+    if(!g.length){out.why.block='no food logged';for(const c of COMPONENTS)out.scores[c.id]=null;return out;}
+    const min=need(g.length);
+    const rep=k=>g.filter(d=>has(d[k])),pool=k=>{const r=rep(k);return r.length>=min?{n:r.length,sum:sum(r.map(d=>d[k])),kcal:sum(r.map(d=>d.kcal)),mean:mean(r.map(d=>d[k]))}:null;};
     const s=out.scores,v=out.vals;   // v: the working values the drawer prints
     const sf=pool('sat');s.satfat=sf?between(100*sf.sum*9/sf.kcal,8,16):null;if(sf)v.satfat={pctKcal:100*sf.sum*9/sf.kcal,days:sf.n};
     const na=pool('sodium');s.sodium=na?between(na.sum/(na.kcal/1000),1100,2000):null;if(na)v.sodium={per1000:na.sum/(na.kcal/1000),mean:na.mean,days:na.n};
     const fb=pool('fibre');s.fibre=fb?clamp(100*(fb.sum/(fb.kcal/1000))/14):null;if(fb)v.fibre={per1000:fb.sum/(fb.kcal/1000),mean:fb.mean,days:fb.n};
     const fq=g.filter(d=>has(d.sat)&&has(d.mufa)&&has(d.pufa));
-    const ratio=fq.length?(sum(fq.map(d=>d.mufa))+sum(fq.map(d=>d.pufa)))/sum(fq.map(d=>d.sat)):null;s.fatq=fq.length>=MIN_DAYS?between(ratio,2.5,1.2):null;if(fq.length>=MIN_DAYS)v.fatq={ratio,days:fq.length};
+    const ratio=fq.length?(sum(fq.map(d=>d.mufa))+sum(fq.map(d=>d.pufa)))/sum(fq.map(d=>d.sat)):null;s.fatq=fq.length>=min?between(ratio,2.5,1.2):null;if(fq.length>=min)v.fatq={ratio,days:fq.length};
     const k=pool('potassium');s.potassium=k&&sex?adequacy(k.mean,RDA.potassium[sex][b===null?1:b]).score:null;if(k)v.potassium={mean:k.mean,target:sex?RDA.potassium[sex][b===null?1:b]:null,days:k.n};
     if(k&&!sex)out.why.potassium='set sex in Settings';
     const ca=pool('calcium'),caT=b===null?null:sex?RDA.calcium[sex][b]:RDA.calcium.m[b]===RDA.calcium.f[b]?RDA.calcium.m[b]:null;   // calcium needs sex only where the RDA differs (51 to 70)
@@ -156,36 +160,39 @@
     if(ca&&caT!==null){const a=adequacy(ca.mean,caT,UL.calcium[b]);s.calcium=a.score;if(a.ul)out.ul.push('calcium');}else{s.calcium=null;if(ca)out.why.calcium=b===null?'set birth year in Settings':'set sex in Settings';}
     if(sex&&b!==null){
       const parts=[];for(const n of BASKET){const p=pool(n);if(!p)continue;const a=adequacy(p.mean,RDA[n][sex][b],UL[n]?UL[n][b]:undefined);parts.push(a.score);if(a.ul)out.ul.push(n);}
-      s.basket=parts.length>=4?mean(parts):null;out.basketN=parts.length;v.basket={n:parts.length,of:BASKET.length};if(parts.length<4)out.why.basket='needs 4 nutrients reported on 4 days';
+      s.basket=parts.length>=4?mean(parts):null;out.basketN=parts.length;v.basket={n:parts.length,of:BASKET.length};if(parts.length<4)out.why.basket='needs 4 vitamins and minerals reported';
     }else{s.basket=null;out.why.basket=sex?'set birth year in Settings':'set sex in Settings';}
     for(const c of COMPONENTS)if(s[c.id]===undefined)s[c.id]=null;
     return out;
   }
-  /* grade({days (oldest first, closed days only), window:'day'|'week'|'month'|'all', sex:'male'|'female'|null, age}) */
+  /* grade({days (oldest first; exactly the window's days, one per date, no-food days included), window (a label only:
+     'day'|'3d'|'week'|'month'|'all'|...), sex:'male'|'female'|null, age, open (true when the last day is the open day)}).
+     AZ1: grades exactly the days given; no graded day = no grade. */
   function grade(input){
-    const o=input||{},w=o.window||'week',days=(o.days||[]).slice();
-    const want=w==='month'?28:w==='all'?Math.floor(days.length/7)*7:7,use=days.slice(Math.max(0,days.length-want));
-    const empty=note=>({window:w,components:COMPONENTS.map(c=>({...c,score:null})),present:0,percent:null,shown:null,letter:null,capped:false,blocks:0,qualifying:0,graded:use.filter(graded).length,days:use.length,note});
-    if(use.length<7)return empty('Building '+days.length+' of 7 days');
-    const blocks=[];for(let i=use.length;i-7>=0;i-=7)blocks.unshift(block(use.slice(i-7,i),o));
-    const q=blocks.filter(b=>b.graded>=MIN_DAYS);
-    if(!q.length)return {...empty('needs '+MIN_DAYS+' of 7 days logged'),blocks:blocks.length};
-    const avg=id=>{const v=q.map(b=>b.scores[id]).filter(x=>x!==null&&Number.isFinite(x));return v.length?mean(v):null;};
+    const o=input||{},w=o.window||'week',days=(o.days||[]).filter(Boolean);
+    const g=days.filter(graded),food=days.some(d=>Number.isFinite(d.kcal)&&d.kcal>0);
+    const soFar=!!o.open&&days.length>0&&graded(days[days.length-1]);
+    const cov=n=>n+' of 7 components, '+g.length+' of '+days.length+(days.length===1?' day':' days')+' graded'+(soFar?' (today so far)':'');
+    const base={window:w,days:days.length,graded:g.length,gradedOf:days.length,blocks:1,soFar,food};
+    if(!g.length){const note=food?'Under '+FLOOR_KCAL+' kcal logged':'No food logged';
+      return {...base,components:COMPONENTS.map(c=>({...c,score:null,why:note})),present:0,percent:null,shown:null,letter:null,capped:false,provisional:false,
+        limits:null,adequacy:null,qualifying:0,lowIntake:false,vals:{},kcal:null,ul:[],coverage:cov(0),note};}
+    const b=block(days,o);
     // Each component is shown as a whole number and the grade is the mean of what is shown (the research's worked example).
-    const components=COMPONENTS.map(c=>{const v=avg(c.id);return {...c,score:v===null?null:Math.round(v),why:v===null?(q.map(b=>b.why[c.id]).find(Boolean)||'not reported on 4 graded days'):null};});
+    const components=COMPONENTS.map(c=>{const v=b.scores[c.id];return {...c,score:v===null?null:Math.round(v),why:v===null?(b.why[c.id]||'not reported on half the graded days'):null};});
     const present=components.filter(c=>c.score!==null);
-    const percent=present.length?(w==='month'||w==='all'?mean(q.map(b=>{const v=COMPONENTS.map(c=>b.scores[c.id]).filter(x=>x!==null);return v.length?mean(v.map(Math.round)):null;}).filter(x=>x!==null)):mean(present.map(c=>c.score))):null;
-    const eligible=present.length>=5&&(w==='month'?q.length>=2:true);
+    const percent=present.length?mean(present.map(c=>c.score)):null;
+    const eligible=present.length>=5;
     let letter=eligible?letterOf(percent):null;
-    const tier=present.length===7&&q.every(b=>b.graded>=6),capped=!!letter&&['S','SS','SSS'].includes(letter)&&!tier;if(capped)letter='A';
-    const gmean=g=>{const v=present.filter(c=>c.group===g).map(c=>c.score);return v.length?mean(v):null;};
-    const kcal=mean(q.map(b=>b.kcal).filter(Number.isFinite));
-    return {window:w,components,present:present.length,percent,shown:percent===null?null:Math.round(percent),letter,capped,provisional:!eligible&&present.length>0,
-      limits:gmean('limits'),adequacy:gmean('adequacy'),blocks:blocks.length,qualifying:q.length,graded:q.reduce((n,b)=>n+b.graded,0),gradedOf:q.length*7,days:use.length,
-      lowIntake:Number.isFinite(kcal)&&kcal<LOW_KCAL,vals:q[q.length-1].vals,kcal,ul:[...new Set(q.flatMap(b=>b.ul))],coverage:present.length+' of 7 components, '+(q.length===1?q[0].graded+' of 7 days graded':q.reduce((n,b)=>n+b.graded,0)+' of '+q.length*7+' days graded')};
+    const capped=!!letter&&['S','SS','SSS'].includes(letter)&&present.length<7;if(capped)letter='A';
+    const gmean=x=>{const v=present.filter(c=>c.group===x).map(c=>c.score);return v.length?mean(v):null;};
+    const closed=(soFar?days.slice(0,-1):days).filter(graded),closedKcal=closed.length?mean(closed.map(d=>d.kcal)):null;   // an open day's partial intake never reads as low intake
+    return {...base,components,present:present.length,percent,shown:percent===null?null:Math.round(percent),letter,capped,provisional:!eligible&&present.length>0,
+      limits:gmean('limits'),adequacy:gmean('adequacy'),qualifying:1,lowIntake:Number.isFinite(closedKcal)&&closedKcal<LOW_KCAL,vals:b.vals,kcal:b.kcal,ul:[...new Set(b.ul)],
+      coverage:cov(present.length),note:present.length?(eligible?null:'Needs 5 of 7 components'):'No nutrient detail yet'};
   }
-  // The nutrients shown, not scored: the days each was reported over the window's days.
+  // The nutrients shown, not scored: the days each was reported over the window's days (AZ1: the whole window).
   const SHOWN=[['sugar','Total sugar'],['cholesterol','Cholesterol'],['caffeine','Caffeine'],['water','Water'],['vitD','Vitamin D'],['b12','Vitamin B12']];
-  function shown(days){const d=(days||[]).slice(-7);return SHOWN.map(([k,name])=>({id:k,name,days:d.filter(x=>has(x&&x[k])).length,of:d.length}));}
+  function shown(days){const d=(days||[]).filter(Boolean);return SHOWN.map(([k,name])=>({id:k,name,days:d.filter(x=>has(x[k])).length,of:d.length}));}
   return {COMPONENTS,BASKET,RDA,UL,FLOOR_KCAL,MIN_DAYS,grade,block,shown,letterOf,graded,adequacy,between};
 });

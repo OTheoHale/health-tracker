@@ -1865,6 +1865,7 @@ addEventListener('load', () => {
 <script src="meal-water.js"></script>
 <script src="workspace-proposal.js"></script>
 <script src="health-domain.js"></script>
+<script src="year-view.js"></script>
 
 <script id="ui">
 (async function(){
@@ -6396,9 +6397,11 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     t.done = t.normal + t.minimum; t.pct = t.due ? 100 * (t.done + t.partial / 2) / t.due : null; return t;
   }
   function renderProgress(){
+    const yv = typeof YearView !== 'undefined' ? YearView.hook({S, scoreIndex, sleepNights, stepsGoal, scorePerson, gradeTone, render, on:SCORES_ON}) : null;   // AU2: the Year tab (year-view.js)
+    if (yv && yv.html) return yv.html;
     const st = S(), W = progWindow(st, 'practice'), MW = progWindow(st, 'momentum'), t = progTally(st, W.from, W.to), prev = progTally(st, addDays(W.from, -W.len), addDays(W.from, -1));
     // P1: the frame
-    const head = '<div class="pg-head" data-parity="V36-PROGRESS-P01">' + filtPageHTML('progress') + '</div>';
+    const head = '<div class="pg-head" data-parity="V36-PROGRESS-P01">' + (yv ? yv.tabs : '') + filtPageHTML('progress') + '</div>';
     // P2: the practice hero: percent, done of due, a bar a day, the five states, the period's own comparison and the week in words
     const share = x => x.due ? (x.normal + x.minimum + x.partial / 2) / x.due : null, weekAgo = d => (t.days.find(x => x.d === addDays(d, -7)) || null);
     /* Fix AB2: at Day the bars are this week's seven days (the selected day outlined), as Today's This Week card */
