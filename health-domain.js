@@ -390,12 +390,29 @@ const GoalEngine={
 /* ---- template versions are append-only. A date resolves to the version
         that was in force on that date, so editing the future can never
         reach back and rewrite a past target. ---- */
+/* AW1 (AK1 item 4, Oct 9): a save or a redraw asked for an item's version 0.2 to 2.3 million times, each a scan of
+   every version. An item with three or more versions keeps its versions sorted by start (ties in list order, so the
+   last one listed still wins) and finds the date by halving. Versions are only ever added; the index is rebuilt
+   when the list grows or its last entry changes, and wsBackdate (the one place that re-dates versions in place)
+   drops every index. */
+const versionIndex=new WeakMap();let versionIndexEpoch=0;
 function versionFor(series, date){
-  let out = null;
-  for (const v of series.versions){
-    if (v.effectiveFrom <= date && (!out || v.effectiveFrom >= out.effectiveFrom)) out = v;
+  const vs = series.versions, n = vs.length;
+  if (n < 3){
+    let out = null;
+    for (const v of vs){
+      if (v.effectiveFrom <= date && (!out || v.effectiveFrom >= out.effectiveFrom)) out = v;
+    }
+    return out;
   }
-  return out;
+  let e = versionIndex.get(vs);
+  if (!e || e.n !== n || e.last !== vs[n - 1] || e.epoch !== versionIndexEpoch){
+    const order = vs.map((v, i) => [v, i]).filter(x => typeof x[0].effectiveFrom === 'string').sort((a, b) => a[0].effectiveFrom < b[0].effectiveFrom ? -1 : a[0].effectiveFrom > b[0].effectiveFrom ? 1 : a[1] - b[1]);
+    e = {n, last:vs[n - 1], epoch:versionIndexEpoch, s:order.map(x => x[0]), k:order.map(x => x[0].effectiveFrom)}; versionIndex.set(vs, e);
+  }
+  let lo = 0, hi = e.k.length - 1, at = -1;
+  while (lo <= hi){ const m = (lo + hi) >> 1; if (e.k[m] <= date){ at = m; lo = m + 1; } else hi = m - 1; }
+  return at < 0 ? null : e.s[at];
 }
 function latestVersion(series){
   return series.versions.reduce((a, v) => (!a || v.version > a.version) ? v : a, null);
@@ -2156,13 +2173,17 @@ function importRelay(state, parsed, context){
   state.importReceipts.push(receipt); c.receipt = receipt;
   return c;
 }
-const sourceProjectionCache=new WeakMap();
+const sourceProjectionCache=new WeakMap();const sourceProjectionByRows=new WeakMap();
 function sourceProjection(state){
   if(!state.autoFeed||typeof globalThis.HealthAutoExport==='undefined')return null;
   const prior=sourceProjectionCache.get(state),key=JSON.stringify(state.autoFeed.contract);
   if(prior&&prior.rows===state.sourceRecords&&(sealedRows(state.sourceRecords)||prior.revision===state.revision)&&prior.length===state.sourceRecords.length&&prior.key===key)return prior.value;
+  // AW1 (AK1 item 5): a saved copy of the record shares the same frozen rows, so it shares their projection too
+  const rows=state.sourceRecords,shared=sealedRows(rows)?sourceProjectionByRows.get(rows):null;
+  if(shared&&shared.length===rows.length&&shared.key===key){sourceProjectionCache.set(state,{...shared,revision:state.revision});return shared.value;}
   const value=HealthAutoExport.project(state.sourceRecords,state.autoFeed.contract);
-  sourceProjectionCache.set(state,{rows:state.sourceRecords,revision:state.revision,length:state.sourceRecords.length,key,value,active:new Set(value.activeIds.concat(value.fallbackIds||[]))});return value;
+  const entry={rows:state.sourceRecords,revision:state.revision,length:state.sourceRecords.length,key,value,active:new Set(value.activeIds.concat(value.fallbackIds||[]))};
+  sourceProjectionCache.set(state,entry);if(sealedRows(rows))sourceProjectionByRows.set(rows,entry);return value;
 }
 function sourceIsActive(state,id,record){
   if(!state.autoFeed){const r=record||(state.sourceRecords||[]).find(r=>r.id===id);return !!r&&r.unmapped?.healthAutoExport?.format!=='JSON'&&!String(r.id).startsWith('hae:');}
@@ -4912,7 +4933,7 @@ function wsBackdateCheck(state,date){
 function wsBackdate(draft,date,options={}){
   const check=wsBackdateCheck(draft,date);if(!check.ok)return check;
   const at=nowIso();
-  for(const move of check.moves){const series=draft.series.find(s=>s.id===move.seriesId);for(const v of series.versions)if(move.versions.includes(v.version))v.effectiveFrom=date;}
+  for(const move of check.moves){const series=draft.series.find(s=>s.id===move.seriesId);for(const v of series.versions)if(move.versions.includes(v.version))v.effectiveFrom=date;}versionIndexEpoch++;
   wsEpoch(draft).effectiveFrom=date;draft.rewards.progression.effectiveFrom=date;
   for(const m of draft.workspace.migrations)if(check.migrationIds.includes(m.id)){m.backdated={from:check.from,to:date,at};m.effectiveFrom=date;}
   if(check.feed){
