@@ -8396,6 +8396,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     return {kind:'once', date:c.date};
   }
   function composerLands(c){
+    if (laundryAuto(c) && c.repeat === 'once' && !c.repeatTouched) return 'A load: Wash, Dry and Fold, each once a week; a second load of the same name is numbered.';   // AG3
     if (c.repeat === 'goal' && c.goal) return 'A goal on ' + (groupName(c.card) || 'its card') + ', from ' + medDate(c.date) + '; it shows on Quests, Today and Up Next when due.';
     const cardName = groupName(c.card) || 'its card';
     if (c.repeat === 'week') return (c.wdays && c.wdays.length ? 'Shows on ' + dayLabels().filter(l => c.wdays.includes(l.dow)).map(l => l.label).join(' or ') + ' until ' + c.count + ' are done that week.' : 'Lands in Template · Due This Week, ' + c.count + ' a week; place it on the days you will do it.');
@@ -8478,11 +8479,13 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const r = await manualActionTransaction(st, d => { for (const [i, name] of LAUNDRY_STEPS.entries()){ const x = Workspace.addChild(d, seriesId, {id:seriesId + '-' + name.toLowerCase(), name, order:i + 1, category:src.category, recurrence:v.recurrence}, from, {scope:'future'}); if (!(x && x.ok)) return x || {ok:false, error:'Not added.'}; } if (onDay) Workspace.placeMany(d, LAUNDRY_STEPS.map(name => seriesId + '-' + name.toLowerCase()), from, {place:true, category:null}); return {ok:true}; }, {persist:!preview});   // on the day it was, so it does not slip into Template
     render(); toast(r.ok ? 'Wash, Dry and Fold added from today. Earlier days stay as recorded.' : 'Not changed. ' + (r.error || ''));
   }
+  // A rename from a day also renames the versions that start after it (they have not happened yet), so a scheduled later version keeps the new name (AG3).
+  function renameFrom(d, id, name, from){ const sx = d.series.find(x => x.id === id), old = sx && versionFor(sx, from); if (!old) return; const was = old.name; reviseSeries(d, id, {name}, from, todayYmd()); for (const v of sx.versions) if (v.effectiveFrom > from && v.name === was) v.name = name; }
   async function laundryLoad(seriesId){
     const st = S(), from = todayYmd(), src = st.series.find(x => x.id === seriesId), v = src && versionFor(src, from); if (!v){ toast('This item is not on today.'); return; }
     const base = String(v.name || 'Load').replace(/\s+\d+$/, ''), same = st.series.filter(x => { const xv = versionFor(x, from); return xv && !x.parentId && x.category === src.category && String(xv.name || '').replace(/\s+\d+$/, '') === base; }), n = same.length + 1;
     const r = await manualActionTransaction(st, d => {
-      if (!/\s\d+$/.test(v.name || '')) reviseSeries(d, seriesId, {name:base + ' 1'}, from, from);
+      if (!/\s\d+$/.test(v.name || '')) renameFrom(d, seriesId, base + ' 1', from);
       const fields = {...v, name:base + ' ' + n, category:src.category}; delete fields.childIds; delete fields.version; delete fields.effectiveFrom;
       const copy = createSeries(d, fields, from);
       if (Array.isArray(v.childIds) && v.childIds.length) convertToFamily(d, copy.id, LAUNDRY_STEPS.map(name => ({name})), from, from);
@@ -8493,11 +8496,18 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   async function composerSave(){
     if (!composer || composer.busy) return;
     composerRead();
-    const c = composer, title = c.title.trim() || (c.repeat === 'goal' && c.goal ? gbName(c) : '');   // V3.7 X10
+    const c = composer; let title = c.title.trim() || (c.repeat === 'goal' && c.goal ? gbName(c) : '');   // V3.7 X10
+    /* AG3 (his words, Oct 8: "when i add something like Colors it automatically creates 3 subsets (wash, dry, fold). If i add another COlors then it
+       should auotmatically change to Colors 2"): a load on a Laundry Focus is its own Task with Wash, Dry and Fold, once a week unless he picks a
+       repeat; a second load of the same name is numbered (the first becomes Colors 1, as X7's Add another load does). */
+    const lau = !c.editSeries && laundryAuto(c), lauBase = title.replace(/\s+\d+$/, ''), lauToday = c.date || day;
+    const lauSame = lau ? S().series.filter(x => { const v = versionFor(x, lauToday); return v && !x.demo && !(x.archivedAt && x.archivedAt <= lauToday) && !parentFor(x, lauToday) && wsGroup(x, lauToday) === (c.card || c.groupId) && String(v.name || '').replace(/\s+\d+$/, '').toLowerCase() === lauBase.toLowerCase(); }) : [];
+    if (lau && lauSame.length) title = lauBase + ' ' + (lauSame.length + 1);
+    if (lau && c.repeat === 'once' && !c.repeatTouched){ c.repeat = 'week'; c.count = 1; c.wdays = []; }
     if (!title){ c.error = 'Give it a name before adding.'; render(); focusFirst('#wsComposerTitle'); return; }
     if (!wsHas('create') || (c.parentId && !wsHas('addChild'))){ c.error = 'This build cannot save new items: Workspace.create/addChild is not loaded.'; render(); return; }
     if (c.askCard && !c.card){ c.error = 'Choose the Focus first.'; render(); return; }
-    { /* Fix AA8: a second item with the same name on the same card asks once */ const gid = c.card || c.groupId, nm = title.toLowerCase(), clash = !c.editSeries && !c.parentId && gid && S().series.some(x => { const v = versionFor(x, c.date || day); return v && !x.archivedAt && !x.demo && !parentFor(x, c.date || day) && wsGroup(x, c.date || day) === gid && String(v.name || '').trim().toLowerCase() === nm; });
+    { /* Fix AA8: a second item with the same name on the same card asks once */ const gid = c.card || c.groupId, nm = title.toLowerCase(), clash = !lau && !c.editSeries && !c.parentId && gid && S().series.some(x => { const v = versionFor(x, c.date || day); return v && !x.archivedAt && !x.demo && !parentFor(x, c.date || day) && wsGroup(x, c.date || day) === gid && String(v.name || '').trim().toLowerCase() === nm; });
       if (clash && c.dupOk !== title){ c.dupOk = title; c.error = '“' + title + '” is already on this card. Press Add again to keep both, or open the one there.'; render(); focusFirst('#wsComposerTitle'); return; } }
     c.busy = true; c.error = ''; render();
     const rec = composerRecurrence(c), subs = laundryAuto(c) ? LAUNDRY_STEPS.slice() : c.kind === 'subitem' ? [] : String(c.subs || '').split('\n').map(x => x.trim()).filter(Boolean).slice(0, 20);
@@ -8510,7 +8520,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const fields = { id: c.fieldId, name: title, ...(card ? {category:card} : {}), container: c.kind === 'subgroup' || subs.length > 0, recurrence: rec, ...(goal ? {goal} : {}), ...(c.repeat === 'dates' ? {setEach:true, needsDate:!c.ndate} : {}), ...extra };
     const opts = { scope: rec.kind === 'once' ? 'occurrence' : 'future' }, parentId = c.parentId, ideaId = c.ideaId, date = c.date;
     const result = await manualActionTransaction(S(), d => {
-      const children = subs.map((name, i) => ({id:c.fieldId + '-' + (i + 1), name, ...(card ? {category:card} : {}), recurrence:rec, ...(c.more ? {scoring:{importance:c.importance, difficulty:c.difficulty}} : {})}));
+      const children = subs.map((name, i) => ({id:c.fieldId + '-' + (i + 1), name, ...(card ? {category:card} : {}), recurrence:rec, ...(c.repeat === 'month' ? {goal:monthGoalDef()} : {}), ...(c.more ? {scoring:{importance:c.importance, difficulty:c.difficulty}} : {})}));   // AG3: a monthly load's steps are monthly too
+      if (lau && lauSame.length === 1){ const first = d.series.find(x => x.id === lauSame[0].id), fv = first && versionFor(first, lauToday); if (fv && !/\s\d+$/.test(fv.name || '')) renameFrom(d, first.id, lauBase + ' 1', todayYmd() > lauToday ? todayYmd() : lauToday); }
       const r = subs.length ? Workspace.createWithChildren(d, parentId ? {...fields, parentId} : fields, date, children, opts) : parentId ? Workspace.addChild(d, parentId, fields, date, opts) : Workspace.create(d, fields, date, opts);   // one transaction (P2-20)
       if (!(r && r.ok)) return r && typeof r === 'object' ? r : { ok:false, error:'The workspace returned no result.' };
       if (!c.counts) setGradeConfig(d, 'items', fields.id, 'included', false);   // V3.5 G8
@@ -9980,7 +9991,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (act === 'wsAdd'){ const fold = btn.closest('details.cad'); editCad = fold && btn.dataset.parent ? {id:btn.dataset.parent, cad:fold.dataset.cad} : null; openComposer(btn.dataset.kind || 'item', btn.dataset.parent || null, btn.dataset.group || null); return; }
     if (act === 'wsComposerPick'){ if (composer){ composerRead(); composer.card = btn.dataset.v; composer.umb = gradeGroupUmbrella(S(), composer.card) || composer.umb; if (composer.template || composer.area === 'plan' || composer.askCard) composer.groupId = btn.dataset.v; composerRender(); focusFirst(btn.closest('#wsComposerCard') ? '#wsComposerCard [data-v="' + btn.dataset.v + '"]' : '#wsComposerTitle'); } return; }
     if (act === 'wsComposerMore'){ if (composer){ composerRead(); composer.more = !composer.more; composerRender(); focusFirst(composer.more && composer.kind !== 'subitem' ? '#wsComposerSubs' : '#wsComposerTitle'); } return; }
-    if (act === 'wsComposerRepeat'){ if (composer){ composerRead(); composer.repeat = REPEATS.some(r => r[0] === btn.dataset.v) || (btn.dataset.v === 'keep' && composer.origRepeat === 'keep') ? btn.dataset.v : 'once'; if (composer.repeat === 'goal'){ composer.more = true; if (!composer.goal) composer.goal = gbBase(); } composerRender(); focusFirst('.rep-chip[aria-pressed="true"]'); } return; }
+    if (act === 'wsComposerRepeat'){ if (composer){ composerRead(); composer.repeatTouched = true; composer.repeat = REPEATS.some(r => r[0] === btn.dataset.v) || (btn.dataset.v === 'keep' && composer.origRepeat === 'keep') ? btn.dataset.v : 'once'; if (composer.repeat === 'goal'){ composer.more = true; if (!composer.goal) composer.goal = gbBase(); } composerRender(); focusFirst('.rep-chip[aria-pressed="true"]'); } return; }
     if (act === 'wsComposerRate'){ if (composer){ composerRead(); composer[btn.dataset.k === 'difficulty' ? 'difficulty' : 'importance'] = Math.max(1, Math.min(3, +btn.dataset.v || 1)); composerRender(); focusFirst('.rate-dot[data-k="' + (btn.dataset.k === 'difficulty' ? 'difficulty' : 'importance') + '"][data-v="' + btn.dataset.v + '"]'); } return; }
     if (act === 'tplAdd'){ openComposer('item', null, null, '', null, {template:true, more:true}); return; }
     if (act === 'learnOpen'){ const id=btn.dataset.learn,sel='[data-learn-entry="'+CSS.escape(id)+'"]',destination=id==='points-level'?'collection':PROGRESSION_LEARN.progress.includes(id)||id==='consistency-tiers'?'progress':BODY_LEARN.includes(id)?'profile':GROWTH_LEARN.includes(id)?'stand':DAILY_LEARN.today.includes(id)?'home':DAILY_LEARN.fitness.includes(id)?'fitness':null;if(!document.querySelector(sel)&&destination)go(destination);const entry=document.querySelector(sel),list=entry&&entry.closest('.learn-list');if(list)list.open=true;if(entry){fillDailyLearn(entry);entry.open=true;entry.scrollIntoView({behavior:'smooth',block:'start'});const h=entry.querySelector('h3');if(h){h.setAttribute('tabindex','-1');h.focus();}}else{learnId=id;closeDrawer();go('learn');}return;}   // V3.6 G5, P10: Growth and Progress carry Learn chips, no folded list: the card opens on its own
