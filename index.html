@@ -953,6 +953,8 @@ details.fit-workouts>summary{display:flex;align-items:center;gap:10px;cursor:poi
 .ws-node>.nrow>details.more{grid-column:5}
 .row-act{width:28px;height:28px;min-height:0;padding:0;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--faint);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;opacity:.55;flex:none}
 .row-act svg{width:15px;height:15px;display:block}
+.row-move-wrap{position:relative;display:inline-flex}.row-move-wrap .row-move-date{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}.row-move-wrap .row-move-date.show{position:static;width:auto;height:auto;opacity:1;pointer-events:auto}.row-act.move-pick{width:16px;font-size:11px;margin-left:-3px}
+.row-move-pick{gap:8px}.row-move-pick>span{white-space:nowrap}.row-move-pick .row-move-date{font:inherit;font-size:12px;min-height:26px;padding:2px 6px;max-width:150px}
 .ws-node>.nrow:hover .row-act,.daily-row .rowhead:hover .row-act,.row-act:focus-visible,.nrow:focus-within .row-act{opacity:1}
 .row-act:hover{border-color:var(--line-strong);color:var(--ink);background:var(--sunk)}
 .row-act.del:hover{color:#e05a55;border-color:rgba(224,90,85,.6)}
@@ -5648,6 +5650,7 @@ addEventListener('load', () => {
     if (t.matches('[data-grade-slider]')){ const v = +t.value, field = t.dataset.field; stage(st, 'grades'); if (!setGradeConfig(st, t.dataset.kind, t.dataset.id, field, field === 'faithShare' ? v / 100 : v)){ popUndo(); return; } await commit('grades', ''); return; }
     if (t.matches('[data-grade-check]')){ stage(st, 'grades'); if (!setGradeConfig(st, t.dataset.kind, t.dataset.id, 'included', t.checked)){ popUndo(); return; } await commit('grades', t.checked ? 'Counts toward the grade again.' : 'Left out of the grade. Its record is kept.'); return; }
     if (t.matches('[data-grade-hobbies]')){ stage(st, 'grades'); setHobbiesGraded(st, t.checked); await commit('grades', t.checked ? 'Hobbies is graded.' : 'Hobbies is not graded.'); return; }
+    if (t.matches('.row-move-date') && t.value){ const row = t.closest('[data-series][data-date]'); if (row) rowMoveTo(row.dataset.series, row.dataset.date, t.value); return; }   // AH1
     if (t.matches('[data-dom-name], [data-dom-about]')){ const id = t.dataset.domName || t.dataset.domAbout, field = t.dataset.domName ? 'name' : 'about', v = t.value.trim().slice(0, field === 'name' ? 24 : 60), cur = (st.prefs.domainNames || {})[id] || {}; if ((cur[field] || '') === v) return; stage(st, 'names'); const all = {...(st.prefs.domainNames || {})}, next = {...cur, [field]:v}; if (!String(next.name || '').trim() && !String(next.about || '').trim()) delete all[id]; else all[id] = next; st.prefs.domainNames = all; await commit('names', field === 'name' ? (v ? 'The Domain is now ' + v + '.' : 'Back to ' + DOMAIN_DEFAULTS[id] + '.') : 'Saved.'); return; }   // AG1
     if (t.matches('[data-grp-name]')){ const g = groupById(st, t.dataset.grpName), n = t.value.trim(); if (!g || !n || n === g.name) return; stage(st, 'groups'); renameGroup(st, g.id, n); await commit('groups', 'Renamed to ' + n + '.'); return; }
     if (t.matches('[data-grp-umb]')){ const g = groupById(st, t.dataset.grpUmb); if (!g) return; stage(st, 'groups'); g.umbrella = t.value ? gradeStoredUmbrella(t.value) : 'none'; g.updatedAt = nowIso(); await commit('groups', t.value ? g.name + ' now counts under ' + GRADE_UMBRELLAS.find(u => u.id === t.value).name + '.' : g.name + ' is not graded.'); return; }
@@ -8724,6 +8727,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     skip:'<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3l7 5-7 5z" fill="currentColor"/><path d="M12.2 3v10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     remove:'<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M5 7l3 3 3-3M2 11v3h12v-3"/></svg>',
     del:'<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h10M6 4V2h4v2M4 4l1 10h6l1-10M6.5 7v4M9.5 7v4"/></svg>',
+    move:'<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8h8.5M7.5 5l3 3-3 3M13.5 3v10"/></svg>',   // AH1
     partial:'<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 2.4a5.6 5.6 0 0 0 0 11.2z" fill="currentColor"/></svg>'
   };
   /* V3.6 I1 (Mintay, Oct 3): every row that can be checked has the same four actions from this one function: Skip, Move to
@@ -8733,18 +8737,46 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const st = S(), date = n.date || day, today = todayYmd(), future = date > today, past = date < today, container = Array.isArray(n.children) && n.children.length > 0;
     const occOf = r => r.occurrence || st.occurrences[r.key || occKey(r.seriesId, r.date || date)] || null;
     const leaves = container ? leafRows(n.children) : [n], open = leaves.filter(r => !r.status && !(occOf(r) && occOf(r).disposition));
-    const KEYS = {skip:'sk', rm:'rm', pt:'pt', del:'del'}, btn = (act, cls, title, icon, extra) => asMenu ? '<button type="button" class="link row-menu-act" data-act="' + act + '"' + (extra || '') + ' data-key="' + KEYS[cls.split(' ')[0]] + '">' + icon + '<span>' + esc(title.split(' · ')[0]) + '</span></button>' : '<button type="button" class="row-act ' + cls + '" data-act="' + act + '"' + (extra || '') + ' data-key="' + KEYS[cls.split(' ')[0]] + '" aria-label="' + esc(title + ': ' + label) + '" title="' + esc(title) + '">' + icon + '</button>';
+    const KEYS = {skip:'sk', rm:'rm', pt:'pt', del:'del', move:'mv'}, btn = (act, cls, title, icon, extra) => asMenu ? '<button type="button" class="link row-menu-act" data-act="' + act + '"' + (extra || '') + ' data-key="' + KEYS[cls.split(' ')[0]] + '">' + icon + '<span>' + esc(title.split(' · ')[0]) + '</span></button>' : '<button type="button" class="row-act ' + cls + '" data-act="' + act + '"' + (extra || '') + ' data-key="' + KEYS[cls.split(' ')[0]] + '" aria-label="' + esc(title + ': ' + label) + '" title="' + esc(title) + '">' + icon + '</button>';
     let out = '';
     if (!future && open.length) out += container ? btn('wsSkipRest', 'skip', 'Skip rest · ' + open.length + ' step' + (open.length === 1 ? '' : 's') + ' not yet marked', ROW_ICONS.skip) : btn('log', 'skip skip-x', 'Skip · didn’t do it', ROW_ICONS.skip, ' data-s="skipped"');
     if (!future && !container && open.length && itemKind(n) !== 'bar') out += btn('log', 'pt', 'Partially done · half credit', ROW_ICONS.partial, ' data-s="partial" data-quick="1"');
     if (!past){
       // Remove from Today: what has an entry stays where it happened; an item due by its last chance stays on the day.
       const removable = open.filter(r => { if (!(r.recurrence && r.recurrence.kind === 'target')) return true; const q = quotaOf(st, r, date); return !(q && SCORES_ON && GV.necessary({from:q.from, to:q.to, target:q.target, count:q.count, left:quotaChances(st, r.seriesId, date, q.to)}, date, false)); });
+      /* AH1 (his words, Oct 8: "move it to tomorrow or move it to another date of my choosing ... (no point reduction)"): one tap moves the day's
+         occurrence to the next day; the chevron (or the ⋯ menu's date) picks any day from today on. */
+      if (open.length && !n.demo){ const nxt = addDays(date, 1), word = date === today ? 'tomorrow' : medDate(nxt), pick = '<input type="date" class="row-move-date" min="' + today + '" aria-label="Move ' + esc(label) + ' to a date"' + (asMenu ? '' : ' tabindex="-1"') + '>';
+        out += btn('rowMove', 'move', 'Move to ' + word + ' · no points lost', ROW_ICONS.move, ' data-to="' + nxt + '"');
+        out += asMenu ? '<label class="link row-menu-act row-move-pick" data-key="mvd"><span>Move to a date</span>' + pick + '</label>' : '<span class="row-move-wrap">' + pick + '<button type="button" class="row-act move-pick" data-act="rowMovePick" data-key="mvp" aria-label="' + esc('Move ' + label + ' to a date') + '" title="Move to a date">▾</button></span>'; }
       if (removable.length) out += btn('wsRemoveToday', 'rm', 'Move to Template · it waits there for another day', ROW_ICONS.remove);
       if (!n.demo) out += btn('wsDeleteRow', 'del', 'Delete · stops from ' + (date === today ? 'today' : medDate(date)) + ', entries kept', ROW_ICONS.del);
     }
     if (asMenu) return out;
     return out ? '<span class="row-acts">' + out + '</span>' : '';
+  }
+  /* AH1: a moved item is not skipped or missed. A daily, day-bound or one-off occurrence moves with moveOcc (the day it leaves marks it moved,
+     the new day adds it, its reward identity travels); a weekly or monthly item is placed on the new day inside its own window (its count
+     is unchanged); a Task moves its open Subtasks. What has an entry stays where it happened; past days never change. */
+  function rowMoveTo(seriesId, date, to){
+    const st = S(), today = todayYmd();
+    if (preview){ toast('Preview data is not saved.'); return; }
+    if (!validCalendarDate(to)) return;
+    if (date < today){ toast('Past plans stay where they happened.'); return; }
+    if (to < today){ toast('Pick today or a later day; past days keep what happened.'); return; }
+    if (to === date){ toast('It is on ' + medDate(to) + ' already.'); return; }
+    const r = findPlanRow(st, seriesId, date); if (!r){ toast('This item is not on that day.'); return; }
+    const leaves = leafRows(r.children || [r]).filter(x => !x.status && !(st.occurrences[x.key] && st.occurrences[x.key].disposition));
+    if (!leaves.length){ toast('Nothing open to move: what has an entry stays where it happened.'); return; }
+    for (const x of leaves) if (x.recurrence && x.recurrence.kind === 'target'){ const q = quotaOf(st, x, date); if (q && q.to && to > q.to){ toast(x.name + ' is due by ' + medDate(q.to) + '; pick a day by then.'); return; } }
+    stage(st, 'move'); let n = 0;
+    for (const x of leaves){
+      const o = st.occurrences[x.key];
+      if (x.recurrence && x.recurrence.kind === 'target' && !(o && o.added)){ const sx = st.series.find(z => z.id === x.seriesId), v = sx && versionFor(sx, to); if (!v || !scheduledOn(v, to)) continue; if (o && o.committed){ o.committed = false; o.updatedAt = nowIso(); } const res = wsCommitOn(st, x.seriesId, to, true); if (res && res.ok) n++; }
+      else if (moveOcc(st, x.seriesId, date, to)) n++;
+    }
+    if (!n){ popUndo(); toast('That one cannot move to ' + medDate(to) + '.'); return; }
+    commit('move', r.name + ' moved to ' + (to === addDays(today, 1) ? 'tomorrow' : medDate(to)) + (n < leaves.length ? ' (' + n + ' of ' + leaves.length + ' steps)' : '') + '. No points lost.');
   }
   // Remove from Today (3.2, and a drag into Template, 3.4): a placed weekly or monthly item goes back to Template; a daily
   // or one-off item leaves the day and waits under Template → Removed Today; a routine takes its open steps with it.
@@ -8892,7 +8924,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const menu = [
       '<button class="link" data-act="wsHierarchyEdit">Edit</button>',
       '<button class="link" data-act="openRow">Details</button>',
-      !container ? '<button class="link" data-act="wsMoveCard">Move to another card</button>' : '',
+      !container ? '<button class="link" data-act="wsMoveCard">Move to another Focus</button>' : '',
       '<button class="link" data-act="saveTemplate">Save as template</button>',
       onceStreak(n) ? '<button class="link" data-act="wsMakeDaily">Make it daily</button>' : '',
       laundryGroup(n.group || n.category) && n.seriesId && !n.parentId ? (!container ? '<button class="link" data-act="laundryPack">Wash · Dry · Fold</button>' : '') + '<button class="link" data-act="laundryLoad">Add another load</button>' : '',
@@ -9901,6 +9933,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       commit('skipRest', 'Skipped ' + pl(open.length, 'step') + ' of ' + r.name + '. The steps you marked keep their marks.'); return;
     }
     if (act === 'wsRemoveToday'){ rowRemoveToday(st, seriesId, date); return; }
+    if (act === 'rowMove'){ rowMoveTo(seriesId, date, btn.dataset.to); return; }   // AH1
+    if (act === 'rowMovePick'){ const inp = btn.parentElement && btn.parentElement.querySelector('.row-move-date'); if (inp){ try { inp.showPicker(); } catch (_) { inp.classList.add('show'); inp.focus(); } } return; }
     if (act === 'dupKeep'){ const stop = String(btn.dataset.stop || '').split(',').filter(Boolean), date = day < todayYmd() ? todayYmd() : day; if (!stop.length) return;
       const ids = stop.slice(); for (let i = 0; i < ids.length; i++) for (const s of st.series) if (!s.archivedAt && parentFor(s, date) === ids[i] && !ids.includes(s.id)) ids.push(s.id);
       stage(st, 'rowDelete'); let n = 0; for (const id of ids) if (archiveSeries(st, id, date)) n++; if (!n){ popUndo(); toast('Not changed.'); return; }
