@@ -5486,7 +5486,7 @@ addEventListener('load', () => {
   const filtSet = (page, f) => { const s = filtState(page); f(s); filtSave(page, s); };
   const GRADE_PERIODS = [['day','Day'],['week','Week'],['month','Month'],['all','All'],['custom','Custom']];
   let gradePer = 'day';   // V3.7 L1: set from the one filter at the start of every draw (gradePerSync)
-  let gradeRange = null, gradeWas = {}, gradePick = {}, gradeOpenGroups = new Set(), crossSeq = 0;   // Custom is never remembered (G2)
+  let gradeRange = null, gradeWas = {}, gradePick = {}, gradeOpenGroups = new Set(), crossSeq = 0, crossPrefix = 'gx';   // Custom is never remembered (G2)
   // V3.6 R5: the Nutrition Grade, a measured contributor of Health (off by default, A34); its score follows the grade period
   const gradeMeasured = (st, range) => { const y = addDays(todayYmd(), -1), end = range ? (range.to < y ? range.to : y) : null, n = range ? (end < range.from ? null : drawn('nutGradeAt|' + range.from + '|' + end, () => nutritionGradeOver(st, range.from < addDays(end, -6) ? addDays(end, -6) : range.from, end, 'week'))) : nutritionGradeNow(st); return {health:[{id:'nutrition', name:'🥗 Nutrition Grade', score:n && n.qualifying && n.letter ? n.percent : null}]}; };
   // V3.7 Y1 (A6, A7, A63, A70): the Overall's own period anchored on the selected day; the umbrella cards and Faith show that day
@@ -5511,7 +5511,7 @@ addEventListener('load', () => {
   // G2 (his Oct 1 answer, ASSUMED 29): the purple cross of the sidebar's Faith entry, scaled up, filling bottom to top by the percent.
   function crossMeter(pct, size){
     const arm = 'M50 45 L34 5 Q50 13 66 5 Z', arms = [0, 90, 180, 270].map(a => '<path d="' + arm + '" transform="rotate(' + a + ' 50 50)"/>').join('') + '<path d="M44 50 L50 44 L56 50 L50 56 Z"/>';
-    const p = Number.isFinite(pct) ? Math.max(0, Math.min(100, pct)) : 0, id = 'gx' + (++crossSeq), s = size || 104;
+    const p = Number.isFinite(pct) ? Math.max(0, Math.min(100, pct)) : 0, id = crossPrefix + (++crossSeq), s = size || 104;
     return '<svg class="g-cross" viewBox="0 0 100 100" width="' + s + '" height="' + s + '" role="img" aria-label="' + (Number.isFinite(pct) ? Math.round(pct) + ' percent' : 'no grade yet') + '" data-fill="' + p.toFixed(1) + '"><defs><clipPath id="' + id + '"><rect x="0" y="' + (100 - p).toFixed(1) + '" width="100" height="' + p.toFixed(1) + '"/></clipPath></defs><g fill="rgba(182,156,240,.13)" stroke="rgba(182,156,240,.55)" stroke-width="1.2" stroke-linejoin="round">' + arms + '</g><g fill="' + gradeTone(pct) + '" clip-path="url(#' + id + ')">' + arms + '</g></svg>';
   }
   /* V3.7 L1: the grade period is the one filter: on Today the Overall card's chip, on Growth and Progress the page filter (in
@@ -9771,7 +9771,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
      full screen and the loaded model survive a render, including the intake redraw every ten seconds. */
   function setMain(html){
     const main = $('#main'), keep = area === 'profile' ? main.querySelector('ht-body-view') : null;
-    mainDrawn = keep || !FAST_AREAS.has(area) ? null : {area, html};   // AX1: what a quick draw compares against
+    mainDrawn = keep || !KEEP_AREAS.has(area) ? null : {area, html};   // AX1: what a quick draw compares against (AX8: and a kept page)
     if (!keep){ main.innerHTML = html; return; }
     const tpl = document.createElement('template'); tpl.innerHTML = html;
     const slot = tpl.content.querySelector('ht-body-view');
@@ -9827,16 +9827,19 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if ($('#rl-from') && $('#rl-to')) relayDates = {from:$('#rl-from').value,to:$('#rl-to').value};
     recordViewHistory();
     // Safari/WKWebView has no CSS scroll anchoring, so a tap on a long day jumped back to the top (V2.0).
+    const cameFrom = render.last && render.last.area;   // AX8
     const scroller = document.scrollingElement || document.documentElement, sameView = render.last && render.last.area === area && render.last.day === day, keepTop = sameView ? scroller.scrollTop : null; render.last = {area, day};
     const openFolds = sameView ? foldsOpen() : null;
     applyTheme(); applyWallpaper(); scoreDraw = {memo:new Map()};
     // One read-only index per draw: per-row scans of every occurrence happen once (V1.12 speed).
     const draw=f=>typeof withDrawMemo==='function'?withDrawMemo(S(),f):f();
+    let kept = null;
     draw(()=>{renderHeader(); renderNotices();
-    setMain(pageHTML());
+    kept = cameFrom && cameFrom !== area ? pageSwap(cameFrom) : null;   // AX8: a page he has seen comes back as it was, at once
+    if (!kept) setMain(pageHTML());
     renderRail();
     });
-    renderAfter(openFolds);
+    if (kept){ $('#main').dataset.area = area; const seq = renderSeq; afterPaint(() => refreshKept(seq)); } else renderAfter(openFolds);
     if(!document.getElementById('viewNav')){const nav=document.createElement('div');nav.id='viewNav';nav.className='acts';document.querySelector('.topbar').append(nav);}
     { const vn = '<button data-act="viewBack" '+(viewIndex<=0?'disabled':'')+'>Back</button><button data-act="viewForward" '+(viewIndex>=viewHistory.length-1?'disabled':'')+'>Forward</button>', nav = document.getElementById('viewNav'); if (nav.innerHTML !== vn) nav.innerHTML = vn; }   // AX1 (option 6): only when it changed
     drawNave();
@@ -9845,6 +9848,12 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if ($('#rl-from') && relayDates){ $('#rl-from').value = relayDates.from; $('#rl-to').value = relayDates.to; if ($('#relayExact')) $('#relayExact').textContent = relayPacket(S(),relayDates.from,relayDates.to); }
   }
   function pageHTML(){
+    // AX8: the page's cross meters number their clip ids from 1 each draw (gm1, gm2 ...), so an unchanged page draws the same HTML and a
+    // kept page or a quick draw swaps nothing; the rail and drawer keep their own running gx ids, so no id is ever shared in the window
+    const seq0 = crossSeq, pre0 = crossPrefix; crossSeq = 0; crossPrefix = 'gm';
+    try { return pageHTMLDraw(); } finally { crossSeq = seq0; crossPrefix = pre0; }
+  }
+  function pageHTMLDraw(){
     const html = area === 'home' ? renderHome() : area === 'faith' ? renderFaith() : area === 'profile' ? profileCard() : area === 'stand' ? renderStand() : area === 'journal' ? renderJournalPage() : area === 'fitness' ? renderData() : area === 'data' ? renderDataPage()+dataOlderTools() : area === 'plan' ? renderPlan() : area === 'log' ? renderLog()+logLinksCard()+actionLogCard()+duplicateActionCard()+waterCard()+mealLibraryCard() : area === 'progress' ? renderProgress() :   /* V3.6 P8: the reflection is on the page beside the review (one copy) */ area === 'collection' ? renderCollection()+scoringProposalCard() : area === 'lessons' ? renderLessons() : area === 'learn' ? renderLearn() : renderSettings();
     return html+(PROGRESSION_LEARN[area]&&area!=='progress'?progressionLearnList(area):'');   // V3.6 P10: Progress has seven Learn chips
   }
@@ -9866,6 +9875,28 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
      6, 7). The points ledger and the This Week strip keep their last numbers in that quick draw (option 2); once he pauses, one full draw
      after paint puts every number right (the reconcile, option 3). Nothing stored changes: this is drawing only. */
   const FAST_AREAS = new Set(['home', 'plan']);
+  /* AX8 (his go, Oct 9 about 1:30 PM: "we can now have the builder finish the speed stuff so the 8, 9, and 5b"): keep pages loaded. Leaving
+     one of these pages keeps its drawn window (cards, folds, decorations) aside; coming back puts it in at once, then, after paint, the page
+     is counted again and only the cards whose HTML changed are swapped. The last 3 pages are kept (his Mac is low on memory). */
+  const KEEP_AREAS = new Set(['home', 'plan', 'faith', 'progress', 'collection']), KEEP_MAX = 3, keptPages = new Map();
+  function pageSwap(from){
+    const main = $('#main');
+    if (KEEP_AREAS.has(from) && main.dataset.area === from && mainDrawn && mainDrawn.area === from){
+      const frag = document.createDocumentFragment(); frag.append(...main.childNodes);
+      keptPages.delete(from); keptPages.set(from, {frag, html:mainDrawn.html});
+      while (keptPages.size > KEEP_MAX) keptPages.delete(keptPages.keys().next().value);
+    }
+    const k = KEEP_AREAS.has(area) && keptPages.get(area); if (!k) return null;
+    keptPages.delete(area); main.replaceChildren(k.frag); mainDrawn = {area, html:k.html}; return k;
+  }
+  function refreshKept(seq){
+    if (seq !== renderSeq || manualSaving || !KEEP_AREAS.has(area) || !mainDrawn || mainDrawn.area !== area) return;   // a newer draw already counted it
+    renderSeq++; const openFolds = foldsOpen(); scoreDraw = {memo:new Map()};
+    const html = typeof withDrawMemo === 'function' ? withDrawMemo(S(), pageHTML) : pageHTML();
+    let patched = false; try { patched = patchMain(html); } catch (e){ console.error('kept page', e); }
+    if (!patched) setMain(html);
+    renderAfter(openFolds, true);
+  }
   let mainDrawn = null, fastDirty = false, fastTimer = 0, drawLag = false;
   function afterPaint(fn){ let done = false; const run = () => { if (done) return; done = true; fn(); }; requestAnimationFrame(() => setTimeout(run, 0)); setTimeout(run, 250); }   // a hidden window has no frames; the timer still runs it
   function reconcileLater(ms){ fastDirty = true; clearTimeout(fastTimer); fastTimer = setTimeout(reconcileNow, ms || 1200); }
