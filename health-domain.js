@@ -3833,8 +3833,12 @@ function planForDraw(state,date){
   }
   return planForUncached(state,date);
 }
+/* AW1 (AK1 item 6, Oct 9): inside a draw a reader gets its own rows and child lists over the draw's one plan, not a deep
+   copy of everything (100 to 300 ms per save). Readers only re-cut rows and child lists (catch-up, second chance); nested
+   parts (occurrence, targets, recurrence) are read, never written, so they stay shared. */
+function planRowsCopy(rows){return rows.map(r=>Array.isArray(r.children)?{...r,children:planRowsCopy(r.children)}:{...r});}
 function planFor(state,date){
-  return drawMemo&&drawMemo.state===state?structuredClone(planForDraw(state,date)):planForUncached(state,date);
+  return drawMemo&&drawMemo.state===state?planRowsCopy(planForDraw(state,date)):planForUncached(state,date);
 }
 function planForUncached(state,date){
   if(!wsEnabled(state))return legacyPlanFor(state,date);

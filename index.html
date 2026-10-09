@@ -2005,11 +2005,22 @@ addEventListener('load', () => {
   async function save(options){
     if (preview) return true;
     if (readOnly) return false;
-    if (typeof liveTouch === 'function') liveTouch();   // AW1
+    if (typeof liveTouch === 'function') liveTouch(); manualSaveSeq++;   // AW1
     const r = await trackManualSave(()=>typeof navigator.locks==='undefined' ? {ok:false,error:'Safe saving needs Web Locks in this browser.'} : navigator.locks.request(STORE_KEY+'.workspace',()=>store.write(real, options)));
     if (!r.ok){ saveError = r.error; readOnly = true; }
     if(r.ok&&options&&(options.replaceRewards||options.allowSourceRemoval||options.replayDeliveries)){intakeResetPending=true;setTimeout(()=>scanIntake(),0);}
     return r.ok;
+  }
+  /* AW1 (AK1 item 8, Oct 9): Move, Delete and Undo draw their result first and save behind it (about 0.3 s instead of 1 s).
+     If that save fails, a Move or Delete is put back and says so; an Undo stays drawn with the usual not-saved message. */
+  async function commitDrawFirst(label, msg, options, rollback){
+    if (preview || readOnly || manualSaving) return commit(label, msg, options);
+    const generation = inputGeneration, focused = document.activeElement, action = focused && focused.dataset && focused.dataset.act, series = focused && focused.closest('[data-series]'), sid = series && series.dataset.series;
+    render(); if (action){ const next = [...document.querySelectorAll('[data-act]')].find(b => b.dataset.act === action && (!sid || b.closest('[data-series]')?.dataset.series === sid)); if (next) next.focus(); } if (msg) toast(msg);
+    const ok = await save(options), newerInput = inputGeneration !== generation;
+    if (ok){ if (!newerInput) unsavedForm = false; syncReminders(); if (newerInput) toast('Earlier changes saved. Your newer edits are still here; save them when ready.'); return true; }
+    if (rollback && undoLabel() === label && undo(real)){ render(); toast('Not saved, so it was put back. Export a recovery copy from Settings.'); return false; }
+    render(); toast('Not saved. Your changes remain in this tab; export a recovery copy from Settings.'); return false;
   }
   async function commit(label, msg, options){ const generation=inputGeneration,focused = document.activeElement, action = focused && focused.dataset && focused.dataset.act, series = focused && focused.closest('[data-series]'); const sid = series && series.dataset.series; const ok = await save(options),newerInput=inputGeneration!==generation; if (ok){if(!newerInput)unsavedForm=false;syncReminders();} render(); if (ok && action&&!newerInput){ const buttons = [...document.querySelectorAll('[data-act]')]; const next = buttons.find(b=>b.dataset.act===action && (!sid || b.closest('[data-series]')?.dataset.series===sid)); if(next) next.focus(); } if (!ok) toast('Not saved. Your changes remain in this tab; export a recovery copy from Settings.'); else if(newerInput)toast('Earlier changes saved. Your newer edits are still here; save them when ready.');else if (msg) toast(msg); return ok; }
   function applyTheme(){ document.documentElement.dataset.textSize = S().prefs.textSize; document.documentElement.dataset.theme = S().prefs.theme === 'light' ? 'light' : 'dark'; document.documentElement.dataset.marble = S().prefs.theme === 'black' ? 'black' : 'verde'; document.documentElement.style.fontSize = S().prefs.textSize === 'large' ? '18px' : '16px'; if (area === 'faith') document.documentElement.dataset.view = 'faith'; else delete document.documentElement.dataset.view; }
@@ -2113,6 +2124,12 @@ addEventListener('load', () => {
   }
   function intakeEditing(){return preview||manualSaving>0||(readOnly&&!durableStore.stagedState)||unsavedForm||feedbackUnsaved||!!feedbackText||!!pendingImport||!!starterInput||!!actionReview||!!document.querySelector('dialog[open]')||!!document.activeElement?.matches('input,textarea,select,[contenteditable=true]');}
   function intakeRender(){if(!intakeEditing())render();}
+  /* AW1 (AK1 item 1): an intake redraw waits for the next painted frame and a free moment, and is dropped when his own tap
+     has already redrawn the page since. A nothing-new delivery checks off from existing rows only after he saved something
+     or the day turned, once, after paint (it was 0.9 to 2.7 s inside every delivery). */
+  let renderSeq=0,manualSaveSeq=0,autoEvidenceSeen=null;
+  function intakeRenderAfterPaint(){const seq=renderSeq;requestAnimationFrame(()=>setTimeout(()=>{if(renderSeq===seq)intakeRender();},0));}
+  function autoEvidenceLater(){const k=()=>manualSaveSeq+'|'+todayYmd();if(autoEvidenceSeen===k())return;requestAnimationFrame(()=>setTimeout(async()=>{if(intake.busy||manualSaving||autoEvidenceSeen===k())return;try{await runAutoEvidence();}catch(e){console.error('auto evidence',e);}autoEvidenceSeen=k();},0));}
   // A refusal used to reach the panel as its bare native code — "file-empty-or-over-10mb" — with no
   // file named, so three permanently unreadable exports read as one transient glitch.
   const INTAKE_REFUSALS={
@@ -2403,7 +2420,11 @@ addEventListener('load', () => {
             if(!merged.ok)return merged;
             if(draft.sourceRecords.length+merged.report.added>AUTO_SOURCE_LIMIT){feed.paused=true;feed.capacityReason='Automatic intake paused before exceeding '+AUTO_SOURCE_LIMIT.toLocaleString()+' retained source rows. Existing records and the source file remain intact. Save a private recovery copy; a capacity review is needed before resuming.';const saved=await store.write(draft);if(!saved.ok)return saved;replaceState(real,draft);return {ok:false,capacity:true,error:feed.capacityReason};}
             const accepted=!['stale','conflict'].includes(merged.report.status);
-            if(accepted)draft.sourceRecords=merged.records;
+            /* AW1 (AK1 item 1, Oct 9): a delivery that brings nothing new (no row added, revised or given new detail; his phone
+               re-sends the same day every few minutes) keeps the committed rows as they are. Only its receipt and the file's
+               digest are recorded, so the save does not re-hash and compare 42,000 rows (10 to 12 s of freeze per delivery). */
+            const nothingNew=accepted&&!merged.report.added&&!merged.report.revised&&!merged.report.detailUpdated;
+            if(accepted&&!nothingNew)draft.sourceRecords=merged.records;
             const advances=accepted&&(merged.report.status==='accepted'||merged.report.metadataUpdated>0);
             if(advances){
               const next={...delivery,digests:[...new Set([...(previous?.digests||[]),previous?.digest,delivery.digest].filter(Boolean))]};
@@ -2411,7 +2432,7 @@ addEventListener('load', () => {
               if(parsed.records.length)feed.lastImportAt=delivery.receivedAt;
             }
             feed.lastDeliveryAt=delivery.receivedAt;feed.lastOutcome=merged.report.status;
-            const projection=HealthAutoExport.project(draft.sourceRecords,contract);
+            const projection=nothingNew&&typeof sourceProjection==='function'?sourceProjection(draft):HealthAutoExport.project(draft.sourceRecords,contract);   // AW1: the same rows share their projection
             feed.lastReportedAt=projection.report.latestData||null;
             feed.lastReport={...merged.report,excluded:parsed.report.counts.excluded,held:projection.heldIds.length,shadow:projection.shadowIds.length,active:projection.activeIds.length};
             // A restore or a sleep re-read rotates the delivery ledger, so a file this record already
@@ -2421,11 +2442,11 @@ addEventListener('load', () => {
             if(prior>=0)draft.importReceipts[prior]=receipt;else draft.importReceipts.push(receipt);
             // New records check off the activities they establish in the same saved write, so the
             // rings and Ready to claim move with the data (Mintay, 2026-09-23).
-            const linked=accepted?Workspace.autoEvidence(draft):null;
+            const linked=accepted&&!nothingNew?Workspace.autoEvidence(draft):null;   // AW1: nothing new to link; a later pass covers his own edits (autoEvidenceLater)
             if(linked&&!linked.ok)intakeLog('automatic check-off skipped: '+linked.error);
             const saved=await store.write(draft,{delivery:{digest:token,contentDigest:file.sha256,feedId:contract.feedId,fileId:file.id,modifiedAt:file.modifiedAt,modifiedAtMs:file.modifiedAtMs,status:merged.report.status}});
             if(!saved.ok&&saved.code==='CAS')await store.readFresh();
-            if(saved.ok){replaceState(real,draft);dropUndo();if(linked?.changes?.length){intakeLog(autoSummary(linked.changes));toast(autoSummary(linked.changes));}}return saved;
+            if(saved.ok){replaceState(real,draft);dropUndo();if(nothingNew){autoEvidenceLater();saved.nothingNew=true;}if(linked?.changes?.length){intakeLog(autoSummary(linked.changes));toast(autoSummary(linked.changes));}}return saved;
           }finally{intake.applying=false;}
         });
         if(result.deferred){intake.deferred=true;intakeLog('deferred at '+file.id+': an edit opened mid-apply');break;}
@@ -2439,6 +2460,7 @@ addEventListener('load', () => {
         if(!ack.ok){fileError='The delivery was saved; its local acknowledgment will be retried.';intakeLog(file.id+' applied but not acknowledged: '+(ack.error||'no reason given'));break;}
         intakeLog(file.id+(result.unreadable?' retired (nothing this feed reads)':result.duplicate?' already imported; nothing to add':' applied'));
         if(!result.unreadable)outcome[result.duplicate?'same':'imported']++;
+        if(!result.duplicate&&!result.nothingNew)outcome.newRows=true;   // AW1
       }
       intake.error=fileError||fileProblem;intake.lastCheck=outcome;
       // The native reader hands over at most two files per scan and scans every ten seconds, so a
@@ -2446,7 +2468,8 @@ addEventListener('load', () => {
       // with clicks refused throughout. A clean batch with more waiting asks again straight away.
       drain=!fileError&&!intake.deferred&&outcome.delivered>0&&(reply.pendingCount||0)>outcome.delivered;
     }catch(e){intake.error='Automatic intake stopped before completing a delivery. Previously committed data remains available.';}
-    finally{intake.busy=false;if(real.revision!==priorRevision||intake.error!==priorError||intake.deferred!==priorDeferred||intake.skipped.join('|')!==priorSkipped)intakeRender();else if(intake.lastCheck!==priorCheck)refreshCheckTime();if(drain)setTimeout(()=>scanIntake(),300);}
+    finally{intake.busy=false;const quiet=intake.lastCheck&&intake.lastCheck!==priorCheck&&!intake.lastCheck.newRows&&intake.error===priorError&&intake.deferred===priorDeferred&&intake.skipped.join('|')===priorSkipped;   /* AW1: only nothing-new deliveries: the time label, no redraw */
+      if(real.revision!==priorRevision&&!quiet||intake.error!==priorError||intake.deferred!==priorDeferred||intake.skipped.join('|')!==priorSkipped)intakeRenderAfterPaint();else if(intake.lastCheck!==priorCheck)refreshCheckTime();if(drain)setTimeout(()=>scanIntake(),300);}
   }
   async function toggleIntake(){
     if(!real.autoFeed||intake.busy||readOnly||preview)return;
@@ -9019,7 +9042,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       else if (moveOcc(st, x.seriesId, date, to)) n++;
     }
     if (!n){ popUndo(); toast('That one cannot move to ' + medDate(to) + '.'); return; }
-    commit('move', r.name + ' moved to ' + (to === addDays(today, 1) ? 'tomorrow' : medDate(to)) + (n < leaves.length ? ' (' + n + ' of ' + leaves.length + ' steps)' : '') + '. No points lost.');
+    commitDrawFirst('move', r.name + ' moved to ' + (to === addDays(today, 1) ? 'tomorrow' : medDate(to)) + (n < leaves.length ? ' (' + n + ' of ' + leaves.length + ' steps)' : '') + '. No points lost.', undefined, true);
   }
   // Remove from Today (3.2, and a drag into Template, 3.4): a placed weekly or monthly item goes back to Template; a daily
   // or one-off item leaves the day and waits under Template → Removed Today; a routine takes its open steps with it.
@@ -9750,6 +9773,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
      Each control also listens for itself and hands a choice made after its removal to the same handler. */
   function bindFileInputs(){ document.querySelectorAll('input[type=file][data-act]').forEach(el => { if (el.dataset.bound) return; el.dataset.bound = '1'; el.addEventListener('change', ev => { if (el.isConnected) return; if ((intake.applying || manualSaving) && el.dataset.act !== 'historyFile'){ el.value = ''; toast('A save is in progress. Choose the file again when it finishes.'); return; } onChange(ev); }); }); }
   function render(){
+    renderSeq++;   // AW1
     applyDomainNames();   // AG1
     if(manualSaving){renderNotices();return;}
     // A background re-draw (intake) leaves a preserved draft's DOM alone; his own navigation re-draws and the stash puts the words back (V3.3, 1.8).
@@ -10196,7 +10220,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       const ids = [seriesId]; for (let i = 0; i < ids.length; i++) for (const s of st.series) if (!s.archivedAt && parentFor(s, date) === ids[i] && !ids.includes(s.id)) ids.push(s.id);
       stage(st, 'rowDelete'); let n = 0; for (const id of ids) if (archiveSeries(st, id, date)) n++;
       if (!n){ popUndo(); toast('This item cannot be deleted from here.'); return; }
-      commit('rowDelete', r.name + (ids.length > 1 ? ' and its ' + pl(ids.length - 1, 'step') : '') + ' deleted from ' + relDay(date).toLowerCase() + '. Entries and points are kept; Resume is under Quests → Stopped routines.'); return;
+      commitDrawFirst('rowDelete', r.name + (ids.length > 1 ? ' and its ' + pl(ids.length - 1, 'step') : '') + ' deleted from ' + relDay(date).toLowerCase() + '. Entries and points are kept; Resume is under Quests → Stopped routines.', undefined, true); return;
     }
     if (act === 'wsComposerSave'){ await composerSave(); return; }
     // V3.6 M6: the builder's chips and presets (they fill the form only); M7: the log button and the entries drawer
@@ -10847,7 +10871,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   $('#feedbackText').addEventListener('input', persistFeedback);
   $('#feedbackDialog').addEventListener('cancel', e => { e.preventDefault(); persistFeedback(); closeFeedback(); });
   window.addEventListener('beforeunload', e => { if (feedbackUnsaved){ e.preventDefault(); e.returnValue = ''; } });
-  $('#undoBtn').addEventListener('click', () => { const ui = uiUndoTop(); if (ui){ uiUndo.pop(); ui.fn(); render(); toast('Undone · ' + ui.label + '.'); return; } const label = undoLabel(); const shut = preview || typeof undoTouches !== 'function' ? [] : undoTouches(real, d => dayClosed(real, d)); if (shut.length){ toast('Not undone: it would change ' + medDate(shut[0]) + ', which has closed. Reopen that day on Quests first.'); return; } if (preview || !undo(real)) return; panel = null; if (label === 'reorg') real.prefs.reorgAG5V1 = {undone:true, at:nowIso(), day:todayYmd()};   /* AG5: an undone reorganization stays undone (it never runs again by itself) */ commit('undo','Previous change undone.', {replaceRewards:label === 'replace' || label === 'restoreSnap',allowSourceRemoval:['localFile','merge','relay'].includes(label)}); });
+  $('#undoBtn').addEventListener('click', () => { const ui = uiUndoTop(); if (ui){ uiUndo.pop(); ui.fn(); render(); toast('Undone · ' + ui.label + '.'); return; } const label = undoLabel(); const shut = preview || typeof undoTouches !== 'function' ? [] : undoTouches(real, d => dayClosed(real, d)); if (shut.length){ toast('Not undone: it would change ' + medDate(shut[0]) + ', which has closed. Reopen that day on Quests first.'); return; } if (preview || !undo(real)) return; panel = null; if (label === 'reorg') real.prefs.reorgAG5V1 = {undone:true, at:nowIso(), day:todayYmd()};   /* AG5: an undone reorganization stays undone (it never runs again by itself) */ { const o = {replaceRewards:label === 'replace' || label === 'restoreSnap',allowSourceRemoval:['localFile','merge','relay'].includes(label)}; if (o.replaceRewards || o.allowSourceRemoval) commit('undo','Previous change undone.', o); else commitDrawFirst('undo','Previous change undone.', o); } });   /* AW1: a plain undo draws first */
   document.addEventListener('toggle', e => { const d = e.target; if (d && d.matches && d.matches('details.tpl-section') && d.dataset.fold){ try { localStorage.setItem('health-tracker.fold.' + d.dataset.fold, d.open ? '1' : '0'); } catch (_) {} } }, true);
   // V3.3 (1.5): Ctrl/Cmd+Z undoes the last delete, dismiss or park (the toast's Undo), while not typing in a field.
   document.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && String(e.key).toLowerCase() === 'z' && !e.target?.matches('input,textarea,select,[contenteditable=true]') && !document.querySelector('dialog[open]') && (canUndo() || uiUndoTop()) && !preview && !$('#undoBtn').hidden){ e.preventDefault(); $('#undoBtn').click(); } });

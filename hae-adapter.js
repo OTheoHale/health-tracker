@@ -413,6 +413,7 @@ function reconcile(existing,parsed,options){
     else if(contentSignature(old)===contentSignature(r)){
       report.same++;
       const newerDelivery=deliveryTime(hae(r).delivery)>deliveryTime(hae(old).delivery),newDetail=own(r,'detail')&&JSON.stringify(r.detail)!==JSON.stringify(old.detail);
+      if(newDetail)report.detailUpdated=(report.detailUpdated||0)+1;   // AW1: a detail change is new content; a newer delivery alone is not
       if(newerDelivery||newDetail){const next=clone(old);if(newerDelivery)hae(next).delivery=clone(hae(r).delivery);if(newDetail)next.detail=clone(r.detail);updates.set(r.id,next);report.metadataUpdated++;}
     }else{
       const next=clone(r);next.importedAt=old.importedAt||d.receivedAt;next.sourceCorrectedAt=d.receivedAt;
