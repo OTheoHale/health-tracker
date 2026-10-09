@@ -2443,7 +2443,9 @@ addEventListener('load', () => {
                re-sends the same day every few minutes) keeps the committed rows as they are. Only its receipt and the file's
                digest are recorded, so the save does not re-hash and compare 42,000 rows (10 to 12 s of freeze per delivery). */
             const nothingNew=accepted&&!merged.report.added&&!merged.report.revised&&!merged.report.detailUpdated;
-            if(accepted&&!nothingNew)draft.sourceRecords=merged.records;
+            // AX5b: the merged rows are frozen and shared like committed rows, so the check-off pass below does not copy all of them twice,
+            // the projection is worked out once and reused by that pass and the next draw, and the save compares and re-hashes only what changed.
+            if(accepted&&!nothingNew)draft.sourceRecords=HealthStore.sealRows?HealthStore.sealRows(merged.records):merged.records;
             const advances=accepted&&(merged.report.status==='accepted'||merged.report.metadataUpdated>0);
             if(advances){
               const next={...delivery,digests:[...new Set([...(previous?.digests||[]),previous?.digest,delivery.digest].filter(Boolean))]};
@@ -2451,7 +2453,7 @@ addEventListener('load', () => {
               if(parsed.records.length)feed.lastImportAt=delivery.receivedAt;
             }
             feed.lastDeliveryAt=delivery.receivedAt;feed.lastOutcome=merged.report.status;
-            const projection=nothingNew&&typeof sourceProjection==='function'?sourceProjection(draft):HealthAutoExport.project(draft.sourceRecords,contract);   // AW1: the same rows share their projection
+            const projection=typeof sourceProjection==='function'?sourceProjection(draft):HealthAutoExport.project(draft.sourceRecords,contract);   // AW1, AX5b: the same rows share their projection
             feed.lastReportedAt=projection.report.latestData||null;
             feed.lastReport={...merged.report,excluded:parsed.report.counts.excluded,held:projection.heldIds.length,shadow:projection.shadowIds.length,active:projection.activeIds.length};
             // A restore or a sleep re-read rotates the delivery ledger, so a file this record already

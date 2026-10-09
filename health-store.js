@@ -10,6 +10,81 @@
     const digest=await root.crypto.subtle.digest('SHA-256',bytes);
     return Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('');
   }
+  /* AX5b (his go, Oct 9 about 1:30 PM: "the 8, 9, and 5b"; his choice A for its gate): the revision log only grows, and its seal is the
+     SHA-256 of its JSON. A delivery with new rows re-hashed all of it (339 MB, about 2.8 s). SHA-256 reads its input in order, so the
+     hash's running state after the existing log can be kept (control.revisionsMid) and only the new revisions fed to it: the seal is
+     the very same value, so older builds, restores and every full read check it exactly as before. The running state is used only when
+     it is for this exact log (count and last sequence) and finishing it gives the stored seal; otherwise the whole log is hashed as before. */
+  const SHA_K=new Uint32Array([0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);
+  const shaW=new Uint32Array(64);
+  function shaStart(){return {h:new Uint32Array([0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]),buf:new Uint8Array(64),n:0,len:0};}
+  function shaBlock(h,b,o){
+    const w=shaW;
+    for(let i=0;i<16;i++)w[i]=(b[o+4*i]<<24)|(b[o+4*i+1]<<16)|(b[o+4*i+2]<<8)|b[o+4*i+3];
+    for(let i=16;i<64;i++){const x=w[i-15],y=w[i-2];w[i]=(((x>>>7)|(x<<25))^((x>>>18)|(x<<14))^(x>>>3))+w[i-7]+(((y>>>17)|(y<<15))^((y>>>19)|(y<<13))^(y>>>10))+w[i-16];}
+    let a=h[0],c=h[2],d=h[3],e=h[4],f=h[5],g=h[6],k=h[7],bb=h[1];
+    for(let i=0;i<64;i++){
+      const t1=(k+(((e>>>6)|(e<<26))^((e>>>11)|(e<<21))^((e>>>25)|(e<<7)))+((e&f)^(~e&g))+SHA_K[i]+w[i])|0;
+      const t2=((((a>>>2)|(a<<30))^((a>>>13)|(a<<19))^((a>>>22)|(a<<10)))+((a&bb)^(a&c)^(bb&c)))|0;
+      k=g;g=f;f=e;e=(d+t1)|0;d=c;c=bb;bb=a;a=(t1+t2)|0;
+    }
+    h[0]+=a;h[1]+=bb;h[2]+=c;h[3]+=d;h[4]+=e;h[5]+=f;h[6]+=g;h[7]+=k;
+  }
+  function shaFeed(s,bytes){
+    let i=0;const n=bytes.length;s.len+=n;
+    if(s.n){while(i<n&&s.n<64)s.buf[s.n++]=bytes[i++];if(s.n<64)return s;shaBlock(s.h,s.buf,0);s.n=0;}
+    for(;i+64<=n;i+=64)shaBlock(s.h,bytes,i);
+    while(i<n)s.buf[s.n++]=bytes[i++];
+    return s;
+  }
+  function shaCopy(s){return {h:new Uint32Array(s.h),buf:new Uint8Array(s.buf),n:s.n,len:s.len};}
+  function shaHex(s0){
+    const s=shaCopy(s0),bits=s.len*8,pad=new Uint8Array(((s.n<56)?56:120)-s.n+8);pad[0]=0x80;
+    const hi=Math.floor(bits/4294967296),lo=bits>>>0,L=pad.length;
+    pad[L-8]=hi>>>24;pad[L-7]=hi>>>16;pad[L-6]=hi>>>8;pad[L-5]=hi;pad[L-4]=lo>>>24;pad[L-3]=lo>>>16;pad[L-2]=lo>>>8;pad[L-1]=lo;
+    const len=s.len;shaFeed(s,pad);s.len=len;
+    return Array.from(s.h,x=>(x>>>0).toString(16).padStart(8,'0')).join('');
+  }
+  const shaText=new TextEncoder();
+  // The JSON of a list, without its closing bracket: '[' then each item, comma separated (JSON.stringify's own form).
+  function logOpen(rows){const s=shaFeed(shaStart(),shaText.encode('['));for(let i=0;i<rows.length;i++){if(i)shaFeed(s,shaText.encode(','));shaFeed(s,shaText.encode(JSON.stringify(rows[i])));}return s;}
+  function logAppend(s,count,rows){for(let i=0;i<rows.length;i++){if(count+i)shaFeed(s,shaText.encode(','));shaFeed(s,shaText.encode(JSON.stringify(rows[i])));}return s;}
+  const logSeal=s=>shaHex(shaFeed(shaCopy(s),shaText.encode(']')));
+  // Long hashing runs in slices of about 25 ms so it never holds a tap; a message channel yields even in a hidden window, where timers
+  // slow to once a second.
+  const yieldNow=()=>new Promise(resolve=>{if(typeof MessageChannel==='undefined'){setTimeout(resolve,0);return;}const c=new MessageChannel();c.port1.onmessage=()=>{c.port1.close();resolve();};c.port2.postMessage(0);});
+  const clock=()=>typeof performance!=='undefined'?performance.now():Date.now();
+  async function feedSliced(s,bytes){let t=clock();for(let o=0;o<bytes.length;o+=1<<20){shaFeed(s,bytes.subarray(o,Math.min(bytes.length,o+(1<<20))));if(clock()-t>25){await yieldNow();t=clock();}}return s;}
+  // The running hash of a whole list (one write-out, as hashState does), kept only if finishing it gives the list's stored seal.
+  async function logRebuild(rows,seal){const bytes=shaText.encode(JSON.stringify(rows)),s=await feedSliced(shaStart(),bytes.subarray(0,bytes.length-1));return logSeal(s)===seal?s:null;}
+  const midSave=(s,rows)=>({v:1,h:Array.from(s.h),buf:Array.from(s.buf.subarray(0,s.n)),len:s.len,count:rows.length,last:rows.length?rows[rows.length-1].sequence:0});
+  function midLoad(o,rows,seal){
+    if(!o||o.v!==1||!Array.isArray(o.h)||o.h.length!==8||!Array.isArray(o.buf)||o.buf.length>63||!Number.isSafeInteger(o.len)||o.count!==rows.length||o.last!==(rows.length?rows[rows.length-1].sequence:0))return null;
+    try{const s={h:new Uint32Array(o.h),buf:new Uint8Array(64),n:o.buf.length,len:o.len};s.buf.set(o.buf);return logSeal(s)===seal?s:null;}catch(e){return null;}
+  }
+  /* AX5b, the source rows: their seal stays the SHA-256 of all rows' JSON (sourcesSHA256, unchanged for reads, restores and older builds).
+     For each committed (frozen) rows array the hash's running state is kept in memory every 1,024 rows. The next save finds the first
+     row that is not the very same frozen row (a delivery appends new rows and replaces today's) and hashes only from the last kept state
+     before it. The kept states of an array are built once per app session and kept only if they give its stored seal; a save that
+     changes most rows (a restore, a roll-up) hashes everything as before. */
+  const ROW_STEP=1024,rowStates=new WeakMap(),shaComma=shaText.encode(',');
+  async function rowsHash(rows,base,start){
+    const states=base?base.slice(0,start/ROW_STEP+1):[shaFeed(shaStart(),shaText.encode('['))],s=shaCopy(states[states.length-1]);let t=clock();
+    for(let i=start;i<rows.length;i++){
+      if(i>start&&i%ROW_STEP===0)states.push(shaCopy(s));
+      if(i)shaFeed(s,shaComma);shaFeed(s,shaText.encode(JSON.stringify(rows[i])));
+      if(clock()-t>25){await yieldNow();t=clock();}
+    }
+    return {seal:logSeal(s),states};
+  }
+  async function sourcesSeal(prev,prevSeal,rows){
+    let same=0;const n=Math.min(prev.length,rows.length);while(same<n&&prev[same]===rows[same])same++;
+    if(!isSealed(prev)||same<rows.length/2)return {seal:await hashState(rows),states:null};
+    let base=rowStates.get(prev)||null;
+    if(!base)try{const built=await rowsHash(prev,null,0);if(built.seal===prevSeal){base=built.states;rowStates.set(prev,base);}}catch(e){base=null;}
+    if(!base)return {seal:await hashState(rows),states:null};
+    return rowsHash(rows,base,Math.min(Math.floor(same/ROW_STEP),base.length-1)*ROW_STEP);
+  }
   // Schema 2 (V3.0, Glow): the committed record and the health source rows are hashed separately, and
   // committed source rows are frozen and shared between copies, so a save that changes no source row
   // (every tap) never copies, compares or re-hashes them. Whether rows changed is an identity check:
@@ -296,7 +371,8 @@
         if(lostEvidence&&!config.replaceRewards)return failed('EVIDENCE','An ordinary save cannot erase existing reward evidence. Keep its reservation and record a retraction instead.');
         const delivery=config.delivery?clone(config.delivery):null;
         if(delivery&&(typeof delivery.digest!=='string'||!delivery.digest))return failed('INVALID','A delivery needs its content digest before it can be saved.');
-        const seal=schema===1?{stateSHA256:await hashState(next)}:{recordSHA256:await hashState(recordPart(next)),sourcesSHA256:sourcesSame?previous.control.sourcesSHA256:await hashState(next.sourceRecords)};
+        const rowSeal=schema===2&&!sourcesSame?await sourcesSeal(previous.state.sourceRecords,previous.control.sourcesSHA256,next.sourceRecords):null;   // AX5b
+        const seal=schema===1?{stateSHA256:await hashState(next)}:{recordSHA256:await hashState(recordPart(next)),sourcesSHA256:sourcesSame?previous.control.sourcesSHA256:rowSeal.seal};
         const priorSeal=JSON.stringify(schema===1?[previous.control.stateSHA256]:[previous.control.recordSHA256,previous.control.sourcesSHA256]),db=await connect(),at=new Date().toISOString();
         const newRevisions=[],changedSources=[];let committedControl=null;
         const prunedIds=compaction?new Set(removedSources.map(row=>row.id)):null;
@@ -305,7 +381,9 @@
         const lastSequence=previous.revisions.length?previous.revisions[previous.revisions.length-1].sequence:0;
         function revision(sourceId,before,after){newRevisions.push({sequence:lastSequence+newRevisions.length+1,entity:'source',sourceId,at,generation:next.rewardGeneration,revision:next.revision,deliveryDigest:delivery?delivery.digest:null,before,after});}
         for(const row of nextParts.sources){
-          const before=oldSources.get(row.id),different=!before||JSON.stringify(before.value)!==JSON.stringify(row.value);
+          const before=oldSources.get(row.id);
+          if(before&&before.value===row.value){if(before.order!==row.order)changedSources.push(row);continue;}   // AX5b: the same frozen row is unchanged; no need to write it out twice to compare
+          const different=!before||JSON.stringify(before.value)!==JSON.stringify(row.value);
           if(!before||sourceSignature(before.value)!==sourceSignature(row.value))revision(row.id,before?before.value:null,row.value);
           if(different||before.order!==row.order)changedSources.push(row);
         }
@@ -313,7 +391,17 @@
         else for(const row of removedSources)revision(row.id,row.value,null);
         const deliveryRow=delivery?{id:JSON.stringify([next.rewardGeneration,delivery.digest]),value:delivery,at,revision:next.revision,generation:next.rewardGeneration,sourceRevisionCount:newRevisions.length}:null;
         const nextDeliveries=deliveryRow?previous.deliveries.concat(deliveryRow).sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0):previous.deliveries;
-        const [revisionsSHA256,deliveriesSHA256]=await Promise.all([newRevisions.length||pruned.length?hashState(keptRevisions.concat(newRevisions)):previous.control.audit.revisionsSHA256,deliveryRow?hashState(nextDeliveries):previous.control.audit.deliveriesSHA256]);
+        // AX5b: new revisions are fed to the kept running hash. With none to resume (first time, an older build's write, the save after a
+        // roll-up) it is rebuilt from the existing log and kept only if it gives the log's stored seal; a roll-up itself prunes the log, so
+        // it hashes the whole log as before and leaves the rebuild to the next save.
+        let revisionsMid=previous.control.revisionsMid||null,revisionsSHA256=previous.control.audit.revisionsSHA256;
+        if(newRevisions.length||pruned.length){
+          const all=keptRevisions.concat(newRevisions);let resumed=null;
+          if(schema===2&&!pruned.length){resumed=midLoad(previous.control.revisionsMid,previous.revisions,previous.control.audit.revisionsSHA256);if(!resumed&&previous.revisions.length>=newRevisions.length)try{resumed=await logRebuild(previous.revisions,previous.control.audit.revisionsSHA256);}catch(e){resumed=null;}}
+          if(resumed){logAppend(resumed,previous.revisions.length,newRevisions);revisionsSHA256=logSeal(resumed);revisionsMid=midSave(resumed,all);}
+          else{revisionsSHA256=await hashState(all);revisionsMid=null;}
+        }
+        const deliveriesSHA256=deliveryRow?await hashState(nextDeliveries):previous.control.audit.deliveriesSHA256;
         const audit={revisionCount:keptRevisions.length+newRevisions.length,deliveryCount:nextDeliveries.length,revisionsSHA256,deliveriesSHA256};
         const saved=await transaction(db,TABLES,'readwrite',(tx,set,abort)=>{
           const requests=[['control',tx.objectStore('meta').get('authority')],['app',tx.objectStore('meta').get('app')],['sourceCount',tx.objectStore('sources').count()],['receiptCount',tx.objectStore('receipts').count()],['revisionCount',tx.objectStore('revisions').count()],['deliveryCount',tx.objectStore('deliveries').count()]];
@@ -333,12 +421,12 @@
             for(const row of removedReceipts)tx.objectStore('receipts').delete(row.id);
             if(deliveryRow)tx.objectStore('deliveries').add(deliveryRow);
             tx.objectStore('meta').put(nextParts.app);
-            committedControl=Object.assign({},old.control,seal,{sourceCount:next.sourceRecords.length,receiptCount:nextParts.receipts.length,audit,lastCommit:{at,revision:next.revision,deliveryDigest:delivery?delivery.digest:null}});
+            committedControl=Object.assign({},old.control,seal,{sourceCount:next.sourceRecords.length,receiptCount:nextParts.receipts.length,audit,revisionsMid,lastCommit:{at,revision:next.revision,deliveryDigest:delivery?delivery.digest:null}});
             tx.objectStore('meta').put(committedControl);
             set({ok:true,snapshotSafe:true,sourceRevisionCount:newRevisions.length,revision:next.revision,generation:next.rewardGeneration});
           },abort);
         });
-        if(saved.ok&&!saved.duplicateDelivery){if(schema===2)freezeSources(next);state.revision=next.revision;state.rewardGeneration=next.rewardGeneration;verified={state:next,control:committedControl,revisions:newRevisions.length||pruned.length?keptRevisions.concat(newRevisions):previous.revisions,deliveries:nextDeliveries};}
+        if(saved.ok&&!saved.duplicateDelivery){if(schema===2){freezeSources(next);if(rowSeal&&rowSeal.states)rowStates.set(next.sourceRecords,rowSeal.states);}state.revision=next.revision;state.rewardGeneration=next.rewardGeneration;verified={state:next,control:committedControl,revisions:newRevisions.length||pruned.length?keptRevisions.concat(newRevisions):previous.revisions,deliveries:nextDeliveries};}
         else if(saved.ok&&saved.duplicateDelivery&&cached)verified=cached;
         return saved;
       }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
@@ -356,7 +444,8 @@
     }
     return {open:read,read,migrate,adopt,write,writeClaims:write,schema,readDelivery:digest=>schema===2?findDelivery(digest):list('deliveries',digest),deliveries:()=>list('deliveries'),revisions:()=>list('revisions'),close(){if(database)database.close();database=null;opening=null;},markerKey,dbName};
   }
-  const api={create,hashState,isSealed};
+  // sealRows (AX5b): freeze and share rows a save is about to commit, so copies of the record share them and the save compares only what changed.
+  const api={create,hashState,isSealed,sealRows:rows=>freezeSources({sourceRecords:rows}).sourceRecords,sha:{start:shaStart,feed:shaFeed,hex:shaHex,copy:shaCopy,logOpen,logAppend,logSeal,logRebuild,midSave,midLoad,rowsHash,sourcesSeal}};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
   root.HealthStore=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
