@@ -1020,7 +1020,7 @@ function undoSnapshot(state, label){
   return { label, snap: JSON.stringify(shared ? Object.assign({}, state, {sourceRecords: []}) : state), sources: shared };
 }
 let undoSeq = 0;
-function pushUndo(entry){ entry.seq = ++undoSeq; undoStack.push(entry); if (undoStack.length > UNDO_DEPTH) undoStack.shift(); }
+function pushUndo(entry){ if (typeof liveTouch === 'function') liveTouch(); entry.seq = ++undoSeq; undoStack.push(entry); if (undoStack.length > UNDO_DEPTH) undoStack.shift(); }
 function undoTopSeq(){ return undoStack.length ? undoStack[undoStack.length - 1].seq : 0; }   // identifies the newest entry; depth alone repeats (review finding, Oct 1)
 function stage(state, label){ pushUndo(undoSnapshot(state, label)); }
 function canUndo(){ return undoStack.length > 0; }
@@ -1043,7 +1043,7 @@ function undo(state){
   if (state.vo2Ledger) prev.vo2Ledger = JSON.parse(JSON.stringify(state.vo2Ledger));   // V3.7 review F6: the VO2 ledger is a log of frozen claims; an undo never removes a row
   for (const k of Object.keys(state)) delete state[k];
   Object.assign(state, prev);
-  undoStack.pop();
+  undoStack.pop(); liveTouch();
   return true;
 }
 /* V3.5 F2 (V34-I16): the days an undo would change that have closed since (a snapshot taken before a day auto-closed
@@ -3619,6 +3619,7 @@ function compactAgedDays(state,today,options){
   return {ok:true,rolled:r.rolled,removedIds:r.removedIds,before};
 }
 function replaceState(cur, inc){
+  liveTouch();   // AW1: a cached points ledger or week strip of the old record is dropped
   const next = cloneRecord(inc);
   if (next.sourceRecords !== cur.sourceRecords) sourceProjectionCache.delete(cur);
   for (const k of Object.keys(cur)) delete cur[k];
@@ -5145,4 +5146,27 @@ preserveRewardUnlocks=function(state,today){
   if(!quarterProgression(state))return wsLegacyPreserveUnlocks(state,today);
   const epoch=wsEpoch(state),claims=Object.values(state.rewards.claims).filter(c=>c.ruleVersion===4&&c.epochId===epoch.id),points=claims.reduce((n,c)=>n+claimBalance(c),0)/4,days=new Set(claims.map(c=>c.date));
   for(const achievement of rewardAchievements(state,points,days.size))if(achievement.earned&&!state.rewards.unlocks[achievement.id])state.rewards.unlocks[achievement.id]=nowIso();
+};
+
+/* AW1 (AK1 item 2, Oct 9): one points ledger per change. Every redraw asked for it four times (header Level orb, rail
+   Level card, Claim chip, Collection), 250 to 300 ms each time on his record. The live record the page registers
+   (liveRecordKeep) keeps one copy until it changes: a save (revision), a staged edit, an undo or a replaced record
+   (liveTouch), a different day, or the clock minute turning. Drafts and copies are never cached: a "before → after"
+   confirm counts fresh. Inside one draw any record is counted once. */
+let liveRecord=null,liveEpoch=0;
+function liveRecordKeep(state){liveRecord=state;}
+function liveTouch(){liveEpoch++;}
+function liveKey(state){
+  if(!state||state!==liveRecord)return null;
+  return (state.revision||0)+'|'+(state.rewardGeneration||'')+'|'+liveEpoch+'|'+Math.floor(Date.now()/60000)+'|'+Object.keys(state.occurrences||{}).length+'|'+Object.keys(state.rewards?.claims||{}).length;
+}
+const rewardReportFresh=rewardReport,rewardMemo={key:null,value:null};
+rewardReport=function(state,today){
+  const key=liveKey(state);
+  if(key===null){
+    if(!drawMemo||drawMemo.state!==state)return rewardReportFresh(state,today);
+    const m=drawMemo.rewards||(drawMemo.rewards=new Map());if(!m.has(today))m.set(today,rewardReportFresh(state,today));return m.get(today);
+  }
+  const k=key+'|'+today;if(rewardMemo.key===k)return rewardMemo.value;
+  const value=rewardReportFresh(state,today);rewardMemo.key=k;rewardMemo.value=value;return value;
 };

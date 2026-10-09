@@ -1877,6 +1877,7 @@ addEventListener('load', () => {
   if(personalReview&&boot.firstRun){ real=freshState(); real.seeded=true; }
   if(syntheticTest)real.demo=false;
   if (boot.firstRun) activateConfirmedProgression(real,todayYmd());
+  if (typeof liveRecordKeep === 'function') liveRecordKeep(real);   // AW1: the live record's points ledger and week strip are kept per change
   let readOnly = boot.readOnly;
   let saveError = boot.error;
   let recovered = boot.recovered || null;
@@ -2004,6 +2005,7 @@ addEventListener('load', () => {
   async function save(options){
     if (preview) return true;
     if (readOnly) return false;
+    if (typeof liveTouch === 'function') liveTouch();   // AW1
     const r = await trackManualSave(()=>typeof navigator.locks==='undefined' ? {ok:false,error:'Safe saving needs Web Locks in this browser.'} : navigator.locks.request(STORE_KEY+'.workspace',()=>store.write(real, options)));
     if (!r.ok){ saveError = r.error; readOnly = true; }
     if(r.ok&&options&&(options.replaceRewards||options.allowSourceRemoval||options.replayDeliveries)){intakeResetPending=true;setTimeout(()=>scanIntake(),0);}
@@ -5311,7 +5313,14 @@ addEventListener('load', () => {
     openMacrosDrawer.setSpan = n => { span = n; renderDrawer(); };
     openPanel(panel);
   }
+  /* AW1 (AK1 item 9): the strip is the same for every redraw until the record, the day or its window changes */
+  const weekStripKeep = {key:null, html:''};
   function weekStripV34(st){
+    const live = typeof liveKey === 'function' ? liveKey(st) : null, key = live === null ? null : live + '|' + day + '|' + todayYmd() + '|' + JSON.stringify(filtWin('home', 'week'));
+    if (key !== null && weekStripKeep.key === key) return weekStripKeep.html;
+    const html = weekStripDraw(st); if (key !== null){ weekStripKeep.key = key; weekStripKeep.html = html; } return html;
+  }
+  function weekStripDraw(st){
     // V3.7 L2: the strip draws the days of its window (the page filter until its chip is pinned): one bar at Day
     /* Fix AA3: at Day the strip is this week's seven days (the selected day outlined), never one tall empty bar */
     const WW0 = filtWin('home', 'week'), WW = WW0.day ? (() => { const from = weekWindow(day).from, ds = []; for (let i = 0; i < 7; i++) ds.push(addDays(from, i)); return {...WW0, days:ds}; })() : WW0, today = todayYmd(), dense = WW.days.length > 14, DOW = ['S','M','T','W','T','F','S'];
