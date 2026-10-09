@@ -4428,10 +4428,15 @@ addEventListener('load', () => {
      amount or count is a bar with "x of y" and a log button ("+ add 3.1 mi"), with an Auto chip where a source feeds it;
      a limit's bar turns warm when over, never red; a reading is a bar against its target; "N days after last done" reads
      days since and days to go. The page supplies the daily readings the domain does not hold (sleep hours, RHR, HRV). ---------- */
+  const nutReadKeep = new Map();
   if (typeof setGoalReadings === 'function') setGoalReadings((m, from, to) => {
     const st = S(), out = new Map();
     if (m === 'sleep'){ for (const [d, n] of sleepNights(st)) if (d >= from && d <= to && n && Number.isFinite(n.minutes)) out.set(d, n.minutes / 60); }
     else if (METRICS[m]){ for (const [d, v] of metricSeries(st, m, Math.max(1, calendarDistance(from, todayYmd()) + 1))) if (d >= from && d <= to) out.set(d, v); }
+    else if (m === 'nutrition'){   // AG4: Health score reads the Nutrition Grade of the 7 closed days ending that day (yesterday for today)
+      const today = todayYmd(); for (let d = from; d <= to && d <= today; d = addDays(d, 1)){ const end = d < today ? d : addDays(today, -1), key = (st.revision || 0) + '|' + end; let pct = nutReadKeep.get(key);
+        if (pct === undefined){ try { const r = nutritionGradeOver(st, addDays(end, -6), end, 'week'); pct = r && Number.isFinite(r.percent) ? Math.round(r.percent) : null; } catch (_) { pct = null; } nutReadKeep.set(key, pct); if (nutReadKeep.size > 200) nutReadKeep.clear(); }
+        if (pct !== null) out.set(d, pct); } }
     return out;
   });
   const GOAL_WARM = '#f0985a';   // the Draft's limit-over orange (never the red of "behind")
@@ -4439,7 +4444,8 @@ addEventListener('load', () => {
   const goalNum = v => v === null || !Number.isFinite(v) ? '—' : (Math.round(v * 100) / 100).toLocaleString('en-US');
   function goalMeasure(st, n, date){
     const g = itemGoal(n, date); if (!g || g.goal.measure.kind === 'check') return null;
-    const p = GoalEngine.progress(st, g.series, date); if (!p) return null;
+    const p0 = GoalEngine.progress(st, g.series, date); if (!p0) return null;
+    const p = p0.unit === 'min' && Number.isFinite(p0.value) ? {...p0, value:Math.round(p0.value)} : p0;   // AG4: minutes read whole (88.93 was 89)
     const u = p.unit ? ' ' + p.unit : '', reading = p.measure === 'average' || p.measure === 'latest', lim = p.op === 'atMost' && !reading;
     let text = reading ? goalNum(p.value) + u + ' · target ' + (p.op === 'atMost' ? 'at most ' : p.op === 'between' ? goalNum(p.target) + ' to ' : p.op === 'exactly' ? '' : 'at least ') + goalNum(p.op === 'between' ? p.target2 : p.target)
       : lim ? goalNum(p.value) + ' of at most ' + goalNum(p.target) + u + (p.over ? ' · over' : '') : p.op === 'between' ? goalNum(p.value) + u + ' · aim ' + goalNum(p.target) + ' to ' + goalNum(p.target2) : goalNum(p.value) + ' of ' + (p.op === 'exactly' ? 'exactly ' : '') + goalNum(p.target) + u;
@@ -4514,7 +4520,7 @@ addEventListener('load', () => {
   const GB_WD = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const GB_MEASURES = [['check', 'Check it off'], ['count', 'Count the times'], ['sum', 'Add up an amount'], ['average', 'Average of a reading'], ['latest', 'Latest reading vs a target']];
   const GB_UNITS = ['mi', 'km', 'min', 'oz', 'steps', 'pages', 'reps', 'kcal', 'lb'];
-  const GB_READINGS = [['sleep', 'Sleep hours', 'h'], ['weight', 'Weight', 'lb'], ['rhr', 'Resting heart rate', 'bpm'], ['hrv', 'HRV', 'ms']];
+  const GB_READINGS = [['sleep', 'Sleep hours', 'h'], ['weight', 'Weight', 'lb'], ['rhr', 'Resting heart rate', 'bpm'], ['hrv', 'HRV', 'ms'], ['nutrition', 'Nutrition Grade, last 7 closed days', '%']];   // AG4: Health score
   const GB_TARGETS = [['atLeast', 'At least'], ['atMost', 'At most (a limit)'], ['between', 'Between'], ['exactly', 'Exactly']];
   const GB_PERIODS = [['day', 'Each day'], ['week', 'Each week'], ['month', 'Each month'], ['everyN', 'Every N days from the Program start'], ['range', 'A custom date range'], ['rolling', 'Rolling last N days']];
   const GB_WHENS = [['any', 'Any day'], ['days', 'On specific days'], ['by', 'By a day'], ['monthday', 'A date of the month'], ['nthweekday', 'The Nth weekday'], ['after', 'N days after I last did it'], ['season', 'Seasonal change'], ['deadline', 'One-off deadline']];
@@ -4524,6 +4530,11 @@ addEventListener('load', () => {
   // [id, name, example, goal, the preview's invented state]
   const GOAL_PRESETS = () => [
     ['daily', 'Daily habit', 'Morning prayer', {}, {done:false}],
+    /* AG4 (his words, Oct 8: "make it a 45 minute workout to get full credit and we get that from workouts data"; "Health score - from my
+       nutrition/fuel grade should replace eat healthy"): Sweat is 45 minutes a day from Apple Health workouts of any type, part credit on the way;
+       Health score is done when the Nutrition Grade (7 closed days) is B, 70 percent, or better (planner's default AG-HEALTHSCORE). */
+    ['sweat', 'Sweat', '45 min of workouts a day', {measure:{kind:'sum', unit:'min'}, target:{op:'atLeast', value:45}, period:{kind:'day'}, credit:'proportional', source:{kind:'auto', metric:'workouts', types:null, field:'minutes', unit:'min', anyType:true}}, {cur:20}],
+    ['healthscore', 'Health score', 'Nutrition Grade B or better', {measure:{kind:'latest', unit:'%', reading:'nutrition'}, target:{op:'atLeast', value:70}, period:{kind:'day'}, credit:'all'}, {cur:74}],
     ['days', 'Specific days', 'Trash on Thursday', {period:{kind:'week'}, when:{kind:'days', days:[4]}}, {done:false}],
     ['nweek', 'N times a week', '3 workouts a week', {measure:{kind:'count', unit:'times'}, target:{op:'atLeast', value:3}, period:{kind:'week'}, credit:'proportional'}, {cur:1}],
     ['nweekby', 'N times a week by Friday', '3 a week, by Friday', {measure:{kind:'count', unit:'times'}, target:{op:'atLeast', value:3}, period:{kind:'week'}, when:{kind:'by', by:5}, credit:'proportional'}, {cur:2}],
@@ -4535,7 +4546,7 @@ addEventListener('load', () => {
     // V3.7 O8 (A38): credits an eligible Apple Watch outdoor walk, run or hike of 10 minutes or more with heart rate over 80 percent of it
     ['vo2chance', 'VO₂ reading chance', '1 outdoor walk, run or hike a week', {measure:{kind:'count', unit:'times'}, target:{op:'atLeast', value:1}, period:{kind:'week'}, credit:'proportional', source:{kind:'auto', metric:'workouts', field:'count', unit:'times', types:null, writers:['Apple Watch'], outdoor:true, minMinutes:10, hrCoverage:0.8}}, {cur:0}],
     ['milestone', 'Milestone', 'Weight 190 lb by Jan 7', {measure:{kind:'latest', unit:'lb', reading:'weight'}, target:{op:'atMost', value:190}, period:{kind:'range', from:todayYmd(), to:gbNextJan7()}, when:{kind:'deadline', date:gbNextJan7()}, credit:'proportional'}, {cur:197.4}]];
-  function gbPreset(id){ const p = GOAL_PRESETS().find(x => x[0] === id); if (!p) return null; const b = gbBase(); for (const [k, v] of Object.entries(p[3])) b[k] = Array.isArray(v) || typeof v !== 'object' ? v : {...v}; if (b.source && b.source.kind === 'auto' && !b.source.types) b.source.types = gbDefaultTypes(S(), b); return b; }
+  function gbPreset(id){ const p = GOAL_PRESETS().find(x => x[0] === id); if (!p) return null; const b = gbBase(); for (const [k, v] of Object.entries(p[3])) b[k] = Array.isArray(v) || typeof v !== 'object' ? v : {...v}; if (b.source && b.source.kind === 'auto' && !b.source.types && !b.source.anyType) b.source.types = gbDefaultTypes(S(), b); if (b.source) delete b.source.anyType; return b; }   // AG4: Sweat counts any type, including ones not seen yet
   // V3.7 X2: the type filter starts on every type the record holds for this field (every type with a distance for a distance goal); he unticks.
   function gbDefaultTypes(st, g){ const w = gbSources(st, g).find(x => x.metric === 'workouts'); return w ? w.types.filter(t => (g.source.field !== 'distance' || t.distance > 0) && (!g.source.outdoor || (/outdoor|hik/i.test(t.type) && !/indoor|treadmill/i.test(t.type)))).map(t => t.type) : []; }
   /* V3.7 X10: the preview and the saved name are his typed title, else the preset's example while nothing changed, else
@@ -4556,6 +4567,7 @@ addEventListener('load', () => {
     const s = g.source || {}; if (s.kind !== 'auto') return '';
     if (s.metric === 'walking_running_distance'){ const x = gbSources(st, g).find(y => y.metric === s.metric); return 'Daily walking + running distance · ' + (x ? x.count : 0) + ' days'; }
     const x = gbSources(st, g).find(y => y.metric === 'workouts'), sel = x ? x.types.filter(t => (s.types || []).includes(t.type)) : [];
+    if (x && !(s.types || []).length) return 'Workouts of any type, ' + (s.field === 'minutes' ? 'minutes' : s.field === 'energy' ? 'active energy' : g.measure.kind === 'count' ? 'count' : 'distance') + ', ' + x.types.reduce((a, t) => a + t.records, 0).toLocaleString('en-US') + ' records so far';   // AG4: Sweat
     return 'Workouts: ' + (sel.length ? sel.map(t => t.type).join(', ') : 'no types') + ', ' + (g.measure.kind === 'count' ? 'count' : s.field === 'minutes' ? 'minutes' : s.field === 'energy' ? 'active energy' : 'distance') + ', ' + sel.reduce((a, t) => a + (s.field === 'distance' ? t.distance : t.records), 0).toLocaleString('en-US') + ' records';
   }
   function gbPreview(c){

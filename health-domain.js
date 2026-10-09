@@ -372,7 +372,7 @@ const GoalEngine={
   removeEntry(state,series,id){const list=(state.goalEntries||{})[series.id]||[],i=list.findIndex(x=>x.id===id&&x.origin==='added');if(i<0)return {ok:false,error:'Only your own entries can be removed.'};list.splice(i,1);return {ok:true};},
   // The plain-language summary the builder ends in (the Draft's words).
   summary(g,auto){
-    const RD={sleep:'sleep hours',weight:'weight',rhr:'resting heart rate',hrv:'hrv'},WD=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],ord=n=>n+(['th','st','nd','rd'][(n%100-20)%10]||['th','st','nd','rd'][n%100]||'th'),md=s=>{const d=parseYmd(s);return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});};
+    const RD={sleep:'sleep hours',weight:'weight',rhr:'resting heart rate',hrv:'hrv',nutrition:'Nutrition Grade (last 7 closed days)'},WD=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],ord=n=>n+(['th','st','nd','rd'][(n%100-20)%10]||['th','st','nd','rd'][n%100]||'th'),md=s=>{const d=parseYmd(s);return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});};
     const u=g.measure.unit?' '+g.measure.unit:'',t=g.target||{},nf=v=>(Math.round(v*100)/100).toLocaleString('en-US');
     const tt=t.op==='atMost'?'at most '+nf(t.value)+u:t.op==='between'?'between '+nf(t.value)+' and '+nf(t.value2)+u:t.op==='exactly'?'exactly '+nf(t.value)+u:'at least '+nf(t.value)+u;
     const p=g.period,pt={day:'each day',week:'each week',month:'each month',everyN:'every '+p.n+' days',range:p.from&&p.to?'between '+md(p.from)+' and '+md(p.to):'in a date range',rolling:'in any rolling '+p.n+' days'}[p.kind];
