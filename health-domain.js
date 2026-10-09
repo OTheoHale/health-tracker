@@ -3594,7 +3594,7 @@ function ownSources(state){
   return state.sourceRecords;
 }
 /* V3.1 one-year storage (Mintay, Sept 26). Heart rate, steps and energy minute rows roll up to one
-   row per metric and day once the day is `days` old (35 by default), keeping the day's projected
+   row per metric and day once the day is `days` old (7 by default since AI1; 35 before), keeping the day's projected
    totals exactly and its hourly figures (hae-adapter.js rollup). Rows that any evidence, confirmation
    or claim names are kept as they are. */
 function rollupKeep(state){

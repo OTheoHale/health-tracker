@@ -5722,7 +5722,7 @@ addEventListener('load', () => {
     const upnext = '<section class="k-sec today-next-sec"><div class="k-sec-head"><h2>Up Next' + infoBtn('upnext', 'Up Next') + '</h2><button class="link" data-act="todayTab" data-tab="activities" data-parity="TODAY-36">See all ›</button></div>' + infoPop('upnext', 'What is due today by its own days, one routine at a time with every step in view. Skip for now sends one to the back of today’s queue; ‹ › go through what is left. The full day is on Quests.') + next.replace('<section class="panelcard next-action"', '<section class="panelcard next-action" data-parity="TODAY-10"') + '</section>';
     const week = '<section class="k-sec"><div class="k-sec-head"><h2>This Week' + infoBtn('wkstrip', 'This Week') + '</h2>' + filtChipHTML('home', 'week') + '<button class="link" data-act="questTab" data-tab="week">Week ›</button></div>' + infoPop('wkstrip', 'Each day of this week: what it asked, and how much is done (brighter is more). Tap a day to open it on Quests. Your weekly goals (Prayer 3 of 5 and the rest) are on Quests → Week.') + weekStripV34(st) + '</section>';
     const added = composer && composer.area === 'home' ? '<section class="k-card today-add" data-feedback-id="today-add" data-feedback-label="Add an item">' + composerHTML() + '</section>' : '';
-    return head + strip + added + nextDatesCard(st) + gradeArea('home', () => gradeHero(st) + gradeStrip(st), st) + sundayReviewToday(st) + dayEditor() + quickPanel() + (railHosts() ? '' : sofar) + heroCard(day, {tiles:true}) + '<div class="today-two">' + upnext + week + '</div><div class="today-two today-two-energy"><div class="today-stack">' + fuelCardV35(day) + '</div>' + waterStepsCardV35(day) + '</div>' + macrosNutritionCard(day) + dailyLearnList('today', day);
+    return head + strip + added + reorgNoticeHTML(st) + nextDatesCard(st) + gradeArea('home', () => gradeHero(st) + gradeStrip(st), st) + sundayReviewToday(st) + dayEditor() + quickPanel() + (railHosts() ? '' : sofar) + heroCard(day, {tiles:true}) + '<div class="today-two">' + upnext + week + '</div><div class="today-two today-two-energy"><div class="today-stack">' + fuelCardV35(day) + '</div>' + waterStepsCardV35(day) + '</div>' + macrosNutritionCard(day) + dailyLearnList('today', day);
   }
 
   function starterFilePanel(){
@@ -5985,7 +5985,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function questActivities(){
     const st = S(), swept = questSwept.has(day);
     const add = composer && composer.area === 'plan' ? composerHTML() : '<div class="q-add"><button class="q-addline" data-act="questAdd" data-parity="QUESTS-01"><span aria-hidden="true">＋</span>Add a task</button><button class="k-icon-btn q-sweep" data-act="questSweep" aria-pressed="' + swept + '" aria-label="' + (swept ? 'Show finished cards' : 'Sweep finished cards out of view') + '" title="' + (swept ? 'Show finished cards' : 'Sweep finished cards') + '" data-parity="QUESTS-13">🧹</button></div>';
-    return questDayNav() + dayEditor() + add + nextDatesCard(st) + gradeArea('plan', () => gradeStrip(st), st) + umbrellaChips(st) +
+    return questDayNav() + dayEditor() + add + reorgNoticeHTML(st) + nextDatesCard(st) + gradeArea('plan', () => gradeStrip(st), st) + umbrellaChips(st) +
       (activitiesPending(st) && !(typeof structureV2Adopted === 'function' && structureV2Adopted(st)) ? scoringProposalCard() : '') +
       quickPanel() + wsActivities({includeClaims:false, umbrella:questUmbrella === 'all' ? null : questUmbrella, swept}) + removedFold(st);
   }
@@ -8493,6 +8493,103 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (r.ok && ids.length){ render(); const later = ((r.result && r.result.names) || []).filter(x => x.from > todayYmd()), first = later.map(x => x.from).sort()[0]; toast('Laundry: ' + ids.length + ' loads now come as Wash, Dry and Fold' + (later.length ? ' (' + later.length + ' from ' + medDate(first) + ', so this week’s count stays whole)' : '') + '. Earlier days stay as recorded.'); }
   }
   setTimeout(() => { try { laundryAutoPack(); } catch (_) {} }, 4000);
+  /* AG5 (his final structure and answers, Oct 8; FIX_LIST AG5): the one-time reorganization. Runs once in the Mac app after a verified private backup
+     file is written; one transaction and one Undo. It moves and renames only the series it knows (every id in his Oct 8 export); anything newer is
+     left where it is and listed once ("Not moved"). From today; items counted by the week take the new count for this whole week; past days keep
+     their versions and grades (A59); a dropped item is ended (history and claims kept), from tomorrow when it has an entry today. */
+  const AG5_KNOWN = new Set(["hygiene","daylight","movement","meal","groceries","mealprep","dinner","laundry","winddown","dw-morning-care","dw-oral-care","dw-brush","dw-floss","dw-tongue","dw-rinse","dw-wash-face","dw-night-care","dw-night-brush","dw-night-floss","dw-night-rinse","dw-workouts","dw-cardio","dw-strength","dw-steps","dw-prayer-am","dw-prayer-pm","dw-fasting","dw-church","dw-sleep","dw-journal","dw-weekly-appointment","dw-shower","dw-bathroom-1","dw-bathroom-2","dw-healthy-meal","dw-trash","dw-recycling","dw-clean-bathroom","dw-clean-bedroom","dw-clean-office","dw-clean-gym","dw-laundry","dw-laundry-whites","dw-laundry-bedding","dw-laundry-towels","dw-laundry-colors","v2-body","v2-night-tongue","v2-deficit","v2-hydration","v2-therapy","v2-yard-waste","v2-room-bedroom","v2-make-bed","v2-vacuum","v2-organize-bedroom","v2-clean-bedroom","v2-room-office","v2-organize-office","v2-clean-office","v2-room-bathroom","v2-sink","v2-toilet","v2-tub","v2-shower-clean","v2-shower-curtains","v2-bath-floor","v2-bath-clean","v2-room-gym","v2-organize-gym","v2-clean-gym","v2-gym-floor","v2-couples-therapy","ws-draft-muhdctzh-gk4i5p","ws-draft-mullz08g-a79tkt","ws-draft-mullzh4n-vnhxti","ws-draft-mulm0g6n-p3e4n6","ws-draft-mulm0rka-bv4cem","ws-draft-muoiav8d-sbqvpu","ws-draft-muoibobk-o0187n","ws-draft-muoibv8a-08inuf","ws-draft-muoic335-mplj4k","ws-draft-muueaegs-x93157","ws-draft-mux19x06-ixayig","ws-draft-mux19x06-ixayig-1","ws-draft-mux19x06-ixayig-2","ws-draft-mux19x06-ixayig-3","ws-draft-mux1cde4-jfu4kc","ws-draft-muxet89a-k9uf1q","ws-draft-muxet89a-k9uf1q-1","ws-draft-muxet89a-k9uf1q-2","ws-draft-muxet89a-k9uf1q-3","dw-laundry-whites-wash","dw-laundry-whites-dry","dw-laundry-whites-fold","dw-laundry-bedding-wash","dw-laundry-bedding-dry","dw-laundry-bedding-fold","dw-laundry-towels-wash","dw-laundry-towels-dry","dw-laundry-towels-fold","dw-laundry-colors-wash","dw-laundry-colors-dry","dw-laundry-colors-fold","ws-draft-muyt4uem-6ehuuf","ws-draft-muyt5542-hhj9yd","ws-draft-muyt5j7j-32vo1r","ws-draft-muyt5sen-hn64f6","ws-draft-muyt5ztq-cw3vev","ws-draft-muytcfsw-9flk8b","ws-draft-muytcfsw-9flk8b-1","ws-draft-muytcfsw-9flk8b-2","ws-draft-muytcfsw-9flk8b-3","ws-draft-muyte4i3-tr2obg","ws-draft-muyte4i3-tr2obg-1"]);
+  function reorgPlan(d, T){
+    const notes = [], tomorrow = addDays(T, 1), W = weekStartOf(T, 1);
+    const S0 = id => d.series.find(x => x.id === id), has = id => { const s = S0(id); return !!(s && versionFor(s, '9999-12-31')); };
+    const doneOn = (id, day) => Object.values(d.occurrences).some(o => o.seriesId === id && o.date === day && o.status);
+    const step = (what, fn) => { try { fn(); } catch (e) { notes.push(what + ' (' + (e && e.message || e) + ')'); } };
+    // a change from T, also written into versions that start later (they have not happened yet)
+    const rev = (id, changes) => { const s = S0(id); if (!s) return; if (versionFor(s, T)) wsEdit(d, id, changes, T); for (const v of s.versions) if (v.effectiveFrom > T){ const nv = versionFrom({...v, ...changes}, v.version, v.effectiveFrom); Object.assign(v, nv); } if (changes.category && !versionFor(s, T)) s.category = changes.category; };
+    /* An item counted by the week (or a routine holding one) ends from next Monday: ending it mid-week would make an earlier, closed day its last
+       chance and regrade it (rehearsal, Oct 8: Oct 7 went from 27 of 28 to 27 of 32). Others end today, or tomorrow when they have an entry today. */
+    const nextWeek = addDays(W, 7), weekly = id => { const s = S0(id), v = s && versionFor(s, T); return !!(v && ((v.recurrence && v.recurrence.kind === 'target') || (v.goal && v.goal.period && v.goal.period.kind !== 'day') || (v.childIds || []).some(weekly))); };
+    const end = id => { const s = S0(id); if (!s || (s.archivedAt && s.archivedAt <= T)) return; const kids = (versionFor(s, T) || {}).childIds || [], from = weekly(id) ? nextWeek : doneOn(id, T) ? tomorrow : T; s.archivedAt = from; for (const k of kids){ const c = S0(k); if (c && !(c.archivedAt && c.archivedAt <= from)) c.archivedAt = from; } };
+    const group = (id, name, umb) => { let g = id && groupById(d, id); if (!g){ g = addGroup(d, name); g.custom = false; /* not custom: an empty Focus waits in Template → Cards, as Hobbies does */ } else g.name = name; g.umbrella = gradeStoredUmbrella(umb); g.hidden = false; g.updatedAt = nowIso(); return g.id; };
+    const made = new Set(), mk = (fields, parentId, from) => { const id = wsCreate(d, fields, from || T, parentId || null).id; made.add(id); return id; };
+    const daily = {kind:'weekly', days:[0, 1, 2, 3, 4, 5, 6], intervalWeeks:1, count:1, weeks:1, mode:'fixed', startDate:T, session:''};
+    const weekly1 = days => ({kind:'target', days:days || [0, 1, 2, 3, 4, 5, 6], count:1, weeks:1, mode:'fixed', startDate:W, session:''});
+    // Domains (names only; ids and weights unchanged)
+    d.prefs.domainNames = {...(d.prefs.domainNames || {}), faith:{name:'JIK', about:'Jesus is King'}, health:{name:'Temple'}, career:{name:'Growth'}};
+    // Focuses
+    const G = {
+      devotion:group('faith', 'Devotion', 'faith'), spirit:group(null, 'Spirit', 'faith'),
+      vigor:group('fitness', 'Vigor', 'health'), nourish:group('food', 'Nourish', 'health'), recovery:group('health-mental', 'Recovery', 'health'), mind:group('wellbeing', 'Mind', 'health'), glow:group('personal-health', 'Glow', 'health'),
+      mom:group(null, 'Mom', 'family'), dad:group('g-muyt4qoi-oqilu', 'Dad', 'family'), siblings:group(null, 'Siblings', 'family'),
+      career:group('work', 'Career', 'career'), ld:group(null, 'L&D', 'career'),
+      clean:group('cleaning', 'Clean', 'home'), laundry:group('laundry', 'Laundry', 'home'), chores:group('trash-day', 'Chores', 'home'), errands:group(null, 'Errands', 'home'),
+      events:group(null, 'Events', 'social'), friends:group(null, 'Friends', 'social'), carmen:group('relationship', 'Carmen', 'social'),
+      learn:group('interests', 'Learn', 'hobbies'), play:group(null, 'Play', 'hobbies')
+    };
+    ['devotion','spirit','vigor','nourish','recovery','mind','glow','mom','dad','siblings','career','ld','clean','laundry','chores','errands','events','friends','carmen','learn','play'].forEach((k, i) => { const g = groupById(d, G[k]); if (g) g.order = i + 1; });
+    // JIK
+    step('Morning Prayer', () => rev('dw-prayer-am', {name:'Morning Prayer'})); step('Night Prayer', () => rev('dw-prayer-pm', {name:'Night Prayer'}));
+    for (const id of ['dw-church', 'dw-journal', 'dw-fasting']) step(id, () => rev(id, {category:G.spirit}));
+    // Temple: Vigor
+    step('Sweat', () => mk({name:'Sweat', category:G.vigor, goal:gbPreset('sweat'), recurrence:daily}));
+    step('Steps', () => rev('dw-steps', {name:'Steps'})); step('Miles', () => rev('ws-draft-muueaegs-x93157', {name:'Miles'}));
+    for (const id of ['dw-workouts', 'dw-cardio', 'dw-strength', 'daylight', 'movement']) step(id, () => end(id));
+    // Nourish
+    step('Fuel', () => rev('v2-deficit', {name:'Fuel'})); step('Health score', () => mk({name:'Health score', category:G.nourish, goal:gbPreset('healthscore'), recurrence:daily}));
+    step('H2O', () => rev('v2-hydration', {name:'H2O'})); step('Grocery', () => rev('groceries', {name:'Grocery'})); step('dw-healthy-meal', () => end('dw-healthy-meal'));
+    step('winddown', () => end('winddown'));
+    // Mind
+    step('SUD Group', () => rev('dw-weekly-appointment', {name:'SUD Group', recurrence:weekly1([3, 5])}));
+    step('SUD Individual', () => mk({name:'SUD Individual', category:G.mind, recurrence:{kind:'once', date:T}, setEach:true, needsDate:false}));
+    step('RX', () => mk({name:'RX', category:G.mind, goal:monthGoalDef(), recurrence:daily}));
+    // Glow
+    step('Morning', () => rev('dw-oral-care', {name:'Morning'}));
+    for (const id of ['dw-tongue', 'dw-floss', 'dw-rinse']) step(id, () => rev(id, {secondChance:true}));
+    step('Face', () => rev('dw-wash-face', {name:'Face'})); step('Shower', () => rev('dw-shower', {name:'Shower'})); step('B1', () => rev('dw-bathroom-1', {name:'B1'})); step('B2', () => rev('dw-bathroom-2', {name:'B2'}));
+    step('Night', () => rev('dw-night-care', {name:'Night'}));
+    for (const id of ['dw-night-floss', 'dw-night-rinse', 'v2-night-tongue']) step(id, () => end(id));
+    // Family
+    step('Mom Tasks', () => rev('ws-draft-muhdctzh-gk4i5p', {category:G.mom}));
+    for (const id of ['ws-draft-muyte4i3-tr2obg', 'ws-draft-muyte4i3-tr2obg-1']) step(id, () => rev(id, {category:G.mom}));
+    // Growth
+    step('Job-Search', () => { rev('ws-draft-mux19x06-ixayig', {name:'Job-Search', recurrence:{...daily, days:[1, 2, 3, 4, 5]}}); for (const k of [1, 2, 3]) rev('ws-draft-mux19x06-ixayig-' + k, {recurrence:{...daily, days:[1, 2, 3, 4, 5]}}); });
+    step('Mentorship', () => { const m = mk({name:'Mentorship', category:G.ld, container:true, recurrence:daily}); mk({name:'Chris', category:G.ld, recurrence:{kind:'once', date:'2026-10-16' >= T ? '2026-10-16' : T}, setEach:true, needsDate:false}, m); mk({name:'Shuang', category:G.ld, recurrence:{kind:'once', date:T}, setEach:true, needsDate:true}, m); });
+    step('Network', () => mk({name:'Network', category:G.ld, container:true, recurrence:daily}));
+    step('Yonas Inc', () => { const y = mk({name:'Yonas Inc', category:G.ld, container:true, recurrence:daily}); if (has('ws-draft-muytcfsw-9flk8b')){ wsEdit(d, 'ws-draft-muytcfsw-9flk8b', {category:G.ld}, T); wsMove(d, 'ws-draft-muytcfsw-9flk8b', y, T); } });
+    for (const id of ['ws-draft-mullz08g-a79tkt', 'ws-draft-mullzh4n-vnhxti', 'ws-draft-muoiav8d-sbqvpu', 'ws-draft-muoibobk-o0187n', 'ws-draft-mux1cde4-jfu4kc']) step(id, () => rev(id, {category:G.ld}));
+    // Home: Clean
+    step('Projects', () => mk({name:'Projects', category:G.clean, container:true, recurrence:daily}));
+    step('Make Bed', () => rev('v2-make-bed', {recurrence:{...weekly1([1, 2, 3, 4, 5]), count:5}}));
+    for (const id of ['v2-clean-bedroom', 'v2-clean-office', 'v2-bath-clean', 'v2-shower-clean', 'v2-organize-gym', 'v2-clean-gym', 'dw-clean-bathroom', 'dw-clean-bedroom', 'dw-clean-office', 'dw-clean-gym', 'dw-laundry', 'laundry', 'hygiene', 'meal', 'mealprep', 'dinner', 'dw-morning-care']) step(id, () => end(id));
+    // Laundry: each load once a week (this week too); its Wash, Dry and Fold once a week; Shower Curtains a monthly load
+    for (const l of ['whites', 'bedding', 'towels', 'colors']){ step(l, () => { rev('dw-laundry-' + l, {recurrence:weekly1()}); for (const k of ['wash', 'dry', 'fold']) rev('dw-laundry-' + l + '-' + k, {recurrence:weekly1()}); }); }
+    step('Shower Curtains', () => { const id = 'v2-shower-curtains'; if (!has(id)) return; if (parentFor(S0(id), T)) wsMove(d, id, null, T); wsEdit(d, id, {name:'Shower Curtains', category:G.laundry, goal:monthGoalDef(), recurrence:daily}, T); for (const n of ['Wash', 'Dry', 'Fold']) mk({id:id + '-' + n.toLowerCase(), name:n, category:G.laundry, goal:monthGoalDef(), recurrence:daily}, id); });
+    // Chores: Trash Day on Thursdays; only Curb - Recycle alternates (Oct 15, Oct 29 ...). From tomorrow when today's trash is already marked.
+    step('Trash Day', () => { const old = ['dw-trash', 'dw-recycling', 'v2-yard-waste'], from = old.some(id => doneOn(id, T)) ? tomorrow : T, thu = {kind:'weekly', days:[4], intervalWeeks:1, count:1, weeks:1, mode:'fixed', startDate:from, session:''};
+      old.forEach(end); const t = mk({name:'Trash Day', category:G.chores, container:true, recurrence:thu}, null, from);
+      for (const n of ['M&D - Bathroom', 'LR - Garbage', 'LR - Recycle', 'LR - Yard Waste', 'BM - Garbage', 'BM - Recycle', 'BM - Bathroom', 'BR - Recycle', 'OF - Recycle', 'OF - Garbage', 'Curb - Garbage', 'Curb - Recycle', 'Curb - Yard Waste'])
+        mk({name:n, category:G.chores, recurrence:n === 'Curb - Recycle' ? {...thu, intervalWeeks:2, startDate:'2026-10-15'} : thu}, t, from); });
+    // Social: Carmen holds Couples Therapy (its Focus was renamed); Mom Tasks moved above
+    // Templates: kept; plus SUD Individual
+    step('SUD Individual template', () => { const list = Array.isArray(d.prefs.templates) ? d.prefs.templates.slice() : tplCopy(DEFAULT_TEMPLATES); if (!list.some(t => t.name === 'SUD Individual')) list.push({id:'tpl-sud-individual', name:'SUD Individual', group:G.mind, items:[]}); d.prefs.templates = list; });
+    // what it does not know stays where it is, named once
+    const notMoved = d.series.filter(s => !AG5_KNOWN.has(s.id) && !made.has(s.id) && !s.demo && !(s.archivedAt && s.archivedAt <= T) && !parentFor(s, T)).map(s => (versionFor(s, T) || s.versions[0]).name);
+    d.prefs.reorgAG5V1 = {at:nowIso(), day:T, notMoved, failed:notes, seen:false};
+    return {ok:true, notMoved, notes};
+  }
+  async function reorgAG5(){
+    const st = S(); if (preview || readOnly || !st || !st.prefs || st.prefs.reorgAG5V1 || st.demo || !NATIVE) return;
+    if (!Array.isArray(st.series) || !st.series.length){ setTimeout(() => { try { reorgAG5(); } catch (_) {} }, 5000); return; }
+    if (!['dw-oral-care', 'v2-room-bedroom', 'dw-prayer-am', 'v2-deficit'].every(id => st.series.some(x => x.id === id))) return;   // only his own record
+    if (typeof verifiedRecovery !== 'function') return; const proof = await verifiedRecovery(real); if (!proof || !proof.ok){ intakeLog && intakeLog('reorganization waits: no verified backup (' + ((proof && proof.error) || 'unknown') + ')'); return; }
+    const T = todayYmd(), r = await manualActionTransaction(st, d => { try { return reorgPlan(d, T); } catch (e) { return {ok:false, error:String(e && e.message || e)}; } }, {persist:true, undo:'reorg'});
+    render(); toast(r.ok ? 'Reorganized into JIK, Temple, Family, Growth, Home, Social and Hobbies from today. A backup was saved first; Undo puts everything back.' : 'Not reorganized: ' + (r.error || 'unknown') + '. Nothing changed.');
+  }
+  setTimeout(() => { try { reorgAG5(); } catch (_) {} }, 7000);
+  function reorgNoticeHTML(st){
+    const r = st.prefs && st.prefs.reorgAG5V1; if (!r || r.seen || r.undone) return '';
+    const list = (r.notMoved || []).concat(r.failed || []);
+    return '<section class="k-card nd-card" data-parity="AG5-NOTICE"><div class="k-head"><span class="k-title">Reorganized on ' + esc(medDate(r.day)) + '</span></div><p class="hint keep">' + (list.length ? 'Not moved: ' + esc(list.join(', ')) + '. They stay where they were.' : 'Every item moved. Earlier days keep what they had.') + ' A backup was saved first.</p><div class="acts"><button class="link" data-act="reorgSeen">OK</button></div></section>';
+  }
   /* Fix AA7: a routine's steps travel with it (3.4). Once, steps whose group differs from their routine's today follow it from today
      (an old drop moved the steps, a later edit moved only the routine); earlier days stay as recorded. */
   async function stepsFollowRoutine(){
@@ -9129,7 +9226,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (v33) rows = templatePrune(st, rows, day);
     rows = secondChanceShift(st, rows, day);   // AG2 (e)
     // Groups by the V2 card order; a retired group still shows on a day that has its items (V2.0).
-    const v2 = typeof structureV2Adopted === 'function' && structureV2Adopted(st), order = id => { const i = typeof V2_CARD_ORDER !== 'undefined' ? V2_CARD_ORDER.indexOf(id) : -1; return i < 0 ? 99 : i; };
+    const v2 = typeof structureV2Adopted === 'function' && structureV2Adopted(st), order = id => { if (st.prefs.reorgAG5V1){ const g = groupById(st, id); return g && Number.isFinite(g.order) ? g.order : 99; } const i = typeof V2_CARD_ORDER !== 'undefined' ? V2_CARD_ORDER.indexOf(id) : -1; return i < 0 ? 99 : i; };   // AG5: the Focus order of his structure
     const groups = groupsOf(st).filter(g => !groupOff(st, g.id, day) && (!options || !options.groupId || g.id === options.groupId) && (!options || !options.umbrella || g.umbrella === options.umbrella) && (!g.retiredFrom || day < g.retiredFrom || rows.some(r => (r.group || r.groupId) === g.id)) && (oneCard || (placedCards.has(g.id) && !hidden.has(g.id)) || (!parked.has(g.id) && !hidden.has(g.id) && (!v33 || rows.some(r => (r.group || r.groupId) === g.id) || placedCards.has(g.id) || (g.custom && !cardItemCount(st, g, day)))))).sort((x, y) => (v2 ? order(x.id) - order(y.id) : 0));
     return (catching ? catchUpBanner(st) : (!options || !options.groupId) && typeof structureV2Card === 'function' ? structureV2Card() : '') + '<div class="ws-groups" data-parity="V35-Q1-01">' + (options?.includeClaims ? claimsCard() : '') + groups.map(g => wsGroupCard(g, rows.filter(r => (r.group || r.groupId) === g.id))).filter(h => !(options && options.swept && /^<section class="ws-group done"/.test(h))).join('') + '</div>' + (options && options.groupId ? '' : cardTools(st));
   }
@@ -10043,6 +10140,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       commit('skipRest', 'Skipped ' + pl(open.length, 'step') + ' of ' + r.name + '. The steps you marked keep their marks.'); return;
     }
     if (act === 'wsRemoveToday'){ rowRemoveToday(st, seriesId, date); return; }
+    if (act === 'reorgSeen'){ const s0 = S(); if (s0.prefs.reorgAG5V1){ stage(s0, 'pref'); s0.prefs.reorgAG5V1 = {...s0.prefs.reorgAG5V1, seen:true}; commit('pref', ''); } return; }   // AG5
     if (act === 'ndSave'){ const rowEl = btn.closest('.nd-row'), inp = rowEl && rowEl.querySelector('.nd-date'); await nextDateSave(seriesId, inp ? inp.value : ''); return; }   // AG2
     if (act === 'ndLater'){ const rowEl = btn.closest('.nd-row'); ndLater.add(seriesId + '|' + ((rowEl && rowEl.dataset.date) || '')); render(); return; }
     if (act === 'rowMove'){ rowMoveTo(seriesId, date, btn.dataset.to); return; }   // AH1
@@ -10708,7 +10806,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   $('#feedbackText').addEventListener('input', persistFeedback);
   $('#feedbackDialog').addEventListener('cancel', e => { e.preventDefault(); persistFeedback(); closeFeedback(); });
   window.addEventListener('beforeunload', e => { if (feedbackUnsaved){ e.preventDefault(); e.returnValue = ''; } });
-  $('#undoBtn').addEventListener('click', () => { const ui = uiUndoTop(); if (ui){ uiUndo.pop(); ui.fn(); render(); toast('Undone · ' + ui.label + '.'); return; } const label = undoLabel(); const shut = preview || typeof undoTouches !== 'function' ? [] : undoTouches(real, d => dayClosed(real, d)); if (shut.length){ toast('Not undone: it would change ' + medDate(shut[0]) + ', which has closed. Reopen that day on Quests first.'); return; } if (preview || !undo(real)) return; panel = null; commit('undo','Previous change undone.', {replaceRewards:label === 'replace' || label === 'restoreSnap',allowSourceRemoval:['localFile','merge','relay'].includes(label)}); });
+  $('#undoBtn').addEventListener('click', () => { const ui = uiUndoTop(); if (ui){ uiUndo.pop(); ui.fn(); render(); toast('Undone · ' + ui.label + '.'); return; } const label = undoLabel(); const shut = preview || typeof undoTouches !== 'function' ? [] : undoTouches(real, d => dayClosed(real, d)); if (shut.length){ toast('Not undone: it would change ' + medDate(shut[0]) + ', which has closed. Reopen that day on Quests first.'); return; } if (preview || !undo(real)) return; panel = null; if (label === 'reorg') real.prefs.reorgAG5V1 = {undone:true, at:nowIso(), day:todayYmd()};   /* AG5: an undone reorganization stays undone (it never runs again by itself) */ commit('undo','Previous change undone.', {replaceRewards:label === 'replace' || label === 'restoreSnap',allowSourceRemoval:['localFile','merge','relay'].includes(label)}); });
   document.addEventListener('toggle', e => { const d = e.target; if (d && d.matches && d.matches('details.tpl-section') && d.dataset.fold){ try { localStorage.setItem('health-tracker.fold.' + d.dataset.fold, d.open ? '1' : '0'); } catch (_) {} } }, true);
   // V3.3 (1.5): Ctrl/Cmd+Z undoes the last delete, dismiss or park (the toast's Undo), while not typing in a field.
   document.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && String(e.key).toLowerCase() === 'z' && !e.target?.matches('input,textarea,select,[contenteditable=true]') && !document.querySelector('dialog[open]') && (canUndo() || uiUndoTop()) && !preview && !$('#undoBtn').hidden){ e.preventDefault(); $('#undoBtn').click(); } });
