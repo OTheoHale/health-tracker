@@ -1967,7 +1967,7 @@ addEventListener('load', () => {
   // queued or running, and for half a second after the tap. Checked at the click, before any await.
   const recentTaps=new Map();
   function tapId(btn){const row=btn.closest('[data-series]');return btn.dataset.act+'|'+(btn.dataset.s||'')+'|'+(row?row.dataset.key||row.dataset.series+'|'+(row.dataset.date||''):'');}
-  function isRepeatTap(btn){const id=tapId(btn),now=performance.now(),last=recentTaps.get(id);if(last&&(last.busy||now-last.at<500))return true;recentTaps.set(id,{at:now,busy:false});return false;}
+  function isRepeatTap(btn){const id=tapId(btn),now=performance.now(),last=recentTaps.get(id);if(last&&(last.busy||now-last.at<500)){if(now-last.at>=500)toast('Still saving your last tap on this item. Tap again in a moment.');return true;}/* AX2: past the double-tap half second, a held tap says so */recentTaps.set(id,{at:now,busy:false});return false;}
   /* V3.4 (Q9): closing days. A day closes by itself three days after it ends, or earlier with Close day in Review; Reopen
      undoes either. Stored additively (prefs.dayClose = {closed:{date:at}, reopened:{date:at}}); an earlier build ignores it. */
   const CLOSE_AFTER_DAYS = 3;
@@ -1992,16 +1992,16 @@ addEventListener('load', () => {
      reason shown. Only on Today and Quests, with no other save or delivery running; otherwise the old order (save, then draw). */
   function tapTransaction(btn,st,change,say){
     const id=tapId(btn),mark=recentTaps.get(id)||{at:performance.now()};mark.busy=true;recentTaps.set(id,mark);
-    let prev=null;
+    let prev=null,shownSaid=null;   // AX2: change(draft, quick): the shown run skips followCorrection (about 250 ms); only the save corrects points
     if(say&&st===real&&!preview&&!readOnly&&!manualSaving&&!intake.applying&&FAST_AREAS.has(area)){
       const focused=document.activeElement,action=focused&&focused.dataset&&focused.dataset.act,row=focused&&focused.closest&&focused.closest('[data-series]'),sid=row&&row.dataset.series;
-      try{const draft=cloneRecord(real),r=change(draft);if(!(r&&r.ok===false)){prev=cloneRecord(real);replaceState(real,draft);drawFast();refocus(action,sid);toast(say({ok:true,result:r}));$('#undoBtn').hidden=false;}}
+      try{const draft=cloneRecord(real),r=change(draft,true);if(!(r&&r.ok===false)){prev=cloneRecord(real);replaceState(real,draft);drawFast();refocus(action,sid);shownSaid=say({ok:true,result:r});toast(shownSaid);$('#undoBtn').hidden=false;}}
       catch(e){console.error('show first',e);if(prev)replaceState(real,prev);prev=null;}
     }
     const run=manualActionTransaction(st,change,{persist:!preview,rebase:true,undo:btn.dataset.act||'tap'}).finally(()=>{mark.busy=false;});   // V3.4 (S7): every one-tap action can be undone
     if(!prev)return run;
     return run.then(async result=>{
-      if(result.ok){undoBtnSync();return Object.assign(result,{shown:true});}
+      if(result.ok){undoBtnSync();const said=say(result);if(said&&said!==shownSaid)toast(said);return Object.assign(result,{shown:true});}
       let back=null;try{back=await store.readCommitted();}catch(_){}
       replaceState(real,back&&back.ok&&back.state?back.state:prev);render();toast(say(result)||'Not saved.');return Object.assign(result,{shown:true});
     });
@@ -2539,7 +2539,7 @@ addEventListener('load', () => {
   const QUEUED_ACTS=new Set(['done','toggleDone','log','notToday','exempt','unexcuse']);
   // historyFile: choosing a history file only starts reading it; its saves wait their turn (importHistory).
   const INTAKE_ESCAPES=new Set(['intakeRetireForeign','intakePause','intakeDisconnect','intakeConnect','applyUpdate','historyFile']);
-  document.addEventListener('click',e=>{const button=e.target.closest('button,[data-act],label.filebtn');if(button&&button.dataset&&button.dataset.act){lastActButton=button;if(/cancel/i.test(button.dataset.act))forgetDrafts(button);}if(button&&!manualSaving&&INTAKE_ESCAPES.has(button.dataset&&button.dataset.act))return;if(detailAutoSave&&!intake.applying&&button&&button.dataset.act!=='saveDetail'&&!QUEUED_ACTS.has(button.dataset&&button.dataset.act)){e.preventDefault();e.stopImmediatePropagation();const b=button,sel=Object.keys(b.dataset).length?'['+Object.entries(b.dataset).map(([k,v])=>'data-'+k.replace(/[A-Z]/g,m=>'-'+m.toLowerCase())+'="'+CSS.escape(v)+'"').join('][')+']':null;let n=0;const t=setInterval(()=>{if((!detailAutoSave&&manualSaving===0)||++n>80){clearInterval(t);detailAutoSave=false;const target=b.isConnected?b:sel?document.querySelector(sel):null;if(manualSaving===0&&target)target.click();}},50);return;}
+  document.addEventListener('click',e=>{const button=e.target.closest('button,[data-act],label.filebtn');if(button&&button.dataset&&button.dataset.act){lastActButton=button;if(/cancel/i.test(button.dataset.act))forgetDrafts(button);}if(button&&!manualSaving&&INTAKE_ESCAPES.has(button.dataset&&button.dataset.act))return;if(detailAutoSave&&!intake.applying&&button&&button.dataset.act!=='saveDetail'&&!QUEUED_ACTS.has(button.dataset&&button.dataset.act)){e.preventDefault();e.stopImmediatePropagation();const b=button,sel=Object.keys(b.dataset).length?'['+Object.entries(b.dataset).map(([k,v])=>'data-'+k.replace(/[A-Z]/g,m=>'-'+m.toLowerCase())+'="'+CSS.escape(v)+'"').join('][')+']':null;let n=0;const t=setInterval(()=>{if((!detailAutoSave&&manualSaving===0)||++n>80){clearInterval(t);detailAutoSave=false;const target=b.isConnected?b:sel?document.querySelector(sel):null;if(manualSaving===0&&target)target.click();else toast('That tap waited for a save and was not done. Tap it again.');}},50);return;}
     if((intake.applying||manualSaving)&&button&&!QUEUED_ACTS.has(button.dataset&&button.dataset.act)){e.preventDefault();e.stopImmediatePropagation();toast('A save is in progress. Your typing is kept; try that action again when it finishes.');return;}if(button&&(leavesManualDraft(button)||button.id==='previewToggle'||button.dataset.area||draftNavigationActions.has(button.dataset.act))){if(!resolveDraftNavigation()){e.preventDefault();e.stopImmediatePropagation();}else draftLeaving=true;}},true);
   document.addEventListener('keydown',e=>{const typing=e.target?.matches('input,textarea,select,[contenteditable=true]');if(((intake.applying||manualSaving)&&(!typing||e.key==='Escape'))||((e.key==='Escape'||(!typing&&/^[0-9/dD]$/.test(e.key)))&&!resolveDraftNavigation())){e.preventDefault();e.stopImmediatePropagation();}},true);
   document.addEventListener('change',e=>{const control=e.target;if(control.dataset.act==='historyFile')return;
@@ -9873,7 +9873,31 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (!fastDirty) return;
     const typing = !!document.activeElement?.matches('input,textarea,select,[contenteditable=true]');
     if (manualSaving || intake.applying || typing || document.querySelector('dialog[open]')){ fastTimer = setTimeout(reconcileNow, typing ? 2000 : 400); return; }
-    afterPaint(() => { if (fastDirty && !manualSaving) render(); });
+    afterPaint(recountParts);
+  }
+  /* AX2 (Oct 9): the recount after he pauses was one full render (about 0.5 s in one block, the page rebuilt whole). Now it runs in parts,
+     each its own task so a tap in between is taken at once: the points ledger, then the page (only the cards whose HTML changed are
+     swapped), then the header and notices, then the side rail. A newer tap or draw stops the rest; its own recount follows. */
+  function recountParts(){
+    if (!fastDirty || manualSaving) return;
+    if (!FAST_AREAS.has(area) || !mainDrawn || mainDrawn.area !== area || (preserveManualDraft && unsavedForm && !draftLeaving)){ render(); return; }
+    const memo = f => typeof withDrawMemo === 'function' ? withDrawMemo(S(), f) : f();
+    const parts = [
+      () => memo(() => rewardReport(S(), todayYmd())),   // counted once here, inside a draw memo (each day's plan built once); the page and header below read it from the ledger cache
+      () => drawFast({reconcile:false, lag:false}),
+      () => memo(() => { renderHeader(); renderNotices(); }),
+      () => { memo(renderRail); drawNave(); fastDirty = false; if (typeof vo2LedgerSync === 'function' && !preview){ clearTimeout(render.vo2); render.vo2 = setTimeout(() => afterPaint(() => { vo2LedgerSync().catch(e => console.error('vo2 ledger', e)); }), 1500); } }
+    ];
+    let i = 0, seq = renderSeq;
+    const step = () => {
+      if (!fastDirty) return;   // a full draw finished it
+      if (seq !== renderSeq){ reconcileLater(); return; }   // a newer tap or form draw came in between: count again once he pauses
+      if (manualSaving || document.querySelector('dialog[open]') || document.activeElement?.matches('input,textarea,select,[contenteditable=true]')){ fastTimer = setTimeout(reconcileNow, 400); return; }
+      try { parts[i++](); } catch (e){ console.error('recount', e); render(); return; }
+      seq = renderSeq;
+      if (i < parts.length) setTimeout(step, 0);
+    };
+    step();
   }
   function drawFast(o){
     o = o || {};
@@ -9885,7 +9909,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if ($('#newNote')) noteDraft = {text:$('#newNote').value,area:$('#noteArea').dataset.value || 'General'};
     const scroller = document.scrollingElement || document.documentElement, keepTop = scroller.scrollTop, openFolds = foldsOpen();
     scoreDraw = {memo:new Map()};
-    let html; drawLag = true; if (typeof rewardLag === 'function') rewardLag(true);
+    let html; drawLag = o.lag !== false; if (typeof rewardLag === 'function') rewardLag(drawLag);
     try { html = typeof withDrawMemo === 'function' ? withDrawMemo(S(), pageHTML) : pageHTML(); } finally { drawLag = false; if (typeof rewardLag === 'function') rewardLag(false); }
     let patched = false; try { patched = patchMain(html); } catch (e){ console.error('quick draw', e); }
     if (!patched) setMain(html);
@@ -9991,8 +10015,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if(QUEUED_ACTS.has(act)&&isRepeatTap(btn))return;
     // Mark the tapped control at once; the redraw after the save replaces it (V1.12 speed).
     if(PENDING_ACTS.has(act)&&!btn.disabled){btn.classList.add('is-pending');btn.setAttribute('aria-busy','true');setTimeout(()=>{btn.classList.remove('is-pending');btn.removeAttribute('aria-busy');},QUEUED_ACTS.has(act)?60000:4000);
-      // Let that mark reach the screen before the save's work holds the main thread.
-      await new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,0)));}
+      // Let that mark reach the screen before the save's work holds the main thread. AX2 (Oct 9): at most 50 ms; a window with no frames
+      // (hidden, asleep, on no screen) never painted, so the tap waited for a frame that never came and was lost on quit, with no word.
+      await new Promise(resolve=>{let gone=false;const go=()=>{if(!gone){gone=true;resolve();}};requestAnimationFrame(()=>setTimeout(go,0));setTimeout(go,50);});}
     if(act==='shelfAddOne'){const t=templatesOf(st).find(x=>x.id===btn.dataset.tpl);if(!t)return;const {result}=await addTemplatesToday(st,new Set([t.id]));render();const g=visibleGroups(S()).find(x=>x.id===t.group);toast(result.ok?t.name+' added to '+(g?g.name:'today')+'. Use ⋯ on it to move it to another card.':'Not added. '+(result.error||''));return;}
     /* Moving an item to another card (Mintay, Sept 27): what is already recorded stays where it was earned; from
        the day he picks it shows and scores under the new card. He chooses each time, nothing is assumed. */
@@ -10692,9 +10717,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
         // V3.4 (Q3): the circle un-does with one tap. A skipped row un-skips; a done row he checked himself un-checks.
         // A claimed row or one confirmed by his data still opens the review, so points and evidence never move silently.
         if(act==='toggleDone'&&r&&(r.status==='skipped'||(r.status==='done'&&canUncheck(st,seriesId,date)))){ if(dayClosed(st,date)){toast(closedWord(date));return;} const was=r.status; const say=result=>result.ok?(was==='skipped'?'Un-skipped · ':'Un-checked · ')+r.name:result.error; tapAfter(await tapTransaction(btn,st,d=>{clearOcc(d,seriesId,date);return {ok:true};},say),say); return; }
-        if(act==='toggleDone'&&(r.status==='done'||r.status==='tentative')){openActionReview(seriesId,date);return;} const say=result=>{const back=result.result&&result.result.corrected;return result.ok?'Done · '+r.name+(back&&back.after>back.before?'. Its points are back.':'. Claim its points when you’re ready.'):result.error;}; const result=await tapTransaction(btn,st,d=>{const r=confirmAction(d,seriesId,date,{});if(r.ok)r.corrected=followCorrection(d,seriesId,date,'Done after a correction');return r;},say); if(result.shown)return; if(!result.ok&&/minutes|target/i.test(result.error||'')){openActionReview(seriesId,date,'done');return;} tapAfter(result,say); return; }
+        if(act==='toggleDone'&&(r.status==='done'||r.status==='tentative')){openActionReview(seriesId,date);return;} const say=result=>{const back=result.result&&result.result.corrected;return result.ok?'Done · '+r.name+(back&&back.after>back.before?'. Its points are back.':'. Claim its points when you’re ready.'):result.error;}; const result=await tapTransaction(btn,st,(d,quick)=>{const r=confirmAction(d,seriesId,date,{});if(r.ok&&!quick)r.corrected=followCorrection(d,seriesId,date,'Done after a correction');return r;},say); if(result.shown)return; if(!result.ok&&/minutes|target/i.test(result.error||'')){openActionReview(seriesId,date,'done');return;} tapAfter(result,say); return; }
       case 'version': stage(st, 'version'); selectVersion(st, seriesId, date, btn.dataset.v); commit('version', 'Plan set to the ' + btn.dataset.v + ' version for ' + relDay(date).toLowerCase() + '.'); return;
-      case 'log': if(btn.dataset.s==='tentative'){const say=result=>result.ok?'Tentative · review to confirm.':result.error;tapAfter(await tapTransaction(btn,st,d=>{const ok=!!markTentative(d,seriesId,date);return {ok,corrected:ok?followCorrection(d,seriesId,date,'Marked tentative after claiming'):null};},say),say);}else if(btn.dataset.s==='partial'&&btn.dataset.quick){if(dayClosed(st,date)){toast(closedWord(date));return;}const r=findPlanRow(st,seriesId,date);const say=result=>result.ok?'Partially done · '+(r?r.name:'this item')+' · half credit. Tap the circle again to finish it.':result.error;tapAfter(await tapTransaction(btn,st,d=>{const ok=!!logOcc(d,seriesId,date,'partial',{});return {ok,corrected:ok?followCorrection(d,seriesId,date,'Partially done after claiming'):null};},say),say);}else if(btn.dataset.s==='skipped'){const r=findPlanRow(st,seriesId,date);const say=result=>{const moved=result.result&&result.result.corrected;return result.ok?'Skipped · '+(r?r.name:'this item')+'.'+(moved&&moved.after<moved.before?' Its points were taken back.':' Details are there if you need them.'):result.error;};tapAfter(await tapTransaction(btn,st,d=>{const ok=!!logOcc(d,seriesId,date,'skipped',{});return {ok,corrected:ok?followCorrection(d,seriesId,date,'Skipped after claiming'):null};},say),say);}else openActionReview(seriesId,date,btn.dataset.s); return;
+      case 'log': if(btn.dataset.s==='tentative'){const say=result=>result.ok?'Tentative · review to confirm.':result.error;tapAfter(await tapTransaction(btn,st,(d,quick)=>{const ok=!!markTentative(d,seriesId,date);return {ok,corrected:ok&&!quick?followCorrection(d,seriesId,date,'Marked tentative after claiming'):null};},say),say);}else if(btn.dataset.s==='partial'&&btn.dataset.quick){if(dayClosed(st,date)){toast(closedWord(date));return;}const r=findPlanRow(st,seriesId,date);const say=result=>result.ok?'Partially done · '+(r?r.name:'this item')+' · half credit. Tap the circle again to finish it.':result.error;tapAfter(await tapTransaction(btn,st,(d,quick)=>{const ok=!!logOcc(d,seriesId,date,'partial',{});return {ok,corrected:ok&&!quick?followCorrection(d,seriesId,date,'Partially done after claiming'):null};},say),say);}else if(btn.dataset.s==='skipped'){const r=findPlanRow(st,seriesId,date);const say=result=>{const moved=result.result&&result.result.corrected;return result.ok?'Skipped · '+(r?r.name:'this item')+'.'+(moved&&moved.after<moved.before?' Its points were taken back.':' Details are there if you need them.'):result.error;};tapAfter(await tapTransaction(btn,st,(d,quick)=>{const ok=!!logOcc(d,seriesId,date,'skipped',{});return {ok,corrected:ok&&!quick?followCorrection(d,seriesId,date,'Skipped after claiming'):null};},say),say);}else openActionReview(seriesId,date,btn.dataset.s); return;
       case 'notToday': { const r=findPlanRow(st,seriesId,date); const say=result=>result.ok?(result.result&&result.result.moved?'Moved to tomorrow · ':'Not today · ')+(r?r.name:'this item')+'.':result.error; tapAfter(await tapTransaction(btn,st,d=>notToday(d,seriesId,date),say),say); return; }
       case 'exempt': { const r=findPlanRow(st,seriesId,date); const say=result=>result.ok?'Exempt · '+(r?r.name:'this item')+' is not required '+relDay(date).toLowerCase()+'.':'Already done. If you did not do it, use Skipped and its points follow.'; tapAfter(await tapTransaction(btn,st,d=>({ok:!!excuseOcc(d,seriesId,date,'exempt')}),say),say); return; }
       case 'unexcuse': { const say=result=>result.ok?'Counted again for '+relDay(date).toLowerCase()+'.':result.error; tapAfter(await tapTransaction(btn,st,d=>({ok:!!unexcuseOcc(d,seriesId,date)}),say),say); return; }
