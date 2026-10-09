@@ -5185,7 +5185,11 @@ function liveKey(state){
   if(!state||state!==liveRecord)return null;
   return (state.revision||0)+'|'+(state.rewardGeneration||'')+'|'+liveEpoch+'|'+Math.floor(Date.now()/60000)+'|'+Object.keys(state.occurrences||{}).length+'|'+Object.keys(state.rewards?.claims||{}).length;
 }
-const rewardReportFresh=rewardReport,rewardMemo={key:null,value:null};
+const rewardReportFresh=rewardReport,rewardMemo={key:null,value:null,today:null};
+/* AX1 (option 2, Oct 9; his words: "im not that invested in points"): the page's quick draw after a tap shows the live record's last
+   ledger (rewardLag on); the full draw a moment later counts it fresh. Claims, reviews and copies never lag. */
+let rewardLagOn=false;
+function rewardLag(on){rewardLagOn=!!on;}
 rewardReport=function(state,today){
   const key=liveKey(state);
   if(key===null){
@@ -5193,5 +5197,6 @@ rewardReport=function(state,today){
     const m=drawMemo.rewards||(drawMemo.rewards=new Map());if(!m.has(today))m.set(today,rewardReportFresh(state,today));return m.get(today);
   }
   const k=key+'|'+today;if(rewardMemo.key===k)return rewardMemo.value;
-  const value=rewardReportFresh(state,today);rewardMemo.key=k;rewardMemo.value=value;return value;
+  if(rewardLagOn&&rewardMemo.value&&rewardMemo.today===today)return rewardMemo.value;
+  const value=rewardReportFresh(state,today);rewardMemo.key=k;rewardMemo.value=value;rewardMemo.today=today;return value;
 };

@@ -1986,10 +1986,27 @@ addEventListener('load', () => {
     if(!o||o.status!=='done'||(c&&(c.kind==='source'||c.auto||c.made==='data')))return false;
     const id=typeof rewardIdentity==='function'?rewardIdentity(st,o):null;return !(id&&st.rewards&&st.rewards.claims&&st.rewards.claims[id]);
   }
-  function tapTransaction(btn,st,change){
+  /* AX1 (option 1, Oct 9): show first, then save. A one-tap row action (check off, un-check, skip, partial, not today, exempt) is applied to
+     the live record and drawn at once (the quick draw); the same change is then saved through the usual transaction, which rebases it on
+     the stored record and replaces the live one with what was written. If that save fails, the stored record is put back, drawn, and the
+     reason shown. Only on Today and Quests, with no other save or delivery running; otherwise the old order (save, then draw). */
+  function tapTransaction(btn,st,change,say){
     const id=tapId(btn),mark=recentTaps.get(id)||{at:performance.now()};mark.busy=true;recentTaps.set(id,mark);
-    return manualActionTransaction(st,change,{persist:!preview,rebase:true,undo:btn.dataset.act||'tap'}).finally(()=>{mark.busy=false;});   // V3.4 (S7): every one-tap action can be undone
+    let prev=null;
+    if(say&&st===real&&!preview&&!readOnly&&!manualSaving&&!intake.applying&&FAST_AREAS.has(area)){
+      const focused=document.activeElement,action=focused&&focused.dataset&&focused.dataset.act,row=focused&&focused.closest&&focused.closest('[data-series]'),sid=row&&row.dataset.series;
+      try{const draft=cloneRecord(real),r=change(draft);if(!(r&&r.ok===false)){prev=cloneRecord(real);replaceState(real,draft);drawFast();refocus(action,sid);toast(say({ok:true,result:r}));$('#undoBtn').hidden=false;}}
+      catch(e){console.error('show first',e);if(prev)replaceState(real,prev);prev=null;}
+    }
+    const run=manualActionTransaction(st,change,{persist:!preview,rebase:true,undo:btn.dataset.act||'tap'}).finally(()=>{mark.busy=false;});   // V3.4 (S7): every one-tap action can be undone
+    if(!prev)return run;
+    return run.then(async result=>{
+      if(result.ok){undoBtnSync();return Object.assign(result,{shown:true});}
+      let back=null;try{back=await store.readCommitted();}catch(_){}
+      replaceState(real,back&&back.ok&&back.state?back.state:prev);render();toast(say(result)||'Not saved.');return Object.assign(result,{shown:true});
+    });
   }
+  function tapAfter(result,say){if(result.shown)return;render();toast(say(result));}
   document.addEventListener('input',e=>{if(e.target?.matches('input,textarea,select,[contenteditable=true]')&&!e.target.closest('[data-autosave],[data-stepper]')){inputGeneration++;if(manualSaving||preserveManualDraft)preservedInputs.add(e.target);
     if(e.target.id&&e.target.type!=='search'&&(e.target.matches('input:not([type=file]):not([type=date]),textarea')||e.target.matches('.goal-metric-edit input,.goal-setup input'))&&e.target.closest('#main,#ctxRail')){const key=draftKeyOf(e.target);if(e.target.value===''&&!e.target.closest('.goal-metric-edit,.goal-setup'))draftStash.delete(key);else draftStash.set(key,{id:e.target.id,value:e.target.value,unit:S().prefs.units==='kg'?'kg':'lb'});}}},true);
 
@@ -2016,13 +2033,15 @@ addEventListener('load', () => {
   async function commitDrawFirst(label, msg, options, rollback){
     if (preview || readOnly || manualSaving) return commit(label, msg, options);
     const generation = inputGeneration, focused = document.activeElement, action = focused && focused.dataset && focused.dataset.act, series = focused && focused.closest('[data-series]'), sid = series && series.dataset.series;
-    render(); if (action){ const next = [...document.querySelectorAll('[data-act]')].find(b => b.dataset.act === action && (!sid || b.closest('[data-series]')?.dataset.series === sid)); if (next) next.focus(); } if (msg) toast(msg);
+    drawFast(); refocus(action, sid); if (msg) toast(msg);   // AX1: the quick draw (only what changed), the rest after he pauses
     const ok = await save(options), newerInput = inputGeneration !== generation;
-    if (ok){ if (!newerInput) unsavedForm = false; syncReminders(); if (newerInput) toast('Earlier changes saved. Your newer edits are still here; save them when ready.'); return true; }
+    if (ok){ if (!newerInput) unsavedForm = false; afterPaint(syncReminders); undoBtnSync(); if (newerInput) toast('Earlier changes saved. Your newer edits are still here; save them when ready.'); return true; }
     if (rollback && undoLabel() === label && undo(real)){ render(); toast('Not saved, so it was put back. Export a recovery copy from Settings.'); return false; }
     render(); toast('Not saved. Your changes remain in this tab; export a recovery copy from Settings.'); return false;
   }
-  async function commit(label, msg, options){ const generation=inputGeneration,focused = document.activeElement, action = focused && focused.dataset && focused.dataset.act, series = focused && focused.closest('[data-series]'); const sid = series && series.dataset.series; const ok = await save(options),newerInput=inputGeneration!==generation; if (ok){if(!newerInput)unsavedForm=false;syncReminders();} render(); if (ok && action&&!newerInput){ const buttons = [...document.querySelectorAll('[data-act]')]; const next = buttons.find(b=>b.dataset.act===action && (!sid || b.closest('[data-series]')?.dataset.series===sid)); if(next) next.focus(); } if (!ok) toast('Not saved. Your changes remain in this tab; export a recovery copy from Settings.'); else if(newerInput)toast('Earlier changes saved. Your newer edits are still here; save them when ready.');else if (msg) toast(msg); return ok; }
+  function refocus(action, sid){ if (!action) return; const next = [...document.querySelectorAll('[data-act]')].find(b => b.dataset.act === action && (!sid || b.closest('[data-series]')?.dataset.series === sid)); if (next && document.activeElement !== next) next.focus(); }
+  function undoBtnSync(){ const b = $('#undoBtn'), t = $('#toast'), h = !(canUndo() || uiUndoTop()) || preview; if (b && t && !t.hidden && b.hidden !== h) b.hidden = h; }   // AX1: a tap shown before its save gets its Undo once the save lands
+  async function commit(label, msg, options){ const generation=inputGeneration,focused = document.activeElement, action = focused && focused.dataset && focused.dataset.act, series = focused && focused.closest('[data-series]'); const sid = series && series.dataset.series; const ok = await save(options),newerInput=inputGeneration!==generation; if (ok){if(!newerInput)unsavedForm=false;afterPaint(syncReminders);} render(); if (ok && action&&!newerInput){ const buttons = [...document.querySelectorAll('[data-act]')]; const next = buttons.find(b=>b.dataset.act===action && (!sid || b.closest('[data-series]')?.dataset.series===sid)); if(next) next.focus(); } if (!ok) toast('Not saved. Your changes remain in this tab; export a recovery copy from Settings.'); else if(newerInput)toast('Earlier changes saved. Your newer edits are still here; save them when ready.');else if (msg) toast(msg); return ok; }
   function applyTheme(){ document.documentElement.dataset.textSize = S().prefs.textSize; document.documentElement.dataset.theme = S().prefs.theme === 'light' ? 'light' : 'dark'; document.documentElement.dataset.marble = S().prefs.theme === 'black' ? 'black' : 'verde'; document.documentElement.style.fontSize = S().prefs.textSize === 'large' ? '18px' : '16px'; if (area === 'faith') document.documentElement.dataset.view = 'faith'; else delete document.documentElement.dataset.view; }
 
   /* ---------- body numbers travel; body files do not ----------
@@ -5341,6 +5360,7 @@ addEventListener('load', () => {
   function weekStripV34(st){
     const live = typeof liveKey === 'function' ? liveKey(st) : null, key = live === null ? null : live + '|' + day + '|' + todayYmd() + '|' + JSON.stringify(filtWin('home', 'week'));
     if (key !== null && weekStripKeep.key === key) return weekStripKeep.html;
+    if (key !== null && drawLag && weekStripKeep.key && weekStripKeep.key.slice(weekStripKeep.key.indexOf('|' + day + '|')) === key.slice(key.indexOf('|' + day + '|'))) return weekStripKeep.html;   // AX1 (option 2): a quick draw keeps the strip; the reconcile counts it again
     const html = weekStripDraw(st); if (key !== null){ weekStripKeep.key = key; weekStripKeep.html = html; } return html;
   }
   function weekStripDraw(st){
@@ -8440,7 +8460,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const card = groupId || (pageUmb && !o.askCard && (visibleGroups(S()).find(g => gradeGroupUmbrella(S(), g.id) === pageUmb) || {}).id) || (visibleGroups(S())[0] || {}).id || '';
     composer = { date:o.date || day, kind, parentId: parentId || null, groupId: groupId || null, fieldId: newDraftId(), title: title || '', ideaId: ideaId || null, error:'', busy:false,
       template: !!o.template, more: !!o.more, subs: '', repeat: o.repeat || 'once', days: [1, 2, 3, 4, 5], count: 3, wdays: [], every: 2, bstart: o.date || day, ndate: o.date || day, importance: 2, difficulty: 1, note: '', card: o.askCard ? '' : card, askCard: !!o.askCard, area: o.area || null, counts: true, gimp: 5, tier: 'required', umb: (card && !o.askCard && gradeGroupUmbrella(S(), card)) || (!o.askCard && pageUmb) || null };   // V3.5 G8: Counts toward grade, grade importance, the umbrella
-    unsavedForm = true; render(); focusFirst('#wsComposerTitle');
+    unsavedForm = true; if (o.noDraw) return; drawFast({reconcile:false}); focusFirst('#wsComposerTitle');   // AX1 (option 5): the form opens without a whole-page redraw
   }
   // What the composer's fields say now, so a re-draw (More, a repeat chip, a page switch) never loses a word.
   function composerRead(){
@@ -8474,7 +8494,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   // A word he typed is stashed by field (1.8) and would come back in the next composer; once added or cancelled it is forgotten.
   function forgetComposerDrafts(){ for (const [key, d] of draftStash) if (/^wsComposer/.test(d.id || '')) draftStash.delete(key); try { localStorage.removeItem(COMPOSER_KEY); } catch (_) {} }
   // His own click on the composer (More, a chip, a rating) re-draws even while a restored draft asks background re-draws to wait.
-  function composerRender(){ draftLeaving = true; render(); }
+  function composerRender(){ draftLeaving = true; drawFast({reconcile:false}); }   // AX1 (option 5): only the form is drawn again
   function composerRecurrence(c){
     const all = [0, 1, 2, 3, 4, 5, 6];
     if (c.repeat === 'daily') return {kind:'weekly', days:all, intervalWeeks:1, count:1, weeks:1, mode:'fixed', startDate:c.date, session:''};
@@ -8697,7 +8717,6 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (c.askCard && !c.card){ c.error = 'Choose the Focus first.'; render(); return; }
     { /* Fix AA8: a second item with the same name on the same card asks once */ const gid = c.card || c.groupId, nm = title.toLowerCase(), clash = !lau && !c.editSeries && !c.parentId && gid && S().series.some(x => { const v = versionFor(x, c.date || day); return v && !x.archivedAt && !x.demo && !parentFor(x, c.date || day) && wsGroup(x, c.date || day) === gid && String(v.name || '').trim().toLowerCase() === nm; });
       if (clash && c.dupOk !== title){ c.dupOk = title; c.error = '“' + title + '” is already on this card. Press Add again to keep both, or open the one there.'; render(); focusFirst('#wsComposerTitle'); return; } }
-    c.busy = true; c.error = ''; render();
     const rec = composerRecurrence(c), subs = laundryAuto(c) ? LAUNDRY_STEPS.slice() : c.kind === 'subitem' ? [] : String(c.subs || '').split('\n').map(x => x.trim()).filter(Boolean).slice(0, 20);
     const card = c.parentId ? null : c.card || c.groupId || null;
     const extra = c.more ? {scoring:{importance:c.importance, difficulty:c.difficulty}, ...(c.note.trim() ? {normal:{label:c.note.trim(), minutes:null}} : {})} : {};
@@ -8707,7 +8726,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (c.editSeries){ const id = c.editSeries, today = todayYmd(), changes = goal ? {name:title, goal} : {name:title, goal:null, recurrence:rec}; const r0 = await manualActionTransaction(S(), d => { if (!reviseSeries(d, id, changes, today, today)) return {ok:false, error:'Not saved: the item cannot change before today.'}; if ((c.tier === 'stretch' || c.tier === 'required') && gradeTierOf(gradeConfig(d), id, today) !== c.tier) setGradeConfig(d, 'items', id, 'tier', c.tier); return {ok:true}; }, {persist:!preview, undo:'goal-edit'});   /* V3.7 W2, W3: Convert revises from today (earlier versions stay) and the tier moves with it */ /* edit mode always revises the same item, goal or not (review F8) */ c.busy = false; if (!r0.ok){ c.error = r0.error || 'Not saved.'; render(); return; } composer = null; unsavedForm = false; forgetComposerDrafts(); render(); toast((goal ? 'Goal' : 'Item') + ' changed from today; earlier days keep what they had.'); return; }
     const fields = { id: c.fieldId, name: title, ...(card ? {category:card} : {}), container: c.kind === 'subgroup' || subs.length > 0, recurrence: rec, ...(goal ? {goal} : {}), ...(c.repeat === 'dates' ? {setEach:true, needsDate:!c.ndate} : {}), ...extra };
     const opts = { scope: rec.kind === 'once' ? 'occurrence' : 'future' }, parentId = c.parentId, ideaId = c.ideaId, date = c.date;
-    const result = await manualActionTransaction(S(), d => {
+    const fieldsIn = fields, recIn = rec, optsIn = opts;
+    const change = d => {
+      const fields = JSON.parse(JSON.stringify(fieldsIn)), rec = JSON.parse(JSON.stringify(recIn)), opts = {...optsIn};   // AX1: the change runs twice (shown, then saved); each run gets its own copies
       const children = subs.map((name, i) => ({id:c.fieldId + '-' + (i + 1), name, ...(card ? {category:card} : {}), recurrence:rec, ...(c.repeat === 'month' ? {goal:monthGoalDef()} : {}), ...(c.more ? {scoring:{importance:c.importance, difficulty:c.difficulty}} : {})}));   // AG3: a monthly load's steps are monthly too
       if (lau && lauSame.length === 1){ const first = d.series.find(x => x.id === lauSame[0].id), fv = first && versionFor(first, lauToday); if (fv && !/\s\d+$/.test(fv.name || '')) renameFrom(d, first.id, lauBase + ' 1', todayYmd() > lauToday ? todayYmd() : lauToday); }
       const r = subs.length ? Workspace.createWithChildren(d, parentId ? {...fields, parentId} : fields, date, children, opts) : parentId ? Workspace.addChild(d, parentId, fields, date, opts) : Workspace.create(d, fields, date, opts);   // one transaction (P2-20)
@@ -8718,12 +8739,28 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       const idea = ideaId && (d.planIdeas || []).find(i => i.id === ideaId);
       if (idea){ idea.status = 'scheduled'; idea.seriesId = fields.id; idea.at = nowIso(); }
       return r;
-    }, { persist: !preview, undo: 'add' });
+    };
+    const where = rec.kind === 'target' ? 'Template · Due This Week' : (parentId ? 'its routine' : groupName(card) || 'the day') + (rec.kind === 'once' ? ' for ' + medDate(date) : ''), said = 'Added ' + title + (subs.length ? ' with ' + pl(subs.length, 'step') : '') + ' to ' + where + '.';
+    /* AX1 (option 1): show first, then save. The new item is put in the live record and drawn with the form closed; the same change is then
+       saved. If the save fails, the stored record comes back and the form reopens with his words and the reason. */
+    let prev = null;
+    if (!preview && !readOnly && !manualSaving && !intake.applying && FAST_AREAS.has(area) && !c.template && c.area !== 'drawer'){
+      try { const draft = cloneRecord(real), r0 = change(draft); if (r0 && r0.ok){ prev = cloneRecord(real); replaceState(real, draft); composer = null; unsavedForm = false; drawFast(); toast(said); $('#undoBtn').hidden = false; } }
+      catch (e){ console.error('show first', e); if (prev) replaceState(real, prev); prev = null; composer = c; }
+    }
+    if (!prev){ c.busy = true; c.error = ''; render(); }
+    const result = await manualActionTransaction(S(), change, { persist: !preview, undo: 'add' });
+    if (prev){
+      if (result.ok){ forgetComposerDrafts(); undoBtnSync(); return; }
+      let back = null; try { back = await store.readCommitted(); } catch (_) {}
+      replaceState(real, back && back.ok && back.state ? back.state : prev);
+      if (!composer){ composer = c; c.busy = false; c.error = result.error || 'Not saved. Your draft is kept.'; unsavedForm = true; }
+      render(); focusFirst('#wsComposerTitle'); toast('Not saved. ' + (result.error || 'Your draft is kept.')); return;
+    }
     if (!composer) return;
     c.busy = false;
     if (!result.ok){ c.error = result.error || 'Not saved. Your draft is kept.'; unsavedForm = true; render(); focusFirst('#wsComposerTitle'); toast('Not saved. ' + (result.error || 'Your draft is kept.')); return; }
-    const where = rec.kind === 'target' ? 'Template · Due This Week' : (parentId ? 'its routine' : groupName(card) || 'the day') + (rec.kind === 'once' ? ' for ' + medDate(date) : '');
-    composer = null; unsavedForm = false; forgetComposerDrafts(); render(); toast('Added ' + title + (subs.length ? ' with ' + pl(subs.length, 'step') : '') + ' to ' + where + '.');
+    composer = null; unsavedForm = false; forgetComposerDrafts(); render(); toast(said);
   }
   /* AG1 = AE1 (his decision, Oct 8: "that looks much cleaner (the newer system) ... so when i edit i want it to look like that"): Edit opens the
      + Add composer filled with the item's current settings. What only editing needs sits in one closed More fold, in plain words. Same store
@@ -8755,7 +8792,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (!v){ toast('This item is not on that date.'); return; }
     const m = editRepeatOf(v), r = v.recurrence || {}, parent = parentFor(s, from) || '', gc = gradeConfig(st), it = gc.items[s.id] || {}, sc = scoringRule(v.scoring), mt = v.matching || {};
     if (panel && panel.kind === 'hierarchy') panel = null;
-    openComposer('item', null, wsGroup(s, from) || s.category, v.name, null, {area:o.area || 'edit', more:true, repeat:m.repeat, date:r.kind === 'once' && r.date ? r.date : from});
+    openComposer('item', null, wsGroup(s, from) || s.category, v.name, null, {area:o.area || 'edit', more:true, repeat:m.repeat, date:r.kind === 'once' && r.date ? r.date : from, noDraw:true});   // AX1: one draw, below, not two
     document.querySelectorAll('.ws-composer').forEach(x => x.remove());   // that first draw holds the add form's defaults (3 a week, Mon to Fri); the next draw reads fields back, so it must not find them (planner, Journal 3 vs 2, Oct 8)
     Object.assign(composer, {editSeries:s.id, editDate:at, editFrom:from, editScope:'future', origRepeat:m.repeat, origCount:m.count || 1, origEach:m.each == null ? null : m.each, each:m.each == null ? null : m.each, origDate:r.kind === 'once' ? r.date : null,
       wdays:(m.wdays || []).slice(), origWdays:(m.wdays || []).slice().sort().join(','), every:m.every || 2, origEvery:m.every || 2, bstart:m.bstart || from, origBstart:m.bstart || from, ndate:m.ndate != null ? m.ndate : from, origNdate:m.ndate != null ? m.ndate : null, second:!!v.secondChance,
@@ -9734,6 +9771,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
      full screen and the loaded model survive a render, including the intake redraw every ten seconds. */
   function setMain(html){
     const main = $('#main'), keep = area === 'profile' ? main.querySelector('ht-body-view') : null;
+    mainDrawn = keep || !FAST_AREAS.has(area) ? null : {area, html};   // AX1: what a quick draw compares against
     if (!keep){ main.innerHTML = html; return; }
     const tpl = document.createElement('template'); tpl.innerHTML = html;
     const slot = tpl.content.querySelector('ht-body-view');
@@ -9778,8 +9816,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if(manualSaving){renderNotices();return;}
     // A background re-draw (intake) leaves a preserved draft's DOM alone; his own navigation re-draws and the stash puts the words back (V3.3, 1.8).
     if(preserveManualDraft&&unsavedForm&&!draftLeaving){if($('#newNote'))feedbackText=noteDraft.text=$('#newNote').value;if($('#relayIn'))relayDraft=$('#relayIn').value;renderNotices();return;}
+    fastDirty=false;clearTimeout(fastTimer);   // AX1: a full draw is the reconcile
     if(typeof gradePerSync==='function')gradePerSync();   // V3.7 L1
-    if(typeof vo2LedgerSync==='function'&&!preview)setTimeout(()=>{vo2LedgerSync().catch(e=>console.error('vo2 ledger',e));},0);   // V3.7 O6
+    if(typeof vo2LedgerSync==='function'&&!preview){clearTimeout(render.vo2);render.vo2=setTimeout(()=>afterPaint(()=>{vo2LedgerSync().catch(e=>console.error('vo2 ledger',e));}),1500);}   // V3.7 O6; AX1 (option 3): after he pauses, not inside the tap
     draftLeaving=false;   // typed words are already in draftStash (the input listener keys them by page, day and record as he types)
     if(!unsavedForm){preserveManualDraft=false;preservedInputs.clear();}
     if (composer && $('#wsComposerTitle')) composerRead();
@@ -9794,26 +9833,96 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     // One read-only index per draw: per-row scans of every occurrence happen once (V1.12 speed).
     const draw=f=>typeof withDrawMemo==='function'?withDrawMemo(S(),f):f();
     draw(()=>{renderHeader(); renderNotices();
-    const html = area === 'home' ? renderHome() : area === 'faith' ? renderFaith() : area === 'profile' ? profileCard() : area === 'stand' ? renderStand() : area === 'journal' ? renderJournalPage() : area === 'fitness' ? renderData() : area === 'data' ? renderDataPage()+dataOlderTools() : area === 'plan' ? renderPlan() : area === 'log' ? renderLog()+logLinksCard()+actionLogCard()+duplicateActionCard()+waterCard()+mealLibraryCard() : area === 'progress' ? renderProgress() :   /* V3.6 P8: the reflection is on the page beside the review (one copy) */ area === 'collection' ? renderCollection()+scoringProposalCard() : area === 'lessons' ? renderLessons() : area === 'learn' ? renderLearn() : renderSettings();
-    setMain(html+(PROGRESSION_LEARN[area]&&area!=='progress'?progressionLearnList(area):''));   // V3.6 P10: Progress has seven Learn chips
+    setMain(pageHTML());
     renderRail();
     });
-    $('#main').dataset.area = area;
-    wsHierarchyRestore();
-    restoreDrafts();
+    renderAfter(openFolds);
     if(!document.getElementById('viewNav')){const nav=document.createElement('div');nav.id='viewNav';nav.className='acts';document.querySelector('.topbar').append(nav);}
-    document.getElementById('viewNav').innerHTML='<button data-act="viewBack" '+(viewIndex<=0?'disabled':'')+'>Back</button><button data-act="viewForward" '+(viewIndex>=viewHistory.length-1?'disabled':'')+'>Forward</button>';
-    decorateFeedbackCards();
-    tidyCards($('#main'));
-    applyQuestFocus();   // V3.5 D3
-    if (openFolds) foldsRestore(openFolds);
-    bindFileInputs();
-    packActivities();
+    { const vn = '<button data-act="viewBack" '+(viewIndex<=0?'disabled':'')+'>Back</button><button data-act="viewForward" '+(viewIndex>=viewHistory.length-1?'disabled':'')+'>Forward</button>', nav = document.getElementById('viewNav'); if (nav.innerHTML !== vn) nav.innerHTML = vn; }   // AX1 (option 6): only when it changed
     drawNave();
     if (keepTop !== null && scroller.scrollTop !== keepTop) scroller.scrollTop = keepTop;
     if ($('#relayIn')) $('#relayIn').value = relayDraft;
     if ($('#rl-from') && relayDates){ $('#rl-from').value = relayDates.from; $('#rl-to').value = relayDates.to; if ($('#relayExact')) $('#relayExact').textContent = relayPacket(S(),relayDates.from,relayDates.to); }
   }
+  function pageHTML(){
+    const html = area === 'home' ? renderHome() : area === 'faith' ? renderFaith() : area === 'profile' ? profileCard() : area === 'stand' ? renderStand() : area === 'journal' ? renderJournalPage() : area === 'fitness' ? renderData() : area === 'data' ? renderDataPage()+dataOlderTools() : area === 'plan' ? renderPlan() : area === 'log' ? renderLog()+logLinksCard()+actionLogCard()+duplicateActionCard()+waterCard()+mealLibraryCard() : area === 'progress' ? renderProgress() :   /* V3.6 P8: the reflection is on the page beside the review (one copy) */ area === 'collection' ? renderCollection()+scoringProposalCard() : area === 'lessons' ? renderLessons() : area === 'learn' ? renderLearn() : renderSettings();
+    return html+(PROGRESSION_LEARN[area]&&area!=='progress'?progressionLearnList(area):'');   // V3.6 P10: Progress has seven Learn chips
+  }
+  // What every draw does to #main after its HTML is in (the full draw and the quick draw share it)
+  function renderAfter(openFolds, quick){
+    $('#main').dataset.area = area;
+    wsHierarchyRestore();
+    restoreDrafts();
+    if (quick) decorateFeedbackCards($('#main')); else decorateFeedbackCards();
+    tidyCards($('#main'));
+    applyQuestFocus();   // V3.5 D3
+    if (openFolds) foldsRestore(openFolds);
+    bindFileInputs();
+    packActivities();
+  }
+  /* AX1 (his priority, Oct 9: "when im in the app and i want to add something or move something or edit something thats the bigger issue"):
+     an in-page change on Today or Quests (check off, Add, Move, Delete, Undo, opening or changing the Add and Edit form) draws only the parts
+     of the page whose HTML changed (the touched row's card, its counts), and leaves the header, notices and side rail as they are (options 4,
+     6, 7). The points ledger and the This Week strip keep their last numbers in that quick draw (option 2); once he pauses, one full draw
+     after paint puts every number right (the reconcile, option 3). Nothing stored changes: this is drawing only. */
+  const FAST_AREAS = new Set(['home', 'plan']);
+  let mainDrawn = null, fastDirty = false, fastTimer = 0, drawLag = false;
+  function afterPaint(fn){ let done = false; const run = () => { if (done) return; done = true; fn(); }; requestAnimationFrame(() => setTimeout(run, 0)); setTimeout(run, 250); }   // a hidden window has no frames; the timer still runs it
+  function reconcileLater(ms){ fastDirty = true; clearTimeout(fastTimer); fastTimer = setTimeout(reconcileNow, ms || 1200); }
+  function reconcileNow(){
+    if (!fastDirty) return;
+    const typing = !!document.activeElement?.matches('input,textarea,select,[contenteditable=true]');
+    if (manualSaving || intake.applying || typing || document.querySelector('dialog[open]')){ fastTimer = setTimeout(reconcileNow, typing ? 2000 : 400); return; }
+    afterPaint(() => { if (fastDirty && !manualSaving) render(); });
+  }
+  function drawFast(o){
+    o = o || {};
+    if (!FAST_AREAS.has(area) || !mainDrawn || mainDrawn.area !== area || manualSaving || (preserveManualDraft && unsavedForm && !draftLeaving) || (composer && (composer.template || composer.area === 'drawer'))){ render(); return; }
+    renderSeq++; applyDomainNames(); if (typeof gradePerSync === 'function') gradePerSync();
+    draftLeaving = false;
+    if (!unsavedForm){ preserveManualDraft = false; preservedInputs.clear(); }
+    if (composer && $('#wsComposerTitle')) composerRead();
+    if ($('#newNote')) noteDraft = {text:$('#newNote').value,area:$('#noteArea').dataset.value || 'General'};
+    const scroller = document.scrollingElement || document.documentElement, keepTop = scroller.scrollTop, openFolds = foldsOpen();
+    scoreDraw = {memo:new Map()};
+    let html; drawLag = true; if (typeof rewardLag === 'function') rewardLag(true);
+    try { html = typeof withDrawMemo === 'function' ? withDrawMemo(S(), pageHTML) : pageHTML(); } finally { drawLag = false; if (typeof rewardLag === 'function') rewardLag(false); }
+    let patched = false; try { patched = patchMain(html); } catch (e){ console.error('quick draw', e); }
+    if (!patched) setMain(html);
+    renderAfter(openFolds, true);
+    if (scroller.scrollTop !== keepTop) scroller.scrollTop = keepTop;
+    if (o.reconcile !== false) reconcileLater();
+  }
+  // The page's parts as they were drawn last (mainDrawn) against the new HTML: unchanged parts stay in the window as they are, a changed
+  // card is swapped whole (it is decorated again after), a plain wrapper is compared child by child. Any doubt draws the whole page.
+  const PATCH_WHOLE = '.k-card,.panelcard,[data-feedback-id],details,article,section,.row,[data-series],dialog,form';
+  function patchMain(html){
+    const main = $('#main'); if (!mainDrawn || mainDrawn.area !== area || main.dataset.area !== area) return false;
+    if (mainDrawn.html === html) return true;
+    const a = document.createElement('template'), b = document.createElement('template'); a.innerHTML = mainDrawn.html; b.innerHTML = html;
+    const out = []; if (!patchKids(a.content, b.content, main, 0, out)) return false;
+    for (const x of out){ if (x.length === 2){ x[0].replaceWith(document.importNode(x[1], true)); continue; } const [, parent, gone, add, before] = x; for (const g of gone) g.remove(); for (const n of add) parent.insertBefore(document.importNode(n, true), before); }
+    mainDrawn = {area, html}; return true;
+  }
+  function patchKids(o, n, live, depth, out){
+    const kids = p => { const k = []; for (const x of p.childNodes){ if (x.nodeType === 1) k.push(x); else if (x.nodeType === 3 && x.data.trim()) return null; } return k; };
+    const ok = kids(o), nk = kids(n), lk = [...live.children];
+    if (!ok || !nk || lk.length !== ok.length) return false;
+    if (ok.length !== nk.length){   // a part came or went (a form opened or closed): keep the equal parts before and after it, redraw the middle
+      let i = 0, j = 0; while (i < ok.length && i < nk.length && lk[i].tagName === ok[i].tagName && ok[i].isEqualNode(nk[i])) i++;
+      while (j < ok.length - i && j < nk.length - i && lk[ok.length - 1 - j].tagName === ok[ok.length - 1 - j].tagName && ok[ok.length - 1 - j].isEqualNode(nk[nk.length - 1 - j])) j++;
+      out.push(['splice', live, lk.slice(i, lk.length - j), nk.slice(i, nk.length - j), lk[lk.length - j] || null]); return true;
+    }
+    for (let i = 0; i < ok.length; i++){
+      const x = ok[i], y = nk[i], l = lk[i];
+      if (l.tagName !== x.tagName) return false;
+      if (x.isEqualNode(y)) continue;
+      if (depth < 6 && x.tagName === y.tagName && !x.matches(PATCH_WHOLE) && sameAttrs(x, y)){ const sub = []; if (patchKids(x, y, l, depth + 1, sub)){ out.push(...sub); continue; } }
+      out.push([l, y]);
+    }
+    return true;
+  }
+  function sameAttrs(x, y){ if (x.attributes.length !== y.attributes.length) return false; for (const at of x.attributes) if (y.getAttribute(at.name) !== at.value) return false; return true; }
   /* Clean and calm, Apple/Bevel-like (Mintay, 2026-09-24): a card leads with its title and its
      numbers. The paragraph explaining how a card counts moves behind a small ⓘ beside the title;
      short captions, dates, statuses and notices stay in view. Card titles read in Title Case.
@@ -10254,7 +10363,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (act === 'goalEntryRestore'){ await goalWrite(d => GoalEngine.restoreEntry(d, d.series.find(x => x.id === btn.dataset.goal), btn.dataset.entry), 'goal-restore'); return; }
     if (act === 'goalEntryRemove'){ await goalWrite(d => GoalEngine.removeEntry(d, d.series.find(x => x.id === btn.dataset.goal), btn.dataset.entry), 'goal-remove'); return; }
     if (act === 'goalEdit'){ const s = S().series.find(x => x.id === btn.dataset.goal), v = s && versionFor(s, todayYmd()); if (!v || !v.goal) return; closeDrawer(); if (area !== 'home'){ questTab = 'activities'; go('plan'); } openEditComposer(s.id, todayYmd(), {area:area === 'home' ? 'home' : 'plan'}); return; }   // AG1: the same edit composer
-    if (act === 'wsComposerCancel'){ composer = null; unsavedForm = false; forgetComposerDrafts(); render(); return; }
+    if (act === 'wsComposerCancel'){ composer = null; unsavedForm = false; forgetComposerDrafts(); drawFast({reconcile:false}); return; }
     if(act==='wsOpenGoal'){openWorkspaceGoal(btn.dataset.goal,date||day);return;}
     if(act==='wsGoalOpenAction'){document.getElementById('workspaceReview').close();openRow(seriesId,date);return;}
     if(act==='wsOpenSlot'){openRow(seriesId,date||day);return;}
@@ -10582,13 +10691,13 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       case 'done': case 'toggleDone': { const r=findPlanRow(st,seriesId,date);
         // V3.4 (Q3): the circle un-does with one tap. A skipped row un-skips; a done row he checked himself un-checks.
         // A claimed row or one confirmed by his data still opens the review, so points and evidence never move silently.
-        if(act==='toggleDone'&&r&&(r.status==='skipped'||(r.status==='done'&&canUncheck(st,seriesId,date)))){ if(dayClosed(st,date)){toast(closedWord(date));return;} const was=r.status; const result=await tapTransaction(btn,st,d=>{clearOcc(d,seriesId,date);return {ok:true};}); render(); toast(result.ok?(was==='skipped'?'Un-skipped · ':'Un-checked · ')+r.name:result.error); return; }
-        if(act==='toggleDone'&&(r.status==='done'||r.status==='tentative')){openActionReview(seriesId,date);return;} const result=await tapTransaction(btn,st,d=>{const r=confirmAction(d,seriesId,date,{});if(r.ok)r.corrected=followCorrection(d,seriesId,date,'Done after a correction');return r;}); if(!result.ok&&/minutes|target/i.test(result.error||'')){openActionReview(seriesId,date,'done');return;} render(); const back=result.result&&result.result.corrected; toast(result.ok?'Done · '+r.name+(back&&back.after>back.before?'. Its points are back.':'. Claim its points when you’re ready.'):result.error); return; }
+        if(act==='toggleDone'&&r&&(r.status==='skipped'||(r.status==='done'&&canUncheck(st,seriesId,date)))){ if(dayClosed(st,date)){toast(closedWord(date));return;} const was=r.status; const say=result=>result.ok?(was==='skipped'?'Un-skipped · ':'Un-checked · ')+r.name:result.error; tapAfter(await tapTransaction(btn,st,d=>{clearOcc(d,seriesId,date);return {ok:true};},say),say); return; }
+        if(act==='toggleDone'&&(r.status==='done'||r.status==='tentative')){openActionReview(seriesId,date);return;} const say=result=>{const back=result.result&&result.result.corrected;return result.ok?'Done · '+r.name+(back&&back.after>back.before?'. Its points are back.':'. Claim its points when you’re ready.'):result.error;}; const result=await tapTransaction(btn,st,d=>{const r=confirmAction(d,seriesId,date,{});if(r.ok)r.corrected=followCorrection(d,seriesId,date,'Done after a correction');return r;},say); if(result.shown)return; if(!result.ok&&/minutes|target/i.test(result.error||'')){openActionReview(seriesId,date,'done');return;} tapAfter(result,say); return; }
       case 'version': stage(st, 'version'); selectVersion(st, seriesId, date, btn.dataset.v); commit('version', 'Plan set to the ' + btn.dataset.v + ' version for ' + relDay(date).toLowerCase() + '.'); return;
-      case 'log': if(btn.dataset.s==='tentative'){const result=await tapTransaction(btn,st,d=>{const ok=!!markTentative(d,seriesId,date);return {ok,corrected:ok?followCorrection(d,seriesId,date,'Marked tentative after claiming'):null};});render();toast(result.ok?'Tentative · review to confirm.':result.error);}else if(btn.dataset.s==='partial'&&btn.dataset.quick){if(dayClosed(st,date)){toast(closedWord(date));return;}const r=findPlanRow(st,seriesId,date);const result=await tapTransaction(btn,st,d=>{const ok=!!logOcc(d,seriesId,date,'partial',{});return {ok,corrected:ok?followCorrection(d,seriesId,date,'Partially done after claiming'):null};});render();toast(result.ok?'Partially done · '+(r?r.name:'this item')+' · half credit. Tap the circle again to finish it.':result.error);}else if(btn.dataset.s==='skipped'){const r=findPlanRow(st,seriesId,date);const result=await tapTransaction(btn,st,d=>{const ok=!!logOcc(d,seriesId,date,'skipped',{});return {ok,corrected:ok?followCorrection(d,seriesId,date,'Skipped after claiming'):null};});render();const moved=result.result&&result.result.corrected;toast(result.ok?'Skipped · '+(r?r.name:'this item')+'.'+(moved&&moved.after<moved.before?' Its points were taken back.':' Details are there if you need them.'):result.error);}else openActionReview(seriesId,date,btn.dataset.s); return;
-      case 'notToday': { const r=findPlanRow(st,seriesId,date); const result=await tapTransaction(btn,st,d=>notToday(d,seriesId,date)); render(); toast(result.ok?(result.result&&result.result.moved?'Moved to tomorrow · ':'Not today · ')+(r?r.name:'this item')+'.':result.error); return; }
-      case 'exempt': { const r=findPlanRow(st,seriesId,date); const result=await tapTransaction(btn,st,d=>({ok:!!excuseOcc(d,seriesId,date,'exempt')})); render(); toast(result.ok?'Exempt · '+(r?r.name:'this item')+' is not required '+relDay(date).toLowerCase()+'.':'Already done. If you did not do it, use Skipped and its points follow.'); return; }
-      case 'unexcuse': { const result=await tapTransaction(btn,st,d=>({ok:!!unexcuseOcc(d,seriesId,date)})); render(); toast(result.ok?'Counted again for '+relDay(date).toLowerCase()+'.':result.error); return; }
+      case 'log': if(btn.dataset.s==='tentative'){const say=result=>result.ok?'Tentative · review to confirm.':result.error;tapAfter(await tapTransaction(btn,st,d=>{const ok=!!markTentative(d,seriesId,date);return {ok,corrected:ok?followCorrection(d,seriesId,date,'Marked tentative after claiming'):null};},say),say);}else if(btn.dataset.s==='partial'&&btn.dataset.quick){if(dayClosed(st,date)){toast(closedWord(date));return;}const r=findPlanRow(st,seriesId,date);const say=result=>result.ok?'Partially done · '+(r?r.name:'this item')+' · half credit. Tap the circle again to finish it.':result.error;tapAfter(await tapTransaction(btn,st,d=>{const ok=!!logOcc(d,seriesId,date,'partial',{});return {ok,corrected:ok?followCorrection(d,seriesId,date,'Partially done after claiming'):null};},say),say);}else if(btn.dataset.s==='skipped'){const r=findPlanRow(st,seriesId,date);const say=result=>{const moved=result.result&&result.result.corrected;return result.ok?'Skipped · '+(r?r.name:'this item')+'.'+(moved&&moved.after<moved.before?' Its points were taken back.':' Details are there if you need them.'):result.error;};tapAfter(await tapTransaction(btn,st,d=>{const ok=!!logOcc(d,seriesId,date,'skipped',{});return {ok,corrected:ok?followCorrection(d,seriesId,date,'Skipped after claiming'):null};},say),say);}else openActionReview(seriesId,date,btn.dataset.s); return;
+      case 'notToday': { const r=findPlanRow(st,seriesId,date); const say=result=>result.ok?(result.result&&result.result.moved?'Moved to tomorrow · ':'Not today · ')+(r?r.name:'this item')+'.':result.error; tapAfter(await tapTransaction(btn,st,d=>notToday(d,seriesId,date),say),say); return; }
+      case 'exempt': { const r=findPlanRow(st,seriesId,date); const say=result=>result.ok?'Exempt · '+(r?r.name:'this item')+' is not required '+relDay(date).toLowerCase()+'.':'Already done. If you did not do it, use Skipped and its points follow.'; tapAfter(await tapTransaction(btn,st,d=>({ok:!!excuseOcc(d,seriesId,date,'exempt')}),say),say); return; }
+      case 'unexcuse': { const say=result=>result.ok?'Counted again for '+relDay(date).toLowerCase()+'.':result.error; tapAfter(await tapTransaction(btn,st,d=>({ok:!!unexcuseOcc(d,seriesId,date)}),say),say); return; }
       case 'clear': openActionReview(seriesId,date,'none'); return;
       case 'saveDetail': { const raw = document.getElementById('m-' + key).value.trim(); const minutes = raw === '' ? null : Math.round(+raw); if (raw !== '' && !Number.isFinite(minutes)){ toast('That duration is not a number.'); return; } stage(st, 'detail'); annotate(st, seriesId, date, { minutes: minutes === null ? null : Math.max(0, minutes), note: document.getElementById('n-' + key).value.trim() }); followCorrection(st, seriesId, date, 'Minutes corrected'); panel = { kind:area === 'home' ? 'day' : 'edit', key }; commit('detail', 'Detail saved.'); return; }
       case 'dayVersion': { if (date < todayYmd()){ toast('Past plans are preserved.'); return; } stage(st, 'dayVersion'); const n = setDayVersion(st, date, btn.dataset.v); commit('dayVersion', btn.dataset.v === 'minimum' ? n + ' set to the minimum version. That is the plan now, not a compromise.' : n + ' set back to the normal version.'); return; }
