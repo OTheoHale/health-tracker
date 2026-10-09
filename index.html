@@ -94,6 +94,11 @@ h4{font:600 12.5px/1.3 var(--sans); color:var(--faint); margin:12px 0 6px}
 body[data-area="fitness"] .content,body[data-area="progress"] .content,body[data-area="data"] .content{background:linear-gradient(180deg,rgba(6,9,8,.3),rgba(6,9,8,.48) 30%,rgba(6,9,8,.52))}
 :root[data-theme="light"] .content{background:none}
 .topbar{display:flex; align-items:flex-start; gap:18px; flex-wrap:wrap; margin:0 0 18px}
+/* AM1: the slim sticky page bar (title, day, Today, Search), about 44 px, a quiet surface with a hairline */
+.content>.topbar{position:sticky;top:0;z-index:40;margin:-26px -30px 16px;padding:7px 30px;min-height:44px;align-items:center;flex-wrap:nowrap;gap:12px;background:var(--panel-2);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.content>.topbar .t{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:6px}.content>.topbar .t p:empty{display:none}
+.content>.topbar #areaTitle{font-size:24px;line-height:1.15;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.page-day{display:inline-flex;align-items:center;gap:2px;flex:none}.page-day b{font-size:14px;font-weight:600;min-width:92px;text-align:center;font-variant-numeric:tabular-nums}.page-day .k-icon-btn{width:30px;height:30px;min-height:0}.page-day .page-today{min-height:28px;padding:0 10px;font-size:12.5px;margin-left:6px}
 .topbar .t{flex:1; min-width:240px}
 .topbar .t p{margin:4px 0 0; color:var(--muted); font-size:15px}
 #previewBadge{border:1px solid var(--brass); color:var(--brass); border-radius:999px; padding:6px 14px; font-size:12px; font-weight:700; letter-spacing:.06em; align-self:center}
@@ -1786,10 +1791,11 @@ addEventListener('load', () => {
       <!-- Fix Y1 (planner's default, his to change): the pages under three quiet headings; Data and Settings at the bottom -->
       <div class="nav-head" role="button" tabindex="0" data-act="navGroup" data-g="daily" aria-expanded="true">Daily</div>
       <div class="nav-grp" data-g="daily">
+        <button data-area="faith" id="navFaith"><i aria-hidden="true" style="--ic:#b69cf0">&#10016;</i>Faith</button>
+        <!-- AO1 (his request, Oct 8): Faith first, above Today; the app still opens on Today; its label follows the Domain name -->
         <button data-area="home" aria-current="page"><i aria-hidden="true" style="--ic:#e0b458"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg></i>Today</button>
         <button data-area="plan"><i aria-hidden="true" style="--ic:#e8a06a"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22V3"/><path d="M5 4h12l-2.5 4L17 12H5z" fill="currentColor"/></svg></i>Quests</button>
         <button data-area="log" hidden><i aria-hidden="true" style="--ic:#9fd2a0"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="14" height="18" rx="2"/><path d="M8 8h6M8 12h6M8 16h3"/></svg></i>Log</button>
-        <button data-area="faith"><i aria-hidden="true" style="--ic:#b69cf0">&#10016;</i>Faith</button>
         <button data-act="journalOpen" id="navJournal" aria-haspopup="dialog" aria-expanded="false"><i aria-hidden="true" style="--ic:#d9b8f0"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4a2 2 0 0 1 2-2h12v17H7a2 2 0 0 0-2 2z"/><path d="M5 21a2 2 0 0 0 2 2h12v-4"/><path d="M9 7h6M9 11h4"/></svg></i>Journal</button>
       </div>
       <div class="nav-head" role="button" tabindex="0" data-act="navGroup" data-g="body" aria-expanded="true">Body</div>
@@ -2818,9 +2824,20 @@ addEventListener('load', () => {
       '<figure><button class="orb" data-act="go" data-area="collection" aria-label="' + esc(spoken) + '"></button>' +
       '<figcaption class="within">' + esc(under) + '</figcaption></figure></div>';
   }
+  const pageTitle = a => a === 'faith' ? domainName('faith', TITLES.faith[0]) : TITLES[a][0];   // AO1: Faith's page reads its Domain name (JIK after Names)
+  /* AM1 (his words, Oct 8: "i also want it up top ... frozen and comes down with me as i scroll ... the ability for me to go back or forward"): the page
+     bar is the slim sticky topbar: title, the selected day with ‹ › (the rail's own day, one state), Today when off today, Search. */
+  const NO_DAY_AREAS = ['data', 'settings', 'lessons', 'learn'];
+  function pageDayHTML(){
+    if (NO_DAY_AREAS.includes(area)) return '';
+    const d = new Date(day + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
+    return '<button class="k-icon-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b title="' + esc(longDate(day)) + '">' + esc(d) + '</b><button class="k-icon-btn" data-act="step" data-n="1" aria-label="Next day">›</button>' + (day !== todayYmd() ? '<button class="k-btn page-today" data-act="jumpToday">Today</button>' : '');
+  }
   function renderHeader(){
     const st = S();
-    $('#areaTitle').textContent = TITLES[area][0];
+    $('#areaTitle').textContent = pageTitle(area);
+    { let pd = $('#pageDay'); if (!pd){ pd = document.createElement('div'); pd.id = 'pageDay'; pd.className = 'page-day'; pd.setAttribute('role', 'group'); pd.setAttribute('aria-label', 'Selected day'); const t = document.querySelector('.topbar .t'); if (t) t.after(pd); } pd.innerHTML = pageDayHTML(); pd.hidden = !pd.innerHTML; }
+    { const nf = $('#navFaith'); if (nf && nf.lastChild && nf.lastChild.nodeType === 3) nf.lastChild.textContent = domainName('faith', 'Faith'); }
     { let pn = $('#pageNote'); if (!pn){ pn = document.createElement('button'); pn.type = 'button'; pn.id = 'pageNote'; pn.className = 'k-icon-btn page-note'; pn.dataset.act = 'openFeedback'; pn.dataset.level = 'page'; pn.innerHTML = '<i class="note-ico" aria-hidden="true"></i>'; $('#areaTitle').after(pn); }
       let ps = $('#pageSearch'); if (!ps){ ps = document.createElement('button'); ps.type = 'button'; ps.id = 'pageSearch'; ps.className = 'k-btn page-search-pill'; const mac = /Mac|iPhone|iPad/.test(navigator.platform || ''); ps.setAttribute('aria-label', 'Search (' + (mac ? '⌘' : 'Ctrl') + '+K)'); ps.title = ps.getAttribute('aria-label'); ps.innerHTML = '<span aria-hidden="true">⌕</span> Search <kbd>' + (mac ? '⌘K' : 'Ctrl K') + '</kbd>'; ps.addEventListener('click', () => openSearch()); const tb = document.querySelector('.topbar'); if (tb) tb.append(ps); else pn.after(ps); }   // Fix C1: a Search ⌘K pill at the right of the page header   // V3.7 Z2: a search button in every page header
       pn.hidden = area === 'lessons'; pn.dataset.cardId = 'page:' + area; pn.dataset.cardLabel = TITLES[area][0] + ' (the page)'; pn.setAttribute('aria-label', 'Add a note on the ' + TITLES[area][0] + ' page'); pn.title = 'Note on this page'; }   // V3.7 K4: the first level
@@ -9494,7 +9511,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function railHeadHTML(st){
     const d = new Date(day + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
     let when = 'Not checked'; try { if (st.autoFeed) when = freshnessMeta(st.autoFeed).when; } catch (_) {}
-    return '<div class="rail-top" data-parity="Q1-HEAD"><div class="rh-top"><b>' + esc(TITLES[area][0]) + '</b><small>' + (when === 'Not checked' ? 'Not checked yet' : 'Checked ' + esc(when)) + '</small></div>' +
+    return '<div class="rail-top" data-parity="Q1-HEAD"><div class="rh-top"><b>' + esc(pageTitle(area)) + '</b><small>' + (when === 'Not checked' ? 'Not checked yet' : 'Checked ' + esc(when)) + '</small></div>' +
       '' + ('<div class="rh-date"><button class="k-icon-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b title="' + esc(longDate(day)) + '">' + esc(d) + '</b><button class="k-icon-btn" data-act="step" data-n="1" aria-label="Next day">›</button>' + (day !== todayYmd() ? '<button class="k-btn" data-act="jumpToday">Today</button>' : '') + '</div>') + '</div>';
   }
   /* Fix V3: the main filter is drawn once, in the pinned block, directly under So Far (his words: "right under where we have the claim stuff") */
@@ -10838,6 +10855,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || '') || (e.target && e.target.isContentEditable);
     if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === 't' || e.key === 'T'){ e.preventDefault(); day = todayYmd(); panel = null; render(); return; }
+    if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.shiftKey && !NO_DAY_AREAS.includes(area) && !(e.target && e.target.closest && e.target.closest('[role=tablist],[role=slider],[role=separator],[role=radiogroup],.railnav,.ws-rail,input,select,textarea,details[open]'))){ e.preventDefault(); day = addDays(day, e.key === 'ArrowLeft' ? -1 : 1); panel = null; upNextIndex = 0; render(); return; }   // AM1 (planner's default)
     if (e.key === '[' || e.key === ']'){ e.preventDefault(); const n = addDays(day, e.key === '[' ? -1 : 1); if (n > todayYmd()){ toast('That day has not happened yet.'); return; } day = n; panel = null; upNextIndex = 0; render(); return; }
     if ((e.key === 'n' || e.key === 'N') && composer){ e.preventDefault(); const a = composer.area === 'home' ? 'home' : composer.area === 'drawer' ? null : 'plan';   // re-attack: an open composer is never replaced, and N goes to it
       if (!a){ toast('Finish or cancel the item you started in the grade drawer.'); return; } if (area !== a) go(a);
