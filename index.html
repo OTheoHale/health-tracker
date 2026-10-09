@@ -8534,6 +8534,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const m = editRepeatOf(v), r = v.recurrence || {}, parent = parentFor(s, from) || '', gc = gradeConfig(st), it = gc.items[s.id] || {}, sc = scoringRule(v.scoring), mt = v.matching || {};
     if (panel && panel.kind === 'hierarchy') panel = null;
     openComposer('item', null, wsGroup(s, from) || s.category, v.name, null, {area:o.area || 'edit', more:true, repeat:m.repeat, date:r.kind === 'once' && r.date ? r.date : from});
+    document.querySelectorAll('.ws-composer').forEach(x => x.remove());   // that first draw holds the add form's defaults (3 a week, Mon to Fri); the next draw reads fields back, so it must not find them (planner, Journal 3 vs 2, Oct 8)
     Object.assign(composer, {editSeries:s.id, editDate:at, editFrom:from, editScope:'future', origRepeat:m.repeat, origCount:m.count || 1, origEach:m.each == null ? null : m.each, each:m.each == null ? null : m.each, origDate:r.kind === 'once' ? r.date : null,
       count:m.count || 1, days:(m.days || (Array.isArray(r.days) && r.days.length ? r.days : [1, 2, 3, 4, 5])).slice(), origDays:(Array.isArray(r.days) ? r.days : []).slice().sort().join(','),
       parentSel:parent, origParent:parent, isChild:!!parent, ruleWords:m.repeat === 'keep' ? editRuleWords(v) : '',
@@ -8541,6 +8542,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       session:r.session || '', interval:String(r.intervalWeeks || 1), istart:r.startDate || from, tcount:String(r.count || 1), tweeks:String(r.weeks || 1), optional:!!v.optional,
       mk:mt.kind || '', mt:mt.type || '', mmin:String(mt.minimum || 1), importance:sc.importance, difficulty:sc.difficulty,
       counts:it.included !== false, gimp:Number.isFinite(it.importance) ? it.importance : GRADE_ITEM_IMPORTANCE, tier:gradeTierOf(gc, s.id, from), goal:v.goal ? JSON.parse(JSON.stringify(v.goal)) : null, emOpen:false});
+    forgetComposerDrafts();   // the add form's first draw (its defaults, e.g. 3 a week) must never be restored over the item's own values (planner, Journal, Oct 8)
     if (o.area === 'drawer') renderDrawer();
     composerRender(); focusFirst('#wsComposerTitle');
   }
