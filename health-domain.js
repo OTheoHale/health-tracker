@@ -1362,7 +1362,15 @@ function gradePeriod(state,anchor,period,range,opts){
   return {from,to,program:prog,live};
 }
 // The rows a grade reads: every leaf due in the window, with its done share. Weekly targets are one row each, pro-rated.
+// AX9: the live record's rows per window are kept until the record changes (liveKey, as the day plans); each caller gets its own row copies.
+const gradeRowsKeep={key:null,map:new Map()};
 function gradeRows(state,from,to){
+  const k=typeof liveKey==='function'?liveKey(state):null;if(k===null)return gradeRowsFresh(state,from,to);
+  if(gradeRowsKeep.key!==k){gradeRowsKeep.key=k;gradeRowsKeep.map=new Map();}
+  const id=from+'|'+to;let rows=gradeRowsKeep.map.get(id);if(!rows){rows=gradeRowsFresh(state,from,to);gradeRowsKeep.map.set(id,rows);}
+  return rows.map(r=>({...r}));
+}
+function gradeRowsFresh(state,from,to){
   const share=(r,d)=>{if(r.status==='partial')return .5;   /* V3.6 I2 (V36-I19): half credit, as Rank history counted it */
     if(r.status!=='done'||typeof v5Rule!=='function')return r.status==='done'?1:0;const t=v5Rule(state,d),series=t&&state.series.find(x=>x.id===r.seriesId);if(!series||!v5Kind(versionFor(series,d)))return 1;const m=v5Inputs(state,series,state.occurrences[occKey(r.seriesId,d)]||{seriesId:r.seriesId,date:d},t);return m?m.credit.n/m.credit.d:1;};
   const items=new Map(),goals=new Map(),span=calendarDistance(from,to)+1,goalMemo={};
@@ -3824,9 +3832,14 @@ function wsState(state,row,date,options={}){
   if(date===(options.today||todayYmd())&&options.time&&/^\d\d:\d\d$/.test(row.window||'')&&row.window>options.time)return 'future';
   return 'open';
 }
+/* AX9 (his go, Oct 9 about 1:30 PM: "the 8, 9, and 5b"): a draw of the live record reuses the day plans an earlier draw built while the
+   record has not changed since (liveKey: revision, the change counter every replace, stage, undo and save moves, the minute, and the
+   occurrence and claim counts). Copies (a save's draft, a preview) never share them. The trees stay read-only as before. */
+const planKeep={key:null,plans:new Map()};
 function planForDraw(state,date){
   // Private read-only tree for this draw; public readers copy only the shape they return.
   if(drawMemo&&drawMemo.state===state){
+    if(!drawMemo.plans){const k=typeof liveKey==='function'?liveKey(state):null;if(k!==null){if(planKeep.key!==k){planKeep.key=k;planKeep.plans=new Map();}drawMemo.plans=planKeep.plans;}}
     const plans=drawMemo.plans||(drawMemo.plans=new Map());
     if(!plans.has(date))plans.set(date,planForUncached(state,date));
     return plans.get(date);

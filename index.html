@@ -3536,9 +3536,10 @@ addEventListener('load', () => {
   }
   function perfectVerdict(st, date){
     const sigs = daySignatures(st), sig = sigs.of(date), held = perfectDays.get(date);
-    if (held && held.sig === sig && date < sigs.fresh) return held.v;
+    const live = typeof liveKey === 'function' ? liveKey(st) : null;   // AX9: a recent day is read again only when the record changed (or the minute turned)
+    if (held && held.sig === sig && (date < sigs.fresh || (live !== null && held.live === live))) return held.v;
     const v = Workspace.perfectVerdict(st,date);
-    perfectDays.set(date, {sig, v}); return v;
+    perfectDays.set(date, {sig, v, live}); return v;
   }
   /* The counts a week (windows of a week) or a month (longer windows) judges: those whose window ends inside it. */
   function perfectQuotas(st, from, to, monthly){
@@ -3557,10 +3558,10 @@ addEventListener('load', () => {
     // Every call reads at least a few days it has not read, whatever the clock says, so the look back always
     // ends: the budget only limits how many more it takes on in one go.
     let pending = 0, read = 0;
-    const sigs = daySignatures(st);
+    const sigs = daySignatures(st), live = typeof liveKey === 'function' ? liveKey(st) : null;
     for (let d = today; d >= start; d = addDays(d, -1)){
       const held = perfectDays.get(d);
-      if (held && d < sigs.fresh && held.sig === sigs.of(d)){ days.set(d, held.v); continue; }
+      if (held && (d < sigs.fresh || (live !== null && held.live === live)) && held.sig === sigs.of(d)){ days.set(d, held.v); continue; }
       if (d < sigs.fresh && read >= 4 && performance.now() - began > budgetMs){ pending++; continue; }
       days.set(d, perfectVerdict(st, d)); if (d < sigs.fresh) read++;
     }
@@ -5356,12 +5357,13 @@ addEventListener('load', () => {
     openPanel(panel);
   }
   /* AW1 (AK1 item 9): the strip is the same for every redraw until the record, the day or its window changes */
-  const weekStripKeep = {key:null, html:''};
+  const weekStripKeep = {key:null, html:''}, weekStripKept = new Map();   // AX9: the strip per filter (Day, Week, Month) until the record changes
   function weekStripV34(st){
     const live = typeof liveKey === 'function' ? liveKey(st) : null, key = live === null ? null : live + '|' + day + '|' + todayYmd() + '|' + JSON.stringify(filtWin('home', 'week'));
     if (key !== null && weekStripKeep.key === key) return weekStripKeep.html;
+    if (key !== null && weekStripKept.has(key)){ weekStripKeep.key = key; weekStripKeep.html = weekStripKept.get(key); return weekStripKeep.html; }
     if (key !== null && drawLag && weekStripKeep.key && weekStripKeep.key.slice(weekStripKeep.key.indexOf('|' + day + '|')) === key.slice(key.indexOf('|' + day + '|'))) return weekStripKeep.html;   // AX1 (option 2): a quick draw keeps the strip; the reconcile counts it again
-    const html = weekStripDraw(st); if (key !== null){ weekStripKeep.key = key; weekStripKeep.html = html; } return html;
+    const html = weekStripDraw(st); if (key !== null){ weekStripKeep.key = key; weekStripKeep.html = html; weekStripKept.set(key, html); while (weekStripKept.size > 6) weekStripKept.delete(weekStripKept.keys().next().value); } return html;
   }
   function weekStripDraw(st){
     // V3.7 L2: the strip draws the days of its window (the page filter until its chip is pinned): one bar at Day
