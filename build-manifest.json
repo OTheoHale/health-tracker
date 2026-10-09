@@ -1,10 +1,10 @@
 {
-  "build": "2026-10-08-V4.0.19",
+  "build": "2026-10-08-V5",
   "files": {
     "body-view.css": "99ac2f68372870c587372c1f4065f47381e29fbfc78009e823e276ece1146ba6",
     "body-view.js": "d5afe4e2baa6526fe73025c2c45d99680f5a6e06a199f0f0779d4a26449b6409",
     "convert-starter.js": "40c333c133bdb5045fd7fe8660861c723ee1a940628a16d6f9bf05ff9cfa0fc4",
-    "delivery.js": "ee2304ba43f6d0510a6294dfabf6082766c2d3519ffe7bdb5b60082d9e90f4a3",
+    "delivery.js": "50f16f2319794187f823f79c97a4bf0dc402aab8ffd3952caf3fe7a6b1769aef",
     "eotc-calendar.js": "1fcc866733b1160d7f01d603aaa191e7f8879a3f844275941078d33bf5dde0c4",
     "fitness-grade.js": "7fac5c48c897b7e7055a98b5b371a76c682a73dea54d70bcfb88202d605bb6c1",
     "glow-cross.webp": "db5eac33a2a9215aebca6f0c19c95fef9b9518c300c7cd3b0e50072057d21fcd",
@@ -28,7 +28,7 @@
     "quarter-points.js": "7d8a7554b70172264ce5ee8f6897d02ed0a9c7e271a206f53957785cc258e58d",
     "scores.js": "dd08b7dddf6ef6fffd7af0684f1edd62f9301225e9d494dd6af1065b6b2b2b5f",
     "scoring-v5.js": "2fd45ed76f1105ba8795e2f392162ed1045fda43385f1f70cdd7833c11afef48",
-    "sw.js": "1e739ebadf0f9294877325a13218cba06d8eb1c6488aee4276b07f38312ee391",
+    "sw.js": "fbb9437af233ee7fa4063be0ac44690be8e31841f3041d2c2407fa6c537a85e6",
     "workout-sessions.js": "7b32542a16720fecabf804e313b23bef8ce1d17f5b72a5a142f7bf307f8d908b",
     "workspace-proposal.js": "4e8f5f8d5ee14e9ae40a74086335d372658ca1a7017de7b9311773b12a5d8090"
   }
