@@ -1826,6 +1826,15 @@ details[data-feedback-id]:has(>summary>.card-feedback.in-summary){padding-bottom
 [data-visual].vn-foot{padding-bottom:20px}[data-visual].vn-end{padding-right:24px}
 [data-visual]>.vis-note{position:absolute;right:0;bottom:0;margin:0}[data-visual].vn-end>.vis-note{bottom:auto;top:50%;transform:translateY(-50%)}
 .pg-module>.k-head{display:flex;align-items:center}.pg-module>.k-head>.ws-addbtn{margin-left:auto}   /* + Add at the right of a module's head */
+/* ---------- BG block 2, Structure ---------- */
+.side .nav .nav-solo{display:none}.side .nav .nav-grp:has(>.nav-solo){display:none}   /* BG13: Hearth, Talents and Review are one page each; the group name opens it */
+.app.siderail:not(.peeking) .side .nav .nav-grp:has(>.nav-solo){display:flex}.app.siderail:not(.peeking) .side .nav .nav-solo{display:flex}
+@media (max-width:900px){.side .nav .nav-grp:has(>.nav-solo){display:contents}.side .nav .nav-solo{display:flex}}
+.ov-sofar{color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums;text-align:right}   /* BG12 */
+.pg-top{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:0 0 6px}.pg-top>*{min-width:0}.pg-module>.k-head>.fold-caret{margin-left:4px!important}.pg-top .ov-vis-col>.k-card:first-child{margin-top:0}
+.wg-prog{margin:-2px 0 6px}.wg-prog .k-chip{font-size:12.5px}   /* BG5 */
+.fit-heart{margin:0 0 12px}.comp-win{color:var(--faint);font-size:11px;font-weight:500;margin-left:4px}   /* BG15 */
+.fit-links .fit-link{width:100%}
 </style>
 <link rel="stylesheet" href="body-view.css">
 <script type="module" src="model-viewer.min.js"></script>
@@ -1880,7 +1889,7 @@ addEventListener('load', () => {
       <!-- BB1 (his pages plan, Oct 9): JIK first with no heading; then HQ, Temple, Hearth, Talents and Review, each a group whose name opens its overview and
            whose chevron folds it (remembered); Lessons, Data and Settings under a divider. The icons are Glow's own drawings (lane C), emoji if one fails. -->
       <button data-area="faith" id="navFaith"><i aria-hidden="true" style="--ic:#b69cf0">&#10016;</i>Faith</button>
-      <div class="nav-head grp" data-g="hq" aria-expanded="true"><button type="button" class="nav-gname" data-act="navOverview" data-g="hq" title="HQ overview"><img class="nav-gi" src="icons/hq-compass.svg" alt="" width="24" height="24" onerror="this.outerHTML='<span class=&quot;nav-ge&quot; aria-hidden=&quot;true&quot;>🧭</span>'"><span>HQ</span></button><button type="button" class="nav-gchev" data-act="navGroup" data-g="hq" aria-expanded="true" aria-label="Fold HQ">▾</button></div>
+      <div class="nav-head grp" data-g="hq" aria-expanded="true"><button type="button" class="nav-gname" data-act="navOverview" data-g="hq" title="HQ: Today"><img class="nav-gi" src="icons/hq-compass.svg" alt="" width="24" height="24" onerror="this.outerHTML='<span class=&quot;nav-ge&quot; aria-hidden=&quot;true&quot;>🧭</span>'"><span>HQ</span></button><button type="button" class="nav-gchev" data-act="navGroup" data-g="hq" aria-expanded="true" aria-label="Fold HQ">▾</button></div>
       <div class="nav-grp" data-g="hq">
         <button data-area="home" aria-current="page"><i aria-hidden="true" style="--ic:#e0b458"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg></i>Today</button>
         <button data-area="plan"><i aria-hidden="true" style="--ic:#e8a06a"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22V3"/><path d="M5 4h12l-2.5 4L17 12H5z" fill="currentColor"/></svg></i>Quests</button>
@@ -1893,17 +1902,17 @@ addEventListener('load', () => {
         <button data-area="nourish"><i aria-hidden="true" style="--ic:#8fbf5a">🥗</i>Nourish</button>
         <button data-area="care"><i aria-hidden="true" style="--ic:#6fc8b4">🌿</i>Care</button>
       </div>
-      <div class="nav-head grp" data-g="hearth" aria-expanded="true"><button type="button" class="nav-gname" data-act="navOverview" data-g="hearth" title="Hearth overview"><img class="nav-gi" src="icons/hearth-fireplace.svg" alt="" width="24" height="24" onerror="this.outerHTML='<span class=&quot;nav-ge&quot; aria-hidden=&quot;true&quot;>🔥</span>'"><span>Hearth</span></button><button type="button" class="nav-gchev" data-act="navGroup" data-g="hearth" aria-expanded="true" aria-label="Fold Hearth">▾</button></div>
+      <div class="nav-head grp single" data-g="hearth" aria-expanded="true"><button type="button" class="nav-gname" data-act="navOverview" data-g="hearth" title="Hearth"><img class="nav-gi" src="icons/hearth-fireplace.svg" alt="" width="24" height="24" onerror="this.outerHTML='<span class=&quot;nav-ge&quot; aria-hidden=&quot;true&quot;>🔥</span>'"><span>Hearth</span></button></div>
       <div class="nav-grp" data-g="hearth">
-        <button data-area="hearth"><i aria-hidden="true" style="--ic:#e8946a">🏡</i>Family · Home · Social</button>
+        <button class="nav-solo" data-area="hearth"><i aria-hidden="true" style="--ic:#e8946a">🔥</i>Hearth</button>
       </div>
-      <div class="nav-head grp" data-g="talents" aria-expanded="true"><button type="button" class="nav-gname" data-act="navOverview" data-g="talents" title="Talents overview"><img class="nav-gi" src="icons/talents-coin.svg" alt="" width="24" height="24" onerror="this.outerHTML='<span class=&quot;nav-ge&quot; aria-hidden=&quot;true&quot;>🪙</span>'"><span>Talents</span></button><button type="button" class="nav-gchev" data-act="navGroup" data-g="talents" aria-expanded="true" aria-label="Fold Talents">▾</button></div>
+      <div class="nav-head grp single" data-g="talents" aria-expanded="true"><button type="button" class="nav-gname" data-act="navOverview" data-g="talents" title="Talents"><img class="nav-gi" src="icons/talents-coin.svg" alt="" width="24" height="24" onerror="this.outerHTML='<span class=&quot;nav-ge&quot; aria-hidden=&quot;true&quot;>🪙</span>'"><span>Talents</span></button></div>
       <div class="nav-grp" data-g="talents">
-        <button data-area="talents"><i aria-hidden="true" style="--ic:#d9a441">💼</i>Growth · Hobbies</button>
+        <button class="nav-solo" data-area="talents"><i aria-hidden="true" style="--ic:#d9a441">🪙</i>Talents</button>
       </div>
-      <div class="nav-head grp" data-g="review" aria-expanded="true"><button type="button" class="nav-gname" data-act="navOverview" data-g="review" title="Review overview"><img class="nav-gi" src="icons/review-scroll.svg" alt="" width="24" height="24" onerror="this.outerHTML='<span class=&quot;nav-ge&quot; aria-hidden=&quot;true&quot;>📜</span>'"><span>Review</span></button><button type="button" class="nav-gchev" data-act="navGroup" data-g="review" aria-expanded="true" aria-label="Fold Review">▾</button></div>
+      <div class="nav-head grp single" data-g="review" aria-expanded="true"><button type="button" class="nav-gname" data-act="navOverview" data-g="review" title="Review: Progress"><img class="nav-gi" src="icons/review-scroll.svg" alt="" width="24" height="24" onerror="this.outerHTML='<span class=&quot;nav-ge&quot; aria-hidden=&quot;true&quot;>📜</span>'"><span>Review</span></button></div>
       <div class="nav-grp" data-g="review">
-        <button data-area="progress"><i aria-hidden="true" style="--ic:#6fd0a0"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M4 16l5-5 4 3 7-8"/><path d="M15 6h5v5"/></svg></i>Progress</button>
+        <button class="nav-solo" data-area="progress"><i aria-hidden="true" style="--ic:#6fd0a0"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M4 16l5-5 4 3 7-8"/><path d="M15 6h5v5"/></svg></i>Progress</button>
       </div>
       <span class="nav-sep" aria-hidden="true"></span>
       <button data-area="lessons"><i aria-hidden="true" style="--ic:#f0d070"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.3 1 2.1h5c0-.8.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg></i>Lessons</button>
@@ -2908,7 +2917,7 @@ addEventListener('load', () => {
     $('#notices').innerHTML = out.join('');
   }
   const TITLES = { journal:['Journal','A private place to set an intention, reflect and leave yourself feedback.'], learn:['Learn','What a measure means and how Glow works it out.'], home:['Today','A little structure. Room for the day you actually have.'], profile:['Body','Your body view, vitals and where you stand.'], stand:['Growth','How you compare with other men your age, and where effort moves a rung soonest.'], log:['Log','Food, movement and your daily check-in. What you enter here is self-reported; imported records are labelled by source.'], fitness:['Fitness','Trends, coverage and the evidence behind each insight.'], data:['Data','Sources, imports, matching and receipts.'], plan:['Quests','Routines, one-offs, and what you have chosen to take on.'], faith:['Faith','Your faith actions and goals, drawn from the same records as every other view.'], progress:['Progress','Day, week and longer — with the evidence behind every chart.'], collection:['Collection','Your claimed points, level and dated history.'], lessons:['Lessons','What you notice can shape the next update.'], settings:['Settings','Categories, goals, sources, preferences and your data.'] };
-  Object.assign(TITLES, {nourish:['Nourish','Am I fueling well?'], care:['Care','Am I caring for my mind and keeping my routines?'], hearth:['Family · Home · Social','Am I showing up for my people and my place?'], talents:['Growth · Hobbies','Am I growing in my work and my play?'], 'ov-hq':['HQ','What do I do now, and what is on my plate?'], 'ov-temple':['Temple','Am I caring for the body God gave me?'], 'ov-hearth':['Hearth','Am I showing up for my people and my place?'], 'ov-talents':['Talents','Am I growing in my work and my play?'], 'ov-review':['Review','How am I trending?']});   // BB2
+  Object.assign(TITLES, {nourish:['Nourish','Am I fueling well?'], care:['Care','Am I caring for my mind and keeping my routines?'], hearth:['Hearth','Am I showing up for my people and my place?'], talents:['Talents','Am I growing in my work and my play?'], 'ov-hq':['HQ','What do I do now, and what is on my plate?'], 'ov-temple':['Temple','Am I caring for the body God gave me?'], 'ov-hearth':['Hearth','Am I showing up for my people and my place?'], 'ov-talents':['Talents','Am I growing in my work and my play?'], 'ov-review':['Review','How am I trending?']});   // BB2
   const sourceStateLabel = x => x.state;
   function sourceDisplay(s){
     const id = String(s.id || '').toLowerCase(), name = String(s.name || '');
@@ -3025,7 +3034,7 @@ addEventListener('load', () => {
     { const t = $('#stoneToggle'); if (t){ const black = st.prefs.theme === 'black'; t.innerHTML = '<i class="swatch ' + (black ? 'verde' : 'black') + '" aria-hidden="true"></i>' + (black ? 'Speakeasy Verde' : 'Black Lacquer'); t.setAttribute('aria-label', 'Switch to ' + (black ? 'Speakeasy Verde' : 'Black Lacquer')); t.title = 'Switch the room'; } }
     { const rail = document.querySelector('.app').classList.contains('siderail'), c = $('#sideChev'); if (c){ c.setAttribute('aria-expanded', String(!rail)); c.setAttribute('aria-label', rail ? 'Expand the sidebar' : 'Collapse the sidebar'); c.title = rail ? 'Expand the sidebar' : 'Collapse the sidebar'; } }
     document.querySelectorAll('.nav button[data-area]').forEach(b => { if (b.dataset.area === area) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
-    document.querySelectorAll('.nav .nav-gname').forEach(b => { if ('ov-' + b.dataset.g === area) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });   // BB2
+    document.querySelectorAll('.nav .nav-gname').forEach(b => { const to = NAV_GROUP_PAGE[b.dataset.g]; if (to && to !== 'home' ? area === to : 'ov-' + b.dataset.g === area) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });   // BB2, BG13
     { const nj = document.getElementById('navJournal'); if (nj){ if (area === 'journal') nj.setAttribute('aria-current', 'page'); else nj.removeAttribute('aria-current'); } }   // V3.6 J1: the Journal is a page
     const nextCk = typeof nextCheckpoint === 'function' ? nextCheckpoint(st) : (st.prefs.checkpoint ? {name:'Checkpoint', date:st.prefs.checkpoint} : null);
     $('#ckDate').textContent = nextCk ? (nextCk.name && nextCk.name !== 'Checkpoint' ? nextCk.name + ' · ' : '') + parseYmd(nextCk.date).toLocaleDateString(undefined, { day:'numeric', month:'long', year:'numeric' }) : '—';
@@ -3794,8 +3803,8 @@ addEventListener('load', () => {
     {id:'vo2', metric:'vo2_max', label:'VO₂ max', sub:'ml/kg·min', kind:'latest', digits:1, ranked:true, slow:true},
     {id:'temp', metric:'apple_sleeping_wrist_temperature', label:'Wrist temperature', sub:'°F from your usual · overnight', kind:'overnight', digits:1, side:'both', typical:null, margin:0.5, floor:0.5, relative:true, quiet:true}
   ];
-  function vitalRows(st){
-    const VW = filtWin('profile', 'vitals');
+  function vitalRows(st, page){
+    const VW = filtWin(page || vitalsPage(), 'vitals');
     return drawn('vital-rows|' + day + '|' + VW.from + VW.to, () => {
     const x = scoreIndex(st); if (!x) return [];
     // V3.7 A70, L2: the readings as of the selected day; the trend charts draw the card's window (none at Day)
@@ -3881,12 +3890,13 @@ addEventListener('load', () => {
     const range = est !== null ? '<small data-vo2-range>range ' + (est - 2.6).toFixed(1) + ' to ' + (est + 2.6).toFixed(1) + '</small>' : '';
     return '<div class="vo2-card" data-vo2-card>' + pair + (compact ? '' : range + record + chip + why + gateLine + recap + goalLine) + '</div>';
   }
+  const vitalsPage = () => area === 'fitness' ? 'fitness' : 'profile';   // BG15: Vitals and Fitness Trends live on Fitness; Body's own windows stay for old pins
   function vitalsCardV31(st){
     const x = scoreIndex(st), head = '<section class="panelcard vitals-card" data-feedback-id="vitals" data-feedback-label="Vitals" data-tidy="keep" data-budget="list"><div class="ph"><h2>Vitals</h2>' + infoBtn('vitals', 'Vitals') + '</div>' + infoPop('vitals', GlowLearn.recipes().vitals.how + ' Each bar runs low to high (flipped where lower is better); the outlined window is your typical range, the dots your recent readings and the bright marker the latest.','vitals');
     if (!x) return head + '<p class="hint keep">Vitals appear here once Apple Health is connected.</p></section>';
     // V3.6 F2 (note 9, reverses V3.5 ASSUMED 23): all six rows are back. Vitals answers "is it normal today" (range, last
     // night, Early Warning); Fitness Trends answers "which way is it moving" (HRV keeps two homes, V34-D3, by his rule).
-    const VW = filtWin('profile', 'vitals'), rows=vitalRows(st),today=todayYmd(),from=addDays(today,-29),trends=rows.map(r=>r.trend).filter(Boolean),vo2=vo2Display(st),EMOJI={hrv:'📈',rhr:'❤️',rr:'🫁',spo2:'🩸',vo2:'⚡',temp:'🌡️'},STATUS={green:'✓ Steady',violet:'✓ Strong',blue:'✓ Steady',yellow:'↕ Watch',orange:'⚠ Off',red:'⚠ Off'},drawnRows=rows.map(r=>{const id={rr:'breathing',spo2:'oxygen'}[r.args.id]||r.args.id,recipe=GlowLearn.recipes()[id],est='';   /* V3.7 O9 (V37-I17): the V3.4 age-and-resting-heart-rate estimate no longer sits beside Apple's reading; the Est. slot is vo2CardHTML */const vo2Goal=r.args.id==='vo2'?(goalTargets(st).find(t=>t.id==='vo2max')||{}):null,vo2Target=vo2Goal&&(((goalsV2(st).targets||{}).vo2max||{}).value??vo2Goal.jan7);return GV.vital({...r.args,goal:Number.isFinite(vo2Target)?GV.rungPlace(Scores.stand('vo2_max',vo2Target,whoOf(scorePerson(st)))).place:null,goalText:Number.isFinite(vo2Target)?'Goal '+vo2Target:'',emoji:EMOJI[r.args.id],status:r.tone?(r.ranked&&r.args.word?(['red','orange'].includes(r.tone)?'↓ ':'✓ ')+r.args.word:STATUS[r.tone]||''):'',note:(r.args.note||'')+est,info:infoBtn('vital-'+id,r.label)+infoPop('vital-'+id,recipe?recipe.how+' '+recipe.formula:SCORE_INFO.vitals,recipe?id:'vitals')});}).join(''),summary=GlowLearn.vitals(rows);
+    const VW = filtWin(vitalsPage(), 'vitals'), rows=vitalRows(st),today=todayYmd(),from=addDays(today,-29),trends=rows.map(r=>r.trend).filter(Boolean),vo2=vo2Display(st),EMOJI={hrv:'📈',rhr:'❤️',rr:'🫁',spo2:'🩸',vo2:'⚡',temp:'🌡️'},STATUS={green:'✓ Steady',violet:'✓ Strong',blue:'✓ Steady',yellow:'↕ Watch',orange:'⚠ Off',red:'⚠ Off'},drawnRows=rows.map(r=>{const id={rr:'breathing',spo2:'oxygen'}[r.args.id]||r.args.id,recipe=GlowLearn.recipes()[id],est='';   /* V3.7 O9 (V37-I17): the V3.4 age-and-resting-heart-rate estimate no longer sits beside Apple's reading; the Est. slot is vo2CardHTML */const vo2Goal=r.args.id==='vo2'?(goalTargets(st).find(t=>t.id==='vo2max')||{}):null,vo2Target=vo2Goal&&(((goalsV2(st).targets||{}).vo2max||{}).value??vo2Goal.jan7);return GV.vital({...r.args,goal:Number.isFinite(vo2Target)?GV.rungPlace(Scores.stand('vo2_max',vo2Target,whoOf(scorePerson(st)))).place:null,goalText:Number.isFinite(vo2Target)?'Goal '+vo2Target:'',emoji:EMOJI[r.args.id],status:r.tone?(r.ranked&&r.args.word?(['red','orange'].includes(r.tone)?'↓ ':'✓ ')+r.args.word:STATUS[r.tone]||''):'',note:(r.args.note||'')+est,info:infoBtn('vital-'+id,r.label)+infoPop('vital-'+id,recipe?recipe.how+' '+recipe.formula:SCORE_INFO.vitals,recipe?id:'vitals')});}).join(''),summary=GlowLearn.vitals(rows);
     // Wrist temperature joins once the live feed carries it; a history day value is a baseline, not a night.
     const temp = Scores.series(x, 'apple_sleeping_wrist_temperature', from, today, 'overnight').filter(s => !s.approx).length;
     const w = Scores.warningFor(x, today), one = w.outliers.length === 1 ? '<p class="vital-note" style="color:' + GV.tone('yellow') + '">' + esc(w.outliers[0]) + ' is outside your usual range (one sign alone is only a dot; two together raise Early Warning).</p>' : w.on ? '<p class="vital-note" style="color:' + GV.tone('orange') + '"><b>Early Warning</b> · ' + esc(w.outliers.join(' and ').toLowerCase()) + ' are outside your usual range.</p>' : '';
@@ -3990,7 +4000,8 @@ addEventListener('load', () => {
     const fh = '<section class="k-card gr-card" data-parity="V36-GROWTH-C04" data-feedback-id="growth-fitness-heart" data-feedback-label="Fitness and Heart"><div class="k-head"><span aria-hidden="true">❤️</span><span class="k-title">Fitness and Heart</span><button type="button" class="info" data-act="learnView" data-learn="growth" aria-label="Learn about the ladders">i</button></div><div class="gr-rows">' + ['vo2_max', 'heart_rate_recovery', 'resting_heart_rate', 'heart_rate_variability'].map(ladderRow).join('') + '</div></section>';
     const ab = '<section class="k-card gr-card" data-parity="V36-GROWTH-C05" data-feedback-id="growth-activity-body" data-feedback-label="Activity, Body and Sleep"><div class="k-head"><span aria-hidden="true">🌿</span><span class="k-title">Activity, Body and Sleep</span><button type="button" class="info" data-act="learnView" data-learn="growth" aria-label="Learn about the ladders">i</button></div><div class="gr-rows">' + ladderRow('step_count') + fatRow + sleepRow + waistRow + '</div></section>';
     // G3: Biggest Gains, the three closest, soonest first; each row opens its drawer
-    const gains = s.gains.slice().sort((a, b) => a.gapSD - b.gapSD), gname = g => (STAND_NAMES[g.metric] || [g.metric])[0], gm = {vo2_max:'vo2', resting_heart_rate:'rhr', heart_rate_variability:'hrv', step_count:'steps', body_fat_percentage:'fat', sleep_duration:'sleep', waist_circumference:'waist'};
+    const HEART = new Set(['vo2_max', 'heart_rate_recovery', 'resting_heart_rate', 'heart_rate_variability']);   // BG15: the heart measures are Fitness's
+    const gains = s.gains.filter(g => !HEART.has(g.metric)).sort((a, b) => a.gapSD - b.gapSD), gname = g => (STAND_NAMES[g.metric] || [g.metric])[0], gm = {vo2_max:'vo2', resting_heart_rate:'rhr', heart_rate_variability:'hrv', step_count:'steps', body_fat_percentage:'fat', sleep_duration:'sleep', waist_circumference:'waist'};
     const gainRow = g => { const toward = g.state ? (g.metric === 'sleep_duration' ? 'the ' + (sleepGoalMin(st) / 60) + ' h need' : 'the healthy range') : GV.RUNG_LABEL[g.next.rung] || g.next.label, gap = g.state ? (g.state === 'over' ? '−' : '+') + (g.metric === 'sleep_duration' ? Math.round(g.distance * 60) + ' min' : (Math.round(g.distance * 10) / 10) + (g.metric === 'body_fat_percentage' ? ' points' : ' ' + (g.unit || ''))) : g.gapText.replace(/ to .*$/, '');
       return '<button type="button" class="gr-gain" data-gain="' + esc(g.metric) + '"' + (gm[g.metric] ? ' data-act="metricOpen" data-metric="' + gm[g.metric] + '"' : ' data-act="learnView" data-learn="recovery"') + '><span><b>' + esc(gname(g)) + '</b><small style="color:' + (g.next ? GV.tone(GV.RUNG_TONE[g.next.rung]) : GV.tone('green')) + '">→ ' + esc(toward) + '</small></span><b class="gr-gap">' + esc(gap) + '</b></button>'; };
     const gainCard = '<section class="k-card gr-gains" data-parity="V36-GROWTH-C03" data-feedback-id="growth-gains" data-feedback-label="Biggest Gains"><div class="k-head"><span aria-hidden="true">🎯</span><span class="k-title">Biggest Gains</span>' + infoBtn('growth-gains', 'Biggest Gains') + '</div>' + infoPop('growth-gains', 'How far each measure is from its next rung (or its healthy range), closest first. A tap opens its trend.') + (gains.length ? gains.map(gainRow).join('') : '<p class="hint keep" title="Every graded measure is at its top rung or in its range, or needs more days.">Nothing to name yet</p>') + '</section>';
@@ -4002,7 +4013,8 @@ addEventListener('load', () => {
     const flags = [flagOf('rr', 'Breathing', '🫁', 'rr'), flagOf('spo2', 'Blood Oxygen', '🩸', 'spo2'), flagOf('temp', 'Wrist Temperature', '🌡️', 'temp'), floorOf(s0.floors[0], 'Walking Speed', '🚶'), floorOf(s0.floors[1], 'Six-Minute Walk', '🏁')], outN = flags.filter(f => f.out).length;
     const flagCard = '<section class="k-card gr-flags" data-parity="V36-GROWTH-C06" data-feedback-id="growth-flags" data-feedback-label="Flags"><div class="k-head"><span aria-hidden="true">🚩</span><span class="k-title">Flags</span><button type="button" class="info" data-act="learnView" data-learn="early-warning" aria-label="Learn about Early Warning">i</button></div><p class="gr-fsum" data-flag-sum style="color:' + GV.tone(outN ? 'orange' : 'green') + '">' + (outN ? '● ' + outN + ' outside' : '✓ All normal') + '</p>' + flags.map(f => f.html).join('') + '</section>';
     const learn = '<div class="fit-learn gr-learn" data-parity="V36-GROWTH-C07"><span class="cap">Learn</span>' + GROWTH_CHIPS.map(([id, l]) => '<button type="button" class="k-chip" data-act="learnView" data-learn="' + id + '">📖 ' + esc(l) + '</button>').join('') + '</div>';
-    return '<div class="growth" data-period="' + W.per + '">' + ref + '<div class="gr-two">' + fixedCard(hero, 'latest estimate') + '</div>' + gainCard + '<div class="gr-two">' + fh + ab + '</div>' + fixedCard(flagCard, 'latest readings') + learn + '</div>';
+    void fh;   // BG15: the Fitness and Heart ladder is on Fitness (fitnessBoxes)
+    return '<div class="growth" data-period="' + W.per + '">' + ref + '<div class="gr-two">' + fixedCard(hero, 'latest estimate') + gainCard + '</div><div class="gr-two">' + ab + fixedCard(flagCard, 'latest readings') + '</div>' + learn + '</div>';
   }
   // G1: the Overall Grade in Growth's rail, compact (its period is the page's own control)
   function growthRailOverall(st){
@@ -4382,7 +4394,7 @@ addEventListener('load', () => {
   }
   /* ---------- V3.5 Body: Fitness Trends (B8, B15), the interim rank (B9), projection (B5), same-reading tags (B4) ---------- */
   let waistEditing = false;
-  const trendsWinOf = () => { const p = filtWin('profile', 'trends').per; return p === 'custom' ? 'all' : p; };   // V3.7 L1: the Fitness Grade follows the Trends chip (was trendsWin)
+  const trendsWinOf = () => { const p = filtWin(vitalsPage(), 'trends').per; return p === 'custom' ? 'all' : p; };   // V3.7 L1: the Fitness Grade follows the Trends chip (was trendsWin)
   const programStart = st => programStartOf(st, todayYmd());   // V3.6 S5 (V36-I17): the one Program start, as the grade reads it
   /* Each signal's daily values over the last 120 days, built in one pass per draw. HAE readings are converted to the
      unit shown (pounds, inches); a day keeps its last reading; sums are the day's total; nothing missing is zero. */
@@ -4500,7 +4512,7 @@ addEventListener('load', () => {
   function fitnessTrendsCard(st){
     // V3.7 L2, L3 (note 17): the card reads its chip's window (the page filter until he pins it); no fixed 90 days. At Day a
     // tile shows that day's value and the reading before it as a number (steps and active energy draw that day's hours).
-    const W = filtWin('profile', 'trends'), today = todayYmd(), series = trendSeries(st, today > W.to ? today : W.to), start = programStart(st), u = unitPrefs(st), win = W.per, vs = W.day ? 'the reading before, as a number' : {week:'vs last week', month:'vs last month', all:'since ' + medDate(W.from), custom:'vs prior'}[win];
+    const W = filtWin(vitalsPage(), 'trends'), today = todayYmd(), series = trendSeries(st, today > W.to ? today : W.to), start = programStart(st), u = unitPrefs(st), win = W.per, vs = W.day ? 'the reading before, as a number' : {week:'vs last week', month:'vs last month', all:'since ' + medDate(W.from), custom:'vs prior'}[win];
     const fmt = (v, d) => v === null || !Number.isFinite(v) ? '—' : (d.id === 'steps' ? Math.round(v).toLocaleString('en-US') : d.id === 'net' ? (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(Math.round(v)).toLocaleString('en-US') : v.toFixed(d.digits));
     const cell = d => {
       const sr = series[d.id], t = trendInWindow(sr, d, W), ch = t.now !== null && t.prev !== null && Number.isFinite(t.now) && Number.isFinite(t.prev) ? t.now - t.prev : null;
@@ -4516,7 +4528,7 @@ addEventListener('load', () => {
       const empty = d.id === 'waist' && (!sr || waistEditing) ? (sr ? '' : '<p class="tr-empty">No waist logged</p>') + (waistEditing ? waistForm : '<button class="k-btn tr-add" data-act="waistAdd" data-parity="V35-B15-02">+ Add a waist measurement</button>') : '';
       return '<div class="tr-cell" role="button" tabindex="0" data-act="metricOpen" data-metric="' + d.id + '" data-trend="' + d.id + '"' + (d.parity ? ' data-parity="' + d.parity + '"' : '') + ' aria-label="' + esc(d.name) + ': open its detail"><span class="tr-head"><i class="tr-dot' + (d.counts ? ' on' : '') + '" aria-hidden="true"></i>' + esc(d.name) + '</span>' + (empty || '<span class="tr-row">' + (W.day && t.now !== null ? bandStrip(bandsFor(S(), d.id, sr ? [...sr.values()].filter(Number.isFinite).slice(-28) : []), t.now) : '') + '<b class="tr-val" data-value="' + (t.now === null ? '' : t.now) + '"' + (d.id === 'net' && t.now !== null ? ' style="color:' + NE.colour(t.now) + '"' : '') + '>' + (d.id === 'net' && t.now !== null ? '<i class="tr-ne" aria-hidden="true" style="background:' + NE.colour(t.now) + '"></i>' : '') + '' + fmt(t.now, d) + (d.unit ? ' <small>' + esc(d.unit) + '</small>' : '') + '</b>' + spark + '</span>' + change + vo2Line) + (d.id === 'waist' && sr && !waistEditing ? '<button class="link tr-more" data-act="waistAdd">+ Add</button>' : '') + '</div>';
     };
-    const seg = filtChipHTML('profile', 'trends');   /* Fix S3: the chip is a direct child of the card header, so it takes its own row under the title */   // V3.7 L3: the card's chip replaces its own switch
+    const seg = filtChipHTML(vitalsPage(), 'trends');   /* Fix S3: the chip is a direct child of the card header, so it takes its own row under the title */   // V3.7 L3: the card's chip replaces its own switch
     const strengthNote = '<div class="tr-sub" data-parity="BODY-17"><span>Strength test</span><b class="dim">Unassessed</b></div>';
     return '<section class="panelcard mf-card tr-card"' + winAttrs(W) + ' data-filtered="trends" data-parity="BODY-14" data-feedback-id="fitness-trends" data-feedback-label="Fitness Trends"><div class="ph"><h2>Fitness Trends</h2>' + infoBtn('fitness-trends', 'Fitness Trends') + seg + '</div>' +
       infoPop('fitness-trends', 'How each signal moves. A filled dot counts in the Fitness Grade (VO₂ max, waist, sleep, steps, strength days, protein, Net Energy); a hollow dot is shown only (weight, HRV, resting heart rate, body fat, hydration). Day shows that day’s value and the reading before it; Week and Month (the selected week and month) compare with the same length before; All compares with the first reading since the program started (' + medDate(start) + '). Each line is the selected period, never more. A strength day is one with 15 minutes or more of strength work; a strength test is not assessed.') +
@@ -4545,6 +4557,14 @@ addEventListener('load', () => {
      door to its card. Every figure is the card's own, read from the same place. */
   /* V3.4 (B1, B2, B11): Weight with its weigh-in date, freshness chip and change; Body Fat in its tier colour with the tier
      word; Muscle (his word, Oct 1); and the days to the goal date. Whole-body figures come from the latest weigh-in. */
+  /* BG5 (his note: "when i say All it should end in Jan 1/7 when the program ends ... any ideas?"; planner's default BG5-PROGRAM): a Program chip on
+     Weight & Goal draws the whole program, its start to the goal date: his weigh-ins to today and the dashed plan line on to the goal. Remembered here. */
+  const wgProgramOn = () => { try { return localStorage.getItem('health-tracker.wgProgram') === '1'; } catch (_) { return false; } };
+  function wgProgramChip(st){
+    const g = goalsV2(st), goalDate = validCalendarDate(st.prefs.checkpoint) ? st.prefs.checkpoint : g.goalDate, from = programStart(st); if (!validCalendarDate(goalDate) || !validCalendarDate(from)) return '';
+    const on = wgProgramOn();
+    return '<div class="wg-prog" data-parity="BG5-PROGRAM"><button type="button" class="k-chip' + (on ? ' gold' : '') + '" data-act="wgProgram" aria-pressed="' + on + '" title="' + (on ? 'Back to the card’s window' : 'The whole program, to the goal date') + '">📅 Program · ' + esc(monthDay(from)) + ' – ' + esc(monthDay(goalDate)) + '</button></div>';
+  }
   function bodyHeroTiles(st, report){
     const fitdays = report || document.querySelector('ht-body-view')?.fitdays || window.HealthBodySnapshot?.fitdays, p = SCORES_ON ? scorePerson(st) : null, u = unitPrefs(st), x = SCORES_ON ? scoreIndex(st) : null, g = goalsV2(st);
     // V3.7.1 F1 (audit D-1): every value as of the selected day; on today this is today, unchanged
@@ -4581,7 +4601,7 @@ addEventListener('load', () => {
     const wgPair = w ? '<div class="ck-pair wg-pair" data-family="estimate-beside-measured"><div class="ck-pv" data-scale><small>Scale, ' + esc(monthDay(w.date)) + '</small><b data-scale-v>' + u.lb(w.value / .45359237).toFixed(1) + '<small>' + esc(u.mass) + '</small></b></div>' +
       (est ? '<div class="ck-pv hero-proj" data-parity="V35-B5-01" data-est="' + est.point.toFixed(2) + '" title="' + esc('logged ' + est.logged + ' of ' + est.of + ' days' + (wgap ? ' · gap ' + NE.lb(u.lb(wgap.diff)) + ' ' + u.mass : '')) + '"><small>Est.' + infoBtn('weight-proj', 'Weight estimate') + '</small><b data-est-v>' + u.lb(est.point).toFixed(1) + '<small>' + esc(u.mass) + '</small></b></div>' : '') + '</div>' : '<div class="k-big dim">—</div>';
     const wgLogged = est ? '<small class="wg-logged">logged ' + est.logged + ' of ' + est.of + ' days' + (wgap ? ' · <span class="hero-gap" data-gap-signed="' + wgap.diff.toFixed(2) + '">gap ' + NE.lb(u.lb(wgap.diff)) + ' ' + esc(u.mass) + '</span>' : '') + '</small>' : '';
-    const weightGoal = withChip(card('wg-card', 'BODY-22', 'Weight & Goal', '⚖️', 'weight', '<div class="wg-top">' + wgPair + wgSide + '</div>' + projPop + (HW.day ? '' : weightPlanChart(st, HW, {h:92, fit:true})) +   /* Fix Z4: at Day the card is the figures (that day's weight, the plan, the weigh-in before); the chart is for a span */ (w ? '<div class="body-hero-line">' + freshChip(w.date, 'BODY-24', asOf) + windows(w.value, 'weight_body_mass', w.date, down) + differ('w') + '</div>' : ''), ' data-family="weight-plan"' + (HW.day ? ' data-win-day' : '')), 'profile', 'weightgoal', HW);   // V3.7 L2: at Day the two-week and four-week windows stay in the page, hidden (B1's Day shows the weigh-in before as a number)
+    const weightGoal = withChip(card('wg-card', 'BODY-22', 'Weight & Goal', '⚖️', 'weight', wgProgramChip(st) + '<div class="wg-top">' + wgPair + wgSide + '</div>' + projPop + (wgProgramOn() ? weightPlanChart(st, {from:programStart(st), to:asOf, per:'program', day:false}, {h:92, fit:true, toGoal:true}) : HW.day ? '' : weightPlanChart(st, HW, {h:92, fit:true})) +   /* Fix Z4: at Day the card is the figures (that day's weight, the plan, the weigh-in before); the chart is for a span */ (w ? '<div class="body-hero-line">' + freshChip(w.date, 'BODY-24', asOf) + windows(w.value, 'weight_body_mass', w.date, down) + differ('w') + '</div>' : ''), ' data-family="weight-plan"' + (HW.day ? ' data-win-day' : '')), 'profile', 'weightgoal', HW);   // V3.7 L2: at Day the two-week and four-week windows stay in the page, hidden (B1's Day shows the weigh-in before as a number)
     /* Fix V1: Muscle & Fat and BMI read as of the end of their window and show the change over it (the last reading before the window
        to the last reading in it); at Day they keep the comparison they had. Age is the latest estimate and says so. */
     const MFW = filtWin('profile', 'musclefat'), BMW = filtWin('profile', 'bmi'), asOfW = W => W.to < asOf ? W.to : asOf;
@@ -4641,7 +4661,10 @@ addEventListener('load', () => {
     // height, Your Body, then Learn; Goals in the rail.
     // V3.5 (B1, B15, the approved prototype): Overview (must keep), the hero tiles, Your Body, then Vitals beside Fitness
     // Trends, Learn; the interim rank and Goals in the rail.
-    return (SCORES_ON ? '' : filtPageHTML('profile')) + watchChipsHTML() + bodyHeroTiles(st) + bodyOverview(st) +   /* Fix C3: the four hero cards first */  '<div class="k-sec-head body-your"><h2>Your Body</h2>' + fixedWin('Latest scan') + '</div><ht-body-view data-fixed-window="Latest scan"></ht-body-view><div class="cols2 profile-cards body-mid" data-parity="BODY-72">' + (SCORES_ON ? withChip(vitalsCardV31(st), 'profile', 'vitals') : '') + fitnessTrendsCard(st) + '</div>' + learnList('body',metricLearnCards(st,BODY_LEARN));
+    /* BG15 (his choice, Oct 9: "Body = Weight & Goal, Composition, Standing, Flags; heart and vitals readings live on Fitness only"): the Overview rings,
+       Vitals, Fitness Trends and the Fitness and Heart ladder left Body (Vitals and Trends are on Fitness); Your Body (the 3D model and photo) stays
+       at the end, planner's default BG15-3D */
+    return (SCORES_ON ? '' : filtPageHTML('profile')) + watchChipsHTML() + bodyHeroTiles(st) + '@@STANDING@@' + '<div class="k-sec-head body-your"><h2>Your Body</h2>' + fixedWin('Latest scan') + '</div><ht-body-view data-fixed-window="Latest scan"></ht-body-view>' + learnList('body',metricLearnCards(st,BODY_LEARN));
   }
   /* ---------- V3.6 M4, M7: goal items on every list. GoalEngine (health-domain.js) does the sums; this draws them. An
      amount or count is a bar with "x of y" and a log button ("+ add 3.1 mi"), with an Auto chip where a source feeds it;
@@ -5678,8 +5701,8 @@ addEventListener('load', () => {
   /* V3.7 L1: the grade period is the one filter: on Today the Overall card's chip, on Growth and Progress the page filter (in
      the header). gradePer and gradeRange are set from it at the start of every draw (gradePerSync); they are no longer stored. */
   const gradePage = () => area === 'stand' ? 'stand' : area === 'progress' ? 'progress' : area === 'plan' ? 'plan' : area === 'faith' ? 'faith' : 'home';   // Fix V1: Quests and Faith carry the page filter too
-  function gradePerSync(){ const pg = gradePage(), w = filtWin(pg, pg === 'home' ? 'overall' : null); gradePer = w.per; gradeRange = w.per === 'custom' ? {from:w.from, to:w.to} : null; }
-  const gradePeriodHTML = () => gradePage() === 'home' ? filtChipHTML('home', 'overall') : '';
+  function gradePerSync(){ const pg = gradePage(), w = filtWin(pg, pg === 'home' || pg === 'plan' ? 'overall' : null); gradePer = w.per; gradeRange = w.per === 'custom' ? {from:w.from, to:w.to} : null; }
+  const gradePeriodHTML = () => gradePage() === 'home' || gradePage() === 'plan' ? filtChipHTML(gradePage(), 'overall') : '';   // BG6: Quests' Overall Grade has the same chip as Today's
   const gradeCustomHTML = () => '';
   /* V3.6 F1 (notes 8, D3): the compact Overall hero: one row, the cross kept, the letter more than twice a contributor's;
      the hero (cross, letter, percent, segmented bar) takes about three quarters of the card and the count the last quarter;
@@ -6631,20 +6654,29 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   };
   function overviewPage(g){
     const P = GROUP_PLAN[g]; if (!P) return '';
-    const st = S(), r = gradeNow(st), umbs = r ? r.umbrellas.filter(u => u.included !== false && (!P.domains || P.domains.includes(u.id))) : [];
-    const live = umbs.filter(u => u.own !== null && u.importance > 0), wsum = live.reduce((n, u) => n + u.importance, 0), own = !P.domains ? (r ? r.overall : null) : wsum ? live.reduce((n, u) => n + u.own * u.importance, 0) / wsum : null;
-    const pct = v => v === null || v === undefined ? '—' : Math.round(v) + '%', tone = v => gradeTone(v);
-    const focusRows = umbs.flatMap(u => u.groups.filter(x => !x.measured && x.score !== null && x.included !== false).map(x => ({u, x})));
-    const grades = '<section class="k-card ov-grades" data-parity="BB2-GRADES"><div class="k-head"><span aria-hidden="true">🏅</span><span class="k-title">' + esc(P.name) + ' Grade</span>' + filtChipHTML('home', 'overall') + '</div>' +
-      (() => { /* Fix P6's rule: a day that is not over is not an F; on the open day the card says whether what has come due is on pace */
-        if (r && gradeOpenDay()){ let rd = 0, rq = 0; for (const u of umbs){ const tl = gradeTally(st, r, u); rd += tl.required.done; rq += tl.required.of; } const w = gradePaceWord(rd, rq);
-          if (w) return '<div class="ov-hero"><b class="g-letter big g-pace" style="color:' + paceTone(w) + '">' + w + '</b><span class="ov-pct">' + rd + ' of ' + rq + ' so far</span></div>'; }
-        return '<div class="ov-hero"><b class="g-letter big" style="color:' + tone(own) + '">' + (rankLetter(own) || '–') + '</b><span class="ov-pct">' + pct(own) + '</span>' + gradeBar(own, 12) + '</div>'; })() +
-      (!P.domains ? '<div class="ov-rows">' + umbs.filter(u => u.own !== null).map(u => '<button type="button" class="ov-row" data-act="gradeOpen" data-u="' + u.id + '"><span aria-hidden="true">' + u.emoji + '</span><b>' + esc(u.name) + '</b>' + gradeBar(u.displayed, 8) + '<span style="color:' + tone(u.displayed) + '">' + (rankLetter(u.displayed) || '–') + '</span></button>').join('') + '</div>'
-        : '<div class="ov-rows">' + (focusRows.length ? focusRows.map(({u, x}) => '<button type="button" class="ov-row" data-act="gradeOpen" data-u="' + u.id + '" style="--category:' + categoryColor(x.gid) + '"><span class="ov-dot" aria-hidden="true"></span><b>' + esc(x.name) + '</b>' + gradeBar(x.score, 8) + '<span style="color:' + tone(x.score) + '">' + (rankLetter(x.score) || '–') + '</span></button>').join('') : '<p class="hint keep">Nothing graded in this window yet.</p>') + '</div>') + '</section>';
+    const st = S(), {html:grades, umbs} = groupGradeCard(g, st);
     const pages = P.pages.length ? '<section class="k-card ov-pages"><div class="k-head"><span class="k-title">Pages</span></div><div class="ov-page-grid">' + P.pages.map(([a, q]) => '<button type="button" class="ov-page" data-area="' + a + '"><b>' + esc(pageTitle(a)) + '</b><small>' + esc(q) + '</small></button>').join('') + '</div></section>' : '';
     /* BG21 (planner's review: the overview used half the width and left a large empty area): the grade beside the visuals, the pages as one row of tiles across the page */
     return '<div class="ov-page-wrap" data-parity="BB2-OVERVIEW" data-group="' + g + '"><p class="ov-q">' + esc(P.q) + '</p><div class="cols2 ov-cols"><div>' + grades + '</div><div class="ov-vis-col">' + overviewVisuals(g, st, umbs) + '</div></div>' + pages + '</div>';
+  }
+  // a group's grade card (its overview, and the top of Hearth and Talents since BG13): the group's grade and each Focus's, on Today's filter
+  function groupGradeCard(g, st){
+    const P = GROUP_PLAN[g], r = gradeNow(st), umbs = r ? r.umbrellas.filter(u => u.included !== false && (!P.domains || P.domains.includes(u.id))) : [];
+    const live = umbs.filter(u => u.own !== null && u.importance > 0), wsum = live.reduce((n, u) => n + u.importance, 0), own = !P.domains ? (r ? r.overall : null) : wsum ? live.reduce((n, u) => n + u.own * u.importance, 0) / wsum : null;
+    const pct = v => v === null || v === undefined ? '—' : Math.round(v) + '%', tone = v => gradeTone(v);
+    const focusRows = umbs.flatMap(u => u.groups.filter(x => !x.measured && x.score !== null && x.included !== false).map(x => ({u, x})));
+    /* BG12 (planner's review: every Focus read a red F while the day was open; Fix P6: a day that is not over is not an F): on the open day a row
+       shows its bar and the share done so far, muted, never a letter; the letter returns when the day closes */
+    const open = !!(r && gradeOpenDay()), mark = v => open ? '<span class="ov-sofar" title="The day is not over">' + (v === null || v === undefined ? '–' : Math.round(v) + '%') + '</span>' : '<span style="color:' + tone(v) + '">' + (rankLetter(v) || '–') + '</span>';
+    const grades = '<section class="k-card ov-grades" data-parity="BB2-GRADES"><div class="k-head"><span aria-hidden="true">🏅</span><span class="k-title">' + esc(P.name) + ' Grade</span>' + filtChipHTML('home', 'overall') + '</div>' +
+      (() => { /* Fix P6's rule: a day that is not over is not an F; on the open day the card says whether what has come due is on pace */
+        if (r && gradeOpenDay()){ let rd = 0, rq = 0; for (const u of umbs){ const tl = gradeTally(st, r, u); rd += tl.required.done; rq += tl.required.of; } const w = gradePaceWord(rd, rq);
+          if (w) return '<div class="ov-hero"><b class="g-letter big g-pace" style="color:' + paceTone(w) + '">' + w + '</b><span class="ov-pct">' + rd + ' of ' + rq + ' so far</span></div>';
+          return '<div class="ov-hero"><b class="g-letter big" style="color:var(--muted)" title="The day is not over">–</b><span class="ov-pct">nothing due yet today</span></div>'; }   // BG12: never a letter on the open day
+        return '<div class="ov-hero"><b class="g-letter big" style="color:' + tone(own) + '">' + (rankLetter(own) || '–') + '</b><span class="ov-pct">' + pct(own) + '</span>' + gradeBar(own, 12) + '</div>'; })() +
+      (!P.domains ? '<div class="ov-rows">' + umbs.filter(u => u.own !== null).map(u => '<button type="button" class="ov-row" data-act="gradeOpen" data-u="' + u.id + '"><span aria-hidden="true">' + u.emoji + '</span><b>' + esc(u.name) + '</b>' + gradeBar(u.displayed, 8) + mark(u.displayed) + '</button>').join('') + '</div>'
+        : '<div class="ov-rows">' + (focusRows.length ? focusRows.map(({u, x}) => '<button type="button" class="ov-row" data-act="gradeOpen" data-u="' + u.id + '" style="--category:' + categoryColor(x.gid) + '"><span class="ov-dot" aria-hidden="true"></span><b>' + esc(x.name) + '</b>' + gradeBar(x.score, 8) + mark(x.score) + '</button>').join('') : '<p class="hint keep">Nothing graded in this window yet.</p>') + '</div>') + '</section>';
+    return {html:grades, umbs};
   }
   function overviewVisuals(g, st, umbs){
     const card = (t, e, body) => '<section class="k-card ov-vis"><div class="k-head"><span aria-hidden="true">' + e + '</span><span class="k-title">' + t + '</span></div>' + body + '</section>';
@@ -6694,7 +6726,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const s = SCORES_ON ? standOf(st) : null, by = s ? Object.fromEntries(s.rows.map(r => [r.metric, r])) : {};
     const unit = {vo2_max:' ml/kg/min', heart_rate_recovery:' bpm', resting_heart_rate:' bpm', heart_rate_variability:' ms'}, emoji = {vo2_max:'🫁', heart_rate_recovery:'🔄', resting_heart_rate:'❤️', heart_rate_variability:'💓'}, name = {vo2_max:'VO₂ max', heart_rate_recovery:'Recovery', resting_heart_rate:'Resting HR', heart_rate_variability:'HRV'};
     const lad = ['vo2_max', 'heart_rate_recovery', 'resting_heart_rate', 'heart_rate_variability'].map(k => { const r = by[k] || {}, v = Number.isFinite(r.value) ? (k === 'vo2_max' ? (Math.round(r.value * 10) / 10).toFixed(1) : Math.round(r.value)) : '—', word = r.rung && GV ? GV.RUNG_LABEL[r.rung] : r.note || 'no reading', col = r.rung && GV ? GV.tone(GV.RUNG_TONE[r.rung]) : 'var(--muted)';
-      return '<div class="comp-row"><span class="comp-e" aria-hidden="true">' + emoji[k] + '</span><span class="comp-n">' + name[k] + '</span><b class="comp-v">' + v + '<small>' + (v === '—' ? '' : unit[k]) + '</small> <small style="color:' + col + '">' + esc(word) + '</small></b></div>'; }).join('');
+      return '<div class="comp-row"><span class="comp-e" aria-hidden="true">' + emoji[k] + '</span><span class="comp-n">' + name[k] + (k === 'resting_heart_rate' || k === 'heart_rate_variability' ? ' <small class="comp-win" title="The ladder ranks your typical value: the median of the last 30 days. Vitals below shows the day.">30-day median</small>' : '') + '</span><b class="comp-v">' + v + '<small>' + (v === '—' ? '' : unit[k]) + '</small> <small style="color:' + col + '">' + esc(word) + '</small></b></div>'; }).join('');
     const ladder = '<section class="k-card fx-ladder"><div class="k-head"><span aria-hidden="true">🏅</span><span class="k-title">Heart and fitness · against men your age</span></div><div class="comp-rows">' + lad + '</div></section>';
     return '<div class="fx-row" data-parity="BB4-BOXES">' + ready + vo2 + ladder + '</div>';
   }
@@ -6735,7 +6767,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const fam = list('family').map(g => moduleCard(g.name, '👪', focusLines(st, g), g)).join('');
     const home = list('home').map(g => { const w = weekDone(g); return moduleCard(g.name, '🏠', '<div class="ov-line"><b>This week</b><small>' + (w.due ? w.done + ' of ' + w.due + ' done since ' + medDate(wf.from) : 'nothing due yet') + '</small></div>' + focusLines(st, g), g); }).join('');
     const soc = list('social').map(g => moduleCard(g.name, '🤝', focusLines(st, g), g)).join('');
-    return '<div data-parity="BB7-HEARTH"><h2 class="sect-h">Family</h2><div class="k-grid c3">' + (fam || '<p class="hint keep">No Family Focus yet.</p>') + '</div><h2 class="sect-h">Home</h2><div class="k-grid c3">' + (home || '<p class="hint keep">No Home Focus yet.</p>') + '</div><h2 class="sect-h">Social</h2><div class="k-grid c3">' + (soc || '<p class="hint keep">No Social Focus yet.</p>') + '</div></div>';
+    const top = (() => { const {html, umbs} = groupGradeCard('hearth', st); return '<div class="cols2 ov-cols pg-top">' + html + '<div class="ov-vis-col">' + overviewVisuals('hearth', st, umbs) + '</div></div>'; })();   // BG13: the overview's grade and visuals open the page
+    return '<div data-parity="BB7-HEARTH">' + top + '<h2 class="sect-h">Family</h2><div class="k-grid c3">' + (fam || '<p class="hint keep">No Family Focus yet.</p>') + '</div><h2 class="sect-h">Home</h2><div class="k-grid c3">' + (home || '<p class="hint keep">No Home Focus yet.</p>') + '</div><h2 class="sect-h">Social</h2><div class="k-grid c3">' + (soc || '<p class="hint keep">No Social Focus yet.</p>') + '</div></div>';
   }
   // BB7: Talents: Growth (applications a week, mentors and their next sessions, Yonas Inc, network) and Hobbies (Learn, Play)
   function renderTalents(){
@@ -6744,7 +6777,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const apps = moduleCard('Applications a week', '📨', '<div class="ov-bars">' + weeks.map(w => '<div class="ov-bar"><i style="height:' + Math.min(100, w.n * 12) + '%"></i><b>' + w.n + '</b><small>' + esc(monthDay(w.a)) + '</small></div>').join('') + '</div>');
     const yon = (() => { const r = allRows(planFor(st, t)).find(x => /yonas inc/i.test(x.name || '') && Array.isArray(x.children)); return r && r.family ? moduleCard('Yonas Inc', '🏗️', '<div class="ov-big">' + r.family.done + '<small>of ' + r.family.total + ' steps done today</small></div>' + gradeBar(r.family.total ? 100 * r.family.done / r.family.total : 0, 10)) : ''; })();
     const growth = list('career').map(g => moduleCard(g.name, '💼', focusLines(st, g), g)).join(''), hob = list('hobbies').map(g => moduleCard(g.name, '🎨', focusLines(st, g), g)).join('');
-    return '<div data-parity="BB7-TALENTS"><h2 class="sect-h">Growth</h2><div class="k-grid c3">' + apps + yon + growth + '</div><h2 class="sect-h">Hobbies</h2><div class="k-grid c3">' + (hob || '<p class="hint keep">No Hobbies Focus yet.</p>') + '</div></div>';
+    const top = (() => { const {html, umbs} = groupGradeCard('talents', st); return '<div class="cols2 ov-cols pg-top">' + html + '<div class="ov-vis-col">' + overviewVisuals('talents', st, umbs).replace(/<section class="k-card ov-vis"><div class="k-head"><span aria-hidden="true">📨<\/span>[\s\S]*?<\/section>/, '') + '</div></div>'; })();   // BG13 (applications a week is already in Growth below)
+    return '<div data-parity="BB7-TALENTS">' + top + '<h2 class="sect-h">Growth</h2><div class="k-grid c3">' + apps + yon + growth + '</div><h2 class="sect-h">Hobbies</h2><div class="k-grid c3">' + (hob || '<p class="hint keep">No Hobbies Focus yet.</p>') + '</div></div>';
   }
   function renderProgress(){
     const yv = typeof YearView !== 'undefined' ? YearView.hook({S, scoreIndex, sleepNights, stepsGoal, scorePerson, gradeTone, render, on:SCORES_ON}) : null;   // AU2: the Year tab (year-view.js)
@@ -8768,12 +8802,13 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const seg = '<div class="fit-bar2" data-parity="V36-FITNESS-P01">' + filtPageHTML('fitness') + (railHosts() ? '' : '<span class="fit-when" data-when>' + esc(fitCaption(W)) + '</span>') + '</div>';
     const tiles = '<div class="k-grid c3 fit-tiles2" data-parity="V36-FITNESS-C01">' + tile('steps', 'Steps', '👟', '', stepsGoal(st), 'steps', 'var(--c-yellow)', 'V36-FITNESS-C01a', 'steps') + tile('active', 'Active Energy', '🏃', 'kcal', fitGoal('energy'), 'active', '#f0a058', 'V36-FITNESS-C01b', 'fuel') + tile('workout', 'Workout', '⏱️', 'min', WORKOUT_MIN, 'workout', 'var(--c-green)', 'V36-FITNESS-C03', 'strength') + '</div>';
     const ew = fitWindow(st, 'energy'), energy = card('energy', energyWeightCard(st, ew.from, ew.to, ew.days).replace('<section class="panelcard fit-energy"', '<section class="panelcard fit-energy" data-parity="V36-FITNESS-C07"'));
-    const links = '<div class="k-grid c2 fit-links"><button type="button" class="k-card fit-link" data-act="go" data-area="profile" data-link="body-trends" data-parity="V36-F4-01"><span aria-hidden="true">❤️</span><b>Heart fitness trends</b><small>VO₂ max, resting heart rate and HRV on Body</small>' + kIco('chevron', 14) + '</button><button type="button" class="k-card fit-link" data-act="go" data-area="data" data-link="data" data-parity="V36-F4-02"><span aria-hidden="true">🗂️</span><b>Detail by source</b><small>Every source, its records and receipts, on Data</small>' + kIco('chevron', 14) + '</button></div>';
+    const links = '<div class="fit-links"><button type="button" class="k-card fit-link" data-act="go" data-area="data" data-link="data" data-parity="V36-F4-02"><span aria-hidden="true">🗂️</span><b>Detail by source</b><small>Every source, its records and receipts, on Data</small>' + kIco('chevron', 14) + '</button></div>';
     const chips = '<div class="fit-learn" data-parity="V36-FITNESS-C20"><span class="cap">Learn</span>' + FIT_LEARN.map(([id, l]) => '<button type="button" class="k-chip" data-act="learnView" data-learn="' + id + '">📖 ' + esc(l) + '</button>').join('') + '</div>';
     const wk = fitWindow(st, 'workouts');
-    return seg + fitnessBoxes(st) + tiles + '<div class="fit-two"><div class="fit-col">' + card('sleep', fitSleepCard(st, fitWindow(st, 'sleep'))) + card('load', fitLoadCard(st, fitWindow(st, 'load'))) + card('insights', fitInsightsCard(st, fitWindow(st, 'insights'))) + '</div><div class="fit-col">' + energy + '</div></div>' + card('workouts', fitWorkoutsCard(st, wk, fitSources(st, wk).sessions)) +
+    const heart = '<div class="cols2 fit-heart" data-parity="BG15-HEART">' + (SCORES_ON ? withChip(vitalsCardV31(st), 'fitness', 'vitals') : '') + fitnessTrendsCard(st) + '</div>';   // BG15: Vitals and Fitness Trends moved here from Body
+    return seg + fitnessBoxes(st) + heart + tiles + '<div class="fit-two"><div class="fit-col">' + card('sleep', fitSleepCard(st, fitWindow(st, 'sleep'))) + card('load', fitLoadCard(st, fitWindow(st, 'load'))) + card('insights', fitInsightsCard(st, fitWindow(st, 'insights'))) + '</div><div class="fit-col">' + energy + '</div></div>' + card('workouts', fitWorkoutsCard(st, wk, fitSources(st, wk).sessions)) +
       // Kept (V3.4 TODAY-16, ASSUMED TODAY-50): the rings card and Readiness moved here from Today; they read the selected day (fixed, A5).
-      '<div class="cols2 moved-from-today" data-parity="V36-F4-03" data-fixed-day="' + day + '">' + fixedCard(ringsSection(day), 'the selected day') + fixedCard(readinessCard(day), 'the selected day') + '</div>' + links + chips + dailyLearnList('fitness', W.to, W.from);
+      '<div class="cols2 moved-from-today" data-parity="V36-F4-03" data-fixed-day="' + day + '">' + fixedCard(ringsSection(day), 'the selected day') + links + '</div>' + chips + dailyLearnList('fitness', W.to, W.from);
   }
   function fitnessCards(st,from,end){
     const today=todayYmd(),{first,last,days}=fitnessWindow(from,end);
@@ -10115,7 +10150,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   }
   function faithJournalLine(date){
     const j = journalFor(S(), date), text = String(j.reflection || j.intention || j.feedback || '').trim();
-    return '<section class="panelcard journal-line" data-feedback-id="faith-journal" data-feedback-label="Journal" data-tidy="keep"><div class="ph"><h2>Journal</h2><button class="save" data-act="journalOpen" data-date="' + esc(date) + '">' + (text ? 'Open' : 'Write') + '</button></div><p class="hint keep">' + (text ? esc(text.slice(0, 140)) + (text.length > 140 ? '…' : '') : esc(journalPrompts(date)[0])) + '</p></section>';
+    return '<section class="panelcard journal-line" data-parity="BB1-JOURNAL" data-feedback-id="faith-journal" data-feedback-label="Journal" data-tidy="keep"><div class="ph"><h2><span aria-hidden="true">📖</span> Journal</h2><button class="save" data-act="journalOpen" data-date="' + esc(date) + '">' + (text ? 'Open' : 'Write') + '</button></div><p class="hint keep">' + (text ? esc(text.slice(0, 140)) + (text.length > 140 ? '…' : '') : esc(journalPrompts(date)[0])) + '</p><div class="acts"><button class="link" data-act="go" data-area="journal">All entries</button></div></section>';   // BG7
   }
   /* Journal in Faith (V2.0): the day's readings, a general prompt, and prompts from his plan and day. */
   function faithJournalCard(date){
@@ -10159,8 +10194,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const nav = '<div class="daynav"><button class="nav-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b>' + esc(longDate(day)) + '</b><button class="nav-btn" data-act="step" data-n="1" aria-label="Next day">›</button>' +
       (day !== todayYmd() ? '<button class="link" data-act="jumpToday">Back to today</button>' : '') + '</div>';
     // BB1: the Journal is a module of JIK (its sidebar entry is gone): a folded card that opens the Journal
-    const jmod = '<details class="k-card jik-journal" data-parity="BB1-JOURNAL"' + (foldPref('jik-journal', false) ? ' open' : '') + ' data-fold="jik-journal"><summary><span aria-hidden="true">📖</span> <b>Journal</b></summary><div class="acts"><button class="save" data-act="journalOpen">Write today</button><button class="link" data-act="go" data-area="journal">All entries</button></div></details>';
-    return '<div class="nave-head">' + faithHeadLine(day).replace('<div class="info-pop" id="info-ec-calendar" hidden role="note"><p class="hint"></p></div>', '<div class="info-pop ec-info" id="info-ec-calendar" hidden role="note">' + (typeof EotcCalendar === 'undefined' ? '' : faithCalendarInfo()) + '</div>') + nav + '</div><div class="cols2 faith-cols">' + faithWeekCard(day) + '<div class="faith-side">' + wsActivities(opts) + faithJournalLine(day) + jmod + '</div></div>';
+    // BG7 (his note: "Merge the two Journal in Faith"): one Journal card: the day's entry or a prompt, Write or Open, and All entries
+    return '<div class="nave-head">' + faithHeadLine(day).replace('<div class="info-pop" id="info-ec-calendar" hidden role="note"><p class="hint"></p></div>', '<div class="info-pop ec-info" id="info-ec-calendar" hidden role="note">' + (typeof EotcCalendar === 'undefined' ? '' : faithCalendarInfo()) + '</div>') + nav + '</div><div class="cols2 faith-cols">' + faithWeekCard(day) + '<div class="faith-side">' + wsActivities(opts) + faithJournalLine(day) + '</div></div>';
   }
   /* Faith This Week (Mintay, 2026-09-24, Option A): one card instead of rings built for cardio and a
      rail of wordy goal cards. A 3 × 7 grid — morning prayer, night prayer, fast — then three small
@@ -10348,6 +10383,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function bindFileInputs(){ document.querySelectorAll('input[type=file][data-act]').forEach(el => { if (el.dataset.bound) return; el.dataset.bound = '1'; el.addEventListener('change', ev => { if (el.isConnected) return; if ((intake.applying || manualSaving) && el.dataset.act !== 'historyFile'){ el.value = ''; toast('A save is in progress. Choose the file again when it finishes.'); return; } onChange(ev); }); }); }
   function render(){
     renderSeq++;   // AW1
+    area = pageAlias(area);   // BG13
     applyDomainNames();   // AG1
     if(manualSaving){renderNotices();return;}
     // A background re-draw (intake) leaves a preserved draft's DOM alone; his own navigation re-draws and the stash puts the words back (V3.3, 1.8).
@@ -10391,7 +10427,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     try { const html = /^ov-/.test(area) ? overviewPage(area.slice(3)) : area === 'nourish' ? renderNourish() : area === 'care' ? renderCare() : area === 'hearth' ? renderHearth() : area === 'talents' ? renderTalents() : pageHTMLDraw(); return html.includes(DAY_EDITOR_TOKEN) ? html.replace(DAY_EDITOR_TOKEN, detailsInline ? '' : dayEditorHTML()) : html; } finally { crossSeq = seq0; crossPrefix = pre0; }
   }
   function pageHTMLDraw(){
-    const html = area === 'home' ? renderHome() : area === 'faith' ? renderFaith() : area === 'profile' ? profileCard() + '<div class="body-standing" data-parity="BB3-STANDING"><h2 class="sect-h">Standing · against men your age</h2>' + renderStand() + '</div>' : area === 'stand' ? renderStand() : area === 'journal' ? renderJournalPage() : area === 'fitness' ? renderData() : area === 'data' ? renderDataPage()+dataOlderTools() : area === 'plan' ? renderPlan() : area === 'log' ? renderLog()+logLinksCard()+actionLogCard()+duplicateActionCard()+waterCard()+mealLibraryCard() : area === 'progress' ? renderProgress() :   /* V3.6 P8: the reflection is on the page beside the review (one copy) */ area === 'collection' ? renderCollection()+scoringProposalCard() : area === 'lessons' ? renderLessons() : area === 'learn' ? renderLearn() : renderSettings();
+    const html = area === 'home' ? renderHome() : area === 'faith' ? renderFaith() : area === 'profile' ? profileCard().replace('@@STANDING@@', '<div class="body-standing" data-parity="BB3-STANDING"><h2 class="sect-h">Standing · against men your age</h2>' + renderStand() + '</div>') : area === 'stand' ? renderStand() : area === 'journal' ? renderJournalPage() : area === 'fitness' ? renderData() : area === 'data' ? renderDataPage()+dataOlderTools() : area === 'plan' ? renderPlan() : area === 'log' ? renderLog()+logLinksCard()+actionLogCard()+duplicateActionCard()+waterCard()+mealLibraryCard() : area === 'progress' ? renderProgress() :   /* V3.6 P8: the reflection is on the page beside the review (one copy) */ area === 'collection' ? renderCollection()+scoringProposalCard() : area === 'lessons' ? renderLessons() : area === 'learn' ? renderLearn() : renderSettings();
     return html+(PROGRESSION_LEARN[area]&&area!=='progress'?progressionLearnList(area):'');   // V3.6 P10: Progress has seven Learn chips
   }
   // What every draw does to #main after its HTML is in (the full draw and the quick draw share it)
@@ -10576,7 +10612,12 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   let pageHist = [], pageIdx = -1;   // BA8: the pages he visited, in order (not the days)
   function recordViewHistory(){if(restoringView)return;if(pageHist[pageIdx]!==area){pageHist=pageHist.slice(0,pageIdx+1);pageHist.push(area);if(pageHist.length>50)pageHist.shift();pageIdx=pageHist.length-1;}const next=viewState(),key=v=>JSON.stringify({...v,scroll:0});if(viewIndex<0){viewHistory=[next];viewIndex=0;}else if(key(next)!==key(viewHistory[viewIndex])){viewHistory=viewHistory.slice(0,viewIndex+1);viewHistory.push(next);viewIndex++;}}
   function restoreView(v){({area,day,weekSel,progStart,todayTab,logTab,planCanvas,planGroup,fitnessRange,fitnessAnchor,fitnessFrom,fitnessTo,collectionWeek}=v);if(v.questTab)questTab=v.questTab;if(v.questUmbrella!==undefined)questUmbrella=v.questUmbrella;panel=null;restoringView=true;try{render();}finally{restoringView=false;}window.scrollTo(0,v.scroll||0);focusFirst('#areaTitle');}
+  /* BG13 (his choice, Oct 9: "a group with one page is that page"): HQ's name opens Today; Hearth and Talents are one page each; Review opens Progress;
+     only Temple keeps an overview. Old links (an overview id, the back and forward list, a stored page) land on the new page. */
+  const NAV_GROUP_PAGE = {hq:'home', hearth:'hearth', talents:'talents', review:'progress'}, PAGE_ALIAS = {'ov-hq':'home', 'ov-hearth':'hearth', 'ov-talents':'talents', 'ov-review':'progress', stand:'profile'};
+  const pageAlias = a => PAGE_ALIAS[a] || a;
   function go(a){
+    a=pageAlias(a);
     if(a==='stand')a='profile';   // BB3: Growth (Standing) is part of Body now
     if(a==='collection'){progTabSet('collection');a='progress';}   // BB8: Collection is a Progress tab
     if(!resolveDraftNavigation())return;
@@ -11233,7 +11274,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       case 'shelfReset': { if (!confirm('Reset templates to your default set?\n\nChanges since you last set a default are replaced. Items already added to days stay.')) return; saveTemplates(st, tplCopy(templateDefaults(st)), 'Templates reset to your default.'); return; }
       case 'shelfAdd': { if (!shelfPicked.size || preview && false) return; const {result, list} = await addTemplatesToday(st, shelfPicked); if (!result.ok){ toast('Not added. ' + result.error); render(); return; } const streak = list.find(t => { const u = (S().prefs.templateUse || {})[t.id] || []; return [0,1,2].every(n => u.includes(addDays(day, -n))); }); shelfPicked.clear(); render(); toast('Added ' + list.map(t => t.name).join(', ') + ' to ' + medDate(day) + '.' + (streak ? ' ' + streak.name + ' three days running: make it daily from its Edit.' : '')); return; }
       case 'shelfDaily': { const t = templatesOf(st).find(x => x.id === btn.dataset.tpl); if (!t) return; const r = await makeDaily(st, t.name, t.group, t.items || []); if (!r.ok){ toast('Not made daily. ' + r.error); render(); return; } toast(t.name + ' is now daily from ' + medDate(day) + '.'); return; }
-      case 'navOverview': go('ov-' + btn.dataset.g); return;   // BB2
+      case 'wgProgram': { try { localStorage.setItem('health-tracker.wgProgram', wgProgramOn() ? '0' : '1'); } catch (_) {} render(); return; }   // BG5
+      case 'navOverview': go(NAV_GROUP_PAGE[btn.dataset.g] || 'ov-' + btn.dataset.g); return;   // BB2; BG13: a group with one page is that page, HQ's name opens Today
       case 'progTab': { const v = btn.dataset.v; progTabSet(v); if (area !== 'progress'){ go('progress'); if (v === 'year'){ const b = document.querySelector('#main .pg-tabs [data-v="year"]'); if (b) b.click(); } return; } setTimeout(() => render(), 0); return; }   // BB8: the Year view's own listener reads the same button first, so the draw waits a tick
       case 'navGroup': { const g = btn.dataset.g, grp = document.querySelector('.nav-grp[data-g="' + g + '"]'); if (!grp) return; const closed = !grp.classList.contains('closed'); grp.classList.toggle('closed', closed); btn.setAttribute('aria-expanded', String(!closed)); { const h = btn.closest('.nav-head'); if (h) h.setAttribute('aria-expanded', String(!closed)); } try { const set = new Set(JSON.parse(localStorage.getItem('ht-nav-closed') || '[]')); closed ? set.add(g) : set.delete(g); localStorage.setItem('ht-nav-closed', JSON.stringify([...set])); } catch (_) {} return; }
       case 'laundryPack': await laundryPack(seriesId); return;
