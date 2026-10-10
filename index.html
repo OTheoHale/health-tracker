@@ -1770,6 +1770,19 @@ body:not([data-area="faith"]) .ws-group.glass .cstrip{background:var(--pat-strip
 .g-groups-ed .g-ged.new{grid-template-columns:auto minmax(0,1fr) auto}
 .cp-grid{grid-template-columns:repeat(auto-fill,22px)!important}
 .g-groups-ed input,.g-groups-ed select{min-width:0}
+
+/* BB1: the sidebar groups: a larger name with Glow's drawn icon opens the group's overview; the chevron folds the group */
+.side .nav .nav-head.grp{margin:12px 6px 2px;padding:0;font-size:inherit;cursor:default;color:inherit}
+.side .nav .nav-head.grp::after{content:none}
+.side .nav .nav-gname{flex:1;display:flex;align-items:center;gap:9px;min-height:34px;height:34px;padding:0 8px;border:0;border-radius:10px;background:none;color:var(--ink);font-size:15.5px;font-weight:650;letter-spacing:.01em;cursor:pointer;text-align:left}
+.side .nav .nav-gname:hover,.side .nav .nav-gname[aria-current="page"]{background:rgba(255,255,255,.06)}
+.side .nav .nav-gname[aria-current="page"]{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--brass) 55%,transparent)}
+.nav-gi{width:24px;height:24px;flex:none}.nav-ge{font-size:19px;width:24px;text-align:center}
+.side .nav .nav-gchev{width:26px;height:26px;min-height:0;padding:0;border:0;border-radius:7px;background:none;color:var(--faint);font-size:11px;cursor:pointer;transition:transform .15s}
+.side .nav .nav-gchev[aria-expanded="false"]{transform:rotate(-90deg)}
+.side .nav .nav-grp[data-g]:empty{display:none}
+.app.siderail:not(.peeking) .side .nav-gname span,.app.siderail:not(.peeking) .side .nav-gchev{display:none}
+.ov-q{margin:0 0 12px;font-size:17px;color:var(--muted)}.ov-hero{display:flex;align-items:center;gap:12px;margin:6px 0 10px}.ov-pct{font-size:18px;font-weight:650}.ov-rows{display:grid;gap:4px}.ov-row{display:grid;grid-template-columns:22px minmax(0,1fr) 110px 34px;align-items:center;gap:8px;padding:6px 8px;border:0;border-radius:9px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}.ov-row:hover{background:rgba(255,255,255,.05)}.ov-dot{width:10px;height:10px;border-radius:50%;background:var(--category)}.ov-page{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;padding:10px 12px;margin:4px 0;border:1px solid var(--line);border-radius:12px;background:none;color:inherit;font:inherit;cursor:pointer;text-align:left}.ov-page small{color:var(--muted)}.ov-big{font-size:34px;font-weight:650;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.ov-big small{font-size:13px!important;font-weight:500;color:var(--muted);line-height:1.3}.ov-line{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid var(--line)}.ov-line small{color:var(--muted)}.ov-bars{display:flex;gap:10px;align-items:flex-end;height:96px}.ov-bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:3px}.ov-bar i{display:block;width:100%;max-width:36px;border-radius:6px 6px 2px 2px;background:var(--c-green,#79d6a9);min-height:3px}.ov-bar small{color:var(--muted);font-size:11px}.comp-rows{display:grid;gap:2px}.body-heroes>.mf-card{grid-column:span 2}.comp-row{display:grid;grid-template-columns:26px max-content minmax(0,1fr);align-items:baseline;gap:8px;padding:5px 0;border-top:1px solid var(--line)}.comp-row:first-child{border-top:0}.comp-e{font-size:17px}.comp-v{justify-self:end;white-space:nowrap;font-size:17px;font-variant-numeric:tabular-nums}.comp-v small{color:var(--muted);font-weight:500}.body-standing{margin-top:18px}.jik-journal summary{cursor:pointer;list-style:none;display:flex;gap:8px;align-items:center}   /* BB2, BB3, BB1 */
 </style>
 <link rel="stylesheet" href="body-view.css">
 <script type="module" src="model-viewer.min.js"></script>
@@ -1821,29 +1834,30 @@ addEventListener('load', () => {
   <aside class="side" id="appSide">
     <div class="logo" title="Glow"><button type="button" class="logo-btn" data-act="toggleSidebar" tabindex="-1" aria-label="Glow"><img class="logo-mark" src="glow-mark.webp" width="84" height="84" alt="" decoding="async"></button><span class="wordmark"><b>Glow</b><span class="logo-version" id="brandVersion"></span></span><button type="button" class="side-chev" id="sideChev" data-act="toggleSidebar" aria-controls="appSide" aria-expanded="true" aria-label="Collapse the sidebar" title="Collapse the sidebar" data-parity="V35-S4-01"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button></div>
     <nav class="nav" aria-label="Areas">
-      <!-- Fix Y1 (planner's default, his to change): the pages under three quiet headings; Data and Settings at the bottom -->
-      <div class="nav-head" role="button" tabindex="0" data-act="navGroup" data-g="daily" aria-expanded="true">Daily</div>
-      <div class="nav-grp" data-g="daily">
-        <button data-area="faith" id="navFaith"><i aria-hidden="true" style="--ic:#b69cf0">&#10016;</i>Faith</button>
-        <!-- AO1 (his request, Oct 8): Faith first, above Today; the app still opens on Today; its label follows the Domain name -->
+      <!-- BB1 (his pages plan, Oct 9): JIK first with no heading; then HQ, Temple, Hearth, Talents and Review, each a group whose name opens its overview and
+           whose chevron folds it (remembered); Lessons, Data and Settings under a divider. The icons are Glow's own drawings (lane C), emoji if one fails. -->
+      <button data-area="faith" id="navFaith"><i aria-hidden="true" style="--ic:#b69cf0">&#10016;</i>Faith</button>
+      <div class="nav-head grp" data-g="hq" aria-expanded="true"><button type="button" class="nav-gname" data-act="navOverview" data-g="hq" title="HQ overview"><img class="nav-gi" src="icons/hq-compass.svg" alt="" width="24" height="24" onerror="this.outerHTML='<span class=&quot;nav-ge&quot; aria-hidden=&quot;true&quot;>🧭</span>'"><span>HQ</span></button><button type="button" class="nav-gchev" data-act="navGroup" data-g="hq" aria-expanded="true" aria-label="Fold HQ">▾</button></div>
+      <div class="nav-grp" data-g="hq">
         <button data-area="home" aria-current="page"><i aria-hidden="true" style="--ic:#e0b458"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg></i>Today</button>
         <button data-area="plan"><i aria-hidden="true" style="--ic:#e8a06a"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22V3"/><path d="M5 4h12l-2.5 4L17 12H5z" fill="currentColor"/></svg></i>Quests</button>
         <button data-area="log" hidden><i aria-hidden="true" style="--ic:#9fd2a0"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="14" height="18" rx="2"/><path d="M8 8h6M8 12h6M8 16h3"/></svg></i>Log</button>
-        <button data-act="journalOpen" id="navJournal" aria-haspopup="dialog" aria-expanded="false"><i aria-hidden="true" style="--ic:#d9b8f0"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4a2 2 0 0 1 2-2h12v17H7a2 2 0 0 0-2 2z"/><path d="M5 21a2 2 0 0 0 2 2h12v-4"/><path d="M9 7h6M9 11h4"/></svg></i>Journal</button>
       </div>
-      <div class="nav-head" role="button" tabindex="0" data-act="navGroup" data-g="body" aria-expanded="true">Body</div>
-      <div class="nav-grp" data-g="body">
+      <div class="nav-head grp" data-g="temple" aria-expanded="true"><button type="button" class="nav-gname" data-act="navOverview" data-g="temple" title="Temple overview"><img class="nav-gi" src="icons/temple-columns.svg" alt="" width="24" height="24" onerror="this.outerHTML='<span class=&quot;nav-ge&quot; aria-hidden=&quot;true&quot;>🏛️</span>'"><span>Temple</span></button><button type="button" class="nav-gchev" data-act="navGroup" data-g="temple" aria-expanded="true" aria-label="Fold Temple">▾</button></div>
+      <div class="nav-grp" data-g="temple">
         <button data-area="profile"><i aria-hidden="true" style="--ic:#7fc8c0"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.5" r="4"/><path d="M4 21.5c.7-4.6 4-7.5 8-7.5s7.3 2.9 8 7.5z"/></svg></i>Body</button>
         <button data-area="fitness"><i aria-hidden="true" style="--ic:#e8a15c">&#9889;</i>Fitness</button>
-        <button data-area="stand"><i aria-hidden="true" style="--ic:#d9a441"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h4v-5h5v-5h5V5h4"/></svg></i>Growth</button>
       </div>
-      <div class="nav-head" role="button" tabindex="0" data-act="navGroup" data-g="review" aria-expanded="true">Review</div>
+      <div class="nav-head grp" data-g="hearth" aria-expanded="true"><button type="button" class="nav-gname" data-act="navOverview" data-g="hearth" title="Hearth overview"><img class="nav-gi" src="icons/hearth-fireplace.svg" alt="" width="24" height="24" onerror="this.outerHTML='<span class=&quot;nav-ge&quot; aria-hidden=&quot;true&quot;>🔥</span>'"><span>Hearth</span></button><button type="button" class="nav-gchev" data-act="navGroup" data-g="hearth" aria-expanded="true" aria-label="Fold Hearth">▾</button></div>
+      <div class="nav-grp" data-g="hearth"></div>
+      <div class="nav-head grp" data-g="talents" aria-expanded="true"><button type="button" class="nav-gname" data-act="navOverview" data-g="talents" title="Talents overview"><img class="nav-gi" src="icons/talents-coin.svg" alt="" width="24" height="24" onerror="this.outerHTML='<span class=&quot;nav-ge&quot; aria-hidden=&quot;true&quot;>🪙</span>'"><span>Talents</span></button><button type="button" class="nav-gchev" data-act="navGroup" data-g="talents" aria-expanded="true" aria-label="Fold Talents">▾</button></div>
+      <div class="nav-grp" data-g="talents"></div>
+      <div class="nav-head grp" data-g="review" aria-expanded="true"><button type="button" class="nav-gname" data-act="navOverview" data-g="review" title="Review overview"><img class="nav-gi" src="icons/review-scroll.svg" alt="" width="24" height="24" onerror="this.outerHTML='<span class=&quot;nav-ge&quot; aria-hidden=&quot;true&quot;>📜</span>'"><span>Review</span></button><button type="button" class="nav-gchev" data-act="navGroup" data-g="review" aria-expanded="true" aria-label="Fold Review">▾</button></div>
       <div class="nav-grp" data-g="review">
         <button data-area="progress"><i aria-hidden="true" style="--ic:#6fd0a0"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><path d="M4 16l5-5 4 3 7-8"/><path d="M15 6h5v5"/></svg></i>Progress</button>
-        <button data-area="collection"><i aria-hidden="true" class="nav-orb"></i>Collection</button>
-        <button data-area="lessons"><i aria-hidden="true" style="--ic:#f0d070"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.3 1 2.1h5c0-.8.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg></i>Lessons</button>
       </div>
       <span class="nav-sep" aria-hidden="true"></span>
+      <button data-area="lessons"><i aria-hidden="true" style="--ic:#f0d070"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.3 1 2.1h5c0-.8.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg></i>Lessons</button>
       <button data-area="data"><i aria-hidden="true" style="--ic:#6fb6e0"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></i>Data</button>
       <button data-area="settings"><i aria-hidden="true" style="--ic:#b8c4be"><svg class="gear" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></i>Settings</button>
     </nav>
@@ -2845,6 +2859,7 @@ addEventListener('load', () => {
     $('#notices').innerHTML = out.join('');
   }
   const TITLES = { journal:['Journal','A private place to set an intention, reflect and leave yourself feedback.'], learn:['Learn','What a measure means and how Glow works it out.'], home:['Today','A little structure. Room for the day you actually have.'], profile:['Body','Your body view, vitals and where you stand.'], stand:['Growth','How you compare with other men your age, and where effort moves a rung soonest.'], log:['Log','Food, movement and your daily check-in. What you enter here is self-reported; imported records are labelled by source.'], fitness:['Fitness','Trends, coverage and the evidence behind each insight.'], data:['Data','Sources, imports, matching and receipts.'], plan:['Quests','Routines, one-offs, and what you have chosen to take on.'], faith:['Faith','Your faith actions and goals, drawn from the same records as every other view.'], progress:['Progress','Day, week and longer — with the evidence behind every chart.'], collection:['Collection','Your claimed points, level and dated history.'], lessons:['Lessons','What you notice can shape the next update.'], settings:['Settings','Categories, goals, sources, preferences and your data.'] };
+  Object.assign(TITLES, {'ov-hq':['HQ','What do I do now, and what is on my plate?'], 'ov-temple':['Temple','Am I caring for the body God gave me?'], 'ov-hearth':['Hearth','Am I showing up for my people and my place?'], 'ov-talents':['Talents','Am I growing in my work and my play?'], 'ov-review':['Review','How am I trending?']});   // BB2
   const sourceStateLabel = x => x.state;
   function sourceDisplay(s){
     const id = String(s.id || '').toLowerCase(), name = String(s.name || '');
@@ -2961,6 +2976,7 @@ addEventListener('load', () => {
     { const t = $('#stoneToggle'); if (t){ const black = st.prefs.theme === 'black'; t.innerHTML = '<i class="swatch ' + (black ? 'verde' : 'black') + '" aria-hidden="true"></i>' + (black ? 'Speakeasy Verde' : 'Black Lacquer'); t.setAttribute('aria-label', 'Switch to ' + (black ? 'Speakeasy Verde' : 'Black Lacquer')); t.title = 'Switch the room'; } }
     { const rail = document.querySelector('.app').classList.contains('siderail'), c = $('#sideChev'); if (c){ c.setAttribute('aria-expanded', String(!rail)); c.setAttribute('aria-label', rail ? 'Expand the sidebar' : 'Collapse the sidebar'); c.title = rail ? 'Expand the sidebar' : 'Collapse the sidebar'; } }
     document.querySelectorAll('.nav button[data-area]').forEach(b => { if (b.dataset.area === area) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+    document.querySelectorAll('.nav .nav-gname').forEach(b => { if ('ov-' + b.dataset.g === area) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });   // BB2
     { const nj = document.getElementById('navJournal'); if (nj){ if (area === 'journal') nj.setAttribute('aria-current', 'page'); else nj.removeAttribute('aria-current'); } }   // V3.6 J1: the Journal is a page
     const nextCk = typeof nextCheckpoint === 'function' ? nextCheckpoint(st) : (st.prefs.checkpoint ? {name:'Checkpoint', date:st.prefs.checkpoint} : null);
     $('#ckDate').textContent = nextCk ? (nextCk.name && nextCk.name !== 'Checkpoint' ? nextCk.name + ' · ' : '') + parseYmd(nextCk.date).toLocaleDateString(undefined, { day:'numeric', month:'long', year:'numeric' }) : '—';
@@ -4533,11 +4549,23 @@ addEventListener('load', () => {
       mfRow('BODY-FAT', 'Body fat', fatW, fatW ? fatW.value.toFixed(1) + '<small>%</small>' : '', fatW ? (ftW ? GV.tone(ftW.tone === 'blue' ? 'tierBlue' : ftW.tone) : 'var(--ink)') : null, ftW ? ftW.word : '', fatLine) + differ('mf'));
     const hIn = Number(g.heightIn) || (p && p.heightCm ? p.heightCm / 2.54 : null), wB = w && BMW.to < asOf ? bodyReading(st, ['weight_body_mass','weight_&_body_mass'], fitdays, asOfW(BMW)) : w, bmi = wB && hIn ? (wB.value) / Math.pow(hIn * .0254, 2) : null, bmiBefore = wB ? sinceBefore('weight_body_mass', BMW) : null, bmiDelta = bmi !== null && bmiBefore ? bmi - bmiBefore.value / Math.pow(hIn * .0254, 2) : null, bmiB = bandsFor(st, 'bmi'), bk = bandKindOf(bmiB, bmi);   // a missing module never stops the page (review: Learn not loaded)
     const bmiCard = card('bmi-card', null, 'BMI', '📏', 'bmi', bmi !== null ? '<div class="k-big" data-bmi="' + bmi.toFixed(1) + '"' + (bk ? ' style="color:var(--c-' + (bk === 'ideal' ? 'green' : bk === 'close' ? 'yellow' : 'red') + ')"' : '') + '>' + bmi.toFixed(1) + '</div>' + bandStrip(bmiB, bmi) + (bmi > 25 ? '<p class="bmi-extra" data-spare="bmi-to-ideal" data-source="the latest weigh-in and your height; BMI 25, the top of the reference range">−' + u.lb((wB.value - 25 * Math.pow(hIn * .0254, 2)) / .45359237).toFixed(1) + ' ' + esc(u.mass) + ' to BMI 25</p>' : '') + (bmiDelta !== null && Math.abs(bmiDelta) >= .05 ? '<div class="body-hero-line">' + sinceChip(BMW, bmiDelta, Math.abs(bmiDelta).toFixed(1), true) + '</div>' : '')   /* Fix O: one line; the source is in the (i) */ : '<p class="hint keep">Needs a weigh-in and your height (Body → Goals).</p>');   /* V3.7 U6 */
+    /* BB3 (his notes, Oct 9: "For Composition lets give fat, bone, BMI etc ... emojis, so it goes Emoji Fat - lb (%) ... and one line for each"; "water should also
+       have percentage"): Composition is one card, one line per measure led by its emoji, the weight in his unit and its share of his weight */
+    const exF = k => fitdays && fitdays.extras && fitdays.extras[k] && Number.isFinite(fitdays.extras[k].value) ? fitdays.extras[k].value : null, wKg = w && Number.isFinite(w.value) ? w.value : null;
+    const share = kg => wKg && Number.isFinite(kg) ? ' <small>(' + (Math.round(kg / wKg * 1000) / 10).toFixed(1) + '%)</small>' : '', mass = kg => u.lb(kg / .45359237).toFixed(1) + ' <small>' + esc(u.mass) + '</small>';
+    const fatKg = fatW && wKg ? wKg * fatW.value / 100 : null, boneKg = exF('boneMass') !== null ? exF('boneMass') * .45359237 : null, waterKg = exF('waterWeight') !== null ? exF('waterWeight') * .45359237 : null, waterPct = exF('bodyWater');
+    const cRow = (emoji, name, val, extra, tone2, open) => '<div class="comp-row"' + (open ? ' data-metric-open="' + open + '"' : '') + '><span class="comp-e" aria-hidden="true">' + emoji + '</span><span class="comp-n">' + name + '</span><b class="comp-v"' + (tone2 ? ' style="color:' + tone2 + '"' : '') + '>' + (val === null ? '—' : val) + (val === null ? '' : extra || '') + '</b></div>';
+    const compCard = card('mf-card', null, 'Composition', '🧍', null, '<div class="comp-rows" data-parity="BB3-COMP">' +
+      cRow('🧈', 'Fat', fatKg !== null ? mass(fatKg) : null, fatW ? ' <small>(' + fatW.value.toFixed(1) + '%)</small>' : '', fatW && ftW ? GV.tone(ftW.tone === 'blue' ? 'tierBlue' : ftW.tone) : null, 'fat') +
+      cRow('💪', 'Muscle', leanW ? mass(leanW.value) : null, leanW ? share(leanW.value) : '', null, 'muscle') +
+      cRow('🦴', 'Bone', boneKg !== null ? mass(boneKg) : null, boneKg !== null ? share(boneKg) : '', null, null) +
+      cRow('💧', 'Water', waterKg !== null ? mass(waterKg) : null, waterKg !== null ? (Number.isFinite(waterPct) ? ' <small>(' + waterPct.toFixed(1) + '%)</small>' : share(waterKg)) : '', null, null) +
+      cRow('📏', 'BMI', bmi !== null ? bmi.toFixed(1) : null, '', bk ? 'var(--c-' + (bk === 'ideal' ? 'green' : bk === 'close' ? 'yellow' : 'red') + ')' : null, 'bmi') + '</div>' + (fatLine || leanLine ? '<div class="comp-lines">' + fatLine + '</div>' : ''));
     const hA = SCORES_ON ? healthAgeOf(st) : null, now = hA && hA.now, fitA = hA && hA.fitness, noBirth = !p || p.age === null;
     const ageVal = (t, v, which) => '<button type="button" class="age-row" data-act="growthAge" data-age="' + which + '" aria-label="' + esc('Open ' + t + ' in Growth') + '"><span>' + t + '</span><b>' + (v === null || v === undefined ? '—' : esc(String(v))) + '<small>' + (v === null || v === undefined ? '' : 'yr') + '</small></b></button>';
     const ageCard = card('age-card', null, 'Age', '🧬', null, noBirth ? '<p class="hint keep gr-empty" data-age-empty>Enter your birth year in Body → Goals.</p>' : ageVal('Health Age', now && now.value !== null ? now.value : null, 'health') + ageVal('Fitness Age', fitA && fitA.value !== null ? fitA.label : null, 'fitness') + '');
     const hc = (html, id) => withChip(html, 'profile', id);   // Fix C3: the hero cards that read a window carry the chips
-    return '<div class="k-grid body-heroes" data-parity="V37-B3-01">' + weightGoal + hc(muscleFat, 'musclefat') + hc(bmiCard, 'bmi') + fixedCard(ageCard, 'latest estimate') + '</div>';   // Fix V1: Age has no window of its own
+    return '<div class="k-grid body-heroes" data-parity="V37-B3-01">' + weightGoal + hc(compCard, 'musclefat') + '</div>';   // BB3: Composition replaces Muscle & Fat, BMI and Age (Health Age is in Standing below; VO₂ Age goes to Fitness)
   }
   function bodyOverview(st){
     if (!SCORES_ON) return '';
@@ -6543,12 +6571,73 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     for (let d = from; d <= to && d <= today; d = addDays(d, 1)){ const rows = progressRows(st, d), tt = tallyDay(rows), due = PROG_STATES.reduce((n, [k]) => n + tt[k], 0); for (const [k] of PROG_STATES) t[k] += tt[k]; t.due += due; t.days.push({d, ...tt, due}); }
     t.done = t.normal + t.minimum; t.pct = t.due ? 100 * (t.done + t.partial / 2) / t.due : null; return t;
   }
+  /* BB2 (his pages plan, Oct 9): a group's overview: the question it answers, the group's grade and each Focus's grade on the same filter as Today, its
+     pages with their questions, and the few visuals that say the most from its pages. */
+  const GROUP_PLAN = {
+    hq:{name:'HQ', q:'What do I do now, and what is on my plate?', domains:null, pages:[['home','What do I do now?'],['plan','What is on my plate?']]},
+    temple:{name:'Temple', q:'Am I caring for the body God gave me?', domains:['health'], pages:[['profile','How is my body changing?'],['fitness','How fit am I, and how hard am I working?']]},
+    hearth:{name:'Hearth', q:'Am I showing up for my people and my place?', domains:['family','home','social'], pages:[]},
+    talents:{name:'Talents', q:'Am I growing in my work and my play?', domains:['career','hobbies'], pages:[]},
+    review:{name:'Review', q:'How am I trending?', domains:null, pages:[['progress','How did my days add up?']]}
+  };
+  function overviewPage(g){
+    const P = GROUP_PLAN[g]; if (!P) return '';
+    const st = S(), r = gradeNow(st), umbs = r ? r.umbrellas.filter(u => u.included !== false && (!P.domains || P.domains.includes(u.id))) : [];
+    const live = umbs.filter(u => u.own !== null && u.importance > 0), wsum = live.reduce((n, u) => n + u.importance, 0), own = !P.domains ? (r ? r.overall : null) : wsum ? live.reduce((n, u) => n + u.own * u.importance, 0) / wsum : null;
+    const pct = v => v === null || v === undefined ? '—' : Math.round(v) + '%', tone = v => gradeTone(v);
+    const focusRows = umbs.flatMap(u => u.groups.filter(x => !x.measured && x.score !== null && x.included !== false).map(x => ({u, x})));
+    const grades = '<section class="k-card ov-grades" data-parity="BB2-GRADES"><div class="k-head"><span aria-hidden="true">🏅</span><span class="k-title">' + esc(P.name) + ' Grade</span>' + filtChipHTML('home', 'overall') + '</div>' +
+      (() => { /* Fix P6's rule: a day that is not over is not an F; on the open day the card says whether what has come due is on pace */
+        if (r && gradeOpenDay()){ let rd = 0, rq = 0; for (const u of umbs){ const tl = gradeTally(st, r, u); rd += tl.required.done; rq += tl.required.of; } const w = gradePaceWord(rd, rq);
+          if (w) return '<div class="ov-hero"><b class="g-letter big g-pace" style="color:' + paceTone(w) + '">' + w + '</b><span class="ov-pct">' + rd + ' of ' + rq + ' so far</span></div>'; }
+        return '<div class="ov-hero"><b class="g-letter big" style="color:' + tone(own) + '">' + (rankLetter(own) || '–') + '</b><span class="ov-pct">' + pct(own) + '</span>' + gradeBar(own, 12) + '</div>'; })() +
+      (!P.domains ? '<div class="ov-rows">' + umbs.filter(u => u.own !== null).map(u => '<button type="button" class="ov-row" data-act="gradeOpen" data-u="' + u.id + '"><span aria-hidden="true">' + u.emoji + '</span><b>' + esc(u.name) + '</b>' + gradeBar(u.displayed, 8) + '<span style="color:' + tone(u.displayed) + '">' + (rankLetter(u.displayed) || '–') + '</span></button>').join('') + '</div>'
+        : '<div class="ov-rows">' + (focusRows.length ? focusRows.map(({u, x}) => '<button type="button" class="ov-row" data-act="gradeOpen" data-u="' + u.id + '" style="--category:' + categoryColor(x.gid) + '"><span class="ov-dot" aria-hidden="true"></span><b>' + esc(x.name) + '</b>' + gradeBar(x.score, 8) + '<span style="color:' + tone(x.score) + '">' + (rankLetter(x.score) || '–') + '</span></button>').join('') : '<p class="hint keep">Nothing graded in this window yet.</p>') + '</div>') + '</section>';
+    const pages = P.pages.length ? '<section class="k-card ov-pages"><div class="k-head"><span class="k-title">Pages</span></div>' + P.pages.map(([a, q]) => '<button type="button" class="ov-page" data-area="' + a + '"><b>' + esc(pageTitle(a)) + '</b><small>' + esc(q) + '</small></button>').join('') + '</section>' : '';
+    return '<div class="ov-page-wrap" data-parity="BB2-OVERVIEW" data-group="' + g + '"><p class="ov-q">' + esc(P.q) + '</p><div class="cols2 ov-cols"><div>' + grades + pages + '</div><div>' + overviewVisuals(g, st, umbs) + '</div></div></div>';
+  }
+  function overviewVisuals(g, st, umbs){
+    const card = (t, e, body) => '<section class="k-card ov-vis"><div class="k-head"><span aria-hidden="true">' + e + '</span><span class="k-title">' + t + '</span></div>' + body + '</section>';
+    const t = todayYmd();
+    if (g === 'temple'){
+      const b = SCORES_ON ? bodyScores(st, t) : null, rd = b && b.readiness, wW = {from:addDays(t, -29), to:t, day:false, per:'custom'}, sm = NetEnergy.summary(st, addDays(t, -6), t);
+      return card('Readiness', '💚', rd && rd.value !== null ? '<div class="ov-big" style="color:' + GV.tone(rd.colour) + '">' + rd.value + '<small>' + esc(rd.label || '') + '</small></div>' : '<p class="hint keep">No reading yet</p>') +
+        card('Weight, 30 days', '⚖️', weightPlanChart(st, wW, {h:120}) || '<p class="hint keep">No weigh-in in 30 days</p>') +
+        card('Net Energy, 7 days', '🔥', sm.shown ? '<div class="ov-big" style="color:' + NE.colour(sm.shownAvg) + '">' + NE.fmt(sm.shownAvg) + '<small>kcal a day · ' + sm.shown + ' of ' + sm.of + ' days' + (sm.noFood ? ' · ' + sm.noFood + ' with no food logged' : '') + '</small></div>' : '<p class="hint keep">No energy days yet</p>');
+    }
+    if (g === 'hearth'){
+      const nd = nextDateItems(st, true), wf = weekWindow(t), home = umbs.find(u => u.id === 'home');
+      const homeWeek = (() => { if (!home) return null; let done = 0, due = 0; for (let d = wf.from; d <= t; d = addDays(d, 1)) for (const r of onDayRows(st, d)) if (gradeGroupUmbrella(st, r.group) === 'home' && (r.status || dueOn(st, r, d))){ due++; if (r.status === 'done') done++; } return {done, due}; })();
+      return card('Next dates', '📅', nd.length ? nd.map(x => '<div class="ov-line"><b>' + esc(x.name) + '</b><small>' + esc(x.date ? (x.happened ? 'Done ' : 'Was ') + medDate(x.date) : 'No date yet') + '</small></div>').join('') + '<button type="button" class="link" data-act="go" data-area="plan">Set them in Quests</button>' : '<p class="hint keep">Every date is set.</p>') +
+        card('Chores this week', '🧹', homeWeek && homeWeek.due ? '<div class="ov-big">' + homeWeek.done + '<small>of ' + homeWeek.due + ' done since ' + esc(medDate(wf.from)) + '</small></div>' + gradeBar(100 * homeWeek.done / homeWeek.due, 10) : '<p class="hint keep">Nothing due yet this week.</p>');
+    }
+    if (g === 'talents'){
+      const weeks = [3, 2, 1, 0].map(k => { const a = addDays(weekWindow(t).from, -7 * k); let n = 0; for (let d = a; d <= addDays(a, 6) && d <= t; d = addDays(d, 1)) for (const r of flatPlanFor(st, d)) if (r.status === 'done' && /job|appl/i.test(r.name || '') && gradeGroupUmbrella(st, r.group) === 'career') n++; return {a, n}; });
+      const mentors = (st.groups || []).filter(x => /mentor/i.test(x.name || '')).flatMap(x => (st.series || []).filter(s => !s.archivedAt && versionFor(s, t) && (versionFor(s, t).category === x.id || s.category === x.id)).map(s => versionFor(s, t).name));
+      return card('Applications a week', '📨', '<div class="ov-bars">' + weeks.map(w => '<div class="ov-bar"><i style="height:' + Math.min(100, w.n * 20) + '%"></i><b>' + w.n + '</b><small>' + esc(monthDay(w.a)) + '</small></div>').join('') + '</div><p class="hint keep">Job items checked off under Career, by week.</p>') +
+        card('Mentors', '🧭', mentors.length ? mentors.map(n => '<div class="ov-line"><b>' + esc(n) + '</b></div>').join('') : '<p class="hint keep">No mentor items yet.</p>');
+    }
+    if (g === 'review'){
+      const wf = weekWindow(t), tt = progTally(st, wf.from, t), last = progTally(st, addDays(wf.from, -7), addDays(wf.from, -1));
+      return card('This week', '📈', '<div class="ov-big">' + (tt.pct === null ? '—' : Math.round(tt.pct) + '%') + '<small>' + tt.done + ' of ' + tt.due + ' done · last week ' + (last.pct === null ? '—' : Math.round(last.pct) + '%') + '</small></div>') +
+        card('Year', '🗓️', '<button type="button" class="k-btn" data-act="progTab" data-v="year" data-yv="tab">Open the Year</button>') + card('Collection', '🏆', '<button type="button" class="k-btn" data-act="progTab" data-v="collection" data-yv="tab">Open the Collection</button>');
+    }
+    // HQ: today in one look
+    const rows = onDayRows(st, t), asked = rows.filter(r => r.status || dueOn(st, r, t)), done = rows.filter(r => r.status === 'done').length;
+    return card('Today so far', '☀️', '<div class="ov-big">' + done + '<small>of ' + Math.max(asked.length, done) + ' done</small></div>' + gradeBar(asked.length ? 100 * done / asked.length : 0, 10)) + card('Up next', '➡️', (() => { const nx = rows.filter(r => !r.status && dueOn(st, r, t)).slice(0, 4); return nx.length ? nx.map(r => '<div class="ov-line"><b>' + esc(r.name) + '</b><small>' + esc(groupName(r.group)) + '</small></div>').join('') : '<p class="hint keep">Everything due is done.</p>'; })());
+  }
+  /* BB8: Progress has three tabs, Grades, Year (year-view.js, lane B) and Collection; the Year tab is driven through year-view.js's own data-yv switch */
+  let progTabV = (() => { try { return localStorage.getItem('health-tracker.progTab') || 'grades'; } catch (_) { return 'grades'; } })();
+  function progTabSet(v){ progTabV = ['grades', 'year', 'collection'].includes(v) ? v : 'grades'; try { localStorage.setItem('health-tracker.progTab', progTabV); if (progTabV === 'year') localStorage.setItem('health-tracker.progress.tab', 'year'); } catch (_) {} }
+  const progTabsHTML = on => '<div class="yv-tabs pg-tabs" role="tablist" aria-label="Progress views" data-parity="BB8-TABS">' + [['grades', 'Grades'], ['year', 'Year'], ['collection', 'Collection']].map(([v, l]) => '<button type="button" role="tab" class="k-chip yv-tab" aria-selected="' + (on === v) + '" data-act="progTab" data-yv="tab" data-v="' + v + '">' + l + '</button>').join('') + '</div>';
   function renderProgress(){
     const yv = typeof YearView !== 'undefined' ? YearView.hook({S, scoreIndex, sleepNights, stepsGoal, scorePerson, gradeTone, render, on:SCORES_ON}) : null;   // AU2: the Year tab (year-view.js)
-    if (yv && yv.html) return yv.html;
+    const pTab = yv && yv.html ? 'year' : progTabV === 'collection' ? 'collection' : 'grades';
+    if (yv && yv.html) return yv.html.replace(/<div class="yv-tabs"[\s\S]*?<\/div>/, progTabsHTML('year'));   // BB8
+    if (pTab === 'collection') return '<div class="pg-head">' + progTabsHTML('collection') + '</div>' + renderCollection() + scoringProposalCard();   // BB8: Collection is a tab
     const st = S(), W = progWindow(st, 'practice'), MW = progWindow(st, 'momentum'), t = progTally(st, W.from, W.to), prev = progTally(st, addDays(W.from, -W.len), addDays(W.from, -1));
     // P1: the frame
-    const head = '<div class="pg-head" data-parity="V36-PROGRESS-P01">' + (yv ? yv.tabs : '') + filtPageHTML('progress') + '</div>';
+    const head = '<div class="pg-head" data-parity="V36-PROGRESS-P01">' + progTabsHTML('grades') + filtPageHTML('progress') + '</div>';
     // P2: the practice hero: percent, done of due, a bar a day, the five states, the period's own comparison and the week in words
     const share = x => x.due ? (x.normal + x.minimum + x.partial / 2) / x.due : null, weekAgo = d => (t.days.find(x => x.d === addDays(d, -7)) || null);
     /* Fix AB2: at Day the bars are this week's seven days (the selected day outlined), as Today's This Week card */
@@ -7577,7 +7666,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   }
   /* ---------- Settings ---------- */
   // Number keys follow the sidebar, so reordering it can never leave the keyboard map behind. Lessons has no number.
-  try { for (const g of JSON.parse(localStorage.getItem('ht-nav-closed') || '[]')){ const grp = document.querySelector('.nav-grp[data-g="' + g + '"]'), h = document.querySelector('.nav-head[data-g="' + g + '"]'); if (grp) grp.classList.add('closed'); if (h) h.setAttribute('aria-expanded', 'false'); } } catch (_) {}   // Fix Y1: folded groups are remembered per viewer
+  try { for (const g of JSON.parse(localStorage.getItem('ht-nav-closed') || '[]')){ const grp = document.querySelector('.nav-grp[data-g="' + g + '"]'), h = document.querySelector('.nav-head[data-g="' + g + '"]'); if (grp) grp.classList.add('closed'); if (h){ h.setAttribute('aria-expanded', 'false'); const c = h.querySelector('.nav-gchev'); if (c) c.setAttribute('aria-expanded', 'false'); } } } catch (_) {}   // Fix Y1: folded groups are remembered per viewer
   document.addEventListener('keydown', e => { const h = e.target && e.target.closest && e.target.closest('.nav-head'); if (h && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); h.click(); } });
   function keyAreas(){ return [...document.querySelectorAll('.nav button[data-area]')].filter(b => !b.hidden).map(b => b.dataset.area).filter(a => a !== 'lessons'); }   // V4 polish: a hidden page (Log) takes no number
 
@@ -9944,8 +10033,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const opts = { groupId:'faith' };
     const nav = '<div class="daynav"><button class="nav-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b>' + esc(longDate(day)) + '</b><button class="nav-btn" data-act="step" data-n="1" aria-label="Next day">›</button>' +
       (day !== todayYmd() ? '<button class="link" data-act="jumpToday">Back to today</button>' : '') + '</div>';
-    // The journal left this page for its own panel (the sidebar's Journal); today's entry shows as one line here.
-    return '<div class="nave-head">' + faithHeadLine(day).replace('<div class="info-pop" id="info-ec-calendar" hidden role="note"><p class="hint"></p></div>', '<div class="info-pop ec-info" id="info-ec-calendar" hidden role="note">' + (typeof EotcCalendar === 'undefined' ? '' : faithCalendarInfo()) + '</div>') + nav + '</div><div class="cols2 faith-cols">' + faithWeekCard(day) + '<div class="faith-side">' + wsActivities(opts) + faithJournalLine(day) + '</div></div>';
+    // BB1: the Journal is a module of JIK (its sidebar entry is gone): a folded card that opens the Journal
+    const jmod = '<details class="k-card jik-journal" data-parity="BB1-JOURNAL"' + (foldPref('jik-journal', false) ? ' open' : '') + ' data-fold="jik-journal"><summary><span aria-hidden="true">📖</span> <b>Journal</b></summary><div class="acts"><button class="save" data-act="journalOpen">Write today</button><button class="link" data-act="go" data-area="journal">All entries</button></div></details>';
+    return '<div class="nave-head">' + faithHeadLine(day).replace('<div class="info-pop" id="info-ec-calendar" hidden role="note"><p class="hint"></p></div>', '<div class="info-pop ec-info" id="info-ec-calendar" hidden role="note">' + (typeof EotcCalendar === 'undefined' ? '' : faithCalendarInfo()) + '</div>') + nav + '</div><div class="cols2 faith-cols">' + faithWeekCard(day) + '<div class="faith-side">' + wsActivities(opts) + faithJournalLine(day) + jmod + '</div></div>';
   }
   /* Faith This Week (Mintay, 2026-09-24, Option A): one card instead of rings built for cardio and a
      rail of wordy goal cards. A 3 × 7 grid — morning prayer, night prayer, fast — then three small
@@ -10170,10 +10260,10 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     // kept page or a quick draw swaps nothing; the rail and drawer keep their own running gx ids, so no id is ever shared in the window
     const seq0 = crossSeq, pre0 = crossPrefix; crossSeq = 0; crossPrefix = 'gm';
     detailsInline = false;
-    try { const html = pageHTMLDraw(); return html.includes(DAY_EDITOR_TOKEN) ? html.replace(DAY_EDITOR_TOKEN, detailsInline ? '' : dayEditorHTML()) : html; } finally { crossSeq = seq0; crossPrefix = pre0; }
+    try { const html = /^ov-/.test(area) ? overviewPage(area.slice(3)) : pageHTMLDraw(); return html.includes(DAY_EDITOR_TOKEN) ? html.replace(DAY_EDITOR_TOKEN, detailsInline ? '' : dayEditorHTML()) : html; } finally { crossSeq = seq0; crossPrefix = pre0; }
   }
   function pageHTMLDraw(){
-    const html = area === 'home' ? renderHome() : area === 'faith' ? renderFaith() : area === 'profile' ? profileCard() : area === 'stand' ? renderStand() : area === 'journal' ? renderJournalPage() : area === 'fitness' ? renderData() : area === 'data' ? renderDataPage()+dataOlderTools() : area === 'plan' ? renderPlan() : area === 'log' ? renderLog()+logLinksCard()+actionLogCard()+duplicateActionCard()+waterCard()+mealLibraryCard() : area === 'progress' ? renderProgress() :   /* V3.6 P8: the reflection is on the page beside the review (one copy) */ area === 'collection' ? renderCollection()+scoringProposalCard() : area === 'lessons' ? renderLessons() : area === 'learn' ? renderLearn() : renderSettings();
+    const html = area === 'home' ? renderHome() : area === 'faith' ? renderFaith() : area === 'profile' ? profileCard() + '<div class="body-standing" data-parity="BB3-STANDING"><h2 class="sect-h">Standing · against men your age</h2>' + renderStand() + '</div>' : area === 'stand' ? renderStand() : area === 'journal' ? renderJournalPage() : area === 'fitness' ? renderData() : area === 'data' ? renderDataPage()+dataOlderTools() : area === 'plan' ? renderPlan() : area === 'log' ? renderLog()+logLinksCard()+actionLogCard()+duplicateActionCard()+waterCard()+mealLibraryCard() : area === 'progress' ? renderProgress() :   /* V3.6 P8: the reflection is on the page beside the review (one copy) */ area === 'collection' ? renderCollection()+scoringProposalCard() : area === 'lessons' ? renderLessons() : area === 'learn' ? renderLearn() : renderSettings();
     return html+(PROGRESSION_LEARN[area]&&area!=='progress'?progressionLearnList(area):'');   // V3.6 P10: Progress has seven Learn chips
   }
   // What every draw does to #main after its HTML is in (the full draw and the quick draw share it)
@@ -10346,6 +10436,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function recordViewHistory(){if(restoringView)return;if(pageHist[pageIdx]!==area){pageHist=pageHist.slice(0,pageIdx+1);pageHist.push(area);if(pageHist.length>50)pageHist.shift();pageIdx=pageHist.length-1;}const next=viewState(),key=v=>JSON.stringify({...v,scroll:0});if(viewIndex<0){viewHistory=[next];viewIndex=0;}else if(key(next)!==key(viewHistory[viewIndex])){viewHistory=viewHistory.slice(0,viewIndex+1);viewHistory.push(next);viewIndex++;}}
   function restoreView(v){({area,day,weekSel,progStart,todayTab,logTab,planCanvas,planGroup,fitnessRange,fitnessAnchor,fitnessFrom,fitnessTo,collectionWeek}=v);if(v.questTab)questTab=v.questTab;if(v.questUmbrella!==undefined)questUmbrella=v.questUmbrella;panel=null;restoringView=true;try{render();}finally{restoringView=false;}window.scrollTo(0,v.scroll||0);focusFirst('#areaTitle');}
   function go(a){
+    if(a==='stand')a='profile';   // BB3: Growth (Standing) is part of Body now
+    if(a==='collection'){progTabSet('collection');a='progress';}   // BB8: Collection is a Progress tab
     if(!resolveDraftNavigation())return;
     autosaveFlush();
     if(viewIndex>=0)viewHistory[viewIndex].scroll=window.scrollY;
@@ -11000,7 +11092,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       case 'shelfReset': { if (!confirm('Reset templates to your default set?\n\nChanges since you last set a default are replaced. Items already added to days stay.')) return; saveTemplates(st, tplCopy(templateDefaults(st)), 'Templates reset to your default.'); return; }
       case 'shelfAdd': { if (!shelfPicked.size || preview && false) return; const {result, list} = await addTemplatesToday(st, shelfPicked); if (!result.ok){ toast('Not added. ' + result.error); render(); return; } const streak = list.find(t => { const u = (S().prefs.templateUse || {})[t.id] || []; return [0,1,2].every(n => u.includes(addDays(day, -n))); }); shelfPicked.clear(); render(); toast('Added ' + list.map(t => t.name).join(', ') + ' to ' + medDate(day) + '.' + (streak ? ' ' + streak.name + ' three days running: make it daily from its Edit.' : '')); return; }
       case 'shelfDaily': { const t = templatesOf(st).find(x => x.id === btn.dataset.tpl); if (!t) return; const r = await makeDaily(st, t.name, t.group, t.items || []); if (!r.ok){ toast('Not made daily. ' + r.error); render(); return; } toast(t.name + ' is now daily from ' + medDate(day) + '.'); return; }
-      case 'navGroup': { const g = btn.dataset.g, grp = document.querySelector('.nav-grp[data-g="' + g + '"]'); if (!grp) return; const closed = !grp.classList.contains('closed'); grp.classList.toggle('closed', closed); btn.setAttribute('aria-expanded', String(!closed)); try { const set = new Set(JSON.parse(localStorage.getItem('ht-nav-closed') || '[]')); closed ? set.add(g) : set.delete(g); localStorage.setItem('ht-nav-closed', JSON.stringify([...set])); } catch (_) {} return; }
+      case 'navOverview': go('ov-' + btn.dataset.g); return;   // BB2
+      case 'progTab': { const v = btn.dataset.v; progTabSet(v); if (area !== 'progress'){ go('progress'); if (v === 'year'){ const b = document.querySelector('#main .pg-tabs [data-v="year"]'); if (b) b.click(); } return; } setTimeout(() => render(), 0); return; }   // BB8: the Year view's own listener reads the same button first, so the draw waits a tick
+      case 'navGroup': { const g = btn.dataset.g, grp = document.querySelector('.nav-grp[data-g="' + g + '"]'); if (!grp) return; const closed = !grp.classList.contains('closed'); grp.classList.toggle('closed', closed); btn.setAttribute('aria-expanded', String(!closed)); { const h = btn.closest('.nav-head'); if (h) h.setAttribute('aria-expanded', String(!closed)); } try { const set = new Set(JSON.parse(localStorage.getItem('ht-nav-closed') || '[]')); closed ? set.add(g) : set.delete(g); localStorage.setItem('ht-nav-closed', JSON.stringify([...set])); } catch (_) {} return; }
       case 'laundryPack': await laundryPack(seriesId); return;
       case 'laundryLoad': await laundryLoad(seriesId); return;
       case 'wsMakeDaily': { const row = findPlanRow(st, seriesId, date); if (!row){ toast('This item is not on this day.'); return; } const tree = x => ({name:x.name, items:(x.children || []).map(tree)}); const r = await makeDaily(st, row.name, row.group || row.category, (row.children || []).map(tree)); if (!r.ok){ toast('Not made daily. ' + r.error); render(); return; } toast(row.name + ' is now daily from ' + medDate(day) + '.'); return; }
