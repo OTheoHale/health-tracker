@@ -1841,6 +1841,27 @@ details[data-feedback-id]:has(>summary>.card-feedback.in-summary){padding-bottom
 .ctx-f{display:grid;gap:4px}.ctx-f>span{font-size:12px;color:var(--muted)}.ctx-f input{min-height:32px}.ctx-f small{color:var(--faint);font-size:11px}
 .ctx-sw{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}.ctx-sw .sw{width:100%;height:24px;border-radius:7px;border:1px solid rgba(255,255,255,.12);cursor:pointer}.ctx-sw .sw[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:1px}
 .ctx-acts{display:flex;justify-content:space-between;gap:8px;margin-top:4px;font-size:12.5px}
+label.ctx-f:has(.emoji-btn){grid-template-columns:auto 1fr auto;align-items:center}label.ctx-f:has(.emoji-btn)>span{grid-column:1/-1}
+/* BH1: the pop-out sheet for one Domain, Focus or sidebar group; a bottom sheet under 700 px (BH6f) */
+dialog.ss-wrap{position:fixed;inset:0;z-index:90;width:auto;height:auto;max-width:none;max-height:none;margin:0;padding:24px 16px;border:0;background:none;color:var(--ink);display:flex;align-items:center;justify-content:center}dialog.ss-wrap:not([open]){display:none}
+.ss-back{position:absolute;inset:0;background:rgba(0,0,0,.42);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.ss{position:relative;width:min(560px,100%);max-height:min(88vh,860px);overflow-y:auto;overscroll-behavior:contain;padding:16px 18px 14px;border:1px solid var(--line-strong,var(--line));border-radius:18px;background:var(--panel-2,#16211b);box-shadow:0 24px 64px rgba(0,0,0,.55);display:grid;gap:14px;align-content:start}
+.ss-head{display:flex;align-items:flex-start;gap:10px}.ss-head>div{flex:1;min-width:0}.ss-head small{display:block;color:var(--faint);font-size:12px}.ss-head h2{margin:1px 0 0;font-size:20px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ss-prev{position:relative;display:flex;align-items:center;gap:12px;min-height:58px;padding:10px 14px 10px 20px;border-radius:13px;border:1px solid rgba(255,255,255,.08);overflow:hidden}.ss-prev b{display:block;font-size:16px}.ss-prev small{display:block;font-size:11.5px;opacity:.8}
+.ss-strip{position:absolute;left:0;top:0;bottom:0;width:7px}.ss-dots{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}.ss-dots i{width:14px;height:14px;border-radius:4px;border:1px solid rgba(255,255,255,.18)}
+.ss-nav{background:var(--sunk,rgba(0,0,0,.2));padding-left:14px}.ss-navi{width:28px;display:inline-flex;justify-content:center;font-size:20px}.ss-navi img{width:24px;height:24px;display:block}.ss-nav small{margin-left:auto;color:var(--faint)}
+.ss-body{display:grid;gap:14px}.ss-f{display:grid;gap:6px;min-width:0}.ss-lab{font-size:12px;color:var(--muted)}.ss-f input[type=text],.ss-f select{min-height:34px}.ss-note{font-size:11.5px;color:var(--faint)}
+.ss-two{display:grid;grid-template-columns:1fr 1.4fr;gap:10px}.ss-line{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px}.ss-line>.ss-f{flex:1}.ss-line .g-hide{min-height:34px;display:inline-flex;align-items:center;gap:6px}.ss-line .link{min-height:34px}
+.ss-emo{display:flex;align-items:center;gap:6px}.ss-emo .emoji-in{width:50px;min-height:36px;font-size:19px;padding:0}.ss-emo .emoji-btn{width:36px;height:36px;font-size:17px;flex:none}.ss-emo .ss-name{flex:1;min-width:0;min-height:36px;font-size:15px}.ss-grid{margin:0;gap:3px}.ss-grid .emoji-b{width:30px;height:30px;font-size:16px}
+.ss-cols{display:grid;grid-template-rows:repeat(5,auto);grid-auto-flow:column;gap:4px}.ss-cols .sw,.ss-neon .sw{width:100%;height:24px;border-radius:6px}.ss-neon{display:grid;grid-template-columns:repeat(10,1fr);gap:4px}
+.ss-shapes{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}.ss-shapes .cp-shape{width:100%;height:38px;border-radius:9px}
+.ss-slider{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--muted)}.ss-slider input{flex:1;accent-color:var(--brass,#cfaa5c)}.ss-slider output{min-width:40px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+.ss-kids{display:grid;gap:4px;padding-top:12px;border-top:1px solid var(--line)}.ss-kid{display:flex;align-items:center;gap:8px;padding:3px 4px;border-radius:10px}.ss-kid.open{background:rgba(255,255,255,.05)}.ss-kid.off input{opacity:.6}.ss-kid input{flex:1;min-width:0;min-height:30px}.ss-kid small{color:var(--faint);font-size:11.5px;white-space:nowrap}
+.ss-sub{display:grid;gap:12px;margin:2px 0 8px 18px;padding:10px 0 6px 14px;border-left:3px solid var(--category,var(--line))}
+.ss-foot{margin:0;font-size:11.5px;color:var(--faint)}
+.ss-pagei{color:var(--ic,var(--muted))}.ss-pagei svg{width:20px;height:20px}.ss-pagei.cp-chip{font-size:16px;font-style:normal}.ss-ptitle{text-decoration:underline 3px var(--page-tint,transparent);text-underline-offset:6px}
+.content>.topbar #areaTitle.tinted{text-decoration:underline 3px var(--page-tint);text-underline-offset:3px;text-decoration-skip-ink:none;padding-bottom:2px}   /* BH2, BH-PAGECOLOUR */
+@media (max-width:700px){dialog.ss-wrap{align-items:flex-end;padding:0}.ss{width:100%;max-height:90vh;border-radius:18px 18px 0 0}.ss-two{grid-template-columns:1fr}.ss-shapes{grid-template-columns:repeat(5,1fr)}.ss-neon{grid-template-columns:repeat(5,1fr)}}
 .nav-ge.custom{font-size:19px;width:24px;text-align:center}
 .fit-links .fit-link{width:100%}
 </style>
@@ -3004,7 +3025,7 @@ addEventListener('load', () => {
       '<figure><button class="orb" data-act="go" data-area="collection" aria-label="' + esc(spoken) + '"></button>' +
       '<figcaption class="within">' + esc(under) + '</figcaption></figure></div>';
   }
-  const pageTitle = a => a === 'faith' ? domainName('faith', TITLES.faith[0]) : TITLES[a][0];   // AO1: Faith's page reads its Domain name (JIK after Names)
+  const pageTitle = a => a === 'faith' ? ((((S() || {}).prefs || {}).navPages || {}).faith || {}).name || domainName('faith', TITLES.faith[0]) : TITLES[a][0];   // AO1: Faith's page reads its Domain name (JIK after Names); BH2: or the page name he gave it
   /* AM1 (his words, Oct 8: "i also want it up top ... frozen and comes down with me as i scroll ... the ability for me to go back or forward"): the page
      bar is the slim sticky topbar: title, the selected day with ‹ › (the rail's own day, one state), Today when off today, Search. */
   const NO_DAY_AREAS = ['data', 'settings', 'lessons', 'learn'];
@@ -3014,14 +3035,14 @@ addEventListener('load', () => {
     return '<button class="k-icon-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b title="' + esc(longDate(day)) + '">' + esc(d) + '</b><button class="k-icon-btn" data-act="step" data-n="1" aria-label="Next day">›</button>' + (day !== todayYmd() ? '<button class="k-btn page-today" data-act="jumpToday">Today</button>' : '');
   }
   function renderHeader(){
-    const st = S();
+    const st = S(); applyNavGroups();   // BG1, BH2: his group and page names before the title is drawn
     $('#areaTitle').textContent = pageTitle(area);
     { let nv = $('#pageNav'); if (!nv){ nv = document.createElement('div'); nv.id = 'pageNav'; nv.setAttribute('role', 'group'); nv.setAttribute('aria-label', 'Pages visited'); const tb = document.querySelector('.topbar'); if (tb) tb.prepend(nv); }   // BA8
       const back = pageIdx > 0 ? pageHist[pageIdx - 1] : null, fwd = pageIdx < pageHist.length - 1 ? pageHist[pageIdx + 1] : null, nm = a => a ? pageTitle(a) : '';
       const h = '<button type="button" class="k-icon-btn" data-act="pageBack"' + (back ? ' title="Back to ' + esc(nm(back)) + '" aria-label="Back to ' + esc(nm(back)) + '"' : ' disabled aria-label="Back"') + '>‹</button><button type="button" class="k-icon-btn" data-act="pageForward"' + (fwd ? ' title="Forward to ' + esc(nm(fwd)) + '" aria-label="Forward to ' + esc(nm(fwd)) + '"' : ' disabled aria-label="Forward"') + '>›</button>';
       if (nv.innerHTML !== h) nv.innerHTML = h; }
     { let pd = $('#pageDay'); if (!pd){ pd = document.createElement('div'); pd.id = 'pageDay'; pd.className = 'page-day'; pd.setAttribute('role', 'group'); pd.setAttribute('aria-label', 'Selected day'); const t = document.querySelector('.topbar .t'); if (t) t.after(pd); } pd.innerHTML = pageDayHTML(); pd.hidden = !pd.innerHTML; }
-    { const nf = $('#navFaith'); if (nf && nf.lastChild && nf.lastChild.nodeType === 3) nf.lastChild.textContent = domainName('faith', 'Faith'); }
+    { const nf = $('#navFaith'); if (nf && nf.lastChild && nf.lastChild.nodeType === 3) nf.lastChild.textContent = navPagePref('faith').name || domainName('faith', 'Faith'); }   // BH2
     { let pn = $('#pageNote'); if (!pn){ pn = document.createElement('button'); pn.type = 'button'; pn.id = 'pageNote'; pn.className = 'k-icon-btn page-note'; pn.dataset.act = 'openFeedback'; pn.dataset.level = 'page'; pn.innerHTML = '<i class="note-ico" aria-hidden="true"></i>'; $('#areaTitle').after(pn); }
       let ps = $('#pageSearch'); if (!ps){ ps = document.createElement('button'); ps.type = 'button'; ps.id = 'pageSearch'; ps.className = 'k-btn page-search-pill'; const mac = /Mac|iPhone|iPad/.test(navigator.platform || ''); ps.setAttribute('aria-label', 'Search (' + (mac ? '⌘' : 'Ctrl') + '+K)'); ps.title = ps.getAttribute('aria-label'); ps.innerHTML = '<span aria-hidden="true">⌕</span> Search <kbd>' + (mac ? '⌘K' : 'Ctrl K') + '</kbd>'; ps.addEventListener('click', () => openSearch()); const tb = document.querySelector('.topbar'); if (tb) tb.append(ps); else pn.after(ps); }   // Fix C1: a Search ⌘K pill at the right of the page header   // V3.7 Z2: a search button in every page header
       pn.hidden = area === 'lessons'; pn.dataset.cardId = 'page:' + area; pn.dataset.cardLabel = TITLES[area][0] + ' (the page)'; pn.setAttribute('aria-label', 'Add a note on the ' + TITLES[area][0] + ' page'); pn.title = 'Note on this page'; }   // V3.7 K4: the first level
@@ -5917,11 +5938,11 @@ addEventListener('load', () => {
   function pickerHTML(kind, id){
     const isFaith = kind === 'dom' ? id === 'faith' : (typeof gradeGroupUmbrella === 'function' && gradeGroupUmbrella(S(), id) === 'faith');
     const cur = kind === 'dom' ? domainStyleOf(id) : (focusStyleOf(id) || {}), own = styleOf(kind, id), pat = patValid(own.pat), color = cur.color || '#888888', half = stylePick && stylePick.half || 0;
-    const tile = (shape, label) => { const ps = shape === 'solid' ? null : {shape, b:pat ? pat.b : null}; return '<button type="button" class="cp-shape" data-act="stylePick" data-f="shape" data-v="' + shape + '" title="' + label + '" aria-label="' + label + '" aria-pressed="' + ((pat ? pat.shape : 'solid') === shape) + '" style="background:' + (ps ? patCSS(color, ps, .95) + ',' : '') + color + '"></button>'; };
+    const tile = (shape, label) => { const ps = shape === 'solid' ? null : {shape, b:pat ? pat.b : null}; return '<button type="button" class="cp-shape" data-act="stylePick" data-f="shape" data-v="' + shape + '" title="' + label + '" aria-label="' + label + '" aria-pressed="' + ((pat ? pat.shape : 'solid') === shape) + '" style="background:' + patTileBG(color, ps) + '"></button>'; };   // BH3: full strength
     const sw = (c, name) => '<button type="button" class="sw" data-act="stylePick" data-f="' + (half ? 'b' : 'color') + '" data-v="' + c + '" title="' + esc(name) + '" aria-label="' + esc(name) + '" aria-pressed="' + ((half ? pat && pat.b : own.color) === c) + '" style="background:' + c + '"></button>';
     const fams = COLOR_FAMILIES.filter(f => isFaith || f[0] !== 'Violet'), neon = COLOR_NEON.filter(c => isFaith || c !== '#8b5cf6');
     const name = kind === 'dom' ? domainName(id) : ((S().groups || []).find(g => g.id === id) || {}).name || '';
-    const sk = cardSkin(color), prev = sk ? '<div class="cp-prev ws-group glass" style="--category:' + color + ';--glass-bg:' + sk.bg + ';--card-ink:' + sk.ink + (pat ? ';--pat:' + patCSS(color, pat, .09) + ';--pat-strip:' + patCSS(color, pat, .9) : '') + '"><div class="gh"><span class="cstrip" aria-hidden="true"></span><h3>' + esc(name) + '</h3></div><small>How a card looks · ink ' + (sk.ink === '#ffffff' ? 'white' : 'dark') + ' ' + sk.ratio.toFixed(1) + ':1</small></div>' : '';
+    const sk = cardSkin(color, pat), prev = sk ? '<div class="cp-prev ws-group glass" style="--category:' + color + ';--glass-bg:' + sk.bg + ';--card-ink:' + sk.ink + (pat ? ';--pat:' + patCSS(color, pat, sk.po) + ';--pat-strip:' + patCSS(color, pat, .9) : '') + '"><div class="gh"><span class="cstrip" aria-hidden="true"></span><h3>' + esc(name) + '</h3></div><small>How a card looks · ink ' + (sk.ink === '#ffffff' ? 'white' : 'dark') + ' ' + sk.ratio.toFixed(1) + ':1</small></div>' : '';
     return '<div class="cp-panel" data-parity="BA2-PICKER" data-kind="' + kind + '" data-id="' + esc(id) + '">' +
       '<div class="cp-label">Pattern</div><div class="cp-shapes">' + tile('solid', 'Solid') + PAT_BRAND.map(x => tile(x[0], x[1])).join('') + '</div><div class="cp-shapes">' + PAT_GENA.map(x => tile(x[0], x[1])).join('') + '</div>' +
       '<div class="cp-label">Colour' + (pat ? 's' : '') + '</div>' + (pat ? '<div class="cp-halves-row"><button type="button" class="cp-half" data-act="stylePick" data-f="half" data-v="0" aria-pressed="' + (half === 0) + '" style="background:' + color + '">First</button><button type="button" class="cp-half" data-act="stylePick" data-f="half" data-v="1" aria-pressed="' + (half === 1) + '" style="background:' + (pat.b || 'transparent') + '">Second</button>' + (pat.b ? '<button type="button" class="rep-chip" data-act="stylePick" data-f="nob">No second colour</button>' : '') + '</div>' : '') +
@@ -5940,9 +5961,9 @@ addEventListener('load', () => {
   async function styleField(f, v){
     if (!stylePick) return; const {kind, id} = stylePick, own = styleOf(kind, id), pat = patValid(own.pat);
     if (f === 'color') return setStyle(kind, id, {color:isHex(v) ? v.toLowerCase() : null}, 'Colour set.');
-    if (f === 'b') return setStyle(kind, id, {pat:pat ? {shape:pat.shape, b:isHex(v) ? v.toLowerCase() : null} : null}, 'Second colour set.');
-    if (f === 'nob') return setStyle(kind, id, {pat:pat ? {shape:pat.shape, b:null} : null}, 'One colour.');
-    if (f === 'shape'){ if (v === 'solid'){ stylePick.half = 0; return setStyle(kind, id, {pat:null}, 'Solid.'); } return setStyle(kind, id, {pat:{shape:v, b:pat ? pat.b : null}}, 'Pattern set.'); }
+    if (f === 'b') return setStyle(kind, id, {pat:pat ? {...pat, b:isHex(v) ? v.toLowerCase() : null} : null}, 'Second colour set.');
+    if (f === 'nob') return setStyle(kind, id, {pat:pat ? {...pat, b:null} : null}, 'One colour.');
+    if (f === 'shape'){ if (v === 'solid'){ stylePick.half = 0; return setStyle(kind, id, {pat:null}, 'Solid.'); } return setStyle(kind, id, {pat:{...(pat || {}), shape:v, b:pat ? pat.b : null}}, 'Pattern set.'); }   // BH3: the strength stays with a new shape
     if (f === 'auto') return setStyle(kind, id, {color:null}, 'Back to the automatic shade.');
     if (f === 'reset') return setStyle(kind, id, {color:null, pat:null}, 'Original colour.');
   }
@@ -5950,7 +5971,7 @@ addEventListener('load', () => {
   let emojiOpen = null;
   function groupsEditorHTML(){
     const st = S(), opt = (g, v) => '<option value="' + v + '"' + ((gradeGroupUmbrella(st, g.id) || '') === v ? ' selected' : '') + '>';
-    const chip = (kind, id, color, pat, label) => '<button type="button" class="cp-chip" data-act="stylePick" data-f="open" data-kind="' + kind + '" data-id="' + esc(id) + '" aria-expanded="' + !!(stylePick && stylePick.kind === kind && stylePick.id === id) + '" aria-label="Colour and pattern: ' + esc(label) + '" title="Colour and pattern"><span class="cp-swatch" style="background:' + (pat ? patCSS(color, pat, .95) + ',' : '') + (color || 'transparent') + '"></span></button>';
+    const chip = (kind, id, color, pat, label) => '<button type="button" class="cp-chip" data-act="stylePick" data-f="open" data-kind="' + kind + '" data-id="' + esc(id) + '" aria-expanded="' + !!(stylePick && stylePick.kind === kind && stylePick.id === id) + '" aria-label="Colour and pattern: ' + esc(label) + '" title="Colour and pattern"><span class="cp-swatch" style="background:' + (color ? patTileBG(color, pat) : 'transparent') + '"></span></button>';
     const custom = (st.prefs.customDomains || []).map(d => d.id);
     /* BG1 (his note: "can we actually group them by domain so that i see the domain and all the focuses in there"): each Domain row, then its Focuses
        under it; the Focuses with no Domain last */
@@ -5984,20 +6005,46 @@ addEventListener('load', () => {
       if (o.emoji){ if (!ce){ ce = document.createElement('span'); ce.className = 'nav-ge custom'; ce.setAttribute('aria-hidden', 'true'); b.prepend(ce); } ce.textContent = o.emoji; if (icon) icon.hidden = true; }
       else { if (ce) ce.remove(); if (icon) icon.hidden = false; }
       b.title = o.name || def; }
+    applyNavPages();
+  }
+  /* BH2 (his words, Oct 10: "we need to be able to change the page name and emoji in the same way"; planner's default BH-PAGECOLOUR): every sidebar page
+     takes a name, an emoji and a colour, kept in prefs.navPages {page id: {name, emoji, color}} beside prefs.navGroups. Page ids and routing never change:
+     only the words and the icon do, wherever a page name is drawn (sidebar, page title, Search, overview tiles, Lessons, the rail head). A colour tints
+     the sidebar icon and the title's underline only. */
+  function glyphHTML(e){ return esc(e); }   // one helper draws a chosen emoji (BH5 adds Glow's own visuals)
+  const navPagePref = a => (((S() || {}).prefs || {}).navPages || {})[a] || {};
+  const TITLES_BASE = Object.fromEntries(Object.entries(TITLES).map(([k, v]) => [k, v[0]]));
+  const navPageIds = () => [...document.querySelectorAll('.nav button[data-area]:not([hidden])')].map(b => b.dataset.area);
+  const pageBaseName = a => a === 'faith' ? domainName('faith', TITLES_BASE.faith) : TITLES_BASE[a];
+  function applyNavPages(){
+    for (const b of document.querySelectorAll('.nav button[data-area]')){ const a = b.dataset.area, o = navPagePref(a), i = b.querySelector('i'), lab = b.lastChild; if (!TITLES[a]) continue;
+      TITLES[a][0] = o.name || TITLES_BASE[a];
+      if (lab && lab.nodeType === 3){ const want = o.name || pageBaseName(a); if (lab.nodeValue !== want) lab.nodeValue = want; }
+      if (i){ if (i.__base === undefined){ i.__base = i.innerHTML; i.__ic = i.style.getPropertyValue('--ic'); }
+        const ico = o.emoji ? glyphHTML(o.emoji) : i.__base; if (i.innerHTML !== ico) i.innerHTML = ico; i.style.setProperty('--ic', o.color || i.__ic); i.classList.toggle('own-emoji', !!o.emoji); }
+      b.title = o.name || ''; }
+    for (const [g, a] of Object.entries(NAV_GROUP_TITLE)) if (TITLES[a] && !navPagePref(a).name) TITLES[a][0] = navGroupPref(g).name || TITLES_BASE[a];
+    const t = document.getElementById('areaTitle'), c = typeof area === 'string' ? navPagePref(area).color : null; if (t){ t.classList.toggle('tinted', !!c); if (c) t.style.setProperty('--page-tint', c); else t.style.removeProperty('--page-tint'); }
+  }
+  async function setNavPage(a, patch, say){
+    const st = S(), all = {...(st.prefs.navPages || {})}, next = {...(all[a] || {}), ...patch};
+    for (const k of Object.keys(next)) if (next[k] === null || next[k] === undefined || next[k] === '') delete next[k];
+    if (JSON.stringify(next) === JSON.stringify(all[a] || {})) return;
+    stage(st, 'names'); if (Object.keys(next).length) all[a] = next; else delete all[a]; st.prefs.navPages = all; await commit('names', say || '');
   }
   let ctxPop = null;
   function ctxClose(){ const el = document.getElementById('ctxPop'); if (el) el.remove(); ctxPop = null; }
   function ctxPopHTML(h){
-    const st = S(), mids = COLOR_FAMILIES.filter(f => f[0] !== 'Violet' || (h.kind === 'dom' && h.id === 'faith') || (h.kind === 'focus' && gradeGroupUmbrella(st, h.id) === 'faith')).map(f => [f[0], f[1][2]]);
-    const g = h.kind === 'focus' ? groupById(st, h.id) : null, name = h.kind === 'dom' ? domainName(h.id) : h.kind === 'nav' ? (navGroupPref(h.id).name || NAV_GROUP_NAMES[h.id]) : g ? g.name : '';
-    const cur = h.kind === 'dom' ? (domainStyleOf(h.id) || {}).color : h.kind === 'focus' ? ((focusStyleOf(h.id) || {}).color || categoryColor(h.id)) : navGroupPref(h.id).color;
-    const emo = h.kind === 'dom' ? ((GRADE_UMBRELLAS.find(u => u.id === h.id) || {}).emoji || '') : h.kind === 'nav' ? (navGroupPref(h.id).emoji || '') : null;
-    const nameIn = h.kind === 'dom' ? 'data-dom-name="' + esc(h.id) + '" maxlength="24"' : h.kind === 'focus' ? 'data-grp-name="' + esc(h.id) + '" maxlength="40"' : 'data-nav-name="' + esc(h.id) + '" maxlength="24"';
-    const emoIn = emo === null ? '' : '<label class="ctx-f"><span>Emoji</span><input type="text" class="emoji-in" value="' + esc(emo) + '" ' + (h.kind === 'dom' ? 'data-dom-emoji="' + esc(h.id) + '"' : 'data-nav-emoji="' + esc(h.id) + '"') + ' maxlength="8" placeholder="' + (h.kind === 'nav' ? 'icon' : '') + '" aria-label="Emoji"><small>⌃⌘Space for the Mac’s emoji</small></label>';
-    return '<div class="ctx-head"><small>' + (h.kind === 'dom' ? 'Domain' : h.kind === 'focus' ? 'Focus' : 'Sidebar group') + '</small><b>' + esc(name) + '</b><button type="button" class="k-icon-btn" data-act="ctxClose" aria-label="Close">×</button></div>' +
+    const st = S(), mids = COLOR_FAMILIES.filter(f => f[0] !== 'Violet' || ((h.kind === 'dom' || h.kind === 'page') && h.id === 'faith') || (h.kind === 'focus' && gradeGroupUmbrella(st, h.id) === 'faith')).map(f => [f[0], f[1][2]]);
+    const g = h.kind === 'focus' ? groupById(st, h.id) : null, name = h.kind === 'dom' ? domainName(h.id) : h.kind === 'nav' ? (navGroupPref(h.id).name || NAV_GROUP_NAMES[h.id]) : h.kind === 'page' ? pageTitle(h.id) : g ? g.name : '';
+    const cur = h.kind === 'dom' ? (domainStyleOf(h.id) || {}).color : h.kind === 'focus' ? ((focusStyleOf(h.id) || {}).color || categoryColor(h.id)) : h.kind === 'page' ? navPagePref(h.id).color : navGroupPref(h.id).color;
+    const emo = h.kind === 'dom' ? ((GRADE_UMBRELLAS.find(u => u.id === h.id) || {}).emoji || '') : h.kind === 'nav' ? (navGroupPref(h.id).emoji || '') : h.kind === 'page' ? (navPagePref(h.id).emoji || '') : null;
+    const nameIn = h.kind === 'dom' ? 'data-dom-name="' + esc(h.id) + '" maxlength="24"' : h.kind === 'focus' ? 'data-grp-name="' + esc(h.id) + '" maxlength="40"' : h.kind === 'page' ? 'data-page-name="' + esc(h.id) + '" maxlength="24"' : 'data-nav-name="' + esc(h.id) + '" maxlength="24"';
+    const emoIn = emo === null ? '' : '<label class="ctx-f"><span>Emoji</span><input type="text" class="emoji-in" value="' + esc(emo) + '" ' + (h.kind === 'dom' ? 'data-dom-emoji="' + esc(h.id) + '"' : h.kind === 'page' ? 'data-page-emoji="' + esc(h.id) + '"' : 'data-nav-emoji="' + esc(h.id) + '"') + ' maxlength="8" placeholder="' + (h.kind === 'nav' || h.kind === 'page' ? 'icon' : '') + '" aria-label="Emoji"><button type="button" class="emoji-btn" data-act="ctxPalette" aria-label="Open the Mac’s emoji" title="Open the Mac’s emoji">☺︎</button></label>';   // BH4
+    return '<div class="ctx-head"><small>' + (h.kind === 'dom' ? 'Domain' : h.kind === 'focus' ? 'Focus' : h.kind === 'page' ? 'Page' : 'Sidebar group') + '</small><b>' + esc(name) + '</b><button type="button" class="k-icon-btn" data-act="ctxClose" aria-label="Close">×</button></div>' +
       '<label class="ctx-f"><span>Name</span><input type="text" value="' + esc(name) + '" ' + nameIn + ' aria-label="Rename ' + esc(name) + '"></label>' + emoIn +
       '<div class="ctx-f"><span>Colour</span><div class="ctx-sw">' + mids.map(([fn, c]) => '<button type="button" class="sw" data-act="ctxColor" data-v="' + c + '" title="' + fn + '" aria-label="' + fn + '" aria-pressed="' + (String(cur || '').toLowerCase() === c) + '" style="background:' + c + '"></button>').join('') + '</div>' +
-      '<div class="ctx-acts">' + (h.kind === 'nav' ? '' : '<button type="button" class="link" data-act="ctxMore">More colours and patterns</button>') + '<button type="button" class="link" data-act="ctxColor" data-v="">' + (h.kind === 'focus' ? 'Auto shade' : 'Original') + '</button></div></div>';
+      '<div class="ctx-acts"><button type="button" class="link" data-act="ctxMore">' + (h.kind === 'nav' || h.kind === 'page' ? 'More…' : 'More colours and patterns') + '</button><button type="button" class="link" data-act="ctxColor" data-v="">' + (h.kind === 'focus' ? 'Auto shade' : 'Original') + '</button></div></div>';
   }
   function ctxOpen(h, x, y){
     ctxClose(); ctxPop = h; const el = document.createElement('div'); el.id = 'ctxPop'; el.className = 'ctx-pop'; el.setAttribute('role', 'dialog'); el.innerHTML = ctxPopHTML(h); document.body.append(el);
@@ -6007,22 +6054,26 @@ addEventListener('load', () => {
   document.addEventListener('contextmenu', e => {
     const t = e.target && e.target.closest ? e.target : null; if (!t || t.closest('input,textarea,select,#ctxPop')) return; let h = null, x;
     if ((x = t.closest('.nav .nav-head[data-g]'))) h = {kind:'nav', id:x.dataset.g};
+    else if ((x = t.closest('.nav button[data-area]'))) h = {kind:'page', id:x.dataset.area};   // BH2
+    else if ((x = t.closest('#areaTitle'))) h = /^ov-/.test(area) && NAV_GROUP_NAMES[area.slice(3)] ? {kind:'nav', id:area.slice(3)} : navPageIds().includes(area) ? {kind:'page', id:area} : null;   // BH2: the big page title
     else if ((x = t.closest('.q-chips [data-act="questUmbrella"]')) && x.dataset.v !== 'all') h = {kind:'dom', id:storedToGrade(x.dataset.v)};
     else if ((x = t.closest('.g-umb[data-umb]'))) h = {kind:'dom', id:x.dataset.umb};
     else if ((x = t.closest('.dom-card[data-dom] > .dom-head'))) h = {kind:'dom', id:x.parentElement.dataset.dom};
     else if ((x = t.closest('.ws-group[data-group] > .gh, .ws-empty-chip[data-group]'))) h = {kind:'focus', id:(x.dataset.group || x.closest('[data-group]').dataset.group)};
     else if ((x = t.closest('.pg-module[data-focus] > .k-head'))) h = {kind:'focus', id:x.parentElement.dataset.focus};
-    if (!h || (h.kind === 'dom' && !GRADE_UMBRELLAS.some(u => u.id === h.id)) || (h.kind === 'focus' && !groupById(S(), h.id))) return;
-    e.preventDefault(); ctxOpen(h, e.clientX, e.clientY);
+    if (!h || (h.kind === 'dom' && !GRADE_UMBRELLAS.some(u => u.id === h.id)) || (h.kind === 'focus' && !groupById(S(), h.id)) || (h.kind === 'page' && !TITLES[h.id])) return;
+    h.from = x; e.preventDefault(); ctxOpen(h, e.clientX, e.clientY);
   });
   document.addEventListener('mousedown', e => { if (ctxPop && !(e.target.closest && e.target.closest('#ctxPop'))) ctxClose(); }, true);
   document.addEventListener('keydown', e => { if (ctxPop && e.key === 'Escape'){ e.stopPropagation(); ctxClose(); } }, true);
   document.addEventListener('click', async e => {
     const b = e.target.closest && e.target.closest('#ctxPop [data-act]'); if (!b || !ctxPop) return; e.stopPropagation(); const h = ctxPop, act = b.dataset.act;
     if (act === 'ctxClose') return ctxClose();
-    if (act === 'ctxMore'){ ctxClose(); stylePick = {kind:h.kind, id:h.id, half:0}; openGroupsEditor(); return; }
+    if (act === 'ctxPalette') return emojiPalette(b.parentElement.querySelector('.emoji-in'));   // BH4
+    if (act === 'ctxMore'){ ssOpen(h, h.from); return; }   // BH1: the pop-out for only this thing, not the Names list
     if (act === 'ctxColor'){ const v = b.dataset.v || null;
-      if (h.kind === 'nav'){ const st = S(); stage(st, 'names'); const all = {...(st.prefs.navGroups || {})}, next = {...(all[h.id] || {}), color:v}; if (!v) delete next.color; if (Object.keys(next).length) all[h.id] = next; else delete all[h.id]; st.prefs.navGroups = all; await commit('names', v ? 'Colour set.' : 'Colour back to the original.'); }
+      if (h.kind === 'nav') await setNavGroup(h.id, {color:v}, v ? 'Colour set.' : 'Colour back to the original.');
+      else if (h.kind === 'page') await setNavPage(h.id, {color:v}, v ? 'Colour set.' : 'Colour back to the original.');   // BH2
       else await setStyle(h.kind, h.id, {color:v}, v ? 'Colour set.' : h.kind === 'focus' ? 'Back to an automatic shade of its Domain.' : 'Back to the original colour.');
       const el = document.getElementById('ctxPop'); if (el && ctxPop){ el.innerHTML = ctxPopHTML(ctxPop); } }
   }, true);
@@ -6050,9 +6101,159 @@ addEventListener('load', () => {
       await commit('groups', (moving.length ? (moving.length + (moving.length === 1 ? ' Focus' : ' Focuses')) + ' moved' : 'Nothing to move') + ' from ' + domainName(from) + ' into ' + domainName(to) + '. Claims, points and past days are kept.'); return; }   // BA2: merge
     if (t.matches('[data-dom-name], [data-dom-about]')){ const id = t.dataset.domName || t.dataset.domAbout, field = t.dataset.domName ? 'name' : 'about', v = t.value.trim().slice(0, field === 'name' ? 24 : 60), cur = (st.prefs.domainNames || {})[id] || {}; if ((cur[field] || '') === v) return; stage(st, 'names'); const all = {...(st.prefs.domainNames || {})}, next = {...cur, [field]:v}; if (!String(next.name || '').trim() && !String(next.about || '').trim()) delete all[id]; else all[id] = next; st.prefs.domainNames = all; await commit('names', field === 'name' ? (v ? 'The Domain is now ' + v + '.' : 'Back to ' + DOMAIN_DEFAULTS[id] + '.') : 'Saved.'); return; }   // AG1
     if (t.matches('[data-nav-name], [data-nav-emoji]')){ const g = t.dataset.navName || t.dataset.navEmoji, field = t.dataset.navName ? 'name' : 'emoji', v = t.value.trim().slice(0, field === 'name' ? 24 : 8); stage(st, 'names'); const all = {...(st.prefs.navGroups || {})}, next = {...(all[g] || {}), [field]:v}; if (!v) delete next[field]; if (Object.keys(next).length) all[g] = next; else delete all[g]; st.prefs.navGroups = all; await commit('names', field === 'name' ? (v ? 'The group is now ' + v + '.' : 'Back to ' + NAV_GROUP_NAMES[g] + '.') : v ? 'Emoji set.' : 'Back to its icon.'); return; }   // BG1
+    if (t.matches('[data-page-name], [data-page-emoji]')){ const a = t.dataset.pageName || t.dataset.pageEmoji, field = t.dataset.pageName ? 'name' : 'emoji', v = t.value.trim().slice(0, field === 'name' ? 24 : 40); await setNavPage(a, {[field]:v || null}, field === 'name' ? (v ? 'The page is now ' + v + '.' : 'Back to ' + pageBaseName(a) + '.') : v ? 'Emoji set.' : 'Back to its icon.'); return; }   // BH2
     if (t.matches('[data-grp-name]')){ const g = groupById(st, t.dataset.grpName), n = t.value.trim(); if (!g || !n || n === g.name) return; stage(st, 'groups'); renameGroup(st, g.id, n); await commit('groups', 'Renamed to ' + n + '.'); return; }
     if (t.matches('[data-grp-umb]')){ const g = groupById(st, t.dataset.grpUmb); if (!g) return; stage(st, 'groups'); g.umbrella = t.value ? gradeStoredUmbrella(t.value) : 'none'; g.updatedAt = nowIso(); await commit('groups', t.value ? g.name + ' now counts under ' + GRADE_UMBRELLAS.find(u => u.id === t.value).name + '.' : g.name + ' is not graded.'); return; }
     if (t.matches('[data-grp-hide]')){ stage(st, 'groups'); setGroupHidden(st, t.dataset.grpHide, t.checked); await commit('groups', t.checked ? 'Hidden. Its items and history are kept.' : 'Shown again.'); return; }
+    if (t.matches('[data-ss-custom]')){ await ssSet(t.dataset.kind, t.dataset.id, 'color', t.value); return; }   // BH1: the colour wheel in the sheet
+    if (t.matches('[data-ss-o]')){ await ssSet(t.dataset.kind, t.dataset.id, 'o', t.value); return; }   // BH3: letting go of the strength slider saves
+  });
+  /* BH4 (the planner found the smiley opened the Mac picker on two of three tries in his app): the button focuses its field, then asks the Mac for the
+     Emoji and Symbols palette once that focus has landed. The miss came from posting in the same moment the field was re-drawn and focused, before WebKit
+     had told the app an editable field had focus (and a tap on the button itself blurred the field first, which saved and re-drew it); a tap with Glow's
+     grid open closed the grid and posted nothing. The button never takes focus, and every tap posts. */
+  function emojiPalette(inp){
+    if (!inp) return; inp.focus(); try { inp.setSelectionRange(inp.value.length, inp.value.length); } catch (_) {}
+    if (!NATIVE) return;
+    requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => { if (inp.isConnected && document.activeElement !== inp) inp.focus(); nativePost({type:'emojiPalette'}); }, 60)));
+  }
+  document.addEventListener('mousedown', e => { if (e.target.closest && e.target.closest('.emoji-btn')) e.preventDefault(); }, true);
+  /* BH1, BH3 (his words, Oct 10: "the thing i am actually at that point trying to change should be the thing that opens, and if it makes sense ... to
+     have the stuff underneath or nests under it then lets do that ... if i change faith (then i should see the color, emoji etc., for those things and
+     then the focuses that go underneath it but shouldnt be seeing the FULL domain and focus list"; "the patterns at least in the picker should be 100%
+     ... give me a little slider"; planner's defaults BH-SHEET, BH-OPACITY): one pop-out sheet over the page for ONLY the thing that was opened, a live
+     preview at the top. A Domain lists its Focuses underneath, each opening the same fields in place; a sidebar group lists its pages. Every change
+     saves at once with the Undo note; Esc or a click outside closes it and focus goes back to what was opened. Settings > Names keeps the full list. */
+  let ss = null;   // {kind:'dom'|'focus'|'nav', id, sub:a Focus open in place, halves:{}, from:the element that opened it}
+  const ssName = (kind, id) => kind === 'dom' ? domainName(id) : kind === 'nav' ? (navGroupPref(id).name || NAV_GROUP_NAMES[id]) : kind === 'page' ? pageTitle(id) : ((groupById(S(), id) || {}).name || '');
+  const ssColor = (kind, id) => kind === 'dom' ? domainStyleOf(id).color : kind === 'focus' ? ((focusStyleOf(id) || {}).color || hexOf(categoryColor(id))) : kind === 'page' ? (navPagePref(id).color || null) : (navGroupPref(id).color || null);
+  const ssOwn = (kind, id) => kind === 'nav' ? navGroupPref(id) : kind === 'page' ? navPagePref(id) : styleOf(kind, id);
+  const ssPat = (kind, id) => kind === 'dom' ? domainStyleOf(id).pat : kind === 'focus' ? (focusStyleOf(id) || {}).pat || null : null;
+  async function setNavGroup(g, patch, say){
+    const st = S(), all = {...(st.prefs.navGroups || {})}, next = {...(all[g] || {}), ...patch};
+    for (const k of Object.keys(next)) if (next[k] === null || next[k] === undefined || next[k] === '') delete next[k];
+    if (JSON.stringify(next) === JSON.stringify(all[g] || {})) return;
+    stage(st, 'names'); if (Object.keys(next).length) all[g] = next; else delete all[g]; st.prefs.navGroups = all; await commit('names', say || '');
+  }
+  async function ssSet(kind, id, f, v){
+    if (kind === 'page'){ if (f === 'color') return setNavPage(id, {color:isHex(v) ? v.toLowerCase() : null}, v ? 'Colour set.' : 'Colour back to the original.'); if (f === 'emoji') return setNavPage(id, {emoji:v || null}, v ? 'Emoji set.' : 'Back to its icon.'); if (f === 'original') return setNavPage(id, {name:null, emoji:null, color:null}, pageBaseName(id) + ' is back to its built-in name and icon.'); return; }   // BH2
+    if (kind === 'nav'){ if (f === 'original') return setNavGroup(id, {name:null, emoji:null, color:null}, NAV_GROUP_NAMES[id] + ' is back to its built-in name and icon.'); if (f === 'color') return setNavGroup(id, {color:isHex(v) ? v.toLowerCase() : null}, v ? 'Colour set.' : 'Colour back to the original.'); if (f === 'emoji') return setNavGroup(id, {emoji:v || null}, v ? 'Emoji set.' : 'Back to its icon.'); return; }
+    const own = styleOf(kind, id), pat = patValid(own.pat), hk = kind + ':' + id, half = ss && ss.halves[hk] && pat ? 1 : 0;
+    if (f === 'color'){ const c = isHex(v) ? v.toLowerCase() : null; return half ? setStyle(kind, id, {pat:{...pat, b:c}}, 'Second colour set.') : setStyle(kind, id, {color:c}, c ? 'Colour set.' : kind === 'focus' ? 'Back to an automatic shade of its Domain.' : 'Back to the original colour.'); }
+    if (f === 'half'){ if (ss) ss.halves[hk] = +v; ssDraw(); return; }
+    if (f === 'nob'){ if (ss) ss.halves[hk] = 0; return setStyle(kind, id, {pat:pat ? {...pat, b:null} : null}, 'One colour.'); }
+    if (f === 'shape'){ if (v === 'solid'){ if (ss) ss.halves[hk] = 0; return setStyle(kind, id, {pat:null}, 'Solid.'); } const from = pat || (kind === 'focus' ? ssPat('focus', id) : null) || {}; return setStyle(kind, id, {pat:{...from, shape:v, b:pat ? pat.b : null}}, 'Pattern set.'); }
+    if (f === 'o'){ const o = Math.max(5, Math.min(60, Math.round(+v) || PAT_O_DEF)), base = pat || ssPat(kind, id); if (!base) return; return setStyle(kind, id, {pat:{...base, o}}, 'Pattern strength ' + o + '%.'); }
+    if (f === 'emoji' && kind === 'dom') return setStyle('dom', id, {emoji:v || null}, v ? 'Emoji set.' : 'Emoji back to the original.');
+  }
+  const ssBtn = (kind, id, f, v, inner, attrs) => '<button type="button" data-act="ssSet" data-kind="' + kind + '" data-id="' + esc(id) + '" data-f="' + f + '"' + (v === undefined ? '' : ' data-v="' + esc(v) + '"') + (attrs || '') + '>' + (inner || '') + '</button>';
+  function ssColourHTML(kind, id){
+    const st = S(), faith = kind === 'dom' || kind === 'page' ? id === 'faith' : kind === 'focus' ? gradeGroupUmbrella(st, id) === 'faith' : false, own = ssOwn(kind, id), pat = kind === 'nav' || kind === 'page' ? null : patValid(own.pat);
+    const half = pat && ss && ss.halves[kind + ':' + id] ? 1 : 0, pressed = String((half ? pat.b : own.color) || '').toLowerCase(), color = ssColor(kind, id) || '#888888';
+    const sw = (c, name) => ssBtn(kind, id, 'color', c, '', ' class="sw" title="' + esc(name) + '" aria-label="' + esc(name) + '" aria-pressed="' + (pressed === c) + '" style="background:' + c + '"');
+    const fams = COLOR_FAMILIES.filter(f => faith || f[0] !== 'Violet'), neon = COLOR_NEON.filter(c => faith || c !== '#8b5cf6');
+    return '<div class="ss-f"><span class="ss-lab">Colour' + (pat ? 's' : '') + '</span>' +
+      (pat ? '<div class="cp-halves-row">' + ssBtn(kind, id, 'half', 0, 'First', ' class="cp-half" aria-pressed="' + !half + '" style="background:' + color + '"') + ssBtn(kind, id, 'half', 1, 'Second', ' class="cp-half" aria-pressed="' + !!half + '" style="background:' + (pat.b || 'transparent') + '"') + (pat.b ? ssBtn(kind, id, 'nob', '', 'No second colour', ' class="rep-chip"') : '') + '</div>' : '') +
+      '<div class="ss-cols" style="grid-template-columns:repeat(' + fams.length + ',1fr)">' + fams.map(f => f[1].map((c, i) => sw(c, f[0] + ', shade ' + (i + 1) + ' of 5')).join('')).join('') + '</div><div class="ss-neon" style="grid-template-columns:repeat(' + neon.length + ',1fr)">' + neon.map(c => sw(c, 'Bright ' + c)).join('') + '</div>' +
+      '<div class="cp-row"><label class="rep-chip cp-wheel">🎨 Custom<input type="color" data-ss-custom="1" data-kind="' + kind + '" data-id="' + esc(id) + '" value="' + (isHex(half ? pat.b : color) ? (half ? pat.b : color) : '#c99a3a') + '"></label>' +
+      (kind === 'focus' ? ssBtn(kind, id, 'color', '', 'Auto shade of its Domain', ' class="rep-chip" aria-pressed="' + !own.color + '"') : (kind === 'nav' || kind === 'page' ? own.color : DOMAIN_COLOR_DEFAULTS[id] && own.color) ? ssBtn(kind, id, 'color', '', 'Original colour', ' class="rep-chip"') : '') + '</div></div>';
+  }
+  function ssPatternHTML(kind, id){
+    const own = styleOf(kind, id), pat = patValid(own.pat), eff = ssPat(kind, id), color = ssColor(kind, id) || '#888888', sk = cardSkin(color, eff);
+    const tile = (shape, label) => ssBtn(kind, id, 'shape', shape, '', ' class="cp-shape" title="' + label + '" aria-label="' + label + '" aria-pressed="' + ((pat ? pat.shape : 'solid') === shape) + '" style="background:' + patTileBG(color, shape === 'solid' ? null : {shape, b:pat ? pat.b : null}) + '"');
+    const inh = !pat && eff ? '<small class="ss-note">Uses its Domain’s ' + esc(((PAT_BRAND.concat(PAT_GENA)).find(x => x[0] === eff.shape) || ['', 'pattern'])[1]) + '. Pick one to give it its own.</small>' : '';
+    return '<div class="ss-f"><span class="ss-lab">Pattern</span><div class="ss-shapes">' + tile('solid', 'Solid') + PAT_BRAND.map(x => tile(x[0], x[1])).join('') + PAT_GENA.map(x => tile(x[0], x[1])).join('') + '</div>' + inh +
+      (eff ? '<label class="ss-slider"><span>Strength on cards</span><input type="range" min="5" max="60" step="1" value="' + patO(eff) + '" data-ss-o="1" data-kind="' + kind + '" data-id="' + esc(id) + '" aria-label="Pattern strength on cards"><output>' + patO(eff) + '%</output></label>' + (sk && sk.capped ? '<small class="ss-note">Drawn at ' + Math.round(sk.po * 100) + '% so the words stay readable.</small>' : '') : '') + '</div>';
+  }
+  // the name and the emoji on one row (the smiley opens the Mac's palette), Glow's own picks under it
+  function ssNameEmojiHTML(kind, id){
+    const v = kind === 'dom' ? ((GRADE_UMBRELLAS.find(u => u.id === id) || {}).emoji || '') : (ssOwn(kind, id).emoji || ''), attr = 'data-' + (kind === 'dom' ? 'dom' : kind === 'page' ? 'page' : 'nav') + '-emoji="' + esc(id) + '"', name = ssName(kind, id);
+    const nameIn = kind === 'dom' ? 'data-dom-name="' + esc(id) + '" maxlength="24" placeholder="' + esc(DOMAIN_DEFAULTS[id] || 'Domain') + '"' : kind === 'page' ? 'data-page-name="' + esc(id) + '" maxlength="24" placeholder="' + esc(pageBaseName(id)) + '"' : 'data-nav-name="' + esc(id) + '" maxlength="24" placeholder="' + esc(NAV_GROUP_NAMES[id]) + '"';
+    return '<div class="ss-f"><span class="ss-lab">Name and emoji</span><div class="ss-emo"><input type="text" class="emoji-in" value="' + esc(v) + '" ' + attr + ' maxlength="8" aria-label="Emoji for ' + esc(name) + '"><button type="button" class="emoji-btn" data-act="ssPalette" aria-label="Open the Mac’s emoji" title="Open the Mac’s emoji">☺︎</button><input type="text" class="ss-name" value="' + esc(name) + '" ' + nameIn + ' aria-label="Name"></div>' +
+      '<div class="emoji-pick ss-grid">' + GLOW_EMOJI.map(e => ssBtn(kind, id, 'emoji', e, e, ' class="emoji-b" aria-label="Use ' + e + '"')).join('') + '</div>' + ((kind === 'nav' || kind === 'page') && !v ? '<small class="ss-note">No emoji: the sidebar keeps its drawn icon.</small>' : '') + '</div>';
+  }
+  function ssFocusFields(id, nested){
+    const st = S(), g = groupById(st, id); if (!g) return '';
+    const opt = v => '<option value="' + v + '"' + ((gradeGroupUmbrella(st, id) || '') === v ? ' selected' : '') + '>';
+    return (nested ? '' : '<label class="ss-f"><span class="ss-lab">Name</span><input type="text" value="' + esc(g.name) + '" data-grp-name="' + esc(id) + '" maxlength="40" aria-label="Name of ' + esc(g.name) + '"></label>') +
+      ssColourHTML('focus', id) + ssPatternHTML('focus', id) +
+      '<div class="ss-line"><label class="ss-f"><span class="ss-lab">Domain</span><select data-grp-umb="' + esc(id) + '" aria-label="Domain for ' + esc(g.name) + '">' + opt('') + 'Not graded</option>' + GRADE_UMBRELLAS.map(u => opt(u.id) + u.emoji + ' ' + esc(u.name) + '</option>').join('') + '</select></label>' +
+      '<label class="g-hide"><input type="checkbox" data-grp-hide="' + esc(id) + '"' + (g.hidden ? ' checked' : '') + '> Hidden</label><button type="button" class="link" data-act="cardDelete" data-group="' + esc(id) + '">Delete</button></div>';
+  }
+  function ssPreviewHTML(kind, id){
+    const name = ssName(kind, id), color = ssColor(kind, id);
+    if (kind === 'nav'){ const o = navGroupPref(id), icon = document.querySelector('.nav .nav-gname[data-g="' + id + '"] .nav-gi, .nav .nav-gname[data-g="' + id + '"] .nav-ge:not(.custom)');
+      return '<div class="ss-prev ss-nav"><span class="ss-navi">' + (o.emoji ? glyphHTML(o.emoji) : icon ? icon.outerHTML.replace(' hidden=""', '') : '') + '</span><b style="' + (color ? 'color:' + color : '') + '">' + esc(name) + '</b><small>In the sidebar</small></div>'; }
+    if (kind === 'page'){ const i = document.querySelector('.nav button[data-area="' + id + '"] i');
+      return '<div class="ss-prev ss-nav"><span class="ss-navi ss-pagei" style="--ic:' + (color || (i && i.__ic) || 'var(--muted)') + '">' + (i ? i.innerHTML : '') + '</span><b class="ss-ptitle" style="' + (color ? '--page-tint:' + color : '') + '">' + esc(name) + '</b><small>Sidebar and page title</small></div>'; }
+    const pat = ssPat(kind, id), sk = cardSkin(color, pat); if (!sk) return '';
+    const emo = kind === 'dom' ? ((GRADE_UMBRELLAS.find(u => u.id === id) || {}).emoji || '') : '', A = hexOf(color);
+    const kids = kind === 'dom' ? (S().groups || []).filter(g => !g.retiredFrom && !g.hidden && gradeGroupUmbrella(S(), g.id) === id).slice(0, 12) : [];
+    return '<div class="ss-prev ss-card" style="color:' + sk.ink + ';background:' + (pat ? patCSS(A, pat, sk.po) + ',' : '') + 'linear-gradient(' + sk.bg + ',' + sk.bg + '),' + wallHex() + '"><span class="ss-strip" style="background:' + (pat ? patCSS(A, pat, .9) + ',' : '') + A + '"></span>' +
+      '<div><b>' + (emo ? esc(emo) + ' ' : '') + esc(name) + '</b><small>How a card looks · ink ' + (sk.ink === '#ffffff' ? 'white' : 'dark') + ' ' + sk.ratio.toFixed(1) + ':1' + (pat ? ' · pattern ' + Math.round(sk.po * 100) + '%' : '') + '</small>' +
+      (kids.length ? '<span class="ss-dots">' + kids.map(g => '<i title="' + esc(g.name) + '" style="background:' + patTileBG(focusColor(g.id) || hexOf(categoryColor(g.id)) || '#888888', (focusStyleOf(g.id) || {}).pat) + '"></i>').join('') + '</span>' : '') + '</div></div>';
+  }
+  function ssHTML(){
+    const st = S(), {kind, id} = ss, name = ssName(kind, id), dom = kind === 'focus' ? gradeGroupUmbrella(st, id) : null;
+    const head = '<div class="ss-head"><div><small>' + (kind === 'dom' ? 'Domain' : kind === 'focus' ? 'Focus' + (dom ? ' in ' + esc(domainName(dom)) : '') : kind === 'page' ? 'Page' : 'Sidebar group') + '</small><h2 id="ssTitle">' + esc(name) + '</h2></div><button type="button" class="k-icon-btn" data-act="ssClose" aria-label="Close">×</button></div>';
+    let body = '';
+    if (kind === 'focus') body = ssFocusFields(id);
+    if (kind === 'dom'){ const custom = (st.prefs.customDomains || []).some(d => d.id === id), kids = (st.groups || []).filter(g => !g.retiredFrom && gradeGroupUmbrella(st, g.id) === id);
+      body = ssNameEmojiHTML('dom', id) + '<label class="ss-f"><span class="ss-lab">Meaning</span><input type="text" value="' + esc(domainAbout(id)) + '" data-dom-about="' + esc(id) + '" maxlength="60" placeholder="Optional" aria-label="What ' + esc(name) + ' means"></label>' +
+        ssColourHTML('dom', id) + ssPatternHTML('dom', id) +
+        '<div class="ss-kids" data-parity="BH1-NEST"><span class="ss-lab">Its Focuses' + (kids.length ? ' · ' + kids.length : '') + '</span>' + (kids.length ? kids.map(g => { const open = ss.sub === g.id, fs = focusStyleOf(g.id) || {};
+          return '<div class="ss-kid' + (open ? ' open' : '') + (g.hidden ? ' off' : '') + '"><button type="button" class="cp-chip" data-act="ssSub" data-id="' + esc(g.id) + '" aria-expanded="' + open + '" aria-label="Colour and pattern: ' + esc(g.name) + '"><span class="cp-swatch" style="background:' + patTileBG(fs.color || hexOf(categoryColor(g.id)) || '#888888', fs.pat) + '"></span></button>' +
+            '<input type="text" value="' + esc(g.name) + '" data-grp-name="' + esc(g.id) + '" maxlength="40" aria-label="Name of ' + esc(g.name) + '"><small>' + (fs.auto === false ? 'Own colour' : 'Auto shade') + (fs.pat ? ' · pattern' : '') + (g.hidden ? ' · hidden' : '') + '</small><button type="button" class="link" data-act="ssSub" data-id="' + esc(g.id) + '" aria-expanded="' + open + '">' + (open ? 'Done' : 'Edit') + '</button></div>' +
+            (open ? '<div class="ss-sub" style="--category:' + (fs.color || '#888') + '">' + ssFocusFields(g.id, true) + '</div>' : ''); }).join('') : '<p class="drawer-read">No Focus yet.</p>') + '</div>' +
+        '<div class="ss-line"><select data-dom-merge="' + esc(id) + '" aria-label="Merge ' + esc(name) + ' into"><option value="">Merge into…</option>' + GRADE_UMBRELLAS.filter(x => x.id !== id).map(x => '<option value="' + x.id + '">' + x.emoji + ' ' + esc(x.name) + '</option>').join('') + '</select>' + (custom ? '<button type="button" class="link" data-act="domainDelete" data-dom="' + esc(id) + '">Delete</button>' : '') + '</div>'; }
+    const orig = (k, i, o) => Object.keys(o).length ? '<div class="ss-line">' + ssBtn(k, i, 'original', '', 'Original name and icon', ' class="rep-chip"') + '</div>' : '';
+    if (kind === 'page') body = ssNameEmojiHTML('page', id) + ssColourHTML('page', id) + orig('page', id, navPagePref(id));
+    if (kind === 'nav'){ const pages = [...document.querySelectorAll('.nav-grp[data-g="' + id + '"] button[data-area]:not([hidden])')].map(b => b.dataset.area);
+      body = ssNameEmojiHTML('nav', id) + ssColourHTML('nav', id) + orig('nav', id, navGroupPref(id)) +
+        (pages.length ? '<div class="ss-kids" data-parity="BH2-NEST"><span class="ss-lab">Its pages · ' + pages.length + '</span>' + pages.map(a => { const open = ss.sub === a, o = navPagePref(a), i = document.querySelector('.nav button[data-area="' + a + '"] i');
+          return '<div class="ss-kid' + (open ? ' open' : '') + '"><button type="button" class="cp-chip ss-pagei" data-act="ssSub" data-id="' + esc(a) + '" aria-expanded="' + open + '" aria-label="Emoji and colour: ' + esc(pageTitle(a)) + '" style="--ic:' + (o.color || (i && i.__ic) || 'var(--muted)') + '">' + (i ? i.innerHTML : '') + '</button>' +
+            '<input type="text" value="' + esc(pageTitle(a)) + '" data-page-name="' + esc(a) + '" maxlength="24" placeholder="' + esc(pageBaseName(a)) + '" aria-label="Name of the ' + esc(pageBaseName(a)) + ' page"><small>' + (Object.keys(o).length ? 'Changed' : 'Built-in') + '</small><button type="button" class="link" data-act="ssSub" data-id="' + esc(a) + '" aria-expanded="' + open + '">' + (open ? 'Done' : 'Edit') + '</button></div>' +
+            (open ? '<div class="ss-sub" style="--category:' + (o.color || 'var(--line)') + '">' + ssNameEmojiHTML('page', a).replace(/<input type="text" class="ss-name"[^>]*>/, '') + ssColourHTML('page', a) + orig('page', a, o) + '</div>' : ''); }).join('') + '</div>' : ''); }
+    return head + ssPreviewHTML(kind, id) + '<div class="ss-body">' + body + '</div><p class="ss-foot">Every change saves at once; Undo puts it back. Past days and points never change.</p>';
+  }
+  function ssAlive(){ if (!ss) return false; const st = S(); return ss.kind === 'dom' ? GRADE_UMBRELLAS.some(u => u.id === ss.id) : ss.kind === 'focus' ? !!groupById(st, ss.id) : ss.kind === 'page' ? !!TITLES[ss.id] : !!NAV_GROUP_NAMES[ss.id]; }
+  function ssDraw(){
+    const d = $('#styleSheet'); if (!d || !ss) return; if (!ssAlive()) return ssClose();
+    const box = d.querySelector('.ss'), a = document.activeElement, keep = a && box.contains(a) ? [...a.attributes].filter(x => /^data-|^aria-label$/.test(x.name)).map(x => '[' + x.name + '="' + CSS.escape(x.value) + '"]').join('') : '', top = box.scrollTop, caret = a && a.selectionStart;
+    box.innerHTML = ssHTML(); box.scrollTop = top;
+    if (keep){ const n = box.querySelector(a.tagName.toLowerCase() + keep); if (n){ n.focus({preventScroll:true}); if (typeof caret === 'number') try { n.setSelectionRange(caret, caret); } catch (_) {} } }
+  }
+  function ssOpen(h, from){
+    ctxClose(); ss = {kind:h.kind, id:h.id, sub:null, halves:{}, from:from || document.activeElement};
+    let d = $('#styleSheet'); if (!d){ d = document.createElement('dialog'); d.id = 'styleSheet'; d.className = 'ss-wrap'; d.innerHTML = '<div class="ss-back" data-act="ssClose"></div><section class="ss" role="dialog" aria-modal="true" aria-labelledby="ssTitle" data-parity="BH1-SHEET"></section>'; document.body.append(d); }
+    ssDraw(); if (!d.open) d.show(); const f = d.querySelector('.ss input[type="text"], .ss button:not([data-act="ssClose"])'); if (f) f.focus({preventScroll:true});
+  }
+  function ssClose(){
+    const d = $('#styleSheet'), a = document.activeElement; if (!d) { ss = null; return; }
+    if (a && d.contains(a) && a.matches('input[type="text"]') && a.value !== a.defaultValue) a.dispatchEvent(new Event('change', {bubbles:true}));   // a typed name or emoji is kept
+    const from = ss && ss.from; ss = null; d.close(); d.querySelector('.ss').innerHTML = '';
+    if (from && from.isConnected){ const t = from.matches('button,input,select,[tabindex]') ? from : from.querySelector('button,[tabindex]'); if (t) t.focus({preventScroll:true}); }
+  }
+  document.addEventListener('click', async e => {
+    const b = e.target.closest && e.target.closest('#styleSheet [data-act]'); if (!b || !ss) return; const act = b.dataset.act;
+    if (!/^ss/.test(act)) return;   // Delete, Merge and the rest go through their usual handlers
+    e.stopPropagation();
+    if (act === 'ssClose') return ssClose();
+    if (act === 'ssSub'){ ss.sub = ss.sub === b.dataset.id ? null : b.dataset.id; ssDraw(); return; }
+    if (act === 'ssPalette'){ emojiPalette(b.parentElement.querySelector('.emoji-in')); return; }
+    if (act === 'ssSet') await ssSet(b.dataset.kind, b.dataset.id, b.dataset.f, b.dataset.v === undefined ? '' : b.dataset.v);
+  }, true);
+  document.addEventListener('keydown', e => {
+    if (!ss) return; const d = $('#styleSheet'); if (!d || !d.open) return;
+    if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); ssClose(); return; }
+    if (e.key === 'Tab'){ const f = [...d.querySelectorAll('.ss button, .ss input, .ss select')].filter(x => !x.disabled && x.offsetParent !== null); if (!f.length) return; const i = f.indexOf(document.activeElement);
+      if (e.shiftKey && i <= 0){ e.preventDefault(); f[f.length - 1].focus(); } else if (!e.shiftKey && i === f.length - 1){ e.preventDefault(); f[0].focus(); } else if (i < 0){ e.preventDefault(); f[0].focus(); } }
+  }, true);
+  // BH3: the strength slider moves the preview as he drags; letting go saves (the change listener above)
+  document.addEventListener('input', e => {
+    const t = e.target; if (!t.matches || !t.matches('[data-ss-o]') || !ss) return; const o = +t.value, out = t.parentElement.querySelector('output'); if (out) out.textContent = o + '%';
+    const pat = ssPat(t.dataset.kind, t.dataset.id), color = hexOf(ssColor(t.dataset.kind, t.dataset.id)), prev = $('#styleSheet .ss-card'); if (!pat || !color || !prev) return;
+    if (t.dataset.kind === ss.kind && t.dataset.id === ss.id){ const sk = cardSkin(color, {...pat, o}); prev.style.background = patCSS(color, pat, sk.po) + ',linear-gradient(' + sk.bg + ',' + sk.bg + '),' + wallHex(); }
   });
   function renderHome(){
     const st = S(), rows = typeof flatPlanFor === 'function' ? onDayRows(st, day) : agendaFor(st,day);
@@ -7462,7 +7663,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   const PAT_GENA = [['stripes','Stripes'],['dots','Dots'],['checks','Checks'],['zigzag','Zigzag'],['plaid','Plaid'],['diamonds','Diamonds'],['split','Split']];
   const PAT_IDS = new Set(PAT_BRAND.concat(PAT_GENA).map(x => x[0]));
   const isHex = c => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c);
-  function patValid(p){ if (!p || typeof p !== 'object' || !PAT_IDS.has(p.shape)) return null; return {shape:p.shape, b:isHex(p.b) ? p.b.toLowerCase() : null}; }
+  function patValid(p){ if (!p || typeof p !== 'object' || !PAT_IDS.has(p.shape)) return null; const o = Math.round(+p.o), out = {shape:p.shape, b:isHex(p.b) ? p.b.toLowerCase() : null}; if (o >= 5 && o <= 60) out.o = o; return out; }
+  // BH3 (planner's default BH-OPACITY): how strongly a pattern draws on a card, 5 to 60 percent, 20 unless he moves the slider
+  const PAT_O_DEF = 20, patO = p => (p && p.o >= 5 && p.o <= 60 ? p.o : PAT_O_DEF);
   function hexOf(c){
     c = String(c || '').trim(); if (isHex(c)) return c.toLowerCase(); if (/^#[0-9a-f]{3}$/i.test(c)) return '#' + c.slice(1).split('').map(x => x + x).join('').toLowerCase();
     const v = /^var\((--[\w-]+)(?:,\s*([^)]+))?\)$/.exec(c); if (v){ let r = ''; try { r = getComputedStyle(document.documentElement).getPropertyValue(v[1]).trim(); } catch (_) {} return hexOf(r || v[2] || ''); }
@@ -7487,6 +7690,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (isHex(fs.color)) out = {color:fs.color, pat:patValid(fs.pat) || (ds && ds.pat), auto:false};
     else if (ds && ds.color){ const sisters = (st.groups || []).filter(x => !x.hidden && gradeGroupUmbrella(st, x.id) === dom).sort((a, b) => (a.order || 0) - (b.order || 0)), i = Math.max(0, sisters.findIndex(x => x.id === group)), t = sisters.length > 1 ? i / (sisters.length - 1) : .5;
       out = {color:shadeOf(ds.color, t), pat:patValid(fs.pat) || ds.pat, auto:true}; }
+    if (out && out.pat && !out.pat.o && ds && ds.pat && ds.pat.o) out.pat = {...out.pat, o:ds.pat.o};   // BH3: a Focus without its own strength takes its Domain's
     focusKeep.m.set(group, out); return out;
   }
   function focusColor(group){ const s = focusStyleOf(group); return s ? s.color : null; }
@@ -7528,19 +7732,25 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   const lum = hex => { const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(v => v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4)); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
   const contrast = (x, y) => { const a = lum(x), b = lum(y); return (Math.max(a, b) + .05) / (Math.min(a, b) + .05); };
   const mixHex = (top, base, alpha) => '#' + [1, 3, 5].map(i => Math.round(parseInt(top.slice(i, i + 2), 16) * alpha + parseInt(base.slice(i, i + 2), 16) * (1 - alpha)).toString(16).padStart(2, '0')).join('');
-  function cardSkin(color){
+  const wallHex = () => S() && S().prefs && S().prefs.theme === 'black' ? '#0c0c0e' : '#13221a';
+  /* BH3: a pattern draws at its strength (pat.o) over the glass. The ink rule holds over the pattern's lines too: when a strength would bring the ink
+     under 4.5:1 there, the strength is capped (po) as far as the ink needs, the same way the colour is raised for a dark ink. */
+  function cardSkin(color, pat){
     const A = hexOf(color); if (!A) return null;
-    const wall = S() && S().prefs && S().prefs.theme === 'black' ? '#0c0c0e' : '#13221a', INK_DARK = '#16140f';
+    const wall = wallHex(), INK_DARK = '#16140f';
     let alpha = .24, drawn = mixHex(A, wall, alpha), ink = '#ffffff';
     if (contrast(ink, drawn) < 4.5){ ink = INK_DARK; while (alpha < .92 && contrast(ink, drawn) < 4.5){ alpha += .04; drawn = mixHex(A, wall, alpha); } }
-    const rgb = [1, 3, 5].map(i => parseInt(A.slice(i, i + 2), 16)).join(',');
-    return {bg:'rgba(' + rgb + ',' + alpha.toFixed(2) + ')', ink, alpha, drawn, ratio:contrast(ink, drawn)};
+    const rgb = [1, 3, 5].map(i => parseInt(A.slice(i, i + 2), 16)).join(','), p = patValid(pat), want = p ? patO(p) / 100 : 0, lines = p && p.b ? [A, p.b] : [A];
+    let po = want; while (p && po > .05 && Math.min(...lines.map(c => contrast(ink, mixHex(c, drawn, po)))) < 4.5) po = Math.round((po - .01) * 100) / 100;
+    return {bg:'rgba(' + rgb + ',' + alpha.toFixed(2) + ')', ink, alpha, drawn, ratio:contrast(ink, drawn), po, capped:po < want};
   }
   function cardSkinStyle(group){
-    const fs = focusStyleOf(group), color = fs ? fs.color : categoryColor(group), sk = cardSkin(color); if (!sk) return '';
-    const pat = fs && fs.pat ? patCSS(fs.color, fs.pat, .09) : 'none', strip = fs && fs.pat ? patCSS(fs.color, fs.pat, .9) : 'none';
+    const fs = focusStyleOf(group), color = fs ? fs.color : categoryColor(group), sk = cardSkin(color, fs && fs.pat); if (!sk) return '';
+    const pat = fs && fs.pat ? patCSS(fs.color, fs.pat, sk.po) : 'none', strip = fs && fs.pat ? patCSS(fs.color, fs.pat, .9) : 'none';
     return ';--glass-bg:' + sk.bg + ';--card-ink:' + sk.ink + (pat !== 'none' ? ';--pat:' + pat + ';--pat-strip:' + strip : '');
   }
+  // BH3: a picker tile or chip draws its pattern at full strength over the colour's own glass, so every pattern can be told apart
+  function patTileBG(color, pat){ const A = hexOf(color) || '#888888', p = patValid(pat); return p ? patCSS(A, p, 1) + ',' + mixHex(A, wallHex(), .3) : A; }
   function selectedCategoryBar(state,group,date){
     const rows=completionRows(state,date).filter(r=>r.group===group),done=rows.filter(r=>r.status==='done').length;
     return '<span class="category-track" style="--category:'+categoryColor(group)+'"><span class="category-fill" style="width:'+(rows.length?100*done/rows.length:0)+'%"></span></span><span class="category-day-label">'+esc(monthDay(date))+' · '+(date>todayYmd()?'future':rows.length?done+'/'+rows.length+' confirmed':'nothing due')+'</span>';
@@ -10497,6 +10707,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if(!document.getElementById('viewNav')){const nav=document.createElement('div');nav.id='viewNav';nav.className='acts';document.querySelector('.topbar').append(nav);}
     { const vn = '<button data-act="viewBack" '+(viewIndex<=0?'disabled':'')+'>Back</button><button data-act="viewForward" '+(viewIndex>=viewHistory.length-1?'disabled':'')+'>Forward</button>', nav = document.getElementById('viewNav'); if (nav.innerHTML !== vn) nav.innerHTML = vn; }   // AX1 (option 6): only when it changed
     drawNave();
+    if (ss) ssDraw();   // BH1: the pop-out follows every save and Undo
     if (keepTop !== null && scroller.scrollTop !== keepTop) scroller.scrollTop = keepTop;
     if ($('#relayIn')) $('#relayIn').value = relayDraft;
     if ($('#rl-from') && relayDates){ $('#rl-from').value = relayDates.from; $('#rl-to').value = relayDates.to; if ($('#relayExact')) $('#relayExact').textContent = relayPacket(S(),relayDates.from,relayDates.to); }
@@ -11542,7 +11753,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
         if (f === 'close'){ stylePick = null; renderDrawer(); return; }
         if (f === 'half'){ if (stylePick) stylePick.half = +btn.dataset.v; renderDrawer(); return; }
         await styleField(f, btn.dataset.v); return; }
-      case 'emojiOpen': { const id = btn.dataset.for; emojiOpen = emojiOpen === id ? null : id; renderDrawer(); const inp = document.querySelector('[data-dom-emoji="' + id + '"]'); if (inp){ inp.focus(); inp.select(); } if (NATIVE && emojiOpen) nativePost({type:'emojiPalette'}); return; }   // BA2-EMOJIBTN: the Mac's Emoji and Symbols palette (Control-Command-Space), and Glow's grid
+      case 'emojiOpen': { const id = btn.dataset.for; if (emojiOpen !== id){ emojiOpen = id; renderDrawer(); } emojiPalette(document.querySelector('.drawer [data-dom-emoji="' + id + '"], #drawerSheet [data-dom-emoji="' + id + '"]') || document.querySelector('[data-dom-emoji="' + id + '"]')); return; }   // BA2-EMOJIBTN, BH4: every tap opens the Mac's palette; Glow's grid stays open as a second row
       case 'emojiPick': { if (!emojiOpen) return; const id = emojiOpen; emojiOpen = null; await setStyle('dom', id, {emoji:btn.dataset.e}, 'Emoji set.'); return; }
       case 'domainNew': { const n = String(($('#domNewName') || {}).value || '').trim().slice(0, 24), e = String(($('#domNewEmoji') || {}).value || '').trim().slice(0, 8); if (!n){ toast('Name the Domain.'); focusFirst('#domNewName'); return; }
         if (GRADE_UMBRELLAS.some(u => u.name.toLowerCase() === n.toLowerCase())){ toast('A Domain has that name already.'); return; }
