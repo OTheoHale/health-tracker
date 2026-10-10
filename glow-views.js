@@ -279,7 +279,17 @@
     const ext=pts.map(p=>p.v).concat((o.bands||[]).flatMap(b=>[b&&b.lo,b&&b.hi]).filter(num),o.band||[],(o.hlines||[]).map(l=>l.v),plan.map(p=>p.v),(o.marks||[]).map(m=>m.v)).filter(num);if(!ext.length)return '';
     const lo0=Math.min(...ext),hi0=Math.max(...ext),span=(hi0-lo0)||Math.max(1,Math.abs(hi0)*.1),lo=lo0-span*.1,hi=hi0+span*.1;
     const x=t=>pl+(t-t0)/(t1-t0)*(W-pl-pr),y=v=>pt+(1-(v-lo)/(hi-lo))*(H-pt-pb);
-    const pv=pts.map(p=>p.v),yMin=pv.length?Math.min(...pv):lo0,yMax=pv.length?Math.max(...pv):hi0,gap=Math.abs(y(yMin)-y(yMax)),ys=yMin===yMax||gap<12?[yMin]:gap<24?[yMin,yMax]:[yMin,(yMin+yMax)/2,yMax];   // V3.7: labels never collide (one when the readings are within 12 px)
+    const pv=pts.map(p=>p.v),yMin=pv.length?Math.min(...pv):lo0,yMax=pv.length?Math.max(...pv):hi0,gap=Math.abs(y(yMin)-y(yMax));let ys=yMin===yMax||gap<12?[yMin]:gap<24?[yMin,yMax]:[yMin,(yMin+yMax)/2,yMax];   // V3.7: labels never collide (one when the readings are within 12 px)
+    /* AT1 (his words, Oct 9: "there are no numbers (x and y) we just need enough to know roughly"): a full-size chart reads against 3 to 5 rounded
+       ticks with faint guides (196, 198, 200, 202), not labels at the readings themselves; a small tile keeps its two end dates (X5). */
+    let yDigits=digits;
+    if(!small&&o.niceY!==false){
+      const raw=((hi-lo)||1)/3,e0=Math.floor(Math.log10(raw)),dec=s=>{const x=String(+s.toFixed(6));return x.includes('.')?Math.min(2,x.split('.')[1].length):0;};
+      const tickAt=s=>{const a=Math.ceil((lo-1e-9)/s)*s,list=[];for(let v=a;v<=hi+1e-9&&list.length<9;v+=s)list.push(+v.toFixed(6));return list;};
+      // steps of 1, 2 or 5 times a power of ten, nearest the span's third first; 3 or 4 ticks, else 2 to 5
+      const cands=[e0-1,e0,e0+1].flatMap(k=>[1,2,5].map(m=>m*Math.pow(10,k))).sort((a,b)=>Math.abs(Math.log(a/raw))-Math.abs(Math.log(b/raw))).map(s=>({s,list:tickAt(s)}));
+      const best=cands.find(c=>c.list.length>=3&&c.list.length<=4)||cands.find(c=>c.list.length>=2&&c.list.length<=5);
+      if(best){ys=best.list;yDigits=dec(best.s);}}
     const col=o.colour||'var(--verd,#79d6a9)';let g='';
     ys.forEach(v=>{g+='<line class="lc-grid" x1="'+pl+'" x2="'+(W-pr)+'" y1="'+f(y(v))+'" y2="'+f(y(v))+'"/>';});
     if(o.band&&num(o.band[0])&&num(o.band[1])){const by=y(Math.min(hi,o.band[1])),bh=Math.max(2,y(Math.max(lo,o.band[0]))-by);g+='<rect class="lc-band" x="'+pl+'" y="'+f(by)+'" width="'+(W-pl-pr)+'" height="'+f(bh)+'" rx="6"/>';}
@@ -294,7 +304,7 @@
     (o.marks||[]).forEach(m=>{if(num(m.v))g+='<circle class="lc-mark"'+(m.attrs||'')+' cx="'+f(x(dnum(m.d)))+'" cy="'+f(y(m.v))+'" r="'+(m.r||3.6)+'" fill="'+(m.colour||'#cfae63')+'"'+(m.stroke?' stroke="'+m.stroke+'" stroke-width="2"':'')+'>'+(m.title?'<title>'+esc(m.title)+'</title>':'')+'</circle>';});
     let labs='';const lab=(c,t,xx,yy,tf,a)=>'<span class="lc-ax '+c+'" '+(a||'')+' style="left:'+f(xx/W*100)+'%;top:'+f(yy/H*100)+'%;transform:'+tf+'">'+esc(t)+'</span>';
     // V3.7 X5: a small chart (a 140 x 50 tile) carries no y labels and only its two end dates; min and max live in its drawer
-    if(!small)ys.forEach((v,i)=>{labs+=lab('y',lcNum(v,digits,signed),pl-4,y(v),'translate(-100%,-50%)','data-y="'+(ys.length===1?'one':['min','mid','max'][i])+'"');});
+    if(!small)ys.forEach((v,i)=>{labs+=lab('y',lcNum(v,yDigits,signed),pl-4,y(v),'translate(-100%,-50%)','data-y="'+(ys.length===1?'one':i===0?'min':i===ys.length-1?'max':'mid')+'"');});
     const long=t1-t0>60,ticks=o.xTicks||(small?[t0,t1]:[t0,(t0+t1)/2,t1]).map((t,i)=>({d:dstr(t),label:long?MON3[new Date(Math.round(t)*864e5).getUTCMonth()]:small&&dstr(t1).slice(0,7)===dstr(t0).slice(0,7)?String(+dstr(t).slice(8)):dlab(dstr(t))}));   // V3.7 X5: a small chart inside one month shows day numbers (the month is in its drawer)
     ticks.forEach((tk,i)=>{labs+=lab('x',tk.label,x(dnum(tk.d)),H-pb+3,i===0?'none':i===ticks.length-1?'translate(-100%,0)':'translate(-50%,0)','data-x="'+(['first','mid','last'][Math.min(i,2)])+'" data-d="'+tk.d+'"');});
     (o.hlines||[]).forEach(l=>{if(l.label)labs+=lab('hl '+(l.cls||''),l.label,W-pr,y(l.v)-2,'translate(-100%,-100%)','data-hl="'+l.v+'"');});
