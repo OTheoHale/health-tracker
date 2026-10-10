@@ -894,6 +894,7 @@ details.fold-card>.panelcard{background:none!important;border:0;box-shadow:none!
 details.cad{margin:2px 0 6px;border-top:1px solid var(--line)}details.cad:first-child{border-top:0}details.cad>summary{display:flex;align-items:center;gap:8px;cursor:pointer;list-style:none;padding:7px 0 3px;font-size:12.5px}details.cad>summary::-webkit-details-marker{display:none}
 details.cad>summary::before{content:'▸';color:var(--muted);font-size:11px;width:10px}details.cad[open]>summary::before{content:'▾'}details.cad>summary b{font-weight:600;color:var(--head)}details.cad>summary .hint{margin:0;font-size:11.5px}
 .cad-done,.today-done{color:var(--c-green);font-weight:700;font-size:12px;white-space:nowrap}details.cad.all>summary b{color:var(--muted)}details.plan-cad{border:1px solid var(--line);border-radius:12px;padding:2px 14px 8px;margin:0 0 10px;background:var(--panel)}
+.carried-from{display:inline-flex;align-items:center;padding:1px 8px;border-radius:999px;border:1px solid color-mix(in srgb,var(--c-orange) 50%,transparent);color:var(--c-orange);font-size:11px;font-weight:600;white-space:nowrap;line-height:1.5}   /* AQ2 */
 .met-badge{display:inline-flex;align-items:center;gap:3px;padding:1px 8px;border-radius:999px;border:1px solid color-mix(in srgb,var(--c-green) 55%,transparent);color:var(--c-green);font-size:11px;font-weight:600;white-space:nowrap;line-height:1.5}
 .ws-node.met>.nrow .nm{color:var(--muted)}.quota{font-size:11px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}.umb-tag{font-size:11px;color:color-mix(in srgb,var(--category) 70%,var(--ink));border:1px solid color-mix(in srgb,var(--category) 45%,transparent);border-radius:999px;padding:0 7px;white-space:nowrap}
 .gcard .met-badge{margin-top:2px}.fw-mini .met-badge{margin-top:4px}.fw-prayed{gap:5px;min-height:132px}.fw-oval{position:relative;display:block;height:24px;border-radius:999px;background:rgba(182,156,240,.14);overflow:hidden}.fw-oval i{position:absolute;inset:0 auto 0 0;border-radius:999px;background:linear-gradient(90deg,#9b7fe0,#b69cf0)}.fw-oval b{position:relative;display:block;text-align:center;font:700 11.5px/24px var(--sans,inherit);color:var(--ink)}
@@ -2551,10 +2552,18 @@ addEventListener('load', () => {
   /* One-tap row actions wait their turn behind the store lock instead of being refused while a save or an
      import runs (V2.3, Mintay: "never lose a tap"). Forms and reviews keep the guard. */
   const QUEUED_ACTS=new Set(['done','toggleDone','log','notToday','exempt','unexcuse']);
+  /* BA12 (found in AX8; planner's default): a Move, Delete, Move to Template, Skip rest, Edit, Details or Claim tapped while a save runs
+     waits and runs as soon as the save lands, with its own Undo, instead of "try again". A redraw in between is followed: the tap is
+     found again by its action, row and day. */
+  const QUEUE_AFTER=new Set(['rowMove','wsDeleteRow','wsRemoveToday','wsSkipRest','wsHierarchyEdit','openRow','claimOne','claimAll','wsCommit']);let tapQueue=[];
+  function queueTap(button){const row=button.closest('[data-series]');tapQueue.push({el:button,act:button.dataset.act,series:row?row.dataset.series:null,date:row?row.dataset.date:null,to:button.dataset.to||null,claim:button.dataset.claim||null});toast('Queued: it runs as soon as the save lands.');drainTaps();}
+  function drainTaps(){if(drainTaps.t)return;const step=()=>{if(manualSaving||intake.applying){drainTaps.t=setTimeout(step,60);return;}drainTaps.t=0;const q=tapQueue.shift();if(!q)return;
+    const el=q.el.isConnected?q.el:[...document.querySelectorAll('[data-act="'+q.act+'"]')].find(b=>{const r=b.closest('[data-series]');return (!q.series||(r&&r.dataset.series===q.series&&r.dataset.date===q.date))&&(!q.to||b.dataset.to===q.to)&&(!q.claim||b.dataset.claim===q.claim);});
+    if(el)el.click();else toast('That item changed during the save; tap it again.');if(tapQueue.length)drainTaps.t=setTimeout(step,60);};drainTaps.t=setTimeout(step,60);}
   // historyFile: choosing a history file only starts reading it; its saves wait their turn (importHistory).
   const INTAKE_ESCAPES=new Set(['intakeRetireForeign','intakePause','intakeDisconnect','intakeConnect','applyUpdate','historyFile']);
   document.addEventListener('click',e=>{const button=e.target.closest('button,[data-act],label.filebtn');if(button&&button.dataset&&button.dataset.act){lastActButton=button;if(/cancel/i.test(button.dataset.act))forgetDrafts(button);}if(button&&!manualSaving&&INTAKE_ESCAPES.has(button.dataset&&button.dataset.act))return;if(detailAutoSave&&!intake.applying&&button&&button.dataset.act!=='saveDetail'&&!QUEUED_ACTS.has(button.dataset&&button.dataset.act)){e.preventDefault();e.stopImmediatePropagation();const b=button,sel=Object.keys(b.dataset).length?'['+Object.entries(b.dataset).map(([k,v])=>'data-'+k.replace(/[A-Z]/g,m=>'-'+m.toLowerCase())+'="'+CSS.escape(v)+'"').join('][')+']':null;let n=0;const t=setInterval(()=>{if((!detailAutoSave&&manualSaving===0)||++n>80){clearInterval(t);detailAutoSave=false;const target=b.isConnected?b:sel?document.querySelector(sel):null;if(manualSaving===0&&target)target.click();else toast('That tap waited for a save and was not done. Tap it again.');}},50);return;}
-    if((intake.applying||manualSaving)&&button&&!QUEUED_ACTS.has(button.dataset&&button.dataset.act)){e.preventDefault();e.stopImmediatePropagation();toast('A save is in progress. Your typing is kept; try that action again when it finishes.');return;}if(button&&(leavesManualDraft(button)||button.id==='previewToggle'||button.dataset.area||draftNavigationActions.has(button.dataset.act))){if(!resolveDraftNavigation()){e.preventDefault();e.stopImmediatePropagation();}else draftLeaving=true;}},true);
+    if((intake.applying||manualSaving)&&button&&!QUEUED_ACTS.has(button.dataset&&button.dataset.act)){e.preventDefault();e.stopImmediatePropagation();if(QUEUE_AFTER.has(button.dataset&&button.dataset.act)){queueTap(button);return;}toast('A save is in progress. Your typing is kept; try that action again when it finishes.');return;}if(button&&(leavesManualDraft(button)||button.id==='previewToggle'||button.dataset.area||draftNavigationActions.has(button.dataset.act))){if(!resolveDraftNavigation()){e.preventDefault();e.stopImmediatePropagation();}else draftLeaving=true;}},true);
   document.addEventListener('keydown',e=>{const typing=e.target?.matches('input,textarea,select,[contenteditable=true]');if(((intake.applying||manualSaving)&&(!typing||e.key==='Escape'))||((e.key==='Escape'||(!typing&&/^[0-9/dD]$/.test(e.key)))&&!resolveDraftNavigation())){e.preventDefault();e.stopImmediatePropagation();}},true);
   document.addEventListener('change',e=>{const control=e.target;if(control.dataset.act==='historyFile')return;
     // V3.3 (1.8): minutes re-score points, so they save on leaving the field; the note beside them saves the same way.
@@ -2939,7 +2948,7 @@ addEventListener('load', () => {
     return '<div class="seg' + (mini ? ' mini' : '') + '" role="radiogroup" aria-label="Version for ' + esc(r.name) + '">' + ['normal','minimum'].map(v =>
       '<button role="radio" aria-checked="' + (r.selected === v) + '" data-act="version" data-v="' + v + '"><b>' + (v === 'normal' ? 'Normal' : 'Minimum') + '</b><small>' + esc(r.targets[v].label) + '</small></button>').join('') + '</div>';
   }
-  const rowChips = r => (r.optional ? '<span class="chip quiet">optional</span>' : '') + (r.demo ? '<span class="chip quiet">example</span>' : '');
+  const rowChips = r => (r.carriedFrom ? '<span class="chip quiet carried" title="Carried over: it was due ' + esc(medDate(r.carriedFrom)) + '">↩ ' + esc(medDate(r.carriedFrom)) + '</span>' : '') + (r.optional ? '<span class="chip quiet">optional</span>' : '') + (r.demo ? '<span class="chip quiet">example</span>' : '');
   // The Up Next card keeps one verb and a ⋯ menu; the detail panel (compact=false) shows every action.
   function actionButtons(r,compact){
     // Done and Skipped are one tap each; details stay optional (Mintay, Sept 24 evening). Items on set
@@ -3499,12 +3508,12 @@ addEventListener('load', () => {
     const bar = (share, colour) => '<i class="ov-bar"><i style="width:' + Math.round(100 * Math.max(0, Math.min(1, share || 0))) + '%;background:' + colour + '"></i></i>';
     const tile = (id, title, big, sub, colour, extra) => '<button type="button" class="ov-tile" data-act="ringGo" data-score="' + id + '" data-ov="' + id + '" style="--tone:' + colour + '" title="Open ' + title + '"><small>' + title + '</small><b>' + big + '</b>' + (extra || '') + '<span>' + sub + '</span></button>';
     const age = h && h.now, hasAge = age && age.value !== null, r = b && b.readiness, hasR = r && r.value !== null, sl = b && b.sleep, hasS = sl && sl.value !== null;
-    const net = eb && eb.available ? eb.balance : null, kcal = fuel.given.kcal, protein = fuel.given.proteinG, goal = NetEnergy.goal(st), np = NE.progress(st, net);   // V3.6 N2: signed
+    const ne1 = NetEnergy.day(st, date), net = eb && eb.available ? eb.balance : ne1.shown, kcal = fuel.given.kcal,   /* AZ2 */ protein = fuel.given.proteinG, goal = NetEnergy.goal(st), np = NE.progress(st, net);   // V3.6 N2: signed
     return '<div class="ov-strip" role="group" aria-label="Health Age, Sleep, Readiness and Nutrition">' +
       tile('healthAge', 'Health Age', hasAge ? age.value + ' <small>years</small>' : '—', hasAge ? 'you are ' + p.age + (age.change === null || Math.abs(age.change) < 0.5 ? '' : ' · ' + (age.change < 0 ? '▼ ' : '▲ ') + (Math.abs(Math.round(age.change)) || 1) + ' in 13 weeks') : p.age === null ? 'add your birth year in Body' : date === today ? 'needs more readings' : 'shown for today', hasAge ? GV.tone(age.colour) : GV.tone('neutral'), hasAge ? bar(1 - Math.max(0, Math.min(1, (age.value - (p.age - 10)) / 20)), GV.tone(age.colour)) : bar(0, 'transparent')) +
       tile('sleep', 'Sleep', hasS ? esc(hmShort(sl.inputs.tst)) : '—', hasS ? 'of ' + hoursWord(p.need) + ' h · score ' + sl.value : 'no night recorded', GV.tone('blue'), bar(hasS ? sl.inputs.tst / p.need : 0, GV.tone('blue'))) +
       tile('readiness', 'Readiness', hasR ? String(r.value) : '—', hasR ? esc(r.label) + (r.confidence ? ' · ' + esc(r.confidence.toLowerCase()) + ' confidence' : '') : r && r.building ? 'building: ' + r.building.n + ' of ' + r.building.N + ' nights' : 'no reading', hasR ? GV.tone(r.colour) : GV.tone('neutral'), bar(hasR ? r.value / 100 : 0, hasR ? GV.tone(r.colour) : 'transparent')) +
-      tile('nutrition', 'Net Energy', net !== null ? NE.fmt(net) + ' <small>kcal</small>' : kcal !== null ? n(kcal) + ' <small>kcal eaten</small>' : '—', (kcal !== null ? 'eaten ' + n(kcal) : 'no food yet') + (protein !== null ? ' · protein ' + n(protein) + ' g' : '') + (net !== null ? ' · goal ' + NE.plain(goal) : ''), net !== null ? NE.colour(net) : GV.tone('neutral'), bar(np.share, net !== null ? NE.colour(net) : 'transparent')) + '</div>';
+      tile('nutrition', 'Net Energy', net !== null ? NE.fmt(net) + ' <small>kcal</small>' : kcal !== null ? n(kcal) + ' <small>kcal eaten</small>' : '—', (kcal !== null ? 'eaten ' + n(kcal) : 'no food logged') + (protein !== null ? ' · protein ' + n(protein) + ' g' : '') + (net !== null ? ' · goal ' + NE.plain(goal) : ''), net !== null ? NE.colour(net) : GV.tone('neutral'), bar(np.share, net !== null ? NE.colour(net) : 'transparent')) + '</div>';
   }
   const RING_DOORS = {readiness:['fitness',null], sleep:['fitness','.sleep-card'], load:['fitness','[data-feedback-id="load"]'], fuel:['home','[data-parity="TODAY-FUEL"]'], nutrition:['data','[data-feedback-id="nutrition"]'], faith:['faith',null], healthAge:['stand','[data-feedback-id="stand-health-age"]'], vitals:['profile','[data-feedback-id="vitals"]'], measured:['profile','[data-feedback-id="measured-fitness"]'], rank:['profile','[data-feedback-id="overall-rank"]'], stand:['stand',null]};
   function spotlight(selector){
@@ -4993,7 +5002,7 @@ addEventListener('load', () => {
      words sits behind ⓘ. Counts what the day asks (Template's items are not counted until placed). */
   const reviewSkipped = new Set();
   function reviewPassHTML(){
-    const st = S(), on = day, today = todayYmd(), rows = leafRows(onDayRows(st, on)).filter(r => !r.demo), open = rows.filter(r => !r.status && dueOn(st, r, on)), done = rows.filter(r => r.status === 'done').length, skipped = rows.filter(r => r.status === 'skipped').length;
+    const st = S(), on = day, today = todayYmd(), rows = leafRows(onDayRows(st, on)).filter(r => !r.demo), open = rows.filter(r => !r.status && dueOn(st, r, on) && !wsMeasuredDone(st, r, on)), done = rows.filter(r => r.status === 'done' || (r.status !== 'skipped' && wsMeasuredDone(st, r, on))).length, skipped = rows.filter(r => r.status === 'skipped').length;
     const items = templateLayout(st) === 'v33' ? templateItems(st, on) : {weekly:[], monthly:[]}, waiting = items.weekly.concat(items.monthly).filter(x => !x.met && !x.placed.length && !reviewSkipped.has(x.row.seriesId));
     const checkRow = r => '<div class="rv-row" data-series="' + esc(r.seriesId) + '" data-date="' + esc(on) + '"><button class="cb" data-act="rvDone" data-series="' + esc(r.seriesId) + '" data-date="' + esc(on) + '" aria-label="Done: ' + esc(r.name) + '"' + (on > today ? ' disabled' : '') + '></button><span><b>' + esc(r.name) + '</b><small>' + esc(groupName(r.group)) + '</small></span><button type="button" class="row-act skip" data-act="rvSkip" data-series="' + esc(r.seriesId) + '" data-date="' + esc(on) + '" aria-label="Skip: ' + esc(r.name) + '" title="Skip · didn’t do it"' + (on > today ? ' disabled' : '') + '>' + ROW_ICONS.skip + '</button></div>';
     const placeRow = x => { const days = []; for (let d = on > today ? on : today, n = 0; d <= x.q.to && n < 7; d = addDays(d, 1), n++) days.push(d);
@@ -5005,7 +5014,7 @@ addEventListener('load', () => {
   }
   function reviewPassRefresh(){ const dlg = document.getElementById('workspaceReview'); if (dlg && dlg.open && workspaceReview && workspaceReview.kind === 'review'){ dlg.innerHTML = reviewPassHTML(); const next = dlg.querySelector('.rv-row .cb:not([disabled]), .rv-row .rep-chip, .acts button'); if (next) next.focus(); } }   // keyboard: the next control keeps focus (P2-23)
   function soFarCard(withClaim){
-    const st = S(), rows = onDayRows(st, day), asked = rows.filter(r => r.status || dueOn(st, r, day)), done = rows.filter(r => r.status === 'done').length, total = Math.max(asked.length, done), pct = total ? Math.round(100 * done / total) : 0, nxt = nextAction(rows), words = narrateDay(st, day, todayYmd());
+    const st = S(), rows = onDayRows(st, day), asked = rows.filter(r => r.status || dueOn(st, r, day)), done = rows.filter(r => r.status === 'done' || (r.status !== 'skipped' && wsMeasuredDone(st, r, day))).length,   /* AR1 */ total = Math.max(asked.length, done), pct = total ? Math.round(100 * done / total) : 0, nxt = nextAction(rows), words = narrateDay(st, day, todayYmd());
     return '<section class="panelcard sofar" data-feedback-id="day-narration" data-feedback-label="So Far" data-tidy="keep"><div class="ph"><h2>So Far</h2>' + infoBtn('sofar', 'So Far') + '<button class="link sofar-review" data-act="reviewPass" title="Check things off and place the week’s items on the days you choose">Review</button><span class="sofar-count" data-done="' + done + '" data-total="' + total + '">' + done + ' of ' + total + '</span></div>' + infoPop('sofar', words.text + ' ' + words.basis) + '<p class="sofar-line"><b>' + done + ' done</b>' + (nxt ? ' · ' + esc(nxt.name) + ' next' : total ? ' · nothing left' : '') + '</p><div class="sofar-bar" role="img" aria-label="' + done + ' of ' + total + ' done"><i style="width:' + pct + '%"></i></div>' + (withClaim ? claimChipHTML(st) : '') + '</section>';   // Fix M2: the same gold Claim chip on Quests' So Far card, only when points are ready
   }
   function claimChipHTML(st){ const lvl = readyToClaim(st); return lvl && lvl.points ? '<button class="k-chip gold today-claim-chip" data-act="claimAll">Claim ' + (Math.round(lvl.points * 100) / 100).toLocaleString() + '</button>' : ''; }
@@ -5102,17 +5111,17 @@ addEventListener('load', () => {
     // V3.7 L3: the Fuel card's Day, Week, Month, All switch is its chip (prefs.fuelPer is no longer written); the window is the filter's
     const st = S(), FW = filtWin('home', 'fuel'), per = FW.per, isDay = FW.day, eb = wsTry('energyBalance', st, date) || {}, burnD = Number.isFinite(eb.burn) ? eb.burn : null, foodD = Number.isFinite(eb.food) ? eb.food : null;
     const win = isDay ? null : {from:FW.from, to:FW.to}, sm = win ? NetEnergy.summary(st, win.from, win.to) : null;
-    const net = isDay ? (burnD !== null && foodD !== null ? foodD - burnD : null) : sm.logged ? sm.total : null, avg = isDay ? net : sm.avg, col = NE.colour(net);
+    const one = isDay ? NetEnergy.day(st, date, eb) : null, net = isDay ? one.shown : sm.shown ? sm.shownTotal : null, avg = isDay ? net : sm.shownAvg, col = NE.colour(net);   // AZ2: no food logged counts as food 0, said in words
     const missing = isDay ? [foodD === null ? 'food' : null, eb.resting === null || eb.resting === undefined ? (Number.isFinite(burnD) ? null : 'resting') : null, eb.active === null || eb.active === undefined ? (Number.isFinite(burnD) ? null : 'active') : null].filter(Boolean) : [];
     const field = (k, v, sym, label) => !isDay ? '<span class="today-fend ' + k + '" title="Average a day"><span aria-hidden="true">' + sym + '</span><b>' + (v === null ? '—' : kcal(v)) + '</b><small class="today-favg">a day</small></span>' : fuelEditing === k ? '<span class="today-fend ' + k + '"><span aria-hidden="true">' + sym + '</span><input id="fuelIn" class="today-numinp" type="number" inputmode="numeric" min="0" max="20000" step="1" value="' + (v === null ? '' : Math.round(v)) + '" aria-label="' + label + ' in kilocalories" data-f="' + k + '"><button class="k-btn" data-act="fuelSave" data-f="' + k + '">Save</button></span>' :
       '<button type="button" class="today-fend ' + k + '" data-act="fuelEdit" data-f="' + k + '" aria-label="' + label + ': ' + (v === null ? 'not recorded' : kcal(v) + ' kilocalories') + '. Tap to type it."><span aria-hidden="true">' + sym + '</span><b>' + (v === null ? '—' : kcal(v)) + '</b>' + (eb.typed && eb.typed[k] ? '<small class="chip self">self</small>' : '') + '</button>';
     const seg = filtChipHTML('home', 'fuel');   // Fix S3: a direct child of the card header
-    const sub = isDay ? (net === null && missing.length ? ' · no ' + esc(missing.join(', ')) + ' yet' : '') : ' · avg ' + (avg === null ? '—' : '<span data-net-avg="' + Math.round(avg) + '" style="color:' + NE.colour(avg) + '">' + NE.fmt(avg) + '</span>') + ' a day · ' + sm.logged + ' of ' + sm.of + ' days';
-    const lbs = !isDay && sm.logged ? '<div class="today-flb" data-parity="V36-N4-02">about ' + NE.lb(sm.pounds) + ' lb ' + ({week:weekMeans() === 'last7' ? 'the last 7 days' : 'this week', month:'this month', all:'since ' + monthDay(sm.from), custom:monthDay(sm.from) + ' to ' + monthDay(sm.to)}[per]) + ', est. <small>from ' + sm.logged + ' of ' + sm.of + ' days</small></div>' : '';
+    const sub = isDay ? (net === null && missing.length ? ' · no ' + esc(missing.join(', ')) + ' yet' : one.noFood ? ' · no food logged' : '') : ' · avg ' + (avg === null ? '—' : '<span data-net-avg="' + Math.round(avg) + '" style="color:' + NE.colour(avg) + '">' + NE.fmt(avg) + '</span>') + ' a day · ' + sm.shown + ' of ' + sm.of + ' days' + (sm.noFood ? ' · ' + sm.noFood + ' with no food logged' : '');
+    const lbs = !isDay && sm.shown ? '<div class="today-flb" data-parity="V36-N4-02">about ' + NE.lb(sm.shownPounds) + ' lb ' + ({week:weekMeans() === 'last7' ? 'the last 7 days' : 'this week', month:'this month', all:'since ' + monthDay(sm.from), custom:monthDay(sm.from) + ' to ' + monthDay(sm.to)}[per]) + ', est. <small>from ' + sm.shown + ' of ' + sm.of + ' days</small></div>' : '';
     return '<section class="k-card today-fuelc"' + winAttrs(FW) + ' data-filtered="fuel" data-parity="TODAY-FUEL" data-feedback-id="today-fuel" data-feedback-label="Fuel"><div class="k-head"><span aria-hidden="true">⛽</span><span class="k-title">Fuel</span>' + infoBtn('fuel-net', 'Net Energy') + seg + '<button type="button" class="k-open" data-act="tap" data-tap="fuel" aria-label="Open the Fuel detail" title="Open the detail">' + kIco('chevron', 14) + '</button></div>' +
       infoPop('fuel-net', 'Net Energy is the food you ate minus the energy you burned (resting plus active). Left of zero you burned more than you ate (a deficit, red); right of zero you ate more (a surplus, blue). The colour shows the direction, not good or bad. The dashed tick is your goal, ' + NE.plain(NetEnergy.goal(st)) + ' kcal a day. Week, Month and All add up the days with a full record (food, resting and active energy) and the bar shows the average a day. On Day, tap the burn or the food number to type it in kilocalories; your number is used for the day and marked self-reported.', 'energy-weight') +
       '<div class="today-fnet" data-parity="TODAY-DEFICIT"><div class="today-netnum" data-net="' + (net === null ? '' : Math.round(net)) + '" data-per="' + per + '" style="color:' + col + '">' + (net === null ? '<b class="k-big dim" style="font-size:28px">—</b>' : '<b class="k-big">' + NE.fmt(net) + '<small>kcal</small></b>') + '</div><div class="today-fnetlab">Net Energy' + sub + '</div>' + lbs + '</div>' +
-      '<div class="today-fends" data-parity="V35-T1-02">' + field('burn', isDay ? burnD : sm.burn, '🔥', 'Burn') + field('food', isDay ? foodD : sm.food, '🍎', 'Food') + '</div>' +
+      '<div class="today-fends" data-parity="V35-T1-02">' + field('burn', isDay ? burnD : sm.shownBurn, '🔥', 'Burn') + field('food', isDay ? foodD : sm.shownFood, '🍎', 'Food') + '</div>' +
       NE.bar(st, avg, isDay ? 'Net Energy' : 'Net Energy average a day') + '<div class="today-fest">' + neEstimateHTML(st, date, 'fuel') + neGapHTML(st, date, 'fuel') + '</div></section>';
   }
   function openFuelDrawer(){
@@ -5260,23 +5269,20 @@ addEventListener('load', () => {
     if (nutKeep.k === keep) return nutKeep.v;
     const v = drawn('nutGrade|' + gradePer + '|' + (gradeRange ? gradeRange.from + gradeRange.to : '') + '|' + day, () => {
       if (typeof NutritionGrade === 'undefined') return null;
-      // V3.7 Y1: closed days up to the selected day (the selected day counts when it is before today)
-      const today = todayYmd(), y = day < today ? day : addDays(today, -1), start = programStart(st);
-      const per = gradePer === 'custom' && gradeRange ? 'all' : gradePer === 'custom' ? 'week' : gradePer;
-      let from = per === 'month' ? y.slice(0, 8) + '01' : per === 'all' ? start : (weekWindow(today).from > y ? y : weekWindow(today).from), to = y;   /* Fix H4: this calendar week or month, closed days */
-      if (gradePer === 'custom' && gradeRange){ from = gradeRange.from; to = gradeRange.to < y ? gradeRange.to : y; }
-      return nutritionGradeOver(st, from, to, per);
+      // AZ1 (his decision, Oct 9): exactly the page filter's window, the open day included (graded "so far" once it has 300 kcal)
+      const today = todayYmd(), pg = gradePage(), w = filtWin(pg, pg === 'home' ? 'overall' : null), to = w.to > today ? today : w.to, from = w.from > to ? to : w.from;
+      return nutritionGradeOver(st, from, to, w.per || gradePer);
     });
     nutKeep = {k:keep, v}; return v;
   }
   // V3.6 review F3: the grade over any dates (Grade History grades each past week on that week's own days)
-  function nutritionGradeOver(st, from, to, per){
+  function nutritionGradeOver(st, from, to, per, open){
       if (typeof NutritionGrade === 'undefined') return null;
       const today = todayYmd(), g = goalsV2(st), raw = (st.prefs && st.prefs.goalsV2) || {};
       let eb = new Map(); try { eb = Workspace.energyBalances(st, from, to); } catch (_) { eb = new Map(); }
       const days = []; for (let d = from; d <= to; d = addDays(d, 1)) days.push(nutritionDay(st, d, eb.get ? eb.get(d) : undefined));
       const by = Number.isFinite(+g.birthYear) && +g.birthYear > 1900 ? +g.birthYear : null, age = by ? (typeof Scores !== 'undefined' && Scores.ageOn ? Scores.ageOn(today, by, Number.isFinite(+g.birthMonth) ? +g.birthMonth : null) : +today.slice(0, 4) - by) : null;
-      const r = NutritionGrade.grade({days, window:per, sex:sexOf(st), age});   // V3.7 X1: the one helper the ladders read too
+      const r = NutritionGrade.grade({days, window:per, sex:sexOf(st), age, open:open === undefined ? to === today : !!open});   // V3.7 X1: the one helper the ladders read too; AZ1: the open day is graded so far
       const any = days.some(d => NutritionGrade.COMPONENTS.length && ['sat', 'sodium', 'fibre', 'potassium', 'calcium'].some(k => Number.isFinite(d[k]) && d[k] > 0));
       return {...r, days, any, from, to, per};
   }
@@ -5318,14 +5324,13 @@ addEventListener('load', () => {
   }
   window.HealthNutSpectrum = (r, c) => nutSpectrum(S(), r, c);   // test hook (U2)
   function nutritionCardV36(W){
-    const st = S(), r = W ? (() => { /* Fix Z7: the card's window; closed days only (an open today is left out), as the grade always did */ const y = addDays(todayYmd(), -1), to = W.to < todayYmd() ? W.to : y, span = calendarDistance(W.from, W.to) + 1, per = span <= 1 ? 'day' : span <= 10 ? 'week' : span <= 45 ? 'month' : 'all';
-      const from = per === 'week' || per === 'day' ? addDays(to, -6) : W.from;   // Fix AD1: the grade scores whole blocks of 7 closed days; a week that ends on the open day grades the 7 closed days before it
-      return drawn('nutGradeW|' + from + '|' + to + '|' + per, () => nutritionGradeOver(st, from, to, per === 'day' ? 'week' : per)); })() : nutritionGradeNow(st); if (!r) return '';
+    const st = S(), r = W ? (() => { /* AZ1 (his decision, Oct 9): exactly the card's window, the open day included */ const today = todayYmd(), to = W.to < today ? W.to : today, from = W.from > to ? to : W.from, span = calendarDistance(from, to) + 1, per = W.per || (span <= 1 ? 'day' : span <= 10 ? 'week' : span <= 45 ? 'month' : 'all');
+      return drawn('nutGradeW|' + from + '|' + to + '|' + per, () => nutritionGradeOver(st, from, to, per)); })() : nutritionGradeNow(st); if (!r) return '';
     const head = '<div class="k-head"><span aria-hidden="true">🥗</span><span class="k-title">Nutrition Grade</span>' + infoBtn('nutrition-grade', 'Nutrition Grade') + '</div>' +
-      infoPop('nutrition-grade', 'A nutrient profile, not diet quality: it grades how closely your logged nutrient totals match published limits and targets (saturated fat, sodium, fibre, fat quality, potassium, calcium and a basket of vitamins and minerals). It cannot see foods, food groups, added sugar or supplements, and a food database undercounts vitamins and minerals. A day with less than 800 kcal of food is not graded, never a zero; a grade needs 4 logged days in 7. Protein is counted in the Fitness Grade. Day shows the 7-day grade as of yesterday.');
-    if (!r.any) return '<section class="k-card nut-card" data-parity="V36-R2-01" data-feedback-id="nutrition-grade" data-feedback-label="Nutrition Grade">' + head + '<p class="today-mempty" data-nutri-empty>Log food to see your nutrition grade</p></section>';
+      infoPop('nutrition-grade', 'A nutrient profile, not diet quality: it grades how closely your logged nutrient totals match published limits and targets (saturated fat, sodium, fibre, fat quality, potassium, calcium and a basket of vitamins and minerals). It cannot see foods, food groups, added sugar or supplements, and a food database undercounts vitamins and minerals. It grades exactly the days of the filter you pick: a day counts once it has 300 kcal of food logged (today as soon as it gets there, marked so far), and a window with no food has no grade, a dash, never an F. A letter needs 5 of the 7 components; S and above need all 7. Variety counts on any window, even one day. Protein is counted in the Fitness Grade.');
+    if (!r.any) return '<section class="k-card nut-card" data-parity="V36-R2-01" data-feedback-id="nutrition-grade" data-feedback-label="Nutrition Grade">' + head + '<p class="today-mempty" data-nutri-empty><b class="g-letter" aria-hidden="true">–</b> ' + esc(r.note || 'No food logged') + '</p></section>';   // AZ1: no food in the window is no grade
     const ok = r.shown !== null && r.qualifying > 0, cov = 'nutrient profile · ' + r.present + ' of 7 components · ' + (r.qualifying ? r.coverage.split(', ')[1] : r.graded + ' of ' + r.days.length + ' days graded');
-    const top = '<button type="button" class="nu-top" data-act="nutritionOpen" data-nutri-grade="' + esc(r.letter || '') + '" aria-label="' + esc('Nutrition Grade ' + (r.letter || 'not yet') + '. Open the nutrients') + '"><b class="g-letter big" style="color:' + gradeTone(r.letter ? r.percent : null) + '">' + (r.letter || '–') + '</b><span class="nu-side"><span class="g-pct">' + (ok ? r.shown + '%' + (r.provisional ? ' · provisional' : '') : esc(nutNeed(r))) + '</span>' + gradeBar(r.letter ? r.percent : null, 12) + '<small data-nutri-cov>' + esc(cov) + (r.capped ? ' · capped at A' : '') + '</small></span></button>';
+    const top = '<button type="button" class="nu-top" data-act="nutritionOpen" data-nutri-grade="' + esc(r.letter || '') + '" aria-label="' + esc('Nutrition Grade ' + (r.letter || 'not yet') + '. Open the nutrients') + '"><b class="g-letter big" style="color:' + gradeTone(r.letter ? r.percent : null) + '">' + (r.letter || '–') + '</b><span class="nu-side"><span class="g-pct">' + (ok ? r.shown + '%' + (r.soFar ? ' · so far' : '') + (r.provisional ? ' · provisional' : '') : esc(nutNeed(r))) + '</span>' + gradeBar(r.letter ? r.percent : null, 12) + '<small data-nutri-cov>' + esc(cov) + (r.capped ? ' · capped at A' : '') + '</small></span></button>';
     const rows = r.components.map(c => { const sp = nutSpectrum(st, r, c), val = sp && nutSpectrum.vals ? nutSpectrum.vals[c.id] : '';
       return '<div class="g-comp nu-row" data-comp="' + c.id + '"><span class="nu-name"><span><span aria-hidden="true">' + NUT_EMOJI[c.id] + '</span> ' + esc(c.name) + (c.low ? ' <small class="nu-low">lowest confidence</small>' : '') + '</span>' + (val ? '<small class="nu-val">' + esc(val) + '</small>' : '') + '</span>' + (sp || gradeBar(c.score, 10)) + '<b class="nu-pct">' + (c.score === null ? '–' : c.score + '%') + '</b></div>'; }).join('');   // Fix AD2: name and value, the bar, then the percent in its own column
     return '<section class="k-card nut-card" data-parity="V36-R2-01" data-feedback-id="nutrition-grade" data-feedback-label="Nutrition Grade">' + head + top +
@@ -6800,7 +6805,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (sleepOff(st, n)) return 'template';   // whatever the Watch already checked off: the ring shows the night
     if (n.status) return 'day';
     const r = n.recurrence; if (!r || r.kind !== 'target') return 'day';
-    const o = n.occurrence || st.occurrences[n.key || occKey(n.seriesId, n.date || date)]; if (o && (o.committed || o.added || o.status || o.removed || o.disposition)) return 'day';
+    const o = n.occurrence || st.occurrences[n.key || occKey(n.seriesId, n.date || date)];
+    if (o && o.movedTo && !o.removed && !o.committed && !o.added && !o.status && !o.disposition) return 'template';   // BA11: moved to another day; it waits in Template > This week and still counts if done
+    if (o && (o.committed || o.added || o.status || o.removed || o.disposition)) return 'day';
     const g = goalOf(st, n.seriesId, date); if ((g && g.kind === 'prayer') || weekCheckGoal(st, n.seriesId, date)) return 'day';
     const q = quotaOf(st, n, date); if (!q) return 'day';
     if (q.count >= q.target) return 'template';   // met: anything more is extra, and it is not asked for on the day (2.8 for a weekday-bound item)
@@ -8161,12 +8168,12 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const one=sm.days[sm.days.length-1]||{},hit=sm.days.filter(x=>x.full&&x.net<=ot).length;
     const prior=isDay?(()=>{const s0=programStartOf(st,last),f0=addDays(last,-30),f=f0<s0?s0:f0,t=addDays(last,-1);if(t<f)return null;return NetEnergy.summary(st,f,t).days.filter(x=>x.full&&x.net!==null).pop()||null;})():null;
     const dayBlock=isDay?'<p class="ne-before" data-parity="V36-N6-03" data-ne-day="'+esc(last)+'">'+(one.full&&one.net!==null?'<span class="k-status" style="--s:'+(one.net<=ot?'var(--c-green)':'var(--c-orange)')+'">'+(one.net<=ot?'On track that day':'Not on track that day')+'</span>':'')+(prior?'<small data-prev-at="'+prior.date+'">before <span data-net-before="'+Math.round(prior.net)+'" style="color:'+NE.colour(prior.net)+'">'+NE.fmt(prior.net)+'</span> kcal · '+esc(monthDay(prior.date))+'</small>':'<small>no full day in the 30 before it</small>')+'</p>':'';
-    const head=isDay?'<p class="ne-dayline" data-parity="V36-N6-01">'+(one.net!==null?'Net Energy <b style="color:'+NE.colour(one.net)+'">'+NE.fmt(one.net)+' kcal</b><small>🔥 burn '+kcal(one.burn)+' · 🍎 food '+kcal(one.food)+'</small>':'Net Energy <b title="'+esc(NetEnergy.missingText(one.missing))+'">—</b>')+'</p>'
-      :'<p class="ne-dayline" data-parity="V36-N6-01">Net Energy <b style="color:'+NE.colour(sm.logged?sm.total:null)+'">'+(sm.logged?NE.fmt(sm.total)+' kcal':'—')+'</b><small>'+sm.logged+' of '+sm.of+' days logged'+(sm.logged?' · ≈ '+NE.lb(sm.pounds)+' lb':'')+'</small></p>';
+    const head=isDay?'<p class="ne-dayline" data-parity="V36-N6-01">'+(one.shown!==null&&one.shown!==undefined?'Net Energy <b style="color:'+NE.colour(one.shown)+'">'+NE.fmt(one.shown)+' kcal</b><small>🔥 burn '+kcal(one.burn)+' · 🍎 '+(one.noFood?'no food logged':'food '+kcal(one.food))+'</small>':'Net Energy <b title="'+esc(NetEnergy.missingText(one.missing))+'">—</b>')+'</p>'
+      :'<p class="ne-dayline" data-parity="V36-N6-01">Net Energy <b style="color:'+NE.colour(sm.shown?sm.shownTotal:null)+'">'+(sm.shown?NE.fmt(sm.shownTotal)+' kcal':'—')+'</b><small>'+sm.shown+' of '+sm.of+' days'+(sm.noFood?' · '+sm.noFood+' with no food logged':'')+(sm.shown?' · ≈ '+NE.lb(sm.shownPounds)+' lb':'')+'</small></p>';   // AZ2
     // C07 (the Draft's lead): the signed total, its word and the average-a-day bar against the goal tick (Today's Fuel bar)
-    const lv=isDay?one.net:sm.logged?sm.total:null,lbar=isDay?one.net:sm.avg;
+    const lv=isDay?one.shown:sm.shown?sm.shownTotal:null,lbar=isDay?one.shown:sm.shownAvg;   // AZ2
     const big=lv===null||lv===undefined?'':'<div class="ne-big" data-ne-big><b class="k-big" style="color:'+NE.colour(lv)+'">'+NE.fmt(lv)+'</b><small>kcal</small></div>'+NE.bar(st,lbar,isDay?'Net Energy':'Average a day').replace(' data-parity="V35-T1-01"','');
-    const tiles='<div class="ne-tiles" data-parity="V36-N6-02"><span><small>Total</small><b style="color:'+NE.colour(sm.logged?sm.total:null)+'">'+(sm.logged?NE.fmt(sm.total):'—')+'</b><small>'+sm.logged+' of '+sm.of+' days</small></span><span><small>Daily average</small><b style="color:'+NE.colour(sm.avg)+'">'+(sm.avg===null?'—':NE.fmt(sm.avg))+'</b><small>goal '+NE.plain(g)+'</small></span><span><small>On-track days</small><b>'+hit+' of '+sm.logged+'</b><small>'+NE.plain(ot)+' or lower</small></span></div>';
+    const tiles='<div class="ne-tiles" data-parity="V36-N6-02"><span><small>Total</small><b style="color:'+NE.colour(sm.shown?sm.shownTotal:null)+'">'+(sm.shown?NE.fmt(sm.shownTotal):'—')+'</b><small>'+sm.shown+' of '+sm.of+' days</small></span><span><small>Daily average</small><b style="color:'+NE.colour(sm.shownAvg)+'">'+(sm.shownAvg===null?'—':NE.fmt(sm.shownAvg))+'</b><small>goal '+NE.plain(g)+'</small></span><span><small>On-track days</small><b>'+hit+' of '+sm.logged+'</b><small>'+NE.plain(ot)+' or lower</small></span></div>';
     return '<section class="panelcard fit-energy" data-feedback-id="fitness-energy" data-feedback-label="Energy &amp; Weight"><div class="ph"><h2>Energy &amp; Weight '+infoBtn('energy','Energy and Weight')+'</h2></div>'+
       infoPop('energy','Net Energy is food minus resting and active energy. Below zero (red, hanging under the line) you burned more than you ate: a deficit; above zero (blue) a surplus. The dashed line is your goal, '+NE.plain(g)+' kcal a day, and the dotted one is on track ('+NE.plain(ot)+'). A day counts only with a full record (food, resting and active energy); otherwise it is a hollow dot and the list names what is missing. Only today is provisional (outlined).','energy-weight')+
       '<div class="fit-energy-cols"><div>'+big+head+(isDay?dayBlock:NE.chart(st,ctx.days,{parity:'V36-N6-03'}))+(isDay?'':tiles)+'</div><div><p class="cap">Weight</p><div class="today-fest">'+(neEstimateHTML(st,last,'fit')+neGapHTML(st,last,'fit')||'<p class="hint">No weigh-in yet.</p>')+'</div></div></div></section>';   // V3.6 F4: the weight against the plan lives on Progress, On the Plan (C10)
@@ -8347,8 +8354,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
      no points until a scoring rule version adopts the bonus. null = a rest day with nothing required. */
   function perfectDay(st, date){
     const p = wsTry('rings', st, date, {}); if (!p || typeof p !== 'object' || p.noTargets) return null;
-    const req = flatPlanFor(st, date).filter(r => !r.optional && !r.demo && r.status !== 'skipped');
-    return p.closed === RING_ORDER.length && req.length > 0 && req.every(r => r.status === 'done');
+    const req = flatPlanFor(st, date).filter(r => !r.optional && !r.demo && !r.carriedFrom && r.status !== 'skipped');   // AQ2: a carried one-off is not counted on today
+    return p.closed === RING_ORDER.length && req.length > 0 && req.every(r => r.status === 'done' || wsMeasuredDone(st, r, date));   // AR1
   }
   function ringsSection(date, options){
     if (!wsHas('rings')) return '<section class="panelcard" data-feedback-id="your-day-so-far" data-feedback-label="Your day so far"><h2>Rings</h2>' + depNote('Workspace','rings','The three-ring daily projection') + ringsHTML(date) + '<p class="hint">Above is this baseline’s earlier overview ring, kept so the day is not blank. It is not the agreed three-ring contract and its middle ring is not verified workout minutes.</p></section>';
@@ -9028,7 +9035,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   // Open today, required, and within 90 minutes of its window closing (a planned time counts for an hour; once a
   // window has passed, the end of the day is the limit).
   function runningOut(n){
-    if ((n.date || day) !== todayYmd() || ['done','skipped','partial'].includes(n.status) || !wsRequiredRow(n)) return false;
+    if ((n.date || day) !== todayYmd() || ['done','skipped','partial'].includes(n.status) || !wsRequiredRow(n) || wsMeasuredDone(S(), n, n.date || day)) return false;   // AR1
     const now = new Date(), mins = now.getHours() * 60 + now.getMinutes(), planned = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(n.window || '');
     let end = planned ? Math.min(24*60-1, +planned[1] * 60 + +planned[2] + 60) : (ANCHOR_ENDS[n.anchor] || 24*60-1);
     if (mins > end) end = 24*60-1;
@@ -9093,7 +9100,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     stage(st, 'move'); let n = 0;
     for (const x of leaves){
       const o = st.occurrences[x.key];
-      if (x.recurrence && x.recurrence.kind === 'target' && !(o && o.added)){ const sx = st.series.find(z => z.id === x.seriesId), v = sx && versionFor(sx, to); if (!v || !scheduledOn(v, to)) continue; if (o && o.committed){ o.committed = false; o.updatedAt = nowIso(); } const res = wsCommitOn(st, x.seriesId, to, true); if (res && res.ok) n++; }
+      if (x.recurrence && x.recurrence.kind === 'target' && !(o && o.added)){ const sx = st.series.find(z => z.id === x.seriesId), v = sx && versionFor(sx, to); if (!v || !scheduledOn(v, to)) continue; if (o && o.committed){ o.committed = false; o.updatedAt = nowIso(); } const res = wsCommitOn(st, x.seriesId, to, true); if (res && res.ok){ n++; const oo = ensureOcc(st, x.seriesId, date); oo.movedTo = to; oo.updatedAt = nowIso(); } }   // BA11: the day it left marks where it went, so it leaves that day's list
       else if (moveOcc(st, x.seriesId, date, to)) n++;
     }
     if (!n){ popUndo(); toast('That one cannot move to ' + medDate(to) + '.'); return; }
@@ -9222,7 +9229,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const key = n.key || (n.seriesId ? occKey(n.seriesId, n.date || day) : '');
     const st = n.status, confirmed = st === 'done', collapsed = wsCollapsed.has(nid);
     const label = itemName(n, n.name || n.title || 'Untitled'), kind = itemKind(n), measure = kind === 'bar' ? itemMeasure(S(), n, n.date || day) : null;   // V3.5 D2
-    const doneCount = n.family && Number.isFinite(n.family.done) ? n.family.done : kids.filter(k => k.status === 'done').length;
+    const doneCount = n.family && Number.isFinite(n.family.done) ? n.family.done + leafRows(kids).filter(k => k.status !== 'done' && k.status !== 'skipped' && wsMeasuredDone(S(), k, k.date || day)).length : kids.filter(k => k.status === 'done' || (k.status !== 'skipped' && wsMeasuredDone(S(), k, k.date || day))).length;   // AR1
     const totalCount = n.family && Number.isFinite(n.family.total) ? n.family.total : kids.length;
     const auto = !container && confirmed && n.occurrence && n.occurrence.confirmation && n.occurrence.confirmation.auto === true;
     const sourced = !container && confirmed && n.occurrence && n.occurrence.confirmation && (n.occurrence.confirmation.kind === 'source' || n.occurrence.confirmation.made === 'data');   // V3.3 Phase 2 (7.2): a data-made confirmation reads as confirmed by the data
@@ -9264,7 +9271,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
             return '<button class="cb' + (kind === 'onoff' ? ' io' : '') + (sourced ? ' src' : '') + mark + '" role="checkbox" aria-checked="' + (confirmed ? 'true' : st === 'tentative' || mark === ' part' ? 'mixed' : 'false') + '" data-act="toggleDone" aria-label="' + (confirmed ? 'Review ' : 'Done: ') + esc(label) + ' · ' + said + '"' + (future ? ' disabled' : '') + ' title="' + said + '">' + (confirmed ? '✓' : mark === ' skip' ? '✕' : mark === ' exempt' ? '—' : '') + '</button>' +
               '';
           })()) +
-      '<button class="nm" data-act="openRow">' + esc(label) + '</button>' + (quota ? quotaBar(quota) : '') + (met ? '<span class="met-badge keep" title="The goal is already reached; anything more is extra">✓ ' + met + '</span>' : '') + (selfReported ? '<span class="self-mark keep" title="Self-reported: your entry wins over Apple Health and still earns points" aria-label="Self-reported">✎</span>' : '') + (measure ? itemBar(measure) + goalExtras(measure) : goalAfterLine(S(), n, n.date || day) || '') + (measure ? '' : v5Share !== null ? '<span class="pct keep" title="Share of the target that counts under Scoring V2">' + v5Share + '%</span>' : '') + (summary || ptsWord ? '<span class="meta">' + esc(summary) + (ptsWord ? '<span class="pts">' + (summary ? ' · ' : '') + esc(ptsWord) + '</span>' : '') + '</span>' : '') +
+      '<button class="nm" data-act="openRow">' + esc(label) + '</button>' + (n.carriedFrom ? '<span class="carried-from keep" title="Carried over: it was due ' + esc(medDate(n.carriedFrom)) + '. That day keeps it; doing it today counts today.">↩ ' + esc(parseYmd(n.carriedFrom).toLocaleDateString(undefined, {month:'short', day:'numeric'})) + '</span>' : '') + (quota ? quotaBar(quota) : '') + (met ? '<span class="met-badge keep" title="The goal is already reached; anything more is extra">✓ ' + met + '</span>' : '') + (selfReported ? '<span class="self-mark keep" title="Self-reported: your entry wins over Apple Health and still earns points" aria-label="Self-reported">✎</span>' : '') + (measure ? itemBar(measure) + goalExtras(measure) : goalAfterLine(S(), n, n.date || day) || '') + (measure ? '' : v5Share !== null ? '<span class="pct keep" title="Share of the target that counts under Scoring V2">' + v5Share + '%</span>' : '') + (summary || ptsWord ? '<span class="meta">' + esc(summary) + (ptsWord ? '<span class="pts">' + (summary ? ' · ' : '') + esc(ptsWord) + '</span>' : '') + '</span>' : '') +
       (claimable ? '<button class="save claim-one" data-act="claimOne" data-claim="' + esc(claimable.id) + '">Claim ' + pointAmount(claimable, claimable.amount) + ' ✦</button>' : '') +
       rowActs(n, label) +
       '<details class="more" data-key="more"><summary aria-label="More for ' + esc(label) + '">⋯</summary><div class="more-menu">' + rowActs(n, label, true) + menu + '</div></details>' +
@@ -9277,6 +9284,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   }
   const cadOpen = new Map();        // folds he opened or closed by hand, by card and cadence
   const CADENCES = [['daily','Today'],['weekly','This Week'],['monthly','This Month']];
+  const cadDayWord = d => d === todayYmd() ? 'Today' : d === addDays(todayYmd(), -1) ? 'Yesterday' : d === addDays(todayYmd(), 1) ? 'Tomorrow' : medDate(d);   // AR1: the daily section names the day being viewed
   function wsCadenceSections(g, nodes){
     // A routine whose steps differ in cadence is shown once under each, with the steps that belong there: a weekly
     // item he planned for today moves to Today alone, its sisters stay under This Week.
@@ -9285,10 +9293,11 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const used = CADENCES.filter(c => by.get(c[0]).length);
     if (used.length <= 1 && (!used.length || used[0][0] === 'daily')) return {html:nodes.map(n => wsNode(n, 0)).join(''), daily:nodes};
     const html = used.map(([id, title]) => {
-      const list = by.get(id), leaves = wsLeaves(list), done = leaves.filter(n => n.status === 'done').length, met = leaves.filter(n => metAlready(st, n, n.date || day)).length;
-      const all = id === 'daily' ? leaves.filter(wsRequiredRow).every(n => n.status === 'done' || n.status === 'skipped') && leaves.some(n => n.status === 'done') : met === leaves.length;
+      const mDone = n => n.status === 'done' || (n.status !== 'skipped' && wsMeasuredDone(st, n, n.date || day));   // AR1
+      const list = by.get(id), leaves = wsLeaves(list), done = leaves.filter(mDone).length, met = leaves.filter(n => metAlready(st, n, n.date || day)).length;
+      const all = id === 'daily' ? leaves.filter(wsRequiredRow).every(n => mDone(n) || n.status === 'skipped') && leaves.some(mDone) : met === leaves.length;
       const key = g.id + '|' + id, open = cadOpen.has(key) ? cadOpen.get(key) : id === 'daily' || !by.get('daily').length;
-      return '<details class="cad' + (all ? ' all' : '') + '" data-cad="' + id + '" data-cad-key="' + esc(key) + '"' + (open ? ' open' : '') + '><summary><b>' + title + '</b><span class="hint">' + (id === 'daily' ? done + ' of ' + leaves.length + ' done' : met + ' of ' + leaves.length + ' met') + '</span>' + (all ? '<span class="cad-done" aria-label="complete">✓</span>' : '') + '</summary>' + list.map(n => wsNode(n, 0)).join('') + '</details>'; }).join('');
+      return '<details class="cad' + (all ? ' all' : '') + '" data-cad="' + id + '" data-cad-key="' + esc(key) + '"' + (open ? ' open' : '') + '><summary><b>' + (id === 'daily' ? esc(cadDayWord(day)) : title) + '</b><span class="hint">' + (id === 'daily' ? done + ' of ' + leaves.length + ' done' : met + ' of ' + leaves.length + ' met') + '</span>' + (all ? '<span class="cad-done" aria-label="complete">✓</span>' : '') + '</summary>' + list.map(n => wsNode(n, 0)).join('') + '</details>'; }).join('');
     return {html, daily:by.get('daily')};
   }
   /* V3.5 Q1: a card whose day is settled closes to one line ("12 of 12", resolved = done or skipped); the sweep hides
@@ -9296,13 +9305,14 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   const wsReopened = new Set(), questAutoClose = st => !(st.prefs && st.prefs.questAutoClose === false);
   function wsGroupCard(g, nodes){
     const st = S(), sections = wsCadenceSections(g, nodes), daily = wsLeaves(sections.daily);
-    const done = daily.filter(n => n.status === 'done').length, resolved = daily.filter(n => n.status === 'done' || n.status === 'skipped').length, partial = daily.filter(n => n.status === 'partial').length;   // V3.6 I2: a partial counts ½
+    const mDone = n => n.status === 'done' || (n.status !== 'skipped' && wsMeasuredDone(st, n, n.date || day));   // AR1: a met Measured item is done in the count
+    const done = daily.filter(mDone).length, resolved = daily.filter(n => mDone(n) || n.status === 'skipped').length, partial = daily.filter(n => n.status === 'partial' && !mDone(n)).length;   // V3.6 I2: a partial counts ½
     // V3.6 I4 (V35-A23): a card that closed with a claim pending says so on its one line, and one tap reaches the claim.
     const toClaim = (wsClaimable || []).filter(c => daily.some(n => c.id === n.key || (c.seriesId === n.seriesId && c.date === (n.date || day))));
     const half = v => Math.floor(v) + (v % 1 ? '½' : '');
     // A card is settled by what today asks of it (Mintay, Sept 27): an open weekly or monthly item does not hold it open.
-    const required = daily.filter(n => wsRequiredRow(n) && !metAlready(st, n, n.date || day)), settled = required.every(n => n.status === 'done' || n.status === 'skipped');   // nothing open, including an empty category, is quiet
-    const todayDone = settled && daily.some(n => n.status === 'done');
+    const required = daily.filter(n => wsRequiredRow(n) && !metAlready(st, n, n.date || day)), settled = required.every(n => mDone(n) || n.status === 'skipped');   // nothing open, including an empty category, is quiet
+    const todayDone = settled && daily.some(mDone);
     const here = composer && !composer.editSeries && !composer.parentId && !composer.template && composer.area !== 'plan' && (composer.kind === 'item' || composer.kind === 'subgroup') && composer.groupId === g.id;
     const hasSeries = (list, id) => list.some(n => n.seriesId === id || (Array.isArray(n.children) && hasSeries(n.children, id)));
     if (questFocus && hasSeries(nodes, questFocus.id)){ wsReopened.add(g.id + '|' + day); wsCollapsed.delete('group:' + g.id); }   // D3: Quests opened at an item reopens its card

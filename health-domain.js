@@ -1294,7 +1294,7 @@ function overallRankReport(state,today,windowKind,range,sections){
   const share=(r,d)=>{if(r.status==='partial')return .5;   /* V3.6 I2 (V36-I19): half credit, as Rank history counted it */
     if(r.status!=='done'||typeof v5Rule!=='function')return r.status==='done'?1:0;const t=v5Rule(state,d),series=t&&state.series.find(x=>x.id===r.seriesId);if(!series||!v5Kind(versionFor(series,d)))return 1;const m=v5Inputs(state,series,state.occurrences[occKey(r.seriesId,d)]||{seriesId:r.seriesId,date:d},t);return m?m.credit.n/m.credit.d:1;};
   for(let d=from;d<=to;d=addDays(d,1))for(const r of allRows(planFor(state,d))){
-    if(r.children&&r.children.length)continue;
+    if(Array.isArray(r.children)||r.carriedFrom)continue;   // AQ2: a carried one-off belongs to its own day; AR2: a Task is graded by its Subtasks; one with none on this day (a past one-off, or its steps all off the day) counts nothing, as in Perfect and So Far
     const slot=slotOf(r.category);if(!slot){unassigned.push({seriesId:r.seriesId,name:r.name,date:d,category:r.category||null});continue;}   // V3.5 G6 (V35-I8): never silently dropped; reported
     const series=state.series.find(x=>x.id===r.seriesId),rec=series&&versionFor(series,d)?.recurrence;
     { const gv=series&&versionFor(series,d); if(GoalEngine.windowed(gv)&&!r.optional){ const sh=GoalEngine.gradeShare(state,series,gv,d,to,goalMemo),t=tally[slot]=tally[slot]||{planned:0,done:0}; t.planned+=sh.planned; t.done+=sh.done; continue; } }   // V3.6 M3: the rank counts a goal as the grade does (review F1)
@@ -1375,7 +1375,7 @@ function gradeRowsFresh(state,from,to){
     if(r.status!=='done'||typeof v5Rule!=='function')return r.status==='done'?1:0;const t=v5Rule(state,d),series=t&&state.series.find(x=>x.id===r.seriesId);if(!series||!v5Kind(versionFor(series,d)))return 1;const m=v5Inputs(state,series,state.occurrences[occKey(r.seriesId,d)]||{seriesId:r.seriesId,date:d},t);return m?m.credit.n/m.credit.d:1;};
   const items=new Map(),goals=new Map(),span=calendarDistance(from,to)+1,goalMemo={};
   for(let d=from;d<=to;d=addDays(d,1))for(const r of allRows(planFor(state,d))){
-    if(r.children&&r.children.length)continue;
+    if(Array.isArray(r.children)||r.carriedFrom)continue;   // AQ2: a carried one-off belongs to its own day; AR2: a Task is graded by its Subtasks; one with none on this day (a past one-off, or its steps all off the day) counts nothing, as in Perfect and So Far
     const gid=r.category||r.group||null,series=state.series.find(x=>x.id===r.seriesId),rec=series&&versionFor(series,d)?.recurrence;
     // V3.6 M3: an amount, count or reading goal counts once per its window (1/L a day over a window of L days), paid the
     // credit it holds at the latest day of the window inside the graded range; a check goal stays occurrence-based.
@@ -2357,7 +2357,11 @@ const NetEnergy={
     const food=Number.isFinite(e.food)?e.food:null,burn=Number.isFinite(e.burn)?e.burn:null;
     const missing=[food===null||food<=0?'food':null,typedBurn?null:!(e.resting>0)?'resting':null,typedBurn?null:!(e.active>0)?'active':null,typedBurn&&!(burn>0)?'burn':null].filter(Boolean);
     const full=!missing.length&&e.complete!==false&&burn!==null;
-    return {date,food,burn,resting:Number.isFinite(e.resting)?e.resting:null,active:Number.isFinite(e.active)?e.active:null,net:full?food-burn:null,full,missing,typed:!!e.typed};
+    // AZ2 (his words, Oct 9: "even if i have no food in that i still have a number because thats an actual truth"): what the cards show
+    // counts an unlogged day as food 0 once its burn is known (the weight estimate's rule); `net` stays the full-record figure that the
+    // on-track checks, the Deficit item and the goals read.
+    const shown=full?food-burn:burn!==null&&missing.every(k=>k==='food')?(food>0?food:0)-burn:null;
+    return {date,food,burn,resting:Number.isFinite(e.resting)?e.resting:null,active:Number.isFinite(e.active)?e.active:null,net:full?food-burn:null,full,missing,typed:!!e.typed,shown,noFood:shown!==null&&!full};
   },
   missingText(missing){const w={food:'no food logged',resting:'no resting energy',active:'no active energy',burn:'no burn'};return (missing||[]).length===3?'no data':(missing||[]).map(k=>w[k]).join(', ');},
   // Days from..to (inclusive) with their records, the total and average of the full days, and pounds at 3,500 kcal.
@@ -2365,7 +2369,9 @@ const NetEnergy={
     const bal=Workspace.energyBalances(state,from,to),days=[];for(let d=from;d<=to;d=addDays(d,1))days.push(NetEnergy.day(state,d,bal.get(d)));
     // The average is the mean of the displayed (rounded) daily nets, rounded once more at display (the Learn rule).
     const ok=days.filter(x=>x.full),total=ok.reduce((n,x)=>n+x.net,0);
-    return {from,to,days,logged:ok.length,of:days.length,total,avg:ok.length?ok.reduce((n,x)=>n+Math.round(x.net),0)/ok.length:null,pounds:total/NET_KCAL_PER_LB,burn:ok.length?ok.reduce((n,x)=>n+x.burn,0)/ok.length:null,food:ok.length?ok.reduce((n,x)=>n+x.food,0)/ok.length:null,missing:days.filter(x=>!x.full)};
+    const sd=days.filter(x=>x.shown!==null),sTotal=sd.reduce((n,x)=>n+x.shown,0);   // AZ2: the shown figures count a day with no food as food 0
+    return {from,to,days,logged:ok.length,of:days.length,total,avg:ok.length?ok.reduce((n,x)=>n+Math.round(x.net),0)/ok.length:null,pounds:total/NET_KCAL_PER_LB,burn:ok.length?ok.reduce((n,x)=>n+x.burn,0)/ok.length:null,food:ok.length?ok.reduce((n,x)=>n+x.food,0)/ok.length:null,missing:days.filter(x=>!x.full),
+      shown:sd.length,noFood:sd.filter(x=>x.noFood).length,shownTotal:sTotal,shownAvg:sd.length?sd.reduce((n,x)=>n+Math.round(x.shown),0)/sd.length:null,shownPounds:sTotal/NET_KCAL_PER_LB,shownBurn:sd.length?sd.reduce((n,x)=>n+x.burn,0)/sd.length:null,shownFood:sd.length?sd.reduce((n,x)=>n+(x.food>0?x.food:0),0)/sd.length:null};
   },
   // Windows ending on `day` (A30, H4): Day = that day, Week = Monday to `day` (or Sunday, by the Week setting), Month = the 1st to `day`, All = Program start.
   window(state,period,day,range){const t=day||todayYmd();if(period==='custom'&&range&&validCalendarDate(range.from)&&validCalendarDate(range.to)){const a=range.from<range.to?range.from:range.to,b=range.from<range.to?range.to:range.from;return {from:a,to:b>t?t:b};}
@@ -2514,7 +2520,7 @@ function whatHelpsV2(state,from,to,readings){
 /* V3.6 R7: one rule for a graded food day, read by the Fitness Grade's protein and the Nutrition Grade alike: the day's
    food energy (NetEnergy.day, the figure Net Fuel uses) is at least 800 kcal. A no-food day is never a zero: the weight
    estimate counts it at food 0 (N3), Net Fuel, protein and the Nutrition Grade skip it. */
-const FOOD_GRADED_KCAL=800;
+const FOOD_GRADED_KCAL=300;   // AZ1-FOODDAY (his words, Oct 9: "For food make it 300 cal threshold not 800"; planner's default: one food-day rule app-wide)
 function foodGraded(state,date,eb){const x=NetEnergy.day(state,date,eb);return Number.isFinite(x.food)&&x.food>=FOOD_GRADED_KCAL;}
 // The Nutrition Grade's day: the food energy of that rule and the nutrients of the reader (closed days only).
 function nutritionDay(state,date,eb){const n=nutrientTotals(state,date),x=NetEnergy.day(state,date,eb);return {...n,date,kcal:Number.isFinite(x.food)?x.food:null};}
@@ -3853,20 +3859,26 @@ function planRowsCopy(rows){return rows.map(r=>Array.isArray(r.children)?{...r,c
 function planFor(state,date){
   return drawMemo&&drawMemo.state===state?planRowsCopy(planForDraw(state,date)):planForUncached(state,date);
 }
+/* AQ2 (his yes, Oct 8: "sure"): an open one-off from an earlier day is carried to today until it is done, skipped, moved or deleted.
+   Its own day keeps what it expected (a closed day is never regraded); on today it is not graded or counted (carriedFrom), and
+   what he does with it is recorded on today. The one-offs that something happened to on or after their day are resolved. */
+function wsCarryResolved(state){const out=new Map();for(const o of Object.values(state.occurrences||{}))if(o&&(o.status||o.removed||o.disposition)){const d=out.get(o.seriesId);if(!d||o.date>d)out.set(o.seriesId,o.date);}return out;}
 function planForUncached(state,date){
   if(!wsEnabled(state))return legacyPlanFor(state,date);
-  const rows=[];
+  const rows=[],resolved=date===todayYmd()?wsCarryResolved(state):null;
   for(const series of state.series){
     if(series.archivedAt&&series.archivedAt<=date)continue;
     const v=versionFor(series,date);if(!v)continue;
     const o=state.occurrences[occKey(series.id,date)]||null;if(o?.removed)continue;
     const due=GoalEngine.dueFor(state,series,v,date);   // V3.6 M2: one due rule (scheduledOn, after, a done deadline)
-    if(!due&&!(o&&(o.added||o.status!==null||o.committed))&&!v.childIds)continue;
+    const once=resolved&&!due&&!series.demo&&!(v.childIds&&v.childIds.length)&&v.recurrence&&v.recurrence.kind==='once'&&!v.needsDate&&validCalendarDate(v.recurrence.date)&&v.recurrence.date<date?v.recurrence.date:null;
+    const carriedFrom=once&&(o||!(resolved.get(series.id)>=once))?once:null;   // AQ2
+    if(!due&&!carriedFrom&&!(o&&(o.added||o.status!==null||o.committed))&&!v.childIds)continue;
     const ov=o?.override||{},variant=recurrenceVariant(v,date),normal=ov.normal||variant?.normal||v.normal,minimum=ov.minimum||variant?.minimum||v.minimum,selected=o?o.selected:'normal';
-    rows.push({key:occKey(series.id,date),seriesId:series.id,date,name:ov.name||wsDayName(v,date),category:v.category||series.category,anchor:ov.anchor||v.anchor,window:ov.window!==undefined?ov.window:v.window||'',order:ov.order??v.order,version:v.version,demo:!!series.demo,targets:{normal,minimum},selected,target:selected==='minimum'?minimum:normal,status:o&&o.status==='done'&&confirmedProgression(state)&&!actionConfirmation(state,o).confirmed?'tentative':o?o.status:null,confirmation:o?.aliasOf?'Same action · linked in Log':o?actionConfirmation(state,o).label:'No entry',completedVersion:o?.completedVersion||null,actualMinutes:o?.actualMinutes??null,note:o?.note||'',corrections:o?.corrections?.length||0,added:!!o?.added,addedFrom:o?.addedFrom||null,overridden:!!o?.override,aliasOf:o?.aliasOf||null,optional:!!v.optional,once:v.recurrence?.kind==='once',group:wsGroup(series,date),parentId:wsHas(ov,'parentId')?ov.parentId:parentFor(series,date),childIds:v.childIds||null,session:v.recurrence?.session||'',variant:variant?.label||'',recurrence:v.recurrence,matching:v.matching||null,targetProgress:null,workspaceKind:wsKind(series,date),budgetQ:v.budgetQ??null,occurrence:o});
+    rows.push({key:occKey(series.id,date),seriesId:series.id,date,...(carriedFrom?{carriedFrom}:{}),name:ov.name||wsDayName(v,date),category:v.category||series.category,anchor:ov.anchor||v.anchor,window:ov.window!==undefined?ov.window:v.window||'',order:ov.order??v.order,version:v.version,demo:!!series.demo,targets:{normal,minimum},selected,target:selected==='minimum'?minimum:normal,status:o&&o.status==='done'&&confirmedProgression(state)&&!actionConfirmation(state,o).confirmed?'tentative':o?o.status:null,confirmation:o?.aliasOf?'Same action · linked in Log':o?actionConfirmation(state,o).label:'No entry',completedVersion:o?.completedVersion||null,actualMinutes:o?.actualMinutes??null,note:o?.note||'',corrections:o?.corrections?.length||0,added:!!o?.added,addedFrom:o?.addedFrom||null,overridden:!!o?.override,aliasOf:o?.aliasOf||null,optional:!!v.optional,once:v.recurrence?.kind==='once',group:wsGroup(series,date),parentId:wsHas(ov,'parentId')?ov.parentId:parentFor(series,date),childIds:v.childIds||null,session:v.recurrence?.session||'',variant:variant?.label||'',recurrence:v.recurrence,matching:v.matching||null,targetProgress:null,workspaceKind:wsKind(series,date),budgetQ:v.budgetQ??null,occurrence:o});
   }
   const time=r=>/^([01]\d|2[0-3]):[0-5]\d$/.test(r.window||'')?r.window:'99:99';
-  const order=(a,b)=>time(a).localeCompare(time(b))||anchorOrder(a.anchor)-anchorOrder(b.anchor)||a.order-b.order||a.seriesId.localeCompare(b.seriesId);
+  const order=(a,b)=>(b.carriedFrom?1:0)-(a.carriedFrom?1:0)||time(a).localeCompare(time(b))||anchorOrder(a.anchor)-anchorOrder(b.anchor)||a.order-b.order||a.seriesId.localeCompare(b.seriesId);   // AQ2: carried first in its card
   rows.sort(order);
   const visit=(row,depth)=>{
     const children=rows.filter(r=>r.parentId===row.seriesId);
@@ -4515,14 +4527,29 @@ function wsPerfectAwards(state,today,epoch){
    800 → 10, 1,000 → 12); the day never passes 150% of its item points. One claim per finished week
    ('v5week|monday', series '@week'): a perfect week (every day with required items perfect) adds 10% of
    the week's item points, and Sleep Credit pays an ordinary item's points times its credit. */
+/* AR1 (his words, Oct 9: "it says 2/4 Today while all of the things are checked off?"): one rule, a Measured item whose target is met,
+   or whose share of a longer window is on pace by the day, is done everywhere: the row's check (goalMeasure draws the same test), the
+   card's count, the urgent tint, So Far and Perfect (the grades already read it from the goal). A limit ("at most") is never done by data. */
+function wsMeasuredDone(state,row,date){
+  try{
+    const s=row&&state.series.find(x=>x.id===(row.seriesId||row.id)),v=s&&versionFor(s,date||row.date),g=v&&v.goal&&v.goal.v===1?v.goal:null;
+    if(!g||!g.measure||g.measure.kind==='check'||typeof GoalEngine==='undefined')return false;
+    const p=GoalEngine.progress(state,s,date||row.date);if(!p)return false;
+    const reading=p.measure==='average'||p.measure==='latest';if(p.op==='atMost'&&!reading)return false;if(p.met)return true;
+    if(reading||p.op==='between'||!Number.isFinite(p.target)||!(p.target>0)||!p.window||!p.window.from||!p.window.to)return false;
+    const d=date||row.date,span=calendarDistance(p.window.from,p.window.to)+1;if(span<=1)return false;
+    const gone=Math.min(span,Math.max(1,calendarDistance(p.window.from,d<p.window.to?d:p.window.to)+1));
+    return p.target*gone/span-(p.value||0)<=0.005*p.target;
+  }catch(e){return false;}
+}
 function wsPerfectDay(state,date,dated=false){
   const includeRow=r=>!dated||wsPerfectIncluded(state,r,date);
   let rings=null;try{rings=Workspace.rings(state,date,dated?{includeRow}:{});}catch(_){rings=null;}
   if(!rings||typeof rings!=='object'||rings.noTargets)return null;
-  const req=flatPlanFor(state,date).filter(r=>!r.optional&&!r.demo&&r.status!=='skipped'&&includeRow(r));
+  const req=flatPlanFor(state,date).filter(r=>!r.optional&&!r.demo&&!r.carriedFrom&&r.status!=='skipped'&&includeRow(r));
   if(!req.length)return null;
   const closed=rings.closed===3||dated&&!rings.routine.applicable&&rings.cardio.closed&&rings.strength.closed;
-  return closed&&req.every(r=>r.status==='done');
+  return closed&&req.every(r=>r.status==='done'||wsMeasuredDone(state,r,date));   // AR1
 }
 function v5StepsDay(state,date){const v=relayedRecords(state,'steps').filter(r=>sourceLocalDay(r.start)===date&&r.unmapped?.healthAutoExport?.representation==='derived daily view').map(r=>r.value).filter(Number.isFinite);return v.length?Math.max(...v):null;}
 function wsDayLine(state,date,itemsQ,epoch,allowZero){
