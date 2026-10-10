@@ -1834,6 +1834,14 @@ details[data-feedback-id]:has(>summary>.card-feedback.in-summary){padding-bottom
 .pg-top{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:0 0 6px}.pg-top>*{min-width:0}.pg-module>.k-head>.fold-caret{margin-left:4px!important}.pg-top .ov-vis-col>.k-card:first-child{margin-top:0}
 .wg-prog{margin:-2px 0 6px}.wg-prog .k-chip{font-size:12.5px}   /* BG5 */
 .fit-heart{margin:0 0 12px}.comp-win{color:var(--faint);font-size:11px;font-weight:500;margin-left:4px}   /* BG15 */
+/* ---------- BG block 3, Names and data ---------- */
+.g-dom-focuses{margin:0 0 12px 22px;padding-left:10px;border-left:1px solid var(--line)}.g-dom-focuses .drawer-read{margin:2px 0 8px}   /* BG1 */
+.ctx-pop{position:fixed;z-index:80;width:286px;padding:10px 12px 12px;border:1px solid var(--line-strong,var(--line));border-radius:14px;background:var(--panel-2,#16211b);box-shadow:0 16px 40px rgba(0,0,0,.45);display:grid;gap:9px}
+.ctx-head{display:flex;align-items:baseline;gap:8px}.ctx-head small{color:var(--faint);font-size:11.5px}.ctx-head b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ctx-f{display:grid;gap:4px}.ctx-f>span{font-size:12px;color:var(--muted)}.ctx-f input{min-height:32px}.ctx-f small{color:var(--faint);font-size:11px}
+.ctx-sw{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}.ctx-sw .sw{width:100%;height:24px;border-radius:7px;border:1px solid rgba(255,255,255,.12);cursor:pointer}.ctx-sw .sw[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:1px}
+.ctx-acts{display:flex;justify-content:space-between;gap:8px;margin-top:4px;font-size:12.5px}
+.nav-ge.custom{font-size:19px;width:24px;text-align:center}
 .fit-links .fit-link{width:100%}
 </style>
 <link rel="stylesheet" href="body-view.css">
@@ -3034,6 +3042,7 @@ addEventListener('load', () => {
     { const t = $('#stoneToggle'); if (t){ const black = st.prefs.theme === 'black'; t.innerHTML = '<i class="swatch ' + (black ? 'verde' : 'black') + '" aria-hidden="true"></i>' + (black ? 'Speakeasy Verde' : 'Black Lacquer'); t.setAttribute('aria-label', 'Switch to ' + (black ? 'Speakeasy Verde' : 'Black Lacquer')); t.title = 'Switch the room'; } }
     { const rail = document.querySelector('.app').classList.contains('siderail'), c = $('#sideChev'); if (c){ c.setAttribute('aria-expanded', String(!rail)); c.setAttribute('aria-label', rail ? 'Expand the sidebar' : 'Collapse the sidebar'); c.title = rail ? 'Expand the sidebar' : 'Collapse the sidebar'; } }
     document.querySelectorAll('.nav button[data-area]').forEach(b => { if (b.dataset.area === area) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+    applyNavGroups();   // BG1
     document.querySelectorAll('.nav .nav-gname').forEach(b => { const to = NAV_GROUP_PAGE[b.dataset.g]; if (to && to !== 'home' ? area === to : 'ov-' + b.dataset.g === area) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });   // BB2, BG13
     { const nj = document.getElementById('navJournal'); if (nj){ if (area === 'journal') nj.setAttribute('aria-current', 'page'); else nj.removeAttribute('aria-current'); } }   // V3.6 J1: the Journal is a page
     const nextCk = typeof nextCheckpoint === 'function' ? nextCheckpoint(st) : (st.prefs.checkpoint ? {name:'Checkpoint', date:st.prefs.checkpoint} : null);
@@ -4012,7 +4021,7 @@ addEventListener('load', () => {
     const floorOf = (c, name, emoji) => ({id:name, out:c.ok === false, html:'<div class="gr-flag" data-flag="' + esc(name) + '" data-out="' + (c.ok === false) + '"><span aria-hidden="true">' + emoji + '</span><b>' + esc(name) + '</b><span></span><small style="color:' + GV.tone(c.value === null ? 'neutral' : c.ok === false ? 'orange' : c.ok ? 'green' : 'yellow') + '">' + esc(c.value === null ? 'No reading' : c.ok === false ? 'Under floor' : c.ok ? 'Above floor' : 'Near floor') + '</small></div>'});
     const flags = [flagOf('rr', 'Breathing', '🫁', 'rr'), flagOf('spo2', 'Blood Oxygen', '🩸', 'spo2'), flagOf('temp', 'Wrist Temperature', '🌡️', 'temp'), floorOf(s0.floors[0], 'Walking Speed', '🚶'), floorOf(s0.floors[1], 'Six-Minute Walk', '🏁')], outN = flags.filter(f => f.out).length;
     const flagCard = '<section class="k-card gr-flags" data-parity="V36-GROWTH-C06" data-feedback-id="growth-flags" data-feedback-label="Flags"><div class="k-head"><span aria-hidden="true">🚩</span><span class="k-title">Flags</span><button type="button" class="info" data-act="learnView" data-learn="early-warning" aria-label="Learn about Early Warning">i</button></div><p class="gr-fsum" data-flag-sum style="color:' + GV.tone(outN ? 'orange' : 'green') + '">' + (outN ? '● ' + outN + ' outside' : '✓ All normal') + '</p>' + flags.map(f => f.html).join('') + '</section>';
-    const learn = '<div class="fit-learn gr-learn" data-parity="V36-GROWTH-C07"><span class="cap">Learn</span>' + GROWTH_CHIPS.map(([id, l]) => '<button type="button" class="k-chip" data-act="learnView" data-learn="' + id + '">📖 ' + esc(l) + '</button>').join('') + '</div>';
+    const learn = '<div class="fit-learn gr-learn" data-parity="V36-GROWTH-C07"><span class="cap">Learn</span>' + GROWTH_CHIPS.filter(([id]) => !['vo2', 'recovery', 'hrv', 'rhr', 'fitness-age'].includes(id)).map(([id, l]) => '<button type="button" class="k-chip" data-act="learnView" data-learn="' + id + '">📖 ' + esc(l) + '</button>').join('') + '</div>';
     void fh;   // BG15: the Fitness and Heart ladder is on Fitness (fitnessBoxes)
     return '<div class="growth" data-period="' + W.per + '">' + ref + '<div class="gr-two">' + fixedCard(hero, 'latest estimate') + gainCard + '</div><div class="gr-two">' + ab + fixedCard(flagCard, 'latest readings') + '</div>' + learn + '</div>';
   }
@@ -5178,7 +5187,7 @@ addEventListener('load', () => {
   function reviewPassRefresh(){ const dlg = document.getElementById('workspaceReview'); if (dlg && dlg.open && workspaceReview && workspaceReview.kind === 'review'){ dlg.innerHTML = reviewPassHTML(); const next = dlg.querySelector('.rv-row .cb:not([disabled]), .rv-row .rep-chip, .acts button'); if (next) next.focus(); } }   // keyboard: the next control keeps focus (P2-23)
   function soFarCard(withClaim){
     const st = S(), rows = onDayRows(st, day), asked = rows.filter(r => r.status || dueOn(st, r, day)), done = rows.filter(r => r.status === 'done' || (r.status !== 'skipped' && wsMeasuredDone(st, r, day))).length,   /* AR1 */ total = Math.max(asked.length, done), pct = total ? Math.round(100 * done / total) : 0, nxt = nextAction(rows), words = narrateDay(st, day, todayYmd());
-    return '<section class="panelcard sofar" data-feedback-id="day-narration" data-feedback-label="So Far" data-tidy="keep"><div class="ph"><h2>So Far</h2>' + infoBtn('sofar', 'So Far') + '<button class="link sofar-review" data-act="reviewPass" title="Check things off and place the week’s items on the days you choose">Review</button><span class="sofar-count" data-done="' + done + '" data-total="' + total + '">' + done + ' of ' + total + '</span></div>' + infoPop('sofar', words.text + ' ' + words.basis) + '<p class="sofar-line"><b>' + done + ' done</b>' + (nxt ? ' · ' + esc(nxt.name) + ' next' : total ? ' · nothing left' : '') + '</p><div class="sofar-bar" role="img" aria-label="' + done + ' of ' + total + ' done"><i style="width:' + pct + '%"></i></div>' + (withClaim ? claimChipHTML(st) : '') + '</section>';   // Fix M2: the same gold Claim chip on Quests' So Far card, only when points are ready
+    return '<section class="panelcard sofar" data-feedback-id="day-narration" data-feedback-label="So Far" data-tidy="keep"><div class="ph"><h2>So Far</h2>' + infoBtn('sofar', 'So Far') + '<button class="link sofar-review" data-act="reviewPass" title="Check things off and place the week’s items on the days you choose">Review</button><span class="sofar-count" data-done="' + done + '" data-total="' + total + '" title="Items due on this day, done or not">' + done + ' of ' + total + ' due</span></div>' + infoPop('sofar', words.text + ' ' + words.basis) + '<p class="sofar-line"><b>' + done + ' done</b>' + (nxt ? ' · ' + esc(nxt.name) + ' next' : total ? ' · nothing left' : '') + '</p><div class="sofar-bar" role="img" aria-label="' + done + ' of ' + total + ' done"><i style="width:' + pct + '%"></i></div>' + (withClaim ? claimChipHTML(st) : '') + '</section>';   // Fix M2: the same gold Claim chip on Quests' So Far card, only when points are ready
   }
   function claimChipHTML(st){ const lvl = readyToClaim(st); return lvl && lvl.points ? '<button class="k-chip gold today-claim-chip" data-act="claimAll">Claim ' + (Math.round(lvl.points * 100) / 100).toLocaleString() + '</button>' : ''; }
   function laterCard(){
@@ -5717,7 +5726,7 @@ addEventListener('load', () => {
     const n = v => String(v);
     return '<section class="k-card g-hero g-hero36" data-parity="V35-G2-01" data-feedback-id="grade-overall" data-feedback-label="Overall Grade"><div class="k-head"><span aria-hidden="true">🏅</span><span class="k-title">Overall Grade</span>' + infoBtn('grade-overall', 'Overall Grade') + gradePeriodHTML() + '</div>' + infoPop('grade-overall', GRADE_INFO.overall) + gradeCustomHTML() +
       '<div class="g-hero-row" data-parity="V36-F1-01"><div class="g-hero-body" role="button" tabindex="0" data-act="gradeOpen" data-u="overall" aria-label="Overall ' + (letter || 'no grade yet') + '. Open what counts">' + crossMeter(pct, 78) + (heroPace ? '<b class="g-letter big g-pace" style="color:' + paceTone(heroPace) + '" title="The day is not over: ' + esc(letter || '–') + ' so far">' + heroPace + '</b>' : '<b class="g-letter big" style="color:' + gradeTone(pct) + '">' + (letter || '–') + '</b>') + '<div class="g-hero-side"><span class="g-pct">' + (pct === null ? (r ? 'Nothing due' : 'Pick two dates') : Math.round(pct) + '%') + '</span>' + gradeBar(pct, 20) + '</div></div>' +
-      (r && !gradeAboveS(letter) ? gradeMissingLine(st, r, r.umbrellas.filter(u => u.included !== false)) : '') + heroFaith + '<div class="g-hero-count" data-og-count="' + n(done) + '/' + n(due) + '"><span><b>' + n(done) + '</b> of ' + n(due) + ' done</span>' + (un ? '<button class="k-chip g-ungraded" data-act="gradeOpen" data-u="overall" data-parity="V35-G6-01">' + un + ' not graded</button>' : '') + '</div></div></section>';
+      (r && !gradeAboveS(letter) ? gradeMissingLine(st, r, r.umbrellas.filter(u => u.included !== false)) : '') + heroFaith + '<div class="g-hero-count" data-og-count="' + n(done) + '/' + n(due) + '" title="Everything that counts toward the grade in this window, Required and Extra (So Far counts only what is due on the day)"><span><b>' + n(done) + '</b> of ' + n(due) + ' graded</span>' + (un ? '<button class="k-chip g-ungraded" data-act="gradeOpen" data-u="overall" data-parity="V35-G6-01">' + un + ' not graded</button>' : '') + '</div></div></section>';
   }
 
   /* Fix P2: one short line saying what moves this grade, from the same report as the drawer: the Required items still open, then Stretch. Only below S. */
@@ -5943,21 +5952,80 @@ addEventListener('load', () => {
     const st = S(), opt = (g, v) => '<option value="' + v + '"' + ((gradeGroupUmbrella(st, g.id) || '') === v ? ' selected' : '') + '>';
     const chip = (kind, id, color, pat, label) => '<button type="button" class="cp-chip" data-act="stylePick" data-f="open" data-kind="' + kind + '" data-id="' + esc(id) + '" aria-expanded="' + !!(stylePick && stylePick.kind === kind && stylePick.id === id) + '" aria-label="Colour and pattern: ' + esc(label) + '" title="Colour and pattern"><span class="cp-swatch" style="background:' + (pat ? patCSS(color, pat, .95) + ',' : '') + (color || 'transparent') + '"></span></button>';
     const custom = (st.prefs.customDomains || []).map(d => d.id);
-    const doms = '<div class="drawer-sub">Domains</div>' + GRADE_UMBRELLAS.map(u => { const ds = domainStyleOf(u.id), open = stylePick && stylePick.kind === 'dom' && stylePick.id === u.id;
+    /* BG1 (his note: "can we actually group them by domain so that i see the domain and all the focuses in there"): each Domain row, then its Focuses
+       under it; the Focuses with no Domain last */
+    const focusRow = g => { const fs = focusStyleOf(g.id) || {}, open = stylePick && stylePick.kind === 'focus' && stylePick.id === g.id;
+      return '<div class="g-ged' + (g.hidden ? ' off' : '') + '" data-grp="' + esc(g.id) + '">' + chip('focus', g.id, fs.color || categoryColor(g.id), fs.pat, g.name) + '<input type="text" value="' + esc(g.name) + '" data-grp-name="' + esc(g.id) + '" maxlength="40" aria-label="Name of ' + esc(g.name) + '"><select data-grp-umb="' + esc(g.id) + '" aria-label="Domain for ' + esc(g.name) + '">' + opt(g, '') + 'Not graded</option>' + GRADE_UMBRELLAS.map(u => opt(g, u.id) + u.emoji + ' ' + esc(u.name) + '</option>').join('') + '</select><label class="g-hide"><input type="checkbox" data-grp-hide="' + esc(g.id) + '"' + (g.hidden ? ' checked' : '') + '> Hidden</label><button type="button" class="link" data-act="cardDelete" data-group="' + esc(g.id) + '">Delete</button></div>' + (open ? pickerHTML('focus', g.id) : ''); };
+    const live = (st.groups || []).filter(g => !g.retiredFrom), under = id => live.filter(g => (gradeGroupUmbrella(st, g.id) || '') === id);
+    const doms = '<div class="drawer-sub">Domains and their Focuses</div>' + GRADE_UMBRELLAS.map(u => { const ds = domainStyleOf(u.id), open = stylePick && stylePick.kind === 'dom' && stylePick.id === u.id, kids = under(u.id);
       return '<div class="g-ged dom" data-dom="' + u.id + '">' + chip('dom', u.id, ds.color, ds.pat, domainName(u.id)) +
         '<span class="dom-emoji"><input type="text" class="emoji-in" value="' + esc(u.emoji) + '" data-dom-emoji="' + u.id + '" maxlength="8" aria-label="Emoji for ' + esc(domainName(u.id)) + '"><button type="button" class="emoji-btn" data-act="emojiOpen" data-for="' + u.id + '" aria-label="Pick an emoji" title="Pick an emoji">☺︎</button></span>' +
         '<input type="text" value="' + esc(domainName(u.id)) + '" data-dom-name="' + u.id + '" maxlength="24" placeholder="' + esc(DOMAIN_DEFAULTS[u.id] || 'Domain') + '" aria-label="Name of the ' + esc(DOMAIN_DEFAULTS[u.id] || '') + ' Domain"><input type="text" value="' + esc(domainAbout(u.id)) + '" data-dom-about="' + u.id + '" maxlength="60" placeholder="Meaning (optional)" aria-label="What ' + esc(domainName(u.id)) + ' means">' +
         '<select data-dom-merge="' + u.id + '" aria-label="Merge ' + esc(domainName(u.id)) + ' into"><option value="">Merge into…</option>' + GRADE_UMBRELLAS.filter(x => x.id !== u.id).map(x => '<option value="' + x.id + '">' + x.emoji + ' ' + esc(x.name) + '</option>').join('') + '</select>' +
         (custom.includes(u.id) ? '<button type="button" class="link" data-act="domainDelete" data-dom="' + u.id + '">Delete</button>' : '') + '</div>' +
-        (emojiOpen === u.id ? emojiGridHTML(u.id) : '') + (open ? pickerHTML('dom', u.id) : ''); }).join('') +
+        (emojiOpen === u.id ? emojiGridHTML(u.id) : '') + (open ? pickerHTML('dom', u.id) : '') + '<div class="g-dom-focuses" data-dom-focuses="' + u.id + '">' + (kids.length ? kids.map(focusRow).join('') : '<p class="drawer-read">No Focus yet.</p>') + '</div>'; }).join('') +
       '<div class="g-ged new"><input type="text" id="domNewEmoji" class="emoji-in" maxlength="8" placeholder="✨" aria-label="Emoji for the new Domain"><input type="text" id="domNewName" maxlength="24" placeholder="New Domain" aria-label="New Domain name"><button class="k-btn" data-act="domainNew">Add Domain</button></div>' +
       '<p class="drawer-read">Split a Domain: add a new one, then move Focuses into it below. Merge moves every Focus of one Domain into another; claims, points and past days never change.</p>';
-    const focus = (st.groups || []).filter(g => !g.retiredFrom).map(g => { const fs = focusStyleOf(g.id) || {}, open = stylePick && stylePick.kind === 'focus' && stylePick.id === g.id;
-      return '<div class="g-ged' + (g.hidden ? ' off' : '') + '" data-grp="' + esc(g.id) + '">' + chip('focus', g.id, fs.color || categoryColor(g.id), fs.pat, g.name) + '<input type="text" value="' + esc(g.name) + '" data-grp-name="' + esc(g.id) + '" maxlength="40" aria-label="Name of ' + esc(g.name) + '"><select data-grp-umb="' + esc(g.id) + '" aria-label="Domain for ' + esc(g.name) + '">' + opt(g, '') + 'Not graded</option>' + GRADE_UMBRELLAS.map(u => opt(g, u.id) + u.emoji + ' ' + esc(u.name) + '</option>').join('') + '</select><label class="g-hide"><input type="checkbox" data-grp-hide="' + esc(g.id) + '"' + (g.hidden ? ' checked' : '') + '> Hidden</label><button type="button" class="link" data-act="cardDelete" data-group="' + esc(g.id) + '">Delete</button></div>' + (open ? pickerHTML('focus', g.id) : ''); }).join('');
-    return '<div class="g-groups-ed" data-parity="AG1-NAMES">' + doms + '<div class="drawer-sub">Focuses</div>' + focus +
+    const loose = live.filter(g => !GRADE_UMBRELLAS.some(u => u.id === (gradeGroupUmbrella(st, g.id) || '')));
+    return '<div class="g-groups-ed" data-parity="AG1-NAMES">' + doms + (loose.length ? '<div class="drawer-sub">Not graded</div>' + loose.map(focusRow).join('') : '') +
       '<div class="drawer-sub">New Focus</div><div class="g-ged new"><input type="text" id="grpNewName" maxlength="40" placeholder="Name" aria-label="New Focus name"><select id="grpNewUmb" aria-label="Domain for the new Focus">' + GRADE_UMBRELLAS.map(u => '<option value="' + u.id + '">' + u.emoji + ' ' + esc(u.name) + '</option>').join('') + '</select><button class="k-btn" data-act="groupNew">Add</button></div><p class="drawer-read">Moving a Focus changes which Domain its days count under in the grades shown. Claims, points and past days never change.</p></div>';
   }
   const openGroupsEditor = () => openPanel({key:'groups', title:'Names', emoji:'🗂️', learn:null, html:groupsEditorHTML}, {push:!!drawer});
+  /* BG1 (his note: "is there a way to just right click and rename and select color on the specific sidebar group, domain, and focus?"; planner's
+     default): a right-click on a sidebar group, a Domain chip or card, or a Focus title opens a small box at the pointer: Rename, Emoji (a Domain or
+     a group) and Colour. The fields are the Names drawer's own, so they save through the same writers; "More colours" opens the full picker there. */
+  const NAV_GROUP_NAMES = {hq:'HQ', temple:'Temple', hearth:'Hearth', talents:'Talents', review:'Review'}, NAV_GROUP_TITLE = {temple:'ov-temple', hearth:'hearth', talents:'talents'};
+  const navGroupPref = g => ((S().prefs || {}).navGroups || {})[g] || {};
+  const storedToGrade = id => ({'home-care':'home', relationship:'social'})[id] || id;
+  function applyNavGroups(){
+    for (const [g, def] of Object.entries(NAV_GROUP_NAMES)){ const o = navGroupPref(g), b = document.querySelector('.nav .nav-gname[data-g="' + g + '"]'); if (TITLES[NAV_GROUP_TITLE[g]]) TITLES[NAV_GROUP_TITLE[g]][0] = o.name || def; if (!b) continue;
+      const lab = b.lastElementChild; if (lab && lab.textContent !== (o.name || def)) lab.textContent = o.name || def; if (lab) lab.style.color = o.color || '';
+      let ce = b.querySelector('.nav-ge.custom'); const icon = b.querySelector('.nav-gi, .nav-ge:not(.custom)');
+      if (o.emoji){ if (!ce){ ce = document.createElement('span'); ce.className = 'nav-ge custom'; ce.setAttribute('aria-hidden', 'true'); b.prepend(ce); } ce.textContent = o.emoji; if (icon) icon.hidden = true; }
+      else { if (ce) ce.remove(); if (icon) icon.hidden = false; }
+      b.title = o.name || def; }
+  }
+  let ctxPop = null;
+  function ctxClose(){ const el = document.getElementById('ctxPop'); if (el) el.remove(); ctxPop = null; }
+  function ctxPopHTML(h){
+    const st = S(), mids = COLOR_FAMILIES.filter(f => f[0] !== 'Violet' || (h.kind === 'dom' && h.id === 'faith') || (h.kind === 'focus' && gradeGroupUmbrella(st, h.id) === 'faith')).map(f => [f[0], f[1][2]]);
+    const g = h.kind === 'focus' ? groupById(st, h.id) : null, name = h.kind === 'dom' ? domainName(h.id) : h.kind === 'nav' ? (navGroupPref(h.id).name || NAV_GROUP_NAMES[h.id]) : g ? g.name : '';
+    const cur = h.kind === 'dom' ? (domainStyleOf(h.id) || {}).color : h.kind === 'focus' ? ((focusStyleOf(h.id) || {}).color || categoryColor(h.id)) : navGroupPref(h.id).color;
+    const emo = h.kind === 'dom' ? ((GRADE_UMBRELLAS.find(u => u.id === h.id) || {}).emoji || '') : h.kind === 'nav' ? (navGroupPref(h.id).emoji || '') : null;
+    const nameIn = h.kind === 'dom' ? 'data-dom-name="' + esc(h.id) + '" maxlength="24"' : h.kind === 'focus' ? 'data-grp-name="' + esc(h.id) + '" maxlength="40"' : 'data-nav-name="' + esc(h.id) + '" maxlength="24"';
+    const emoIn = emo === null ? '' : '<label class="ctx-f"><span>Emoji</span><input type="text" class="emoji-in" value="' + esc(emo) + '" ' + (h.kind === 'dom' ? 'data-dom-emoji="' + esc(h.id) + '"' : 'data-nav-emoji="' + esc(h.id) + '"') + ' maxlength="8" placeholder="' + (h.kind === 'nav' ? 'icon' : '') + '" aria-label="Emoji"><small>⌃⌘Space for the Mac’s emoji</small></label>';
+    return '<div class="ctx-head"><small>' + (h.kind === 'dom' ? 'Domain' : h.kind === 'focus' ? 'Focus' : 'Sidebar group') + '</small><b>' + esc(name) + '</b><button type="button" class="k-icon-btn" data-act="ctxClose" aria-label="Close">×</button></div>' +
+      '<label class="ctx-f"><span>Name</span><input type="text" value="' + esc(name) + '" ' + nameIn + ' aria-label="Rename ' + esc(name) + '"></label>' + emoIn +
+      '<div class="ctx-f"><span>Colour</span><div class="ctx-sw">' + mids.map(([fn, c]) => '<button type="button" class="sw" data-act="ctxColor" data-v="' + c + '" title="' + fn + '" aria-label="' + fn + '" aria-pressed="' + (String(cur || '').toLowerCase() === c) + '" style="background:' + c + '"></button>').join('') + '</div>' +
+      '<div class="ctx-acts">' + (h.kind === 'nav' ? '' : '<button type="button" class="link" data-act="ctxMore">More colours and patterns</button>') + '<button type="button" class="link" data-act="ctxColor" data-v="">' + (h.kind === 'focus' ? 'Auto shade' : 'Original') + '</button></div></div>';
+  }
+  function ctxOpen(h, x, y){
+    ctxClose(); ctxPop = h; const el = document.createElement('div'); el.id = 'ctxPop'; el.className = 'ctx-pop'; el.setAttribute('role', 'dialog'); el.innerHTML = ctxPopHTML(h); document.body.append(el);
+    const r = el.getBoundingClientRect(); el.style.left = Math.max(8, Math.min(x, innerWidth - r.width - 8)) + 'px'; el.style.top = Math.max(8, Math.min(y, innerHeight - r.height - 8)) + 'px';
+    const f = el.querySelector('input'); if (f){ f.focus(); f.select(); }
+  }
+  document.addEventListener('contextmenu', e => {
+    const t = e.target && e.target.closest ? e.target : null; if (!t || t.closest('input,textarea,select,#ctxPop')) return; let h = null, x;
+    if ((x = t.closest('.nav .nav-head[data-g]'))) h = {kind:'nav', id:x.dataset.g};
+    else if ((x = t.closest('.q-chips [data-act="questUmbrella"]')) && x.dataset.v !== 'all') h = {kind:'dom', id:storedToGrade(x.dataset.v)};
+    else if ((x = t.closest('.g-umb[data-umb]'))) h = {kind:'dom', id:x.dataset.umb};
+    else if ((x = t.closest('.dom-card[data-dom] > .dom-head'))) h = {kind:'dom', id:x.parentElement.dataset.dom};
+    else if ((x = t.closest('.ws-group[data-group] > .gh, .ws-empty-chip[data-group]'))) h = {kind:'focus', id:(x.dataset.group || x.closest('[data-group]').dataset.group)};
+    else if ((x = t.closest('.pg-module[data-focus] > .k-head'))) h = {kind:'focus', id:x.parentElement.dataset.focus};
+    if (!h || (h.kind === 'dom' && !GRADE_UMBRELLAS.some(u => u.id === h.id)) || (h.kind === 'focus' && !groupById(S(), h.id))) return;
+    e.preventDefault(); ctxOpen(h, e.clientX, e.clientY);
+  });
+  document.addEventListener('mousedown', e => { if (ctxPop && !(e.target.closest && e.target.closest('#ctxPop'))) ctxClose(); }, true);
+  document.addEventListener('keydown', e => { if (ctxPop && e.key === 'Escape'){ e.stopPropagation(); ctxClose(); } }, true);
+  document.addEventListener('click', async e => {
+    const b = e.target.closest && e.target.closest('#ctxPop [data-act]'); if (!b || !ctxPop) return; e.stopPropagation(); const h = ctxPop, act = b.dataset.act;
+    if (act === 'ctxClose') return ctxClose();
+    if (act === 'ctxMore'){ ctxClose(); stylePick = {kind:h.kind, id:h.id, half:0}; openGroupsEditor(); return; }
+    if (act === 'ctxColor'){ const v = b.dataset.v || null;
+      if (h.kind === 'nav'){ const st = S(); stage(st, 'names'); const all = {...(st.prefs.navGroups || {})}, next = {...(all[h.id] || {}), color:v}; if (!v) delete next.color; if (Object.keys(next).length) all[h.id] = next; else delete all[h.id]; st.prefs.navGroups = all; await commit('names', v ? 'Colour set.' : 'Colour back to the original.'); }
+      else await setStyle(h.kind, h.id, {color:v}, v ? 'Colour set.' : h.kind === 'focus' ? 'Back to an automatic shade of its Domain.' : 'Back to the original colour.');
+      const el = document.getElementById('ctxPop'); if (el && ctxPop){ el.innerHTML = ctxPopHTML(ctxPop); } }
+  }, true);
   // A slider moves the preview live; letting go saves.
   document.addEventListener('input', e => {
     const s = e.target.closest && e.target.closest('[data-grade-slider]'); if (!s) return;
@@ -5981,6 +6049,7 @@ addEventListener('load', () => {
       for (const g of moving){ g.umbrella = gradeStoredUmbrella(to); g.updatedAt = nowIso(); } if (/^d-/.test(from)) st.prefs.customDomains = (st.prefs.customDomains || []).filter(d => d.id !== from);
       await commit('groups', (moving.length ? (moving.length + (moving.length === 1 ? ' Focus' : ' Focuses')) + ' moved' : 'Nothing to move') + ' from ' + domainName(from) + ' into ' + domainName(to) + '. Claims, points and past days are kept.'); return; }   // BA2: merge
     if (t.matches('[data-dom-name], [data-dom-about]')){ const id = t.dataset.domName || t.dataset.domAbout, field = t.dataset.domName ? 'name' : 'about', v = t.value.trim().slice(0, field === 'name' ? 24 : 60), cur = (st.prefs.domainNames || {})[id] || {}; if ((cur[field] || '') === v) return; stage(st, 'names'); const all = {...(st.prefs.domainNames || {})}, next = {...cur, [field]:v}; if (!String(next.name || '').trim() && !String(next.about || '').trim()) delete all[id]; else all[id] = next; st.prefs.domainNames = all; await commit('names', field === 'name' ? (v ? 'The Domain is now ' + v + '.' : 'Back to ' + DOMAIN_DEFAULTS[id] + '.') : 'Saved.'); return; }   // AG1
+    if (t.matches('[data-nav-name], [data-nav-emoji]')){ const g = t.dataset.navName || t.dataset.navEmoji, field = t.dataset.navName ? 'name' : 'emoji', v = t.value.trim().slice(0, field === 'name' ? 24 : 8); stage(st, 'names'); const all = {...(st.prefs.navGroups || {})}, next = {...(all[g] || {}), [field]:v}; if (!v) delete next[field]; if (Object.keys(next).length) all[g] = next; else delete all[g]; st.prefs.navGroups = all; await commit('names', field === 'name' ? (v ? 'The group is now ' + v + '.' : 'Back to ' + NAV_GROUP_NAMES[g] + '.') : v ? 'Emoji set.' : 'Back to its icon.'); return; }   // BG1
     if (t.matches('[data-grp-name]')){ const g = groupById(st, t.dataset.grpName), n = t.value.trim(); if (!g || !n || n === g.name) return; stage(st, 'groups'); renameGroup(st, g.id, n); await commit('groups', 'Renamed to ' + n + '.'); return; }
     if (t.matches('[data-grp-umb]')){ const g = groupById(st, t.dataset.grpUmb); if (!g) return; stage(st, 'groups'); g.umbrella = t.value ? gradeStoredUmbrella(t.value) : 'none'; g.updatedAt = nowIso(); await commit('groups', t.value ? g.name + ' now counts under ' + GRADE_UMBRELLAS.find(u => u.id === t.value).name + '.' : g.name + ' is not graded.'); return; }
     if (t.matches('[data-grp-hide]')){ stage(st, 'groups'); setGroupHidden(st, t.dataset.grpHide, t.checked); await commit('groups', t.checked ? 'Hidden. Its items and history are kept.' : 'Shown again.'); return; }
@@ -6739,6 +6808,18 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const t = todayYmd(), series = (st.series || []).filter(s => !s.demo && !(s.archivedAt && s.archivedAt <= t) && (() => { const v = versionFor(s, t) || s.versions[s.versions.length - 1]; return v && (v.category || s.category) === g.id && !v.parentId; })());
     if (!series.length) return '<p class="hint keep">Nothing here yet.</p>';
     return series.map(s => { const v = versionFor(s, t) || s.versions[s.versions.length - 1];
+      /* BG17 (planner's review: Yonas Inc, Mentorship, Network, Bedroom, Office, Gym read "every day · not done yet"): a Task is not itself daily; its line
+         gives its steps' schedule, the next step due and when a step was last done */
+      const kids = (st.series || []).filter(c => !c.demo && c.id !== s.id && !(c.archivedAt && c.archivedAt <= t) && (() => { const cv = versionFor(c, t) || c.versions[c.versions.length - 1]; return cv && cv.parentId === s.id; })());
+      const r0 = v.recurrence || {}, gp0 = v.goal && v.goal.period, own = gp0 && gp0.kind === 'month' ? 'once a month' : gp0 && gp0.kind === 'week' ? 'each week' : r0.kind === 'target' ? (r0.weeks > 1 ? (r0.count === 1 ? 'once' : r0.count + ' times') + ' every ' + r0.weeks + ' weeks' : r0.count + ' a week') : recurWords(r0);
+      if (kids.length){
+        const ids = new Set([s.id, ...kids.map(c => c.id)]), words = [...new Set(kids.map(c => { const cv = versionFor(c, t) || c.versions[c.versions.length - 1]; return recurWords(cv.recurrence || {}); }).filter(Boolean))];
+        let kLast = null; for (const oc of Object.values(st.occurrences)) if (ids.has(oc.seriesId) && oc.status === 'done' && oc.date <= t && (!kLast || oc.date > kLast)) kLast = oc.date;
+        let nx = null; if (!gp0 && r0.kind !== 'target') for (let i = 0; i <= 60 && !nx; i++){ const d = addDays(t, i); for (const c of kids){ const cv = versionFor(c, d); if (cv && scheduledOn(cv, d)){ const oc = st.occurrences[occKey(c.id, d)]; if (!(oc && (oc.status || oc.removed))){ nx = {d, name:cv.name}; break; } } } }
+        // the Task's own cadence when it has one (a weekly load, a monthly goal); the steps' when the Task only says "every day"
+        const steps = kids.length + (kids.length === 1 ? ' step' : ' steps') + (own && own !== 'every day' && own !== 'daily' ? ' · ' + own : words.length === 1 ? ' · ' + words[0] : '');
+        return '<div class="ov-line" data-task-line="' + esc(s.id) + '"><b>' + esc(v.name) + '</b><small>' + [steps, nx ? 'next ' + nx.name + ' ' + (nx.d === t ? 'today' : medDate(nx.d)) : '', kLast ? 'last ' + medDate(kLast) : 'not done yet'].filter(Boolean).map(esc).join(' · ') + '</small></div>';
+      }
       let last = null; for (const oc of Object.values(st.occurrences)) if (oc.seriesId === s.id && oc.status === 'done' && oc.date <= t && (!last || oc.date > last)) last = oc.date;
       // how often: a goal's own window first (RX: once a month), a weekly count over several weeks (Therapy: once every 4 weeks), else the days
       const r = v.recurrence || {}, gp = v.goal && v.goal.period, cad = gp && gp.kind === 'month' ? 'once a month' : gp && gp.kind === 'week' ? 'each week' : r.kind === 'target' ? (r.weeks > 1 ? (r.count === 1 ? 'once' : r.count + ' times') + ' every ' + r.weeks + ' weeks' : r.count + ' a week') : recurWords(r);
@@ -6747,7 +6828,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       let next = null; if (fixed) for (let i = 0; i <= 90 && !next; i++){ const d = addDays(t, i), vv = versionFor(s, d); if (vv && scheduledOn(vv, d)){ const oc = st.occurrences[occKey(s.id, d)]; if (!(oc && (oc.status || oc.removed))) next = d; } }
       return '<div class="ov-line"><b>' + esc(v.name) + '</b><small>' + [o.cadence !== false ? cad : '', next ? 'next ' + (next === t ? 'today' : medDate(next)) : v.needsDate ? 'needs a date' : '', last ? 'last ' + medDate(last) : 'not done yet'].filter(Boolean).map(esc).join(' · ') + '</small></div>'; }).join('');
   }
-  const moduleCard = (title, emoji, body, g) => '<section class="k-card pg-module"' + (g ? ' style="--category:' + categoryColor(g.id) + '"' : '') + '><div class="k-head"><span aria-hidden="true">' + emoji + '</span><span class="k-title">' + esc(title) + '</span>' + (g ? '<button class="ws-addbtn" data-act="wsAdd" data-kind="item" data-group="' + esc(g.id) + '">+ Add</button>' : '') + '</div>' + body + '</section>';
+  const moduleCard = (title, emoji, body, g) => '<section class="k-card pg-module"' + (g ? ' data-focus="' + esc(g.id) + '" style="--category:' + categoryColor(g.id) + '"' : '') + '><div class="k-head"><span aria-hidden="true">' + emoji + '</span><span class="k-title">' + esc(title) + '</span>' + (g ? '<button class="ws-addbtn" data-act="wsAdd" data-kind="item" data-group="' + esc(g.id) + '">+ Add</button>' : '') + '</div>' + body + '</section>';
   // BB5: Nourish gathers what feeds him: Net Energy (always a number, AZ2), the Nutrition Grade on the page's window, macros, water and the weight estimate (Fuel), and his Nourish Focus
   function renderNourish(){ const st = S(); return '<div class="cols2 pg-cols" data-parity="BB5-NOURISH"><div>' + fuelCardV35(day) + focusCard(st, /^nourish$/i) + '</div><div>' + macrosNutritionCard(day) + '</div></div>'; }
   // BB6: Care: Mind (therapy, groups, RX: how often and when next) and Glow (Morning, Body and Night over 14 days, with streaks)
@@ -8221,7 +8302,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const remList = rems.length ? '<div class="k-list" data-reminders>' + rems.map(({sid, r, s}) => '<div class="k-row" data-rem="' + esc(sid) + '"><span class="name">' + esc(latestVersion(s).name) + (r.enabled && r.time && inQuietHours(st.prefs, r.time) ? ' <span class="chip quiet">Quiet hours</span>' : '') + '</span><input id="srm-' + esc(sid) + '" type="time" value="' + esc(r.time || '') + '" aria-label="' + esc(latestVersion(s).name) + ' time"><label class="radios"><input type="checkbox" id="srme-' + esc(sid) + '"' + (r.enabled ? ' checked' : '') + '> On</label><button class="ghost small" data-act="settingsReminderSave" data-series="' + esc(sid) + '">Save</button></div>').join('') + '</div>' : '<span class="hint keep">No reminders yet</span>';
     const reminders = [
       setRow('perm', 'Notifications', 'permission allow test resync notification scheduled', perm, {stack:true}),
-      setRow('quiet', 'Quiet hours', 'quiet hours night do not disturb', '<div class="line"><input id="qh-from" type="time" value="' + esc(qh.from || '') + '" aria-label="Quiet hours from"><span class="hint">to</span><input id="qh-to" type="time" value="' + esc(qh.to || '') + '" aria-label="Quiet hours until"><button class="ghost" data-act="quietClear">Clear</button></div>', {sub:'Saves at once. Reminders inside quiet hours are not scheduled.'}),
+      setRow('quiet', 'Quiet hours', 'quiet hours night do not disturb', (qh.from && qh.to ? '<div class="line"><input id="qh-from" type="time" value="' + esc(qh.from) + '" aria-label="Quiet hours from"><span class="hint">to</span><input id="qh-to" type="time" value="' + esc(qh.to) + '" aria-label="Quiet hours until"><button class="ghost" data-act="quietClear">Turn off</button></div>'
+        : '<div class="line" data-parity="BG22-QUIET"><b class="hint">Off</b><button class="ghost" data-act="quietOn">Turn on · 10:00 PM to 7:00 AM</button></div>'), {sub:'Saves at once. Reminders inside quiet hours are not scheduled.'}),   /* BG22 (planner's review: an unset pair drew as "12:30 PM to 12:30 PM" in the Mac app, an empty time box shows a time): unset reads Off */
       setRow('remlist', 'Reminders', 'reminder morning prayer vitamins walk night scheduled per item', remList, {stack:true, sub:pl(sched.length, 'reminder') + ' scheduled'}),
       setRow('addrem', 'Add one', 'new reminder', '<button class="link" data-act="go" data-area="plan">On an item in Quests</button>')
     ].join('');
@@ -10852,6 +10934,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       if (!validCalendarDate(v) || v > todayYmd()){ toast('Choose a Program start on or before today.'); focusFirst('#set-progstart'); return; }
       if (validCalendarDate(end) && v >= end){ toast('The Program start comes before the goal date (' + medDate(end) + ').'); return; }
       stage(st, 'pref'); st.prefs.programStart = v; commit('pref', 'Program start: ' + medDate(v) + '. All begins there; past days are unchanged.'); return; }
+    if (act === 'quietOn'){ stage(st, 'quiet'); st.prefs.quietHours = {from:'22:00', to:'07:00'}; commit('quiet', 'Quiet hours on: 10:00 PM to 7:00 AM. Change the times in Settings.'); return; }   // BG22
     if (act === 'quietClear'){ stage(st, 'quiet'); st.prefs.quietHours = null; commit('quiet', 'Quiet hours cleared.'); return; }
     if (act === 'settingsReminderSave'){ const sid = btn.dataset.series, t = (document.getElementById('srm-' + sid) || {}).value || '', on = !!(document.getElementById('srme-' + sid) || {}).checked; stage(st, 'reminder'); setReminder(st, sid, t, on); commit('reminder', t ? (on ? 'Reminder set for ' + clock(t, '') + '.' : 'Reminder kept, switched off.') : 'Reminder removed.'); return; }
     if (act === 'settingsNav'){ settingsFind = ''; const s = $('#setSearch'); if (s) s.value = ''; settingsFilter(); document.querySelectorAll('#main .set-nav button').forEach(b => b.toggleAttribute('aria-current', b === btn)); document.getElementById('settings-' + btn.dataset.sec)?.scrollIntoView({block:'start'}); return; }
@@ -11821,7 +11904,17 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   }
   function searchGo(i){
     const r = searchList[i]; if (!r) return; const d = $('#searchDialog'); d.close(); const g = r.go;
-    if (g.page) go(g.page); else if (g.item){ go('plan'); setTimeout(() => { const el = document.querySelector('#main [data-series="' + CSS.escape(g.item) + '"]'); if (el){ el.scrollIntoView({block:'center'}); el.classList.add('spot'); setTimeout(() => el.classList.remove('spot'), 1800); } }, 250); }
+    /* BG2 (his note: "the search helps me locate that it exists but it doesnt actually show me (direct me to the place itself)"): an item opens
+       Quests > Activities on the selected day with every filter cleared and its card and sections open, and lands on its row; one on the Template
+       shelf lands there; one on neither (not on this day, parked) opens its Edit form */
+    if (g.page) go(g.page); else if (g.item){
+      const st = S(), sr = (st.series || []).find(x => x.id === g.item), v = sr && latestVersion(sr), gid = v && (v.category || sr.category), pid = v && v.parentId;
+      questTab = 'activities'; questUmbrella = 'all'; questSwept.delete(day); if (gid){ wsCollapsed.delete('group:' + gid); wsReopened.add(gid + '|' + day); } if (pid) wsCollapsed.delete(pid);
+      if (area === 'plan') render(); else go('plan');
+      setTimeout(() => { const q = sel => document.querySelector(sel + ' [data-series="' + CSS.escape(g.item) + '"]'), el = q('#main') || q('#ctxRail');
+        if (el){ for (let p = el.parentElement; p; p = p.parentElement) if (p.tagName === 'DETAILS' && !p.open) p.open = true; const fc = el.closest('[data-fold="closed"]'); if (fc) cardFold(fc, false);
+          el.scrollIntoView({block:'center'}); el.classList.add('spot'); setTimeout(() => el.classList.remove('spot'), 2400); return; }
+        openEditComposer(g.item, day < todayYmd() ? todayYmd() : day, {area:'plan'}); setTimeout(() => { const f = document.querySelector('.cmp-edit'); if (f) f.scrollIntoView({block:'start'}); }, 60); }, 250); }
     else if (g.note){ go('lessons'); } else if (g.metric){ openDrawer(g.metric); } else if (g.find){ settingsFindNext = g.find; if (area === 'settings'){ settingsFind = g.find; settingsFindNext = ''; render(); } else go('settings'); }
   }
   window.HealthSearch = {open:openSearch, index:searchIndex};
