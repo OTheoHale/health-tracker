@@ -1784,6 +1784,48 @@ body:not([data-area="faith"]) .ws-group.glass .cstrip{background:var(--pat-strip
 .app.siderail:not(.peeking) .side .nav-gname span,.app.siderail:not(.peeking) .side .nav-gchev{display:none}
 .ov-q{margin:0 0 12px;font-size:17px;color:var(--muted)}.ov-hero{display:flex;align-items:center;gap:12px;margin:6px 0 10px}.ov-pct{font-size:18px;font-weight:650}.ov-rows{display:grid;gap:4px}.ov-row{display:grid;grid-template-columns:22px minmax(0,1fr) 110px 34px;align-items:center;gap:8px;padding:6px 8px;border:0;border-radius:9px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}.ov-row:hover{background:rgba(255,255,255,.05)}.ov-dot{width:10px;height:10px;border-radius:50%;background:var(--category)}.ov-page{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;padding:10px 12px;margin:4px 0;border:1px solid var(--line);border-radius:12px;background:none;color:inherit;font:inherit;cursor:pointer;text-align:left}.ov-page small{color:var(--muted)}.ov-big{font-size:34px;font-weight:650;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}.ov-big small{font-size:13px!important;font-weight:500;color:var(--muted);line-height:1.3}.ov-line{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid var(--line)}.ov-line small{color:var(--muted)}.ov-bars{display:flex;gap:10px;align-items:flex-end;height:96px}.ov-bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:3px}.ov-bar i{display:block;width:100%;max-width:36px;border-radius:6px 6px 2px 2px;background:var(--c-green,#79d6a9);min-height:3px}.ov-bar small{color:var(--muted);font-size:11px}.comp-rows{display:grid;gap:2px}.body-heroes>.mf-card{grid-column:span 2}.comp-row{display:grid;grid-template-columns:26px max-content minmax(0,1fr);align-items:baseline;gap:8px;padding:5px 0;border-top:1px solid var(--line)}.comp-row:first-child{border-top:0}.comp-e{font-size:17px}.comp-v{justify-self:end;white-space:nowrap;font-size:17px;font-variant-numeric:tabular-nums}.comp-v small{color:var(--muted);font-weight:500}.body-standing{margin-top:18px}.jik-journal summary{cursor:pointer;list-style:none;display:flex;gap:8px;align-items:center}   /* BB2, BB3, BB1 */
 .fx-row{display:grid;grid-template-columns:1fr 1fr 2fr;gap:12px;margin:0 0 12px}.fx-box{display:flex;flex-direction:column;align-items:center;text-align:center}.fx-title{display:flex;gap:6px;justify-content:center;align-items:center;font-weight:650;margin-bottom:6px}.fx-two{display:grid;justify-items:center;gap:0}.fx-two b{font-size:38px;line-height:1.05;font-variant-numeric:tabular-nums}.fx-two small{color:var(--muted);font-size:12px;margin-bottom:6px}@media(max-width:1100px){.fx-row{grid-template-columns:1fr 1fr}.fx-ladder{grid-column:1/-1}}.pg-module .k-head .ws-addbtn{margin-left:auto}.care-heat{display:grid;grid-template-columns:90px 1fr auto;align-items:center;gap:8px;padding:5px 0}.care-cells{display:grid;grid-template-columns:repeat(14,1fr);gap:3px}.care-cells i{display:block;height:18px;border-radius:4px;border:1px solid var(--line)}.care-days{display:grid;grid-template-columns:90px 1fr;color:var(--muted)}   /* BB4 to BB7 */
+/* ---------- BG block 1, Layout (his Lessons notes and the planner's review, Oct 9) ---------- */
+/* BG9, BG10: cards sit in aligned rows, at least about 340 px wide; one card alone takes the width (a Focus card on Nourish or Care is never skinny) */
+.ws-groups{grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));align-items:start}
+.pg-cols .ws-groups{grid-template-columns:minmax(0,1fr)}.dom-body{grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr))}
+[data-parity="BB7-HEARTH"] .k-grid.c3,[data-parity="BB7-TALENTS"] .k-grid.c3{grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr))}
+/* BG20: the empty Focuses as one line */
+.ws-empties{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:8px 12px;border:1px dashed var(--line);border-radius:14px;margin:0 0 12px}.dom-body .ws-empties{margin:2px 0 10px}
+.ws-empties-h{color:var(--faint);font-size:12.5px;margin-right:2px}
+.ws-empty-chip{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:3px 10px;border:1px solid color-mix(in srgb,var(--category) 40%,var(--line));border-radius:999px;background:color-mix(in srgb,var(--category) 12%,transparent);color:var(--ink);font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
+.ws-empty-chip>i{width:8px;height:8px;border-radius:50%;background:var(--category)}.ws-empty-chip .ws-empty-plus{color:var(--faint);font-weight:600}.ws-empty-chip:hover{background:color-mix(in srgb,var(--category) 22%,transparent)}.ws-empty-chip:hover .ws-empty-plus{color:var(--ink)}
+.ws-empty-chip.drop-over,.ws-empty-chip.drop-target{outline:2px solid var(--brass);outline-offset:2px}
+/* BG14 (his choice: row buttons stay visible and give way to the ⋯ menu when the card is too narrow; names never break mid-word) */
+.ws-node .nm,.ws-node .meta,.ov-line b,.comp-n,.care-heat b{overflow-wrap:normal;word-break:normal;hyphens:manual}
+.ws-node>.nrow{grid-template-columns:auto minmax(min-content,1fr) auto auto auto}
+@container (max-width:400px){.ws-node>.nrow>.row-acts{display:none}}
+/* BG4 (his note: "2/3 weight and goal and 1/3 Composition"): side by side once the page is wide enough, Composition never under 320 px */
+.body-heroes{grid-template-columns:minmax(0,1fr)!important}.body-heroes>.wg-card,.body-heroes>.mf-card{grid-column:auto!important}
+@container (min-width:820px){.body-heroes{grid-template-columns:minmax(0,2fr) minmax(320px,1fr)!important}}
+/* BG11: a group's pages sit under its heading, indented, on a faint guide line */
+.app:not(.siderail) .side .nav .nav-grp[data-g]{margin:0 0 4px 22px;padding-left:8px;border-left:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+.app.siderail.peeking .side .nav .nav-grp[data-g]{margin:0 0 4px 22px;padding-left:8px;border-left:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+@media (max-width:900px){.side .nav .nav-grp[data-g]{margin:0!important;padding:0!important;border:0!important}}
+/* BG18: the rail's Fitness Grade card: each part's name and number on one line, its pips under them; "needs Week or longer" on its own line */
+#ctxRail .g-fit .g-comp{grid-template-columns:minmax(0,1fr) auto auto;row-gap:3px;column-gap:8px;padding:2px 0}
+#ctxRail .g-fit .g-comp>span{grid-column:1;grid-row:1;display:flex;flex-direction:column;color:var(--ink)}#ctxRail .g-fit .g-comp>b{grid-column:2;grid-row:1}#ctxRail .g-fit .g-comp>.g-toggle{grid-column:3;grid-row:1}
+#ctxRail .g-fit .g-comp>.g-bar{grid-column:1/-1;grid-row:2}#ctxRail .g-fit .g-comp .g-why{color:var(--faint);font-size:11.5px}
+#ctxRail .g-fit .g-ub-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px}
+/* BG19: the Template rail tabs fit their names ("Parked" was cut to "Parl"); the Year table fades where it continues and steps with ‹ › */
+.tpl-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px}.tpl-tab{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;min-height:40px;padding:3px 2px;line-height:1.15;font-size:12.5px}.tpl-tab small{margin:0;font-size:11px}
+.yv-scroll.more-r{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 48px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 48px),transparent)}
+.yv-pager{display:flex;justify-content:flex-end;align-items:center;gap:4px;margin:6px 0 0}.yv-pager small{color:var(--faint);font-size:12px;margin-right:4px}
+/* BG21: the overview: grade beside the visuals, pages as one row of tiles */
+.ov-pages{margin-top:14px}.ov-page-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}.ov-page-grid .ov-page{margin:0;height:100%}
+.ov-vis-col>.k-card+.k-card{margin-top:12px}
+/* BG3: every note at the bottom-right of what it notes; a card inside a fold keeps its note in the fold's corner, not beside its title */
+details[data-feedback-id]{position:relative}
+details[data-feedback-id]>summary>.card-feedback.in-summary{position:absolute;right:4px;bottom:2px;margin:0;opacity:.55}
+details[data-feedback-id]:has(>summary>.card-feedback.in-summary){padding-bottom:22px}
+[data-visual].vn-foot,[data-visual].vn-end{position:relative}
+[data-visual].vn-foot{padding-bottom:20px}[data-visual].vn-end{padding-right:24px}
+[data-visual]>.vis-note{position:absolute;right:0;bottom:0;margin:0}[data-visual].vn-end>.vis-note{bottom:auto;top:50%;transform:translateY(-50%)}
+.pg-module>.k-head{display:flex;align-items:center}.pg-module>.k-head>.ws-addbtn{margin-left:auto}   /* + Add at the right of a module's head */
 </style>
 <link rel="stylesheet" href="body-view.css">
 <script type="module" src="model-viewer.min.js"></script>
@@ -6600,8 +6642,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
         return '<div class="ov-hero"><b class="g-letter big" style="color:' + tone(own) + '">' + (rankLetter(own) || '–') + '</b><span class="ov-pct">' + pct(own) + '</span>' + gradeBar(own, 12) + '</div>'; })() +
       (!P.domains ? '<div class="ov-rows">' + umbs.filter(u => u.own !== null).map(u => '<button type="button" class="ov-row" data-act="gradeOpen" data-u="' + u.id + '"><span aria-hidden="true">' + u.emoji + '</span><b>' + esc(u.name) + '</b>' + gradeBar(u.displayed, 8) + '<span style="color:' + tone(u.displayed) + '">' + (rankLetter(u.displayed) || '–') + '</span></button>').join('') + '</div>'
         : '<div class="ov-rows">' + (focusRows.length ? focusRows.map(({u, x}) => '<button type="button" class="ov-row" data-act="gradeOpen" data-u="' + u.id + '" style="--category:' + categoryColor(x.gid) + '"><span class="ov-dot" aria-hidden="true"></span><b>' + esc(x.name) + '</b>' + gradeBar(x.score, 8) + '<span style="color:' + tone(x.score) + '">' + (rankLetter(x.score) || '–') + '</span></button>').join('') : '<p class="hint keep">Nothing graded in this window yet.</p>') + '</div>') + '</section>';
-    const pages = P.pages.length ? '<section class="k-card ov-pages"><div class="k-head"><span class="k-title">Pages</span></div>' + P.pages.map(([a, q]) => '<button type="button" class="ov-page" data-area="' + a + '"><b>' + esc(pageTitle(a)) + '</b><small>' + esc(q) + '</small></button>').join('') + '</section>' : '';
-    return '<div class="ov-page-wrap" data-parity="BB2-OVERVIEW" data-group="' + g + '"><p class="ov-q">' + esc(P.q) + '</p><div class="cols2 ov-cols"><div>' + grades + pages + '</div><div>' + overviewVisuals(g, st, umbs) + '</div></div></div>';
+    const pages = P.pages.length ? '<section class="k-card ov-pages"><div class="k-head"><span class="k-title">Pages</span></div><div class="ov-page-grid">' + P.pages.map(([a, q]) => '<button type="button" class="ov-page" data-area="' + a + '"><b>' + esc(pageTitle(a)) + '</b><small>' + esc(q) + '</small></button>').join('') + '</div></section>' : '';
+    /* BG21 (planner's review: the overview used half the width and left a large empty area): the grade beside the visuals, the pages as one row of tiles across the page */
+    return '<div class="ov-page-wrap" data-parity="BB2-OVERVIEW" data-group="' + g + '"><p class="ov-q">' + esc(P.q) + '</p><div class="cols2 ov-cols"><div>' + grades + '</div><div class="ov-vis-col">' + overviewVisuals(g, st, umbs) + '</div></div>' + pages + '</div>';
   }
   function overviewVisuals(g, st, umbs){
     const card = (t, e, body) => '<section class="k-card ov-vis"><div class="k-head"><span aria-hidden="true">' + e + '</span><span class="k-title">' + t + '</span></div>' + body + '</section>';
@@ -7205,7 +7248,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const needDate = v33 ? nextDateItems(st, true) : [];
     const needBody = needDate.length ? '<p class="cap">Needs a date</p><div class="nd-card nd-parked" data-parity="BA6-NEEDDATE">' + needDate.map(x => '<div class="nd-row" data-series="' + esc(x.id) + '" data-date="' + esc(x.date || '') + '"><span class="nd-name"><b>' + esc(x.name) + '</b><small>' + esc(x.date ? (x.happened ? (x.status === 'skipped' ? 'Skipped ' : 'Done ') : 'Was ') + medDate(x.date) : 'No date yet') + '</small></span><input type="date" class="nd-date" min="' + todayYmd() + '" aria-label="Next date for ' + esc(x.name) + '"><button class="save" data-act="ndSave">Save</button></div>').join('') + '</div>' : '';
     const parkedBody = needBody + (cards.length ? '<p class="cap">Focuses off today</p><div class="tpl-cards" data-parity="QUESTS-07">' + cards.map(cardChip).join('') + '</div>' : '<p class="hint keep">Every Focus is on the day.</p>') + (removed.length ? '<p class="cap">Taken off today</p>' + removedFold.replace(/^<details[^>]*><summary>.*?<\/summary>/, '').replace(/<\/details>$/, '') : '');
-    const tabs = '<div class="tpl-tabs" role="tablist" aria-label="Template" data-parity="AL1-TABS">' + [['week', 'This week', unplaced || ''], ['saved', 'Saved', list.length], ['parked', 'Parked', needDate.length || '']].map(([id, label, n]) => '<button type="button" role="tab" class="tpl-tab" data-act="tplTab" data-tab="' + id + '" aria-selected="' + (tab === id) + '">' + label + (n !== '' ? ' <small>' + n + '</small>' : '') + '</button>').join('') + '</div>';
+    const tabs = '<div class="tpl-tabs" role="tablist" aria-label="Template" data-parity="AL1-TABS">' + [['week', 'Week', unplaced || '', 'This week'], ['saved', 'Saved', list.length], ['parked', 'Parked', needDate.length || '']].map(([id, label, n, full]) => '<button type="button" role="tab" class="tpl-tab" data-act="tplTab" data-tab="' + id + '" aria-selected="' + (tab === id) + '"' + (full ? ' aria-label="' + full + (n !== '' ? ', ' + n : '') + '" title="' + full + '"' : '') + '><span>' + label + '</span>' + (n !== '' ? '<small>' + n + '</small>' : '') + '</button>').join('') + '</div>';   // BG19: three equal tabs, each count under its name, so "Parked" is never cut
     return '<section class="panelcard shelf template" data-budget="list" data-parity="QUESTS-06" data-feedback-id="template-shelf" data-feedback-label="Template"><details class="shelf-body" id="shelfBody"' + (shelfOpen() ? ' open' : '') + '><summary><h2>Template</h2>' + infoBtn('template', 'Template') + (unplaced ? '<span class="tpl-badge" data-unplaced="' + unplaced + '" title="Due this week, not yet placed">' + unplaced + '</span>' : '') + '</summary>' + infoPop('template', TEMPLATE_INFO) + note + tabs +
       (tab === 'week' ? adder + planDraftHTML(st) + weekTab() : tab === 'saved' ? savedBody : parkedBody) + '</details></section>';
   }
@@ -7572,17 +7615,21 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     ['.pg-mom .pg-mrow[data-momentum]', e => 'momentum:' + e.dataset.momentum, e => (e.querySelector(':scope > b') || e).textContent.trim(), [':scope > b', 'in']]];
   const hideKey = 'health-tracker.hide.v37', hideState = () => { try { return JSON.parse(localStorage.getItem(hideKey) || '{}') || {}; } catch (_) { return {}; } };
   function decorateVisuals(root){
-    const roots = root ? [root] : [$('#main'), $('#ctxRail')].filter(Boolean), hid = hideState();
+    const roots = root ? [root] : [$('#main'), $('#ctxRail')].filter(Boolean), hid = hideState(), visFoot = [];
     for (const r of roots){
       for (const [sel, idOf, labelOf, at] of VISUAL_SELECTORS) r.querySelectorAll(sel).forEach(e => {
         const card = e.parentElement && e.parentElement.closest('[data-feedback-id]'); if (!card) return;
         e.dataset.visual = idOf(e); e.dataset.visualLabel = (labelOf(e) || e.dataset.visual).slice(0, 60);
         let b = [...e.querySelectorAll('.vis-note')].find(x => x.closest('[data-visual]') === e);
-        if (!b){ b = document.createElement('button'); b.type = 'button'; b.className = 'vis-note'; b.dataset.act = 'openFeedback'; b.dataset.level = 'visual'; b.innerHTML = '<i class="note-ico" aria-hidden="true"></i>'; const lab = at && e.querySelector(at[0]); if (lab && at[1] === 'in') lab.append(b); else if (lab) lab.after(b); else e.append(b); } b.dataset.cardId = card.dataset.feedbackId; b.dataset.cardLabel = card.dataset.feedbackLabel || noteCardTitle(card); b.dataset.visualId = e.dataset.visual; b.dataset.visualLabel = e.dataset.visualLabel; b.setAttribute('aria-label', 'Add a note on ' + e.dataset.visualLabel + ' in ' + b.dataset.cardLabel); b.title = 'Note on ' + e.dataset.visualLabel;
+        /* BG3 (his note: "Standardize where the little comments go on the cards ... sometimes right next to title sometimes bottom right"; planner's default
+           BG3-NOTEBTN): every note sits at the bottom-right of what it notes: a card's in the card's corner, a visual's in the visual's corner (a one-line row:
+           at its right end), with room kept for it so it never covers a label (D-4) */
+        if (!b){ b = document.createElement('button'); b.type = 'button'; b.className = 'vis-note'; b.dataset.act = 'openFeedback'; b.dataset.level = 'visual'; b.innerHTML = '<i class="note-ico" aria-hidden="true"></i>'; e.append(b); visFoot.push(e); } b.dataset.cardId = card.dataset.feedbackId; b.dataset.cardLabel = card.dataset.feedbackLabel || noteCardTitle(card); b.dataset.visualId = e.dataset.visual; b.dataset.visualLabel = e.dataset.visualLabel; b.setAttribute('aria-label', 'Add a note on ' + e.dataset.visualLabel + ' in ' + b.dataset.cardLabel); b.title = 'Note on ' + e.dataset.visualLabel;
         const off = (hid[card.dataset.feedbackId] || []).includes(e.dataset.visual); e.hidden = off; if (off) e.dataset.hiddenChoice = '1'; else delete e.dataset.hiddenChoice;
       });
       r.querySelectorAll('[data-feedback-id]').forEach(card => { const has = card.querySelector('[data-visual]'), foot = card.querySelector(':scope > .card-feedback'), head = card.querySelector(':scope > .k-head, :scope > .ph'); if (!has || !foot || card.querySelector(':scope > .card-feedback .vis-pencil, :scope > .k-head > .vis-pencil, :scope > .ph > .vis-pencil')) return; const p = document.createElement('button'); p.type = 'button'; p.className = 'k-icon-btn vis-pencil'; p.dataset.act = 'cardCustomize'; p.setAttribute('aria-label', 'What this card shows'); p.title = 'What this card shows'; p.textContent = '✎'; if (head) head.append(p); else foot.prepend(p); });   // V3.7.1 F4: the pencil sits in the card's header row (in flow, never over text); a card without one keeps it beside the note
     }
+    if (visFoot.length){ const hs = visFoot.map(e => e.offsetHeight); visFoot.forEach((e, i) => e.classList.add(hs[i] && hs[i] < 56 ? 'vn-end' : 'vn-foot')); }   // BG3: read every height, then mark (one layout)
   }
   /* V3.7 E1, E2 (A30): every visual names its source and opens something real. The census's first run (brief section 10) found
      these without one; each now carries data-source (a metric id or an engine) and a click target (a drawer, a page or a row).
@@ -9571,7 +9618,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   }
   function dropTargetOf(el){
     if (!el || !el.closest) return null;
-    const card = el.closest('#main .ws-group[data-group]'); if (card) return {kind:'card', groupId:card.dataset.group, el:card};
+    const card = el.closest('#main .ws-group[data-group], #main .ws-empty-chip[data-group]'); if (card) return {kind:'card', groupId:card.dataset.group, el:card};   // BG20: an empty Focus's name takes a drop
     const tpl = el.closest('#ctxRail .shelf.template'); if (tpl) return {kind:'template', el:tpl};
     const wday = el.closest('#main [data-drop-day]'); if (wday) return {kind:'day', date:wday.dataset.dropDay, el:wday};
     const daygrid = el.closest('#main .ws-groups'); if (daygrid) return {kind:'daygrid', el:daygrid};
@@ -9792,20 +9839,25 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
        Focus he named is one tap away; one he parked or hid stays in Template; Settings → Preferences hides the empty ones. */
     const showEmpty = area === 'plan' && !oneCard && !catching && !(options && (options.groupId || options.swept)) && v33 && !(st.prefs && st.prefs.questEmptyFocus === false);
     const empties = showEmpty ? groupsOf(st).filter(g => !g.hidden && !groups.includes(g) && !groupOff(st, g.id, day) && (!options || !options.umbrella || g.umbrella === options.umbrella) && !(g.retiredFrom && day >= g.retiredFrom) && !parked.has(g.id) && !hidden.has(g.id)) : [];
-    const cards = groups.concat(empties).sort((x, y) => (v2 ? order(x.id) - order(y.id) : 0));
-    const cardHTML = g => empties.includes(g) && !(composer && !composer.editSeries && composer.groupId === g.id) ? emptyFocusLine(g) : wsGroupCard(g, rows.filter(r => (r.group || r.groupId) === g.id));
+    /* BG20 (planner's default, his to change): the empty Focuses are one line, "Empty: Mom · Dad · ... +", after the cards (in By Domain, one line per
+       Domain card); a name opens + Add on that Focus; one being added to draws as its card while the form is open */
+    const adding = g => composer && !composer.editSeries && composer.groupId === g.id, emptyRest = empties.filter(g => !adding(g));
+    const cards = groups.concat(empties.filter(adding)).sort((x, y) => (v2 ? order(x.id) - order(y.id) : 0));
+    const cardHTML = g => wsGroupCard(g, rows.filter(r => (r.group || r.groupId) === g.id));
     /* BA4 (his words, Oct 9: "i should be able to click something so that all the focuses group into the same larger card within their domain ... each
        focus still keeps its distinct but related color and pattern"): By Domain gathers each Domain's Focus cards into one card, in Domain order; By
        Focus (the default) is one card each. Remembered on this device. */
     const byDomain = area === 'plan' && !oneCard && !(options && options.groupId) && questByDomain();
     const body = byDomain ? (() => { const doms = new Map(); for (const g of cards){ const d = gradeGroupUmbrella(st, g.id) || 'none'; if (!doms.has(d)) doms.set(d, []); doms.get(d).push(g); }
+      for (const g of emptyRest){ const d = gradeGroupUmbrella(st, g.id) || 'none'; if (!doms.has(d)) doms.set(d, []); doms.get(d).push(g); }
       const ix = d => { const i = GRADE_UMBRELLAS.findIndex(u => u.id === d); return i < 0 ? 99 : i; };
-      return [...doms].sort((a, b) => ix(a[0]) - ix(b[0])).map(([d, list]) => { const u = GRADE_UMBRELLAS.find(x => x.id === d), ds = u ? domainStyleOf(d) : null, inner = list.map(cardHTML).filter(h => !(options && options.swept && /^<section class="ws-group[^"]*\bdone\b/.test(h))).join(''); if (!inner) return '';
+      return [...doms].sort((a, b) => ix(a[0]) - ix(b[0])).map(([d, list]) => { const u = GRADE_UMBRELLAS.find(x => x.id === d), ds = u ? domainStyleOf(d) : null, inner = list.filter(g => !emptyRest.includes(g)).map(cardHTML).filter(h => !(options && options.swept && /^<section class="ws-group[^"]*\bdone\b/.test(h))).join('') + emptyFocusesLine(list.filter(g => emptyRest.includes(g))); if (!inner) return '';
         return '<section class="dom-card" data-dom="' + esc(d) + '" style="--dom:' + (ds && ds.color || 'var(--line)') + '"><div class="dom-head"><span aria-hidden="true">' + (u ? u.emoji : '•') + '</span><h3>' + esc(u ? u.name : 'Not graded') + '</h3><small>' + list.length + (list.length === 1 ? ' Focus' : ' Focuses') + '</small></div><div class="dom-body">' + inner + '</div></section>'; }).join(''); })()
-      : cards.map(cardHTML).filter(h => !(options && options.swept && /^<section class="ws-group done"/.test(h))).join('');
+      : cards.map(cardHTML).filter(h => !(options && options.swept && /^<section class="ws-group done"/.test(h))).join('') + emptyFocusesLine(emptyRest);
     return (catching ? catchUpBanner(st) : (!options || !options.groupId) && typeof structureV2Card === 'function' ? structureV2Card() : '') + '<div class="ws-groups' + (byDomain ? ' by-domain' : '') + '" data-parity="V35-Q1-01">' + (options?.includeClaims ? claimsCard() : '') + body + '</div>' + (options && options.groupId ? '' : cardTools(st));
   }
   function questByDomain(){ try { return localStorage.getItem('health-tracker.questByDomain') === '1'; } catch (_) { return false; } }   // BA4
+  function emptyFocusesLine(list){ return list.length ? '<div class="ws-empties" data-parity="BG20-EMPTY"><span class="ws-empties-h">Empty</span>' + list.map(g => '<button type="button" class="ws-empty-chip" data-act="wsAdd" data-kind="item" data-group="' + esc(g.id) + '" style="--category:' + categoryColor(g.id) + '" title="Add to ' + esc(g.name) + '" aria-label="Add to ' + esc(g.name) + '"><i aria-hidden="true"></i>' + esc(g.name) + '<span class="ws-empty-plus" aria-hidden="true">+</span></button>').join('') + '</div>' : ''; }   // BG20
   function emptyFocusLine(g){ return '<section class="ws-group ws-empty glass" data-group="' + esc(g.id) + '" data-feedback-id="activity-group:' + esc(g.id) + '" data-feedback-label="' + esc(g.name) + '" style="--category:' + categoryColor(g.id) + cardSkinStyle(g.id) + '"><div class="gh"><span class="cstrip" aria-hidden="true"></span><h3>' + esc(g.name) + '</h3><button class="ws-addbtn" data-act="wsAdd" data-kind="item" data-group="' + esc(g.id) + '" aria-label="Add to ' + esc(g.name) + '">+ Add</button></div></section>'; }   // AQ1
   function cardTools(st){
     const gone = groupsOf(st).filter(g => g.hidden);
@@ -10267,6 +10319,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
      The grid, its two equal columns and the cards as direct children stay as the layout suite measures. */
   function packActivities(){
     const grid = document.querySelector('#main .ws-groups'); if (!grid) return;
+    /* BG9 (his note: the Quests cards should line up when one folds; planner's default BG9-ROWS): cards sit in aligned rows, so a fold never moves
+       a card into the other column; the packing below is off */
+    if (grid) { grid.classList.remove('packed'); for (const el of grid.children) el.style.gridRowEnd = ''; if (packActivities.ro){ packActivities.ro.disconnect(); packActivities.grid = null; packActivities.items = []; } return; }
     const items = [...grid.children].filter(el => el.matches('section'));
     if (window.ResizeObserver){
       if (!packActivities.ro) packActivities.ro = new ResizeObserver(() => { if (packActivities.wait) return; packActivities.wait = true; requestAnimationFrame(() => { packActivities.wait = false; if (document.querySelector('#main .ws-groups') === packActivities.grid) packActivities(); }); });
@@ -10350,7 +10405,20 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (openFolds) foldsRestore(openFolds);
     bindFileInputs();
     packActivities();
+    yvPagers();
   }
+  /* BG19 (planner's review: the Year table ran off the right edge, Resting HR cut): a table wider than its card fades at the edge it continues past and
+     has ‹ › under it to step through its columns (scrollbars are hidden app-wide, S4) */
+  function yvEdge(sc){ sc.classList.toggle('more-r', sc.scrollLeft + sc.clientWidth < sc.scrollWidth - 2); sc.classList.toggle('more-l', sc.scrollLeft > 2); }
+  function yvPagers(){
+    const list = [...document.querySelectorAll('#main .yv-scroll')]; if (!list.length) return;
+    const wide = list.map(sc => sc.scrollWidth > sc.clientWidth + 4);
+    list.forEach((sc, i) => { const has = sc.nextElementSibling && sc.nextElementSibling.classList.contains('yv-pager'); if (!wide[i]){ if (has) sc.nextElementSibling.remove(); sc.classList.remove('more-r', 'more-l'); return; }
+      if (!has) sc.insertAdjacentHTML('afterend', '<div class="yv-pager"><small>More columns</small><button type="button" class="k-icon-btn" data-yvpage="-1" aria-label="Earlier columns">‹</button><button type="button" class="k-icon-btn" data-yvpage="1" aria-label="More columns">›</button></div>');
+      yvEdge(sc); });
+  }
+  document.addEventListener('scroll', e => { const t = e.target; if (t && t.classList && t.classList.contains('yv-scroll')) yvEdge(t); }, true);
+  document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-yvpage]'); if (!b) return; const sc = b.parentElement.previousElementSibling; if (sc) sc.scrollBy({left:Number(b.dataset.yvpage) * Math.max(160, sc.clientWidth * .6), behavior:'smooth'}); }, true);
   /* AX1 (his priority, Oct 9: "when im in the app and i want to add something or move something or edit something thats the bigger issue"):
      an in-page change on Today or Quests (check off, Add, Move, Delete, Undo, opening or changing the Add and Edit form) draws only the parts
      of the page whose HTML changed (the touched row's card, its counts), and leaves the header, notices and side rail as they are (options 4,
