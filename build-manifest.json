@@ -1,10 +1,10 @@
 {
-  "build": "2026-10-09-V5.0.9",
+  "build": "2026-10-09-V5.0.10",
   "files": {
     "body-view.css": "99ac2f68372870c587372c1f4065f47381e29fbfc78009e823e276ece1146ba6",
     "body-view.js": "d5afe4e2baa6526fe73025c2c45d99680f5a6e06a199f0f0779d4a26449b6409",
     "convert-starter.js": "40c333c133bdb5045fd7fe8660861c723ee1a940628a16d6f9bf05ff9cfa0fc4",
-    "delivery.js": "a4e98e6ec263698ae28f80a847dff994741076be35f1693a2a4f1069a86aa1c6",
+    "delivery.js": "4655a1c89a946b55969b16cd3456825113dcfe4329a5313d509edece1e8be2a1",
     "eotc-calendar.js": "1fcc866733b1160d7f01d603aaa191e7f8879a3f844275941078d33bf5dde0c4",
     "fitness-grade.js": "a69876d8719b32b2c43f1b4ace6d4d0adb56c82739432dca82c68e7ae0c2984a",
     "glow-cross.webp": "db5eac33a2a9215aebca6f0c19c95fef9b9518c300c7cd3b0e50072057d21fcd",
@@ -26,11 +26,11 @@
     "offline.html": "7f472596880496629a8dcbde453d2257e9815c088d609d013253a3469efe521d",
     "perfect-verdicts.js": "6d544d35aae413e396d826542ec4d60bc5e355903dd8ea4aa51a2dd0756cd18c",
     "quarter-points.js": "7d8a7554b70172264ce5ee8f6897d02ed0a9c7e271a206f53957785cc258e58d",
-    "scores.js": "dd08b7dddf6ef6fffd7af0684f1edd62f9301225e9d494dd6af1065b6b2b2b5f",
+    "scores.js": "60bfaabafe6973dba302a4fcdab18bee7c2afd22532fcd52427e739db55311b3",
     "scoring-v5.js": "2fd45ed76f1105ba8795e2f392162ed1045fda43385f1f70cdd7833c11afef48",
-    "sw.js": "98374f237739b644532e577c9d3497ac86c5fb7cd0fc6842e5873df464ff375b",
+    "sw.js": "a6e577ac0e829a7bf4e708df69aeb89d2cca7b40db84d3cd9d0b0b2cd4cded2f",
     "workout-sessions.js": "7b32542a16720fecabf804e313b23bef8ce1d17f5b72a5a142f7bf307f8d908b",
     "workspace-proposal.js": "4e8f5f8d5ee14e9ae40a74086335d372658ca1a7017de7b9311773b12a5d8090",
-    "year-view.js": "f69e4c0b0c6c0bb2f1ed8b911625f4e50baefa9b88214644883fec993dc37511"
+    "year-view.js": "1890973c5c72bd137e399406e35ee63c16af92591204c3fb68a4864687404af3"
   }
 }

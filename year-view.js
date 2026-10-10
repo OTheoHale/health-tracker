@@ -70,12 +70,14 @@
     }
     /* Stored daily rollups from before the live feed come in a weekly series (dated Wednesdays through 2025 on his Oct 8 copy) and each
        holds that week's total, not the day's (resting energy about 7 times a day, steps and active energy up to 23 times). A pre-feed
-       rollup with another one 7 or 14 days before or after is such a week: it is left out and counted, never shown as a day (the day is then
+       rollup with another one 7 or 14 days before or after is such a week (since BF1 the Scores index already sets them aside in
+       x.weekly; both are counted): it is left out and counted, never shown as a day (the day is then
        missing, never zero). History-file days, a lone rollup and the live projection's days are kept. */
     const af=(st.autoFeed&&st.autoFeed.contract&&st.autoFeed.contract.activeFrom)||to,dropped={};
     for(const [k,metric] of [['steps','step_count'],['active','active_energy'],['resting','basal_energy_burned']]){
       const pre=new Set([...rolled].filter(p=>p.startsWith(metric+'|')).map(p=>p.slice(metric.length+1)).filter(d=>d<af));
-      dropped[k]=[...pre].filter(d=>[-14,-7,7,14].some(n=>pre.has(add(d,n)))).sort();
+      const idx=x.weekly&&x.weekly.get(metric);   // BF1 (scores.js, 85d5d23): the index now keeps these weeks out of its day totals, in x.weekly
+      dropped[k]=[...new Set([...pre].filter(d=>[-14,-7,7,14].some(n=>pre.has(add(d,n)))).concat(idx?[...idx.keys()]:[]))].sort();
       for(const d of dropped[k]){const o=days.get(d);if(!o)continue;o[k]=null;if(k==='steps'){o.gi.steps=null;o.gi.worn=o.sleepH!==null;o.gi.workoutData=o.gi.worn||o.gi.workoutMinutes>0;}}
     }
     // The Fitness Grade on these days: VO2 max from the last 60 days, the latest weigh-in, waist from the last 90 days
@@ -112,8 +114,9 @@
     const W=320,H=o.h||120,L=34,R=8,T=8,B=16,x0=dn(o.from),x1=Math.max(dn(o.to),x0+1);
     const all=o.series.flatMap(s=>s.pts.map(p=>p[1])).concat(o.band||[]).concat(o.hline?[o.hline.v]:[]).filter(num);
     if(!o.series.some(s=>s.pts.length))return '<p class="hint keep yv-none">No readings in this range</p>';
-    let lo=Math.min(...all),hi=Math.max(...all);if(hi-lo<1e-9){lo-=1;hi+=1;}const sp=(hi-lo)*.08;lo-=sp;hi+=sp;
-    const X=d=>L+(dn(d)-x0)/(x1-x0)*(W-L-R),Y=v=>T+(1-(v-lo)/(hi-lo))*(H-T-B),f=v=>v.toFixed(1),dp=o.dp||0;
+    // clip: the scale spans the middle 98% of readings, so a stray reading (a 100% asymmetry) cannot flatten the rest; those dots sit at the edge
+    let lo=o.clip?quant(all,.01):Math.min(...all),hi=o.clip?quant(all,.99):Math.max(...all);if(hi-lo<1e-9){lo-=1;hi+=1;}const sp=(hi-lo)*.08;lo-=sp;hi+=sp;
+    const X=d=>L+(dn(d)-x0)/(x1-x0)*(W-L-R),Y=v=>T+(1-(Math.max(lo,Math.min(hi,v))-lo)/(hi-lo))*(H-T-B),f=v=>v.toFixed(1),dp=o.dp||0;
     let g='';
     if(o.band&&o.band.every(num))g+='<rect x="'+L+'" y="'+f(Y(o.band[1]))+'" width="'+(W-L-R)+'" height="'+f(Math.max(1,Y(o.band[0])-Y(o.band[1])))+'" fill="'+o.series[0].colour+'" opacity=".13"/>';
     g+='<text x="'+(L-4)+'" y="'+f(Y(hi-sp)+4)+'" class="yv-ax" text-anchor="end">'+fmt(hi-sp,dp)+'</text><text x="'+(L-4)+'" y="'+f(Y(lo+sp)+3)+'" class="yv-ax" text-anchor="end">'+fmt(lo+sp,dp)+'</text>';
@@ -124,9 +127,9 @@
     if(o.hline&&num(o.hline.v))g+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+f(Y(o.hline.v))+'" y2="'+f(Y(o.hline.v))+'" class="yv-goal"/><text x="'+(W-R)+'" y="'+f(Y(o.hline.v)-3)+'" class="yv-ax" text-anchor="end">'+esc(o.hline.label)+'</text>';
     for(const s of o.series){
       const few=s.pts.length<60,r=few?2.4:1.5;
-      if(s.dots!==false)for(const [d,v] of s.pts)g+='<circle cx="'+f(X(d))+'" cy="'+f(Y(v))+'" r="'+r+'" fill="'+s.colour+'" opacity="'+(s.smooth?.4:.9)+'"><title>'+esc(dayLabel(d)+': '+fmt(v,dp)+(o.unit?' '+o.unit:''))+'</title></circle>';
+      if(s.dots!==false)for(const [d,v] of s.pts)g+='<circle cx="'+f(X(d))+'" cy="'+f(Y(v))+'" r="'+r+'" fill="'+s.colour+'" opacity="'+(s.faint?.22:s.smooth?.4:.9)+'"><title>'+esc(dayLabel(d)+': '+fmt(v,dp)+(o.unit?' '+o.unit:''))+'</title></circle>';
       if(s.smooth||s.line){const segs=[];let cur=[];s.pts.forEach(([d,v],i)=>{if(i&&dn(d)-dn(s.pts[i-1][0])>10){segs.push(cur);cur=[];}const w=s.smooth?s.pts.filter(p=>dn(p[0])<=dn(d)&&dn(p[0])>dn(d)-7).map(p=>p[1]):[v];cur.push([d,mean(w)]);});segs.push(cur);
-        for(const seg of segs)if(seg.length>1)g+='<polyline fill="none" stroke="'+s.colour+'" stroke-width="'+(s.smooth?2:1.6)+'" stroke-linejoin="round" points="'+seg.map(([d,v])=>f(X(d))+','+f(Y(v))).join(' ')+'"/>';}
+        for(const seg of segs)if(seg.length>1)g+='<polyline fill="none" stroke="'+s.colour+'" stroke-width="'+(s.smooth||s.faint===false?2.2:1.6)+'" stroke-linejoin="round" points="'+seg.map(([d,v])=>f(X(d))+','+f(Y(v))).join(' ')+'"/>';}
     }
     return '<svg class="yv-svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(o.label||'')+'">'+g+'</svg>';
   }
@@ -204,6 +207,65 @@
     const key='<div class="yv-key">'+[['var(--c-green)','goal'],['var(--c-yellow)','75%'],['var(--c-orange)','50%'],['var(--c-red)','under half']].map(([c,l])=>'<span><i style="background:'+c+'"></i>'+l+'</span>').join('')+'</div>';
     return card('calendar','👣','Activity calendar',stats+(R.month?grid(+R.from.slice(0,4)):years.map(grid).join(''))+key,'Each square a day, by steps against your '+fmt(goal)+'.');
   }
+  const monthPts=(t,R,k)=>t.months.filter(s=>s.to>=R.from&&s.from<=R.to).map(s=>{const v=t.order.filter(o=>o.d>=s.from&&o.d<=s.to&&num(o[k])).map(o=>o[k]);return v.length?[s.from,mean(v)]:null;}).filter(Boolean);
+  const change=(a,b,dp,unit,better)=>{if(!num(a)||!num(b))return '—';const d=a-b,steady=Math.abs(d)<Math.pow(10,-dp)/2,good=better===0?null:better>0?d>0:d<0;return '<b style="color:'+(steady||good===null?'var(--muted)':good?'var(--c-green)':'var(--c-orange)')+'">'+(steady?'→ same':(d>0?'↑ ':'↓ ')+fmt(Math.abs(d),dp)+(unit?' '+unit:''))+'</b>';};
+  /* AU1 5: VO2 max, six-minute walk and cardio recovery: fitness over time, sparse but meaningful */
+  function fitnessCard(t,R){
+    const one=(k,name,unit,dp,colour,better)=>{const p=ptsOf(t,R,k);if(!p.length)return '<div class="yv-mini"><small>'+name+'</small><p class="hint keep yv-none">No readings in this range</p></div>';
+      const a=p[0],b=p[p.length-1];return '<div class="yv-mini"><div class="yv-mhead"><small>'+name+'</small><small class="yv-cmp"><b>'+fmt(b[1],dp)+'</b> '+unit+' on '+esc(dayLabel(b[0]))+(p.length>1?' · '+change(b[1],a[1],dp,unit,better)+' since '+esc(dayLabel(a[0])):'')+' · '+p.length+' readings</small></div>'+chart({from:R.from,to:R.to,series:[{pts:p,colour,line:true}],unit,dp,h:80,label:name})+'</div>';};
+    return card('fitness','🫁','VO₂ max, six-minute walk, cardio recovery',one('vo2','VO₂ max','ml/kg·min',1,'var(--c-green)',1)+one('walk6','Six-minute walk','mi',2,'var(--brass)',1)+one('rec','Cardio recovery','bpm',0,'var(--c-red)',1),'Readings Apple Health takes now and then; higher is fitter for all three.');
+  }
+  /* AU1 6: walking quality, a quiet mobility trend */
+  function walkCard(t,R){
+    const rows=[['speed','Walking speed','mph',2,1,'var(--c-green)'],['stepLen','Step length','in',1,1,'var(--brass)'],['dbl','Double support','%',1,-1,'var(--c-orange)'],['asym','Asymmetry','%',1,-1,'var(--c-red)']];
+    const one=([k,name,unit,dp,better,colour])=>{const mp=monthPts(t,R,k),v=ptsOf(t,R,k);if(!v.length)return '<div class="yv-mini"><small>'+name+'</small><p class="hint keep yv-none">No readings in this range</p></div>';
+      const head=v.slice(0,90).map(x=>x[1]),tail=v.slice(-90).map(x=>x[1]),cmp=v.length>=60?change(mean(tail),mean(head),dp,unit,better)+' against the start':'';
+      return '<div class="yv-mini"><div class="yv-mhead"><small>'+name+'</small><small class="yv-cmp"><b>'+fmt(mean(tail.slice(-30)),dp)+'</b> '+unit+(cmp?' · '+cmp:'')+'</small></div>'+chart({from:R.from,to:R.to,series:R.month?[{pts:v,colour,line:true}]:[{pts:v,colour,faint:true},{pts:mp,colour:'var(--ink)',line:true,dots:false,faint:false}],clip:true,unit,dp,h:70,label:name+(R.month?' by day':' by month')})+'</div>';};
+    return card('walk','🚶','Walking quality','<div class="pg-two yv-two">'+rows.map(one).join('')+'</div>',(R.month?'Each day':'Dots are days, the line each month’s average')+'. Faster and longer steps are better; less double support and asymmetry are better.');
+  }
+  /* AU1 7: sleep over the year, weekday against weekend, and What Helps Me with every day behind it */
+  function helpsOf(t){
+    if(t.helps!==undefined)return t.helps;t.helps=null;
+    try{if(typeof G.whatHelpsV2!=='function')return null;const maps={sleep:new Map(),hrv:new Map(),rhr:new Map(),readiness:new Map()};for(const o of t.order){if(num(o.sleepH))maps.sleep.set(o.d,o.sleepH);if(num(o.hrv))maps.hrv.set(o.d,o.hrv);if(num(o.rhr))maps.rhr.set(o.d,o.rhr);}
+      const t0=(G.performance||Date).now();t.helps=G.whatHelpsV2(api.S(),t.first,add(t.to,-1),k=>maps[k]);t.helpsMs=Math.round((G.performance||Date).now()-t0);}catch(e){console.error('year what helps',e);}
+    return t.helps;
+  }
+  function sleepCard(t,R){
+    const list=inRange(t,R).filter(o=>num(o.sleepH));if(!list.length)return card('sleep','🌙','Sleep','<p class="hint keep yv-none">No nights in this range</p>');
+    const wday=o=>new Date(dn(o.d)*864e5).getUTCDay(),wk=list.filter(o=>wday(o)>=1&&wday(o)<=5),we=list.filter(o=>wday(o)===6||wday(o)===0);   // a night counts on the morning it ends
+    const h=o=>o.sleepH,ms=t.months.filter(s=>s.to>=R.from&&s.from<=R.to);
+    const stats='<div class="yv-stats">'+stat('Average',fmt(mean(list.map(h)),1)+' h',list.length+' nights')+stat('Weeknights',wk.length?fmt(mean(wk.map(h)),1)+' h':'—','Sunday to Thursday nights (the mornings Monday to Friday)')+stat('Weekends',we.length?fmt(mean(we.map(h)),1)+' h':'—','Friday and Saturday nights (the mornings Saturday and Sunday)')+stat('7 h or more',fmt(list.filter(o=>o.sleepH>=7).length)+'<small>/'+list.length+'</small>')+'</div>';
+    const body=R.month?chart({from:R.from,to:R.to,series:[{pts:list.map(o=>[o.d,o.sleepH]),colour:'var(--sleep,#6fb6e0)',line:true}],hline:{v:7,label:'7 h'},unit:'h',dp:1,h:100,label:'Sleep by night'})
+      :'<small class="yv-cap">Hours a night, month by month</small>'+bars(ms.map(s=>({m:s.m,v:s.sleep,colour:num(s.sleep)?tone(100*s.sleep/7):null,note:s.nights+' nights'})),'h',1);
+    const wh=helpsOf(t),row=x=>'<li><span>'+esc(x.name)+'</span><b style="color:'+(x.helps?'var(--c-green)':'var(--c-orange)')+'">'+(x.plain>0?'+':'−')+(x.metric==='hrv'?Math.round(Math.abs(x.plain)):Math.round(Math.abs(x.plain)*10)/10)+x.unit+' '+esc(x.label)+'</b><small>'+x.kept+' and '+x.other+' mornings</small></li>';
+    const helps='<small class="yv-cap">What Helps Me, every day since '+esc(dayLabel(t.first))+'</small>'+(wh&&wh.rows.length?'<ul class="yv-list">'+wh.rows.map(row).join('')+'</ul>':'<p class="hint keep yv-none">'+(wh&&wh.near&&wh.near[0]?'Needs more days: the closest is '+esc(wh.near[0].name)+', '+wh.near[0].kept+' kept and '+wh.near[0].other+' other days (needs '+wh.minEach+' of each). Habits are checked off only since the program began, so the year adds mornings, not habit days.':'Needs more days')+'</p>');
+    return card('sleep','🌙','Sleep',stats+body+helps);
+  }
+  /* AU1 8: year over year, and the program against his 2025 */
+  function yoyCard(t,R){
+    const m=R.month||t.to.slice(0,7),ly=(+m.slice(0,4)-1)+m.slice(4),A=t.months.find(s=>s.m===m),B=t.months.find(s=>s.m===ly);
+    const ps=(G.programStartOf?G.programStartOf(api.S(),t.today):null)||'2026-09-21',avg=(a,b,k)=>{const v=t.order.filter(o=>o.d>=a&&o.d<=b&&num(o[k])).map(o=>o[k]);return v.length?mean(v):null;};
+    const K=[['steps','Steps',0,'',1],['active','Active energy, kcal',0,'',1],['exercise','Exercise, min',0,'',1],['rhr','Resting HR, bpm',0,'',-1],['hrv','HRV, ms',0,'',1],['sleepH','Sleep, h',1,'',1],['weight','Weight, lb',1,'',-1]];
+    const mv=(s,k)=>s?(k==='sleepH'?s.sleep:k==='weight'?s.weight:s[k]):null;
+    const tbl=(cols,rows)=>'<div class="yv-scroll"><table class="yv-table yv-small"><thead><tr>'+cols.map((c,i)=>'<th scope="col"'+(i?'':' class="yv-c0"')+'>'+esc(c)+'</th>').join('')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>';
+    const rows=K.map(([k,n,dp,u,b])=>{const a=mv(A,k),c=mv(B,k),p=k==='weight'?(t.order.filter(o=>o.d>=ps&&num(o.weight)).pop()||{}).weight:avg(ps,t.to,k),y=avg('2025-01-01','2025-12-31',k);
+      return '<tr><th scope="row">'+n+'</th><td>'+fmt(a,dp)+'</td><td>'+(B?fmt(c,dp):'—')+'</td><td>'+(B?change(a,c,dp,'',b):'')+'</td><td class="yv-sep">'+fmt(p,dp)+'</td><td>'+fmt(y,dp)+'</td><td>'+change(p,y,dp,'',b)+'</td></tr>';});
+    return card('yoy','🔁','Year over year',tbl(['',monLabel(m)+(A&&A.partial?' so far':''),monLabel(ly),'Change','Since '+dayLabel(ps).replace(/, \d{4}$/,''),'2025','Change'],rows),
+      esc(monLabel(m))+' against the same month a year before, and the program (since '+esc(dayLabel(ps))+') against 2025. Averages a day; weight is the month’s last weigh-in, the latest since the program began, and the 2025 average.');
+  }
+  /* AU1 9: the Fitness Grade for every day (the 7 days to it) and month by month */
+  function gradeCard(t,R){
+    const list=inRange(t,R),c=R.month?16:9,gap=2;
+    const grid=(a,b,label)=>{const start=add(a,-new Date(dn(a)*864e5).getUTCDay()),cols=Math.ceil((dn(b)-dn(start)+1)/7);let g='';
+      for(let d=a;d<=b;d=add(d,1)){const i=dn(d)-dn(start),o=t.days.get(d),gr=o&&o.grade;g+='<rect x="'+(Math.floor(i/7)*(c+gap))+'" y="'+((i%7)*(c+gap))+'" width="'+c+'" height="'+c+'" rx="2" fill="'+(gr&&gr.letter?tone(gr.shown):'var(--sunk-2,rgba(255,255,255,.08))')+'"'+(gr&&gr.letter?'':' opacity=".5"')+'><title>'+esc(dayLabel(d)+': '+(gr&&gr.letter?gr.letter+' '+gr.shown+'%':gr&&num(gr.shown)?'no letter ('+gr.shown+'%, needs 5 parts)':'no grade'))+'</title></rect>';}
+      return '<div class="yv-cal">'+(label?'<small>'+label+'</small>':'')+'<svg viewBox="0 0 '+(cols*(c+gap))+' '+(7*(c+gap))+'" style="max-width:'+(cols*(c+gap))+'px" role="img" aria-label="'+esc('Fitness Grade by day, '+(label||monLabel(R.month)))+'">'+g+'</svg></div>';};
+    const years=[];for(let y=+R.from.slice(0,4);y<=+R.to.slice(0,4);y++)years.push(y);
+    const cal=R.month?grid(R.from,R.to,''):years.map(y=>grid(y+'-01-01'<R.from?R.from:y+'-01-01',y+'-12-31'>R.to?R.to:y+'-12-31',String(y))).join('');
+    const ms=t.months.filter(s=>s.to>=R.from&&s.from<=R.to),graded=list.filter(o=>o.grade&&o.grade.letter),best=graded.slice().sort((a,b)=>b.grade.shown-a.grade.shown)[0],worst=graded.slice().sort((a,b)=>a.grade.shown-b.grade.shown)[0];
+    const letters={};for(const o of graded)letters[o.grade.letter]=(letters[o.grade.letter]||0)+1;
+    const stats='<div class="yv-stats">'+stat('Days with a letter',fmt(graded.length)+'<small>/'+list.length+'</small>')+stat('Best',best?best.grade.letter+' '+best.grade.shown+'%':'—',best?dayLabel(best.d):'')+stat('Lowest',worst?worst.grade.letter+' '+worst.grade.shown+'%':'—',worst?dayLabel(worst.d):'')+stat('Most often',Object.keys(letters).length?Object.entries(letters).sort((a,b)=>b[1]-a[1])[0][0]:'—',Object.entries(letters).map(([l,n])=>l+' '+n).join(', '))+'</div>';
+    return card('grades','🏅','Fitness Grade history',stats+cal+(R.month?'':'<small class="yv-cap">Month by month (the table’s grade)</small>'+bars(ms.map(s=>({m:s.m,v:s.grade.shown,colour:tone(s.grade.shown),note:s.grade.letter?s.grade.letter:'no letter'})),'%',0)),'Each square a day, graded on the 7 days to it, coloured by the grade ladder. A day needs 5 of the 5 parts Apple Health records for a letter.');
+  }
   // A tapped month: its grade, its parts and its best and worst days; the cards below zoom to it
   function monthDetail(t,R){
     const s=t.months.find(x=>x.m===R.month);if(!s)return '';
@@ -224,8 +286,8 @@
     '.yv-two{gap:8px;margin-top:4px}.yv-mini small{color:var(--muted);font-size:11.5px}.yv-bars{display:flex;align-items:flex-end;gap:2px;height:84px;margin:4px 0 0}.yv-bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;padding:0;border:0;background:none;cursor:pointer;min-width:0}'+
     '.yv-bar i{display:block;width:100%;border-radius:3px 3px 0 0;min-height:1px}.yv-bar small{font-size:9px;color:var(--muted);height:12px}.yv-bar.on i{outline:2px solid var(--ink)}'+
     '.yv-cal{margin:6px 0}.yv-cal small{color:var(--muted);font-size:11.5px}.yv-cal svg{display:block;width:100%;height:auto}.yv-key{display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--muted)}.yv-key i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px}'+
-    '.yv-list{list-style:none;margin:6px 0 0;padding:0}.yv-list li{display:flex;gap:10px;padding:3px 0;border-bottom:1px solid var(--line);font-size:13px}.yv-list li span{flex:1}.yv-list small{color:var(--muted)}'+
-    '.yv-mtop{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.yv-mtop .k-chip{margin-left:auto}.yv-letter{font-size:28px}.yv-parts{display:flex;flex-wrap:wrap;gap:6px 14px;margin:6px 0}.yv-part{display:flex;flex-direction:column}.yv-part small{color:var(--muted);font-size:11.5px}.yv-none{margin:8px 0}';
+    '.yv-list{list-style:none;margin:6px 0 0;padding:0}.yv-list li{display:flex;gap:10px;padding:3px 0;border-bottom:1px solid var(--line);font-size:13px}.yv-list li{flex-wrap:wrap;align-items:baseline}.yv-list li span{flex:1;min-width:8em}.yv-list small{color:var(--muted)}'+
+    '.yv-mtop{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.yv-mtop .k-chip{margin-left:auto}.yv-letter{font-size:28px}.yv-parts{display:flex;flex-wrap:wrap;gap:6px 14px;margin:6px 0}.yv-part{display:flex;flex-direction:column}.yv-part small{color:var(--muted);font-size:11.5px}.yv-none{margin:8px 0}.yv-small{font-size:12px}.yv-small tbody tr{cursor:default}.yv-small .yv-sep{border-left:1px solid var(--line)}.yv-mini+.yv-mini{margin-top:6px}';
   function wire(){
     if(wired||typeof document==='undefined')return;wired=true;
     const s=document.createElement('style');s.id='yv-style';s.textContent=STYLE;document.head.appendChild(s);
@@ -245,7 +307,7 @@
     if(!t||!t.order.length)return '<section class="k-card"><p class="hint keep">The Year needs Apple Health days from Health Auto Export.</p></section>';
     if(month&&!t.months.some(s=>s.m===month))month=null;
     const R=month?{from:month+'-01',to:lastDay(month)<t.to?lastDay(month):t.to,month}:{from:t.first,to:t.to};
-    return limits(t)+monthTable(t)+(month?monthDetail(t,R):'')+'<div class="pg-two">'+heartCard(t,R)+weightCard(t,R)+'</div><div class="pg-two">'+runCard(t,R)+calendarCard(t,R)+'</div>';
+    return limits(t)+monthTable(t)+(month?monthDetail(t,R):'')+'<div class="pg-two">'+heartCard(t,R)+weightCard(t,R)+'</div><div class="pg-two">'+runCard(t,R)+calendarCard(t,R)+'</div><div class="pg-two">'+fitnessCard(t,R)+walkCard(t,R)+'</div><div class="pg-two">'+sleepCard(t,R)+gradeCard(t,R)+'</div>'+yoyCard(t,R);
   }
   /* The page's one call: the tab strip for the Progress head, and the whole Year page when that tab is open. */
   function hook(a){

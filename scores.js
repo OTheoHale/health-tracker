@@ -629,6 +629,17 @@
       if(rep===HISTORY)put(x.approx,name,day,value);
       else if(rep===SAMPLE)put(x.samples,name,day,{t:Date.parse(r.start),v:value});
     }
+    /* BF1: stored daily rollups from before the live feed came as a weekly series (one day a week through 2025 on his Oct 8
+       copy), each holding the whole week's total, not the day's. A rolled day with no total the day before or after, and
+       another such day 7 or 14 days away, is such a week: it leaves the day totals, so every day-level reader (steps, Health
+       Age, load, the burn target, holds) finds the day missing, never a spread total or a zero. Kept in x.weekly for a reader
+       that wants to count or show them. */
+    x.weekly=new Map();
+    for(const [metric,t] of x.live){
+      const lone=new Set();for(const [d,e] of t)if(e.rolled&&!t.has(addDays(d,-1))&&!t.has(addDays(d,1)))lone.add(d);
+      const weeks=[...lone].filter(d=>[-14,-7,7,14].some(n=>lone.has(addDays(d,n))));if(!weeks.length)continue;
+      const w=new Map();for(const d of weeks.sort()){w.set(d,t.get(d).v);t.delete(d);}x.weekly.set(metric,w);
+    }
     for(const list of x.effort.values())list.sort((a,b)=>a.t-b.t);
     x.sessionsRaw=x.workouts.map(workoutOf).filter(Boolean);
     return x;
