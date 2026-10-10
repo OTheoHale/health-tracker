@@ -616,6 +616,9 @@ summary>.card-feedback.in-summary{display:inline-flex;margin:0 0 0 8px;padding:0
    is still open, quiet and low-saturation once everything is done, and dark red kept for one case only —
    something open today whose time is nearly up. */
 .ws-group{background:color-mix(in srgb,color-mix(in srgb,var(--category,var(--line)) 85%,var(--brass)) 20%,var(--panel));border-color:color-mix(in srgb,var(--category,var(--line)) 32%,var(--line))}
+/* BA1-GLASS, BA1-INK: a Focus card is tinted glass of its own colour over the wall; its ink is white unless white cannot be read there */
+.ws-group.glass{-webkit-backdrop-filter:blur(8px) saturate(1.1);backdrop-filter:blur(8px) saturate(1.1);border-color:color-mix(in srgb,var(--category,var(--line)) 50%,transparent);color:var(--card-ink,var(--ink));--ink:var(--card-ink,#ece6d6);--muted:color-mix(in srgb,var(--card-ink,#ece6d6) 74%,transparent);--faint:color-mix(in srgb,var(--card-ink,#ece6d6) 58%,transparent)}
+
 .ws-group.done{background:color-mix(in srgb,var(--category,var(--line)) 7%,var(--panel));border-color:var(--line)}
 .ws-group.done .cstrip{filter:saturate(.3);opacity:.5}
 .ws-group.done>.gh h3,.ws-node.done>.nrow .nm{color:var(--muted)}
@@ -907,7 +910,9 @@ details.cad>summary::before{content:'▸';color:var(--muted);font-size:11px;widt
 .ws-group.ws-empty{padding-top:6px;padding-bottom:6px}.ws-group.ws-empty .gh{min-height:0;align-items:center}.ws-group.ws-empty h3{opacity:.75;font-weight:500}.ws-group.ws-empty .ws-addbtn{margin-left:auto}   /* AQ1 */
 .shelf-manage .tpl-row{cursor:grab}.shelf-manage .tpl-row.dragging{opacity:.5}.tpl-grip{opacity:.45;font-size:12px;letter-spacing:-2px;margin-right:6px}.tpl-pin{font-style:normal;font-size:11px;margin-right:3px}   /* AQ3 */
 .row-details{margin:6px 0 10px 34px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--ink,#fff) 3%,transparent);display:grid;gap:8px}.rd-head{display:flex;align-items:center;gap:8px}.rd-target{font-size:13px;color:var(--muted)}.rd-close{margin-left:auto}.rd-chips,.rd-acts{display:flex;flex-wrap:wrap;gap:6px}.rd-chip{border:1px solid var(--line);border-radius:999px;padding:4px 12px;background:transparent;color:inherit;font:inherit;font-size:13px;cursor:pointer}.rd-chip.on{border-color:var(--brass);color:var(--brass);background:color-mix(in srgb,var(--brass) 12%,transparent)}.row-details .rd-line{margin:0}.rd-pick{position:relative;overflow:hidden}.rd-pick input{position:absolute;inset:0;opacity:0;cursor:pointer}.rd-more summary{cursor:pointer;font-size:13px;color:var(--muted)}.rd-more[open]{display:grid;gap:8px}   /* AY1 */
-.carried-from{display:inline-flex;align-items:center;padding:1px 8px;border-radius:999px;border:1px solid color-mix(in srgb,var(--c-orange) 50%,transparent);color:var(--c-orange);font-size:11px;font-weight:600;white-space:nowrap;line-height:1.5}   /* AQ2 */
+.cp-chip{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9px;border:1px solid var(--line);background:none;padding:0;cursor:pointer;flex:none}.cp-swatch{width:20px;height:20px;border-radius:6px;display:block}.cp-panel{display:grid;gap:8px;margin:4px 0 12px;padding:10px;border:1px solid var(--line);border-radius:12px;background:var(--sunk,rgba(0,0,0,.2))}.cp-label{font-size:11px;color:var(--muted)}.cp-shapes,.cp-row,.cp-halves-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.cp-shape{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);cursor:pointer}.cp-shape[aria-pressed=true],.sw[aria-pressed=true],.cp-half[aria-pressed=true]{outline:2px solid var(--brass);outline-offset:1px}.cp-grid{display:grid;grid-template-columns:repeat(15,22px);gap:4px}.sw{width:22px;height:22px;border-radius:6px;border:0;cursor:pointer;padding:0}.cp-half{min-width:64px;height:26px;border-radius:999px;border:1px solid var(--line);color:#fff;font-size:12px;cursor:pointer;text-shadow:0 1px 2px rgba(0,0,0,.6)}.cp-wheel{position:relative;overflow:hidden}.cp-wheel input{position:absolute;inset:0;opacity:0;cursor:pointer}.cp-prev{margin:0;padding:8px 12px}.cp-prev small{font-size:11px;color:var(--muted)}.dom-emoji{display:inline-flex;align-items:center;gap:2px}.emoji-in{width:42px;text-align:center}.emoji-btn{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0}.emoji-pick{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 10px}.emoji-b{width:30px;height:30px;border:0;border-radius:8px;background:var(--sunk,rgba(255,255,255,.06));cursor:pointer;font-size:17px}   /* BA2, BA3 */
+.q-by{display:inline-flex;gap:4px;margin-left:auto}.ws-groups.by-domain{display:block}.dom-card{border:1px solid color-mix(in srgb,var(--dom) 45%,var(--line));border-radius:16px;padding:10px 10px 4px;margin:0 0 12px;background:color-mix(in srgb,var(--dom) 10%,transparent);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}.dom-head{display:flex;align-items:center;gap:8px;margin:0 4px 8px}.dom-head h3{margin:0;font-size:18px}.dom-head small{margin-left:auto;color:var(--muted)}.dom-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:8px;align-items:start}.dom-card .ws-group{margin:0;border-radius:11px}   /* BA4 */
+.nm .carried-from{display:flex;width:max-content;margin-top:3px}.carried-from{display:inline-flex;align-items:center;padding:1px 8px;border-radius:999px;border:1px solid color-mix(in srgb,var(--c-orange) 50%,transparent);color:var(--c-orange);font-size:11px;font-weight:600;white-space:nowrap;line-height:1.5}   /* AQ2 */
 .met-badge{display:inline-flex;align-items:center;gap:3px;padding:1px 8px;border-radius:999px;border:1px solid color-mix(in srgb,var(--c-green) 55%,transparent);color:var(--c-green);font-size:11px;font-weight:600;white-space:nowrap;line-height:1.5}
 .ws-node.met>.nrow .nm{color:var(--muted)}.quota{font-size:11px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}.umb-tag{font-size:11px;color:color-mix(in srgb,var(--category) 70%,var(--ink));border:1px solid color-mix(in srgb,var(--category) 45%,transparent);border-radius:999px;padding:0 7px;white-space:nowrap}
 .gcard .met-badge{margin-top:2px}.fw-mini .met-badge{margin-top:4px}.fw-prayed{gap:5px;min-height:132px}.fw-oval{position:relative;display:block;height:24px;border-radius:999px;background:rgba(182,156,240,.14);overflow:hidden}.fw-oval i{position:absolute;inset:0 auto 0 0;border-radius:999px;background:linear-gradient(90deg,#9b7fe0,#b69cf0)}.fw-oval b{position:relative;display:block;text-align:center;font:700 11.5px/24px var(--sans,inherit);color:var(--ink)}
@@ -1753,6 +1758,18 @@ button.dt-door::after{content:"›";color:var(--muted);font-size:16px}
 .nu-row .nu-name{display:flex;flex-direction:column;min-width:0}.nu-row .nu-val{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .nu-row .nu-pct{text-align:right;white-space:nowrap}
 .nu-row .sp-ends{white-space:nowrap}
+/* BA1-GLASS (after the V3.5 panel rule, which every card wore): the glass and its pattern win; Faith's page keeps its porphyry */
+body:not([data-area="faith"]) .ws-group.glass{background:var(--pat,none),var(--glass-bg)!important}
+body:not([data-area="faith"]) .ws-group.glass .cstrip{background:var(--pat-strip,none),var(--category)!important}
+/* BA2: the Names drawer is narrow; a Domain is two lines (colour, emoji, name; then meaning and Merge), a Focus one or two, and the colour grid wraps */
+.g-groups-ed .g-ged{display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:6px;align-items:center}
+.g-groups-ed .g-ged.dom>[data-dom-about],.g-groups-ed .g-ged.dom>[data-dom-merge]{grid-column:span 3}
+.g-groups-ed .g-ged.dom>[data-dom-about]{grid-column:1/-1}.g-groups-ed .g-ged.dom>[data-dom-merge]{grid-column:1/3}
+.g-groups-ed .g-ged:not(.dom):not(.new){grid-template-columns:auto minmax(0,1fr) auto}
+.g-groups-ed .g-ged:not(.dom):not(.new)>select{grid-column:2/3}
+.g-groups-ed .g-ged.new{grid-template-columns:auto minmax(0,1fr) auto}
+.cp-grid{grid-template-columns:repeat(auto-fill,22px)!important}
+.g-groups-ed input,.g-groups-ed select{min-width:0}
 </style>
 <link rel="stylesheet" href="body-view.css">
 <script type="module" src="model-viewer.min.js"></script>
@@ -5778,12 +5795,67 @@ addEventListener('load', () => {
       return '<div class="g-un" data-un="' + esc(gid) + '"><b>' + esc(list.map(i => i.name).join(', ')) + '</b><small>' + esc(gid ? ((st.groups || []).find(g => g.id === gid) || {}).name || gid : 'No card') + '</small>' +
         (gid ? '<div class="g-chips">' + GRADE_UMBRELLAS.map(u => '<button type="button" class="rep-chip" data-act="gradePickUmb" data-g="' + esc(gid) + '" data-u="' + u.id + '" aria-pressed="' + (pick === u.id) + '">' + u.emoji + ' ' + u.name + '</button>').join('') + '</div><button class="k-btn g-addgrade" data-act="gradeAssign" data-g="' + esc(gid) + '"' + (pick ? '' : ' disabled') + '>' + kIco('plus', 13) + ' Add to grade</button>' : '<p class="drawer-read">Put it on a card in Quests to grade it.</p>') + '</div>'; }).join('');
   }
-  /* ---- G7: the Groups editor: create, rename, move to another umbrella, hide. Additive; history never moves. ---- */
+  /* G7, AG1, BA2, BA3 (his words, Oct 9: "each domain where i change names should also allow me to select a color or edit the color along with the
+     name ... i should be able to create, delete, domains and focuses, as well as edit domains and focuses so i can move focuses into another domain or
+     merge domains or split domains"): the Names drawer. A Domain: emoji (a grid and the Mac's own palette), name, meaning, colour and pattern, Merge
+     into another, Delete (one he made). A Focus: its shade (automatic or picked) and pattern, name, Domain, Hidden, Delete. New Domain and New Focus.
+     Splitting a Domain is a new Domain plus moving Focuses into it. Gena's picker mechanics, Glow's look; Violet is offered for Faith only (AV1). */
+  const COLOR_FAMILIES = [['Red',['#f4a6a0','#f2736b','#e24d43','#bf4137','#903631']],['Orange',['#fdc08d','#f49d53','#e47b24','#b66021','#8b4d21']],['Gold',['#eacd6f','#ddb840','#c49535','#9c7420','#6e5001']],['Lime',['#bed777','#aac848','#8aa82b','#6c8521','#506013']],['Green',['#9fdeab','#76c283','#4ea462','#428452','#12693f']],['Teal',['#9bd0c6','#65c6ba','#39a99a','#32887f','#2f5f58']],['Sky',['#9dd7f4','#70bde4','#3c9ecf','#327fa7','#295978']],['Blue',['#a7bff0','#7b9dea','#597cd9','#496ab9','#3c5397']],['Violet',['#d0b2f1','#b18fe6','#946dd2','#795aaf','#614b84']],['Pink',['#f1b3d6','#ec83be','#d75aa0','#af4a82','#823d62']],['Brown',['#d9bea7','#c69f7e','#a8815e','#89684e','#695344']],['Slate',['#c9ced4','#aab2bc','#87919f','#6b7582','#575e6b']]];
+  const COLOR_NEON = ['#ff2d55','#ff5e00','#ffd60a','#b8ff00','#00ff85','#00e5ff','#3d7bff','#8b5cf6','#e040fb','#ff1ecb'];
+  const GLOW_EMOJI = ['✝️','🙏','⛪','📖','🕊️','✨','💪','❤️','🏃','🧘','🥗','💧','😴','🧠','💊','🛁','👪','👨‍👩‍👧','🤝','💞','🎉','🎁','🏠','🧹','🧺','🛒','🔧','🌱','💼','📈','🎓','📚','💡','🛠','💰','✍️','🎨','🎵','🎮','📷','⚽','🚴','🌳','🌊','⛰️','🔥','🌙','☀️','⭐','🪙','📜','🧭','🏛️','🗝️'];
+  let stylePick = null;   // {kind:'dom'|'focus', id, half:0|1}
+  function styleOf(kind, id){ const st = S(), p = st.prefs || {}; return kind === 'dom' ? {...((p.domainStyle || {})[id] || {})} : {...((p.focusStyle || {})[id] || {})}; }
+  function pickerHTML(kind, id){
+    const isFaith = kind === 'dom' ? id === 'faith' : (typeof gradeGroupUmbrella === 'function' && gradeGroupUmbrella(S(), id) === 'faith');
+    const cur = kind === 'dom' ? domainStyleOf(id) : (focusStyleOf(id) || {}), own = styleOf(kind, id), pat = patValid(own.pat), color = cur.color || '#888888', half = stylePick && stylePick.half || 0;
+    const tile = (shape, label) => { const ps = shape === 'solid' ? null : {shape, b:pat ? pat.b : null}; return '<button type="button" class="cp-shape" data-act="stylePick" data-f="shape" data-v="' + shape + '" title="' + label + '" aria-label="' + label + '" aria-pressed="' + ((pat ? pat.shape : 'solid') === shape) + '" style="background:' + (ps ? patCSS(color, ps, .95) + ',' : '') + color + '"></button>'; };
+    const sw = (c, name) => '<button type="button" class="sw" data-act="stylePick" data-f="' + (half ? 'b' : 'color') + '" data-v="' + c + '" title="' + esc(name) + '" aria-label="' + esc(name) + '" aria-pressed="' + ((half ? pat && pat.b : own.color) === c) + '" style="background:' + c + '"></button>';
+    const fams = COLOR_FAMILIES.filter(f => isFaith || f[0] !== 'Violet'), neon = COLOR_NEON.filter(c => isFaith || c !== '#8b5cf6');
+    const name = kind === 'dom' ? domainName(id) : ((S().groups || []).find(g => g.id === id) || {}).name || '';
+    const sk = cardSkin(color), prev = sk ? '<div class="cp-prev ws-group glass" style="--category:' + color + ';--glass-bg:' + sk.bg + ';--card-ink:' + sk.ink + (pat ? ';--pat:' + patCSS(color, pat, .09) + ';--pat-strip:' + patCSS(color, pat, .9) : '') + '"><div class="gh"><span class="cstrip" aria-hidden="true"></span><h3>' + esc(name) + '</h3></div><small>How a card looks · ink ' + (sk.ink === '#ffffff' ? 'white' : 'dark') + ' ' + sk.ratio.toFixed(1) + ':1</small></div>' : '';
+    return '<div class="cp-panel" data-parity="BA2-PICKER" data-kind="' + kind + '" data-id="' + esc(id) + '">' +
+      '<div class="cp-label">Pattern</div><div class="cp-shapes">' + tile('solid', 'Solid') + PAT_BRAND.map(x => tile(x[0], x[1])).join('') + '</div><div class="cp-shapes">' + PAT_GENA.map(x => tile(x[0], x[1])).join('') + '</div>' +
+      '<div class="cp-label">Colour' + (pat ? 's' : '') + '</div>' + (pat ? '<div class="cp-halves-row"><button type="button" class="cp-half" data-act="stylePick" data-f="half" data-v="0" aria-pressed="' + (half === 0) + '" style="background:' + color + '">First</button><button type="button" class="cp-half" data-act="stylePick" data-f="half" data-v="1" aria-pressed="' + (half === 1) + '" style="background:' + (pat.b || 'transparent') + '">Second</button>' + (pat.b ? '<button type="button" class="rep-chip" data-act="stylePick" data-f="nob">No second colour</button>' : '') + '</div>' : '') +
+      '<div class="cp-grid">' + fams.map(f => f[1].map((c, i) => sw(c, f[0] + ', shade ' + (i + 1) + ' of 5')).join('')).join('') + '</div><div class="cp-row">' + neon.map(c => sw(c, 'Bright ' + c)).join('') + '</div>' +
+      '<div class="cp-row cp-tail"><label class="rep-chip cp-wheel">🎨 Custom<input type="color" data-style-custom="1" value="' + (isHex(half ? pat && pat.b : color) ? (half ? pat.b : color) : '#c99a3a') + '"></label>' + (kind === 'focus' ? '<button type="button" class="rep-chip" data-act="stylePick" data-f="auto" aria-pressed="' + !own.color + '">Auto shade of its Domain</button>' : (DOMAIN_COLOR_DEFAULTS[id] ? '<button type="button" class="rep-chip" data-act="stylePick" data-f="reset">Original colour</button>' : '')) + '<button type="button" class="link" data-act="stylePick" data-f="close">Done</button></div>' + prev + '</div>';
+  }
+  // BA2, BA3: one writer for Domain and Focus styles (prefs.domainStyle, prefs.focusStyle); an empty style is removed
+  async function setStyle(kind, id, patch, say){
+    const st = S(), bag = kind === 'dom' ? 'domainStyle' : 'focusStyle', all = {...(st.prefs[bag] || {})}, next = {...(all[id] || {}), ...patch};
+    for (const k of Object.keys(next)) if (next[k] === null || next[k] === undefined || next[k] === '') delete next[k];
+    if (JSON.stringify(next) === JSON.stringify(all[id] || {})) { renderDrawer(); return; }
+    stage(st, 'style'); if (Object.keys(next).length) all[id] = next; else delete all[id]; st.prefs[bag] = all;
+    if (kind === 'dom' && /^d-/.test(id) && patch.color){ st.prefs.customDomains = (st.prefs.customDomains || []).map(d => d.id === id ? {...d, color:patch.color} : d); }
+    await commit('style', say || '');
+  }
+  async function styleField(f, v){
+    if (!stylePick) return; const {kind, id} = stylePick, own = styleOf(kind, id), pat = patValid(own.pat);
+    if (f === 'color') return setStyle(kind, id, {color:isHex(v) ? v.toLowerCase() : null}, 'Colour set.');
+    if (f === 'b') return setStyle(kind, id, {pat:pat ? {shape:pat.shape, b:isHex(v) ? v.toLowerCase() : null} : null}, 'Second colour set.');
+    if (f === 'nob') return setStyle(kind, id, {pat:pat ? {shape:pat.shape, b:null} : null}, 'One colour.');
+    if (f === 'shape'){ if (v === 'solid'){ stylePick.half = 0; return setStyle(kind, id, {pat:null}, 'Solid.'); } return setStyle(kind, id, {pat:{shape:v, b:pat ? pat.b : null}}, 'Pattern set.'); }
+    if (f === 'auto') return setStyle(kind, id, {color:null}, 'Back to the automatic shade.');
+    if (f === 'reset') return setStyle(kind, id, {color:null, pat:null}, 'Original colour.');
+  }
+  const emojiGridHTML = id => '<div class="emoji-pick" data-for="' + esc(id) + '">' + GLOW_EMOJI.map(e => '<button type="button" class="emoji-b" data-act="emojiPick" data-e="' + e + '" aria-label="Use ' + e + '">' + e + '</button>').join('') + '</div>';
+  let emojiOpen = null;
   function groupsEditorHTML(){
     const st = S(), opt = (g, v) => '<option value="' + v + '"' + ((gradeGroupUmbrella(st, g.id) || '') === v ? ' selected' : '') + '>';
-    const doms = '<div class="drawer-sub">Domains</div>' + GRADE_UMBRELLAS.map(u => '<div class="g-ged dom" data-dom="' + u.id + '"><span aria-hidden="true">' + u.emoji + '</span><input type="text" value="' + esc(domainName(u.id)) + '" data-dom-name="' + u.id + '" maxlength="24" placeholder="' + esc(DOMAIN_DEFAULTS[u.id]) + '" aria-label="Name of the ' + esc(DOMAIN_DEFAULTS[u.id]) + ' Domain"><input type="text" value="' + esc(domainAbout(u.id)) + '" data-dom-about="' + u.id + '" maxlength="60" placeholder="Meaning (optional)" aria-label="What ' + esc(domainName(u.id)) + ' means"></div>').join('') + '<p class="drawer-read">A new name shows everywhere at once; an empty name goes back to the original. Grades, points and past days never change.</p><div class="drawer-sub">Focuses</div>';
-    return '<div class="g-groups-ed" data-parity="AG1-NAMES">' + doms + (st.groups || []).filter(g => !g.retiredFrom).map(g => '<div class="g-ged' + (g.hidden ? ' off' : '') + '" data-grp="' + esc(g.id) + '"><input type="text" value="' + esc(g.name) + '" data-grp-name="' + esc(g.id) + '" maxlength="40" aria-label="Name of ' + esc(g.name) + '"><select data-grp-umb="' + esc(g.id) + '" aria-label="Domain for ' + esc(g.name) + '">' + opt(g, '') + 'Not graded</option>' + GRADE_UMBRELLAS.map(u => opt(g, u.id) + u.emoji + ' ' + u.name + '</option>').join('') + '</select><label class="g-hide"><input type="checkbox" data-grp-hide="' + esc(g.id) + '"' + (g.hidden ? ' checked' : '') + '> Hidden</label></div>').join('') +
-      '<div class="drawer-sub">New Focus</div><div class="g-ged new"><input type="text" id="grpNewName" maxlength="40" placeholder="Name" aria-label="New Focus name"><select id="grpNewUmb" aria-label="Domain for the new Focus">' + GRADE_UMBRELLAS.map(u => '<option value="' + u.id + '">' + u.emoji + ' ' + u.name + '</option>').join('') + '</select><button class="k-btn" data-act="groupNew">Add</button></div><p class="drawer-read">Moving a Focus changes which Domain its days count under in the grades shown. Claims, points and past days never change.</p></div>';
+    const chip = (kind, id, color, pat, label) => '<button type="button" class="cp-chip" data-act="stylePick" data-f="open" data-kind="' + kind + '" data-id="' + esc(id) + '" aria-expanded="' + !!(stylePick && stylePick.kind === kind && stylePick.id === id) + '" aria-label="Colour and pattern: ' + esc(label) + '" title="Colour and pattern"><span class="cp-swatch" style="background:' + (pat ? patCSS(color, pat, .95) + ',' : '') + (color || 'transparent') + '"></span></button>';
+    const custom = (st.prefs.customDomains || []).map(d => d.id);
+    const doms = '<div class="drawer-sub">Domains</div>' + GRADE_UMBRELLAS.map(u => { const ds = domainStyleOf(u.id), open = stylePick && stylePick.kind === 'dom' && stylePick.id === u.id;
+      return '<div class="g-ged dom" data-dom="' + u.id + '">' + chip('dom', u.id, ds.color, ds.pat, domainName(u.id)) +
+        '<span class="dom-emoji"><input type="text" class="emoji-in" value="' + esc(u.emoji) + '" data-dom-emoji="' + u.id + '" maxlength="8" aria-label="Emoji for ' + esc(domainName(u.id)) + '"><button type="button" class="emoji-btn" data-act="emojiOpen" data-for="' + u.id + '" aria-label="Pick an emoji" title="Pick an emoji">☺︎</button></span>' +
+        '<input type="text" value="' + esc(domainName(u.id)) + '" data-dom-name="' + u.id + '" maxlength="24" placeholder="' + esc(DOMAIN_DEFAULTS[u.id] || 'Domain') + '" aria-label="Name of the ' + esc(DOMAIN_DEFAULTS[u.id] || '') + ' Domain"><input type="text" value="' + esc(domainAbout(u.id)) + '" data-dom-about="' + u.id + '" maxlength="60" placeholder="Meaning (optional)" aria-label="What ' + esc(domainName(u.id)) + ' means">' +
+        '<select data-dom-merge="' + u.id + '" aria-label="Merge ' + esc(domainName(u.id)) + ' into"><option value="">Merge into…</option>' + GRADE_UMBRELLAS.filter(x => x.id !== u.id).map(x => '<option value="' + x.id + '">' + x.emoji + ' ' + esc(x.name) + '</option>').join('') + '</select>' +
+        (custom.includes(u.id) ? '<button type="button" class="link" data-act="domainDelete" data-dom="' + u.id + '">Delete</button>' : '') + '</div>' +
+        (emojiOpen === u.id ? emojiGridHTML(u.id) : '') + (open ? pickerHTML('dom', u.id) : ''); }).join('') +
+      '<div class="g-ged new"><input type="text" id="domNewEmoji" class="emoji-in" maxlength="8" placeholder="✨" aria-label="Emoji for the new Domain"><input type="text" id="domNewName" maxlength="24" placeholder="New Domain" aria-label="New Domain name"><button class="k-btn" data-act="domainNew">Add Domain</button></div>' +
+      '<p class="drawer-read">Split a Domain: add a new one, then move Focuses into it below. Merge moves every Focus of one Domain into another; claims, points and past days never change.</p>';
+    const focus = (st.groups || []).filter(g => !g.retiredFrom).map(g => { const fs = focusStyleOf(g.id) || {}, open = stylePick && stylePick.kind === 'focus' && stylePick.id === g.id;
+      return '<div class="g-ged' + (g.hidden ? ' off' : '') + '" data-grp="' + esc(g.id) + '">' + chip('focus', g.id, fs.color || categoryColor(g.id), fs.pat, g.name) + '<input type="text" value="' + esc(g.name) + '" data-grp-name="' + esc(g.id) + '" maxlength="40" aria-label="Name of ' + esc(g.name) + '"><select data-grp-umb="' + esc(g.id) + '" aria-label="Domain for ' + esc(g.name) + '">' + opt(g, '') + 'Not graded</option>' + GRADE_UMBRELLAS.map(u => opt(g, u.id) + u.emoji + ' ' + esc(u.name) + '</option>').join('') + '</select><label class="g-hide"><input type="checkbox" data-grp-hide="' + esc(g.id) + '"' + (g.hidden ? ' checked' : '') + '> Hidden</label><button type="button" class="link" data-act="cardDelete" data-group="' + esc(g.id) + '">Delete</button></div>' + (open ? pickerHTML('focus', g.id) : ''); }).join('');
+    return '<div class="g-groups-ed" data-parity="AG1-NAMES">' + doms + '<div class="drawer-sub">Focuses</div>' + focus +
+      '<div class="drawer-sub">New Focus</div><div class="g-ged new"><input type="text" id="grpNewName" maxlength="40" placeholder="Name" aria-label="New Focus name"><select id="grpNewUmb" aria-label="Domain for the new Focus">' + GRADE_UMBRELLAS.map(u => '<option value="' + u.id + '">' + u.emoji + ' ' + esc(u.name) + '</option>').join('') + '</select><button class="k-btn" data-act="groupNew">Add</button></div><p class="drawer-read">Moving a Focus changes which Domain its days count under in the grades shown. Claims, points and past days never change.</p></div>';
   }
   const openGroupsEditor = () => openPanel({key:'groups', title:'Names', emoji:'🗂️', learn:null, html:groupsEditorHTML}, {push:!!drawer});
   // A slider moves the preview live; letting go saves.
@@ -5803,6 +5875,11 @@ addEventListener('load', () => {
     if (t.matches('[data-grade-hobbies]')){ stage(st, 'grades'); setHobbiesGraded(st, t.checked); await commit('grades', t.checked ? 'Hobbies is graded.' : 'Hobbies is not graded.'); return; }
     if (t.matches('.tpl-pick-date') && t.value){ const row = t.closest('[data-series]'); if (row) await tplPlace(row.dataset.series, t.value); return; }   // AL1
     if (t.matches('.row-move-date') && t.value){ const row = t.closest('[data-series][data-date]'); if (row) rowMoveTo(row.dataset.series, row.dataset.date, t.value); return; }   // AH1
+    if (t.matches('[data-dom-emoji]')){ const id = t.dataset.domEmoji, v = t.value.trim().slice(0, 8); await setStyle('dom', id, {emoji:v || null}, v ? 'Emoji set.' : 'Emoji back to the original.'); return; }   // BA2
+    if (t.matches('[data-style-custom]')){ if (!stylePick) return; const f = stylePick.half ? 'b' : 'color'; await styleField(f, t.value); return; }   // BA3: the colour wheel
+    if (t.matches('[data-dom-merge]')){ const from = t.dataset.domMerge, to = t.value; if (!to) return; const moving = (st.groups || []).filter(g => gradeGroupUmbrella(st, g.id) === from); stage(st, 'groups');
+      for (const g of moving){ g.umbrella = gradeStoredUmbrella(to); g.updatedAt = nowIso(); } if (/^d-/.test(from)) st.prefs.customDomains = (st.prefs.customDomains || []).filter(d => d.id !== from);
+      await commit('groups', (moving.length ? (moving.length + (moving.length === 1 ? ' Focus' : ' Focuses')) + ' moved' : 'Nothing to move') + ' from ' + domainName(from) + ' into ' + domainName(to) + '. Claims, points and past days are kept.'); return; }   // BA2: merge
     if (t.matches('[data-dom-name], [data-dom-about]')){ const id = t.dataset.domName || t.dataset.domAbout, field = t.dataset.domName ? 'name' : 'about', v = t.value.trim().slice(0, field === 'name' ? 24 : 60), cur = (st.prefs.domainNames || {})[id] || {}; if ((cur[field] || '') === v) return; stage(st, 'names'); const all = {...(st.prefs.domainNames || {})}, next = {...cur, [field]:v}; if (!String(next.name || '').trim() && !String(next.about || '').trim()) delete all[id]; else all[id] = next; st.prefs.domainNames = all; await commit('names', field === 'name' ? (v ? 'The Domain is now ' + v + '.' : 'Back to ' + DOMAIN_DEFAULTS[id] + '.') : 'Saved.'); return; }   // AG1
     if (t.matches('[data-grp-name]')){ const g = groupById(st, t.dataset.grpName), n = t.value.trim(); if (!g || !n || n === g.name) return; stage(st, 'groups'); renameGroup(st, g.id, n); await commit('groups', 'Renamed to ' + n + '.'); return; }
     if (t.matches('[data-grp-umb]')){ const g = groupById(st, t.dataset.grpUmb); if (!g) return; stage(st, 'groups'); g.umbrella = t.value ? gradeStoredUmbrella(t.value) : 'none'; g.updatedAt = nowIso(); await commit('groups', t.value ? g.name + ' now counts under ' + GRADE_UMBRELLAS.find(u => u.id === t.value).name + '.' : g.name + ' is not graded.'); return; }
@@ -6100,7 +6177,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function umbrellaChips(st){
     const present = new Set(visibleGroups(st).map(g => g.umbrella).filter(Boolean));
     const list = [['all','All','✦']].concat(UMBRELLAS.filter(u => present.has(u[0])).map(u => [u[0], u[1], UMBRELLA_EMOJI[u[0]] || '•']));
-    return '<div class="q-chips" role="group" aria-label="Filter cards" data-parity="QUESTS-38">' + list.map(u => '<button class="k-chip' + (questUmbrella === u[0] ? ' gold' : '') + '" data-act="questUmbrella" data-v="' + esc(u[0]) + '" aria-pressed="' + (questUmbrella === u[0]) + '"><span aria-hidden="true">' + u[2] + '</span>' + esc(u[1]) + '</button>').join('') + '</div>';
+    const by = questByDomain(), toggle = '<span class="q-by" role="group" aria-label="Cards"><button class="k-chip' + (by ? '' : ' gold') + '" data-act="questByDomain" data-v="0" aria-pressed="' + !by + '">By Focus</button><button class="k-chip' + (by ? ' gold' : '') + '" data-act="questByDomain" data-v="1" aria-pressed="' + by + '">By Domain</button></span>';   // BA4
+    return '<div class="q-chips" role="group" aria-label="Filter cards" data-parity="QUESTS-38">' + list.map(u => '<button class="k-chip' + (questUmbrella === u[0] ? ' gold' : '') + '" data-act="questUmbrella" data-v="' + esc(u[0]) + '" aria-pressed="' + (questUmbrella === u[0]) + '"><span aria-hidden="true">' + u[2] + '</span>' + esc(u[1]) + '</button>').join('') + toggle + '</div>';
   }
   const UMBRELLA_EMOJI = {faith:'🙏', family:'👪', health:'❤️', 'home-care':'🏠', relationship:'💞', career:'💼', hobbies:'🎨'};
   function removedFold(st){ const removed = removedFor(st, day); return removed.length ? '<details class="panelcard" data-feedback-id="removed-activities" data-feedback-label="Removed activities"><summary>Taken off this day (' + removed.length + ')</summary>' + removed.map(r => '<div class="acts" data-series="' + r.seriesId + '" data-date="' + day + '"><span>' + esc(r.name) + '</span><button data-act="restore">Put back</button></div>').join('') + '</details>' : ''; }
@@ -6148,7 +6226,14 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   const domainEntry = id => { const st = S(), o = (st && st.prefs && st.prefs.domainNames) || {}; return o[gradeUmbrellaOfStored(id) || id] || null; };
   const domainName = (id, fallback) => { const x = domainEntry(id); return x && String(x.name || '').trim() ? String(x.name).trim() : fallback || DOMAIN_DEFAULTS[gradeUmbrellaOfStored(id) || id] || id; };
   const domainAbout = id => { const x = domainEntry(id); return x && String(x.about || '').trim() ? String(x.about).trim() : ''; };
-  function applyDomainNames(){ try { for (const u of GRADE_UMBRELLAS) u.name = domainName(u.id, DOMAIN_DEFAULTS[u.id]); for (const u of UMBRELLAS) u[1] = domainName(u[0], DOMAIN_DEFAULTS[gradeUmbrellaOfStored(u[0])]); } catch (_) {} }
+  const EMOJI_BASE = Object.fromEntries(GRADE_UMBRELLAS.map(u => [u.id, u.emoji])), UMB_EMOJI_BASE = {...UMBRELLA_EMOJI};
+  function applyDomainNames(){ try {
+    const st = S(); if (typeof wsSyncDomains === 'function') wsSyncDomains(st);   // BA2: Domains he made
+    for (const d of (st && st.prefs && st.prefs.customDomains) || []){ if (!d || !d.id) continue; DOMAIN_DEFAULTS[d.id] = String(d.name || 'Domain'); if (!UMBRELLAS.some(u => u[0] === d.id)) UMBRELLAS.push([d.id, d.name, 'interests']); }
+    for (let i = UMBRELLAS.length - 1; i >= 0; i--) if (/^d-/.test(UMBRELLAS[i][0]) && !GRADE_UMBRELLAS.some(u => u.id === UMBRELLAS[i][0])) UMBRELLAS.splice(i, 1);
+    for (const u of GRADE_UMBRELLAS){ u.name = domainName(u.id, DOMAIN_DEFAULTS[u.id]); const e = domainStyleOf(u.id).emoji; u.emoji = e || EMOJI_BASE[u.id] || u.emoji; }   // BA2: his emoji
+    for (const u of UMBRELLAS){ u[1] = domainName(u[0], DOMAIN_DEFAULTS[gradeUmbrellaOfStored(u[0])]); const gid = gradeUmbrellaOfStored(u[0]) || u[0], e = domainStyleOf(gid).emoji; UMBRELLA_EMOJI[u[0]] = e || UMB_EMOJI_BASE[u[0]] || (GRADE_UMBRELLAS.find(x => x.id === gid) || {}).emoji || '•'; }
+  } catch (_) {} }
   function planFamiliesCard(st, untouched){
     const fams = planFamilies(st), ux = untouched || planUntouchedExamples(st), tile = f => planFamilyTile(f.id,f.label,ux,true), umb = id => (groupById(st,id) || {}).umbrella;
     const banded = typeof structureV2Adopted === 'function' && structureV2Adopted(st) && fams.some(f => umb(f.id));
@@ -7044,10 +7129,98 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   // without an assigned colour gets a stable one derived from its id, so it never changes between views.
   /* Cards under one umbrella are sisters: one hue, each its own shade, so Health's five read as a family
      (Mintay, Sept 27). Faith keeps its royal purple. A card without an umbrella keeps its own colour. */
-  function categoryColor(group){const UMBRELLA_HUE={health:[158,40],'home-care':[20,40],relationship:[335,38],career:[40,58],hobbies:[78,34]};   // inside: the dashboard suite runs this function alone
+  function categoryColor(group){{const fc=typeof focusColor==='function'?focusColor(group):null;if(fc)return fc;}const UMBRELLA_HUE={health:[158,40],'home-care':[20,40],relationship:[335,38],career:[40,58],hobbies:[78,34]};   // inside: the dashboard suite runs this function alone
     const state=typeof S==='function'?S():null,card=state&&(state.groups||[]).find(x=>x.id===group),hue=card&&UMBRELLA_HUE[card.umbrella];
     if(hue){const sisters=(state.groups||[]).filter(x=>x.umbrella===card.umbrella&&!x.hidden).sort((a,b)=>a.order-b.order),i=Math.max(0,sisters.findIndex(x=>x.id===group)),t=sisters.length>1?i/(sisters.length-1):.5;return 'hsl('+Math.round(hue[0]-8+t*16)+' '+hue[1]+'% '+Math.round(46+t*22)+'%)';}
     const fixed={fitness:'var(--verd)','health-physical':'var(--verd)','health-mental':'#6fa8dc',food:'#8fbf5a',care:'#c98aa6','personal-care':'#4fb3aa',hygiene:'#4fb3aa',home:'#bc8873',work:'#d9a441',interests:'#9fb35a',faith:'#7851a9','personal-health':'#4fb3aa',wellbeing:'#5fb8a0','trash-day':'#c07a5a','laundry':'#bc8873','cleaning':'#a86f55','relationship':'#c98aa6'}[group];if(fixed)return fixed;let h=0;for(const c of String(group||''))h=(h*31+c.charCodeAt(0))>>>0;let hh=h%360;if(hh>=250&&hh<=320)hh=(hh+90)%360;return 'hsl('+hh+' 42% 58%)';}   /* AV1 (his rule, Oct 9): only Faith (and, softer, Journal) is purple as a category; a card's made-up colour never lands on violet */
+  /* A5 (BA1, BA2, BA3; his words, Oct 9: "the colors of the cards need to change to the actual Focus Color", "once the domain color is picked, the
+     focuses should all have a different shade or type of that same color - along with pattern options"): a Domain has a colour (with an optional
+     pattern) and an emoji; each of its Focuses takes its own shade of that colour, automatic and editable, and an optional pattern. Stored in
+     prefs.domainStyle {grade id: {color, pat, emoji}} and prefs.focusStyle {card id: {color, pat}}; a Domain he creates is prefs.customDomains. */
+  const DOMAIN_COLOR_DEFAULTS = {faith:'#7851a9', health:'#4fae8a', family:'#5b8fd6', career:'#d9a441', home:'#bc8873', social:'#d0709c', hobbies:'#9fb35a'};
+  const PAT_BRAND = [['tibeb','Tibeb'],['lalibela','Lalibela crosses'],['mesob','Mesob weave'],['stone','Temple stone'],['meander','Meander'],['lattice','Lattice'],['rays','Glow rays'],['parchment','Parchment']];
+  const PAT_GENA = [['stripes','Stripes'],['dots','Dots'],['checks','Checks'],['zigzag','Zigzag'],['plaid','Plaid'],['diamonds','Diamonds'],['split','Split']];
+  const PAT_IDS = new Set(PAT_BRAND.concat(PAT_GENA).map(x => x[0]));
+  const isHex = c => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c);
+  function patValid(p){ if (!p || typeof p !== 'object' || !PAT_IDS.has(p.shape)) return null; return {shape:p.shape, b:isHex(p.b) ? p.b.toLowerCase() : null}; }
+  function hexOf(c){
+    c = String(c || '').trim(); if (isHex(c)) return c.toLowerCase(); if (/^#[0-9a-f]{3}$/i.test(c)) return '#' + c.slice(1).split('').map(x => x + x).join('').toLowerCase();
+    const v = /^var\((--[\w-]+)(?:,\s*([^)]+))?\)$/.exec(c); if (v){ let r = ''; try { r = getComputedStyle(document.documentElement).getPropertyValue(v[1]).trim(); } catch (_) {} return hexOf(r || v[2] || ''); }
+    const h = /^hsl\(\s*([\d.]+)[ ,]+([\d.]+)%[ ,]+([\d.]+)%\s*\)$/i.exec(c); if (h) return hslHex(+h[1], +h[2], +h[3]);
+    const m = /^rgba?\(\s*(\d+)[ ,]+(\d+)[ ,]+(\d+)/i.exec(c); if (m) return '#' + [m[1], m[2], m[3]].map(x => (+x).toString(16).padStart(2, '0')).join('');
+    return null;
+  }
+  function hslHex(h, s, l){ s /= 100; l /= 100; const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l), f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1))); return '#' + [f(0), f(8), f(4)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join(''); }
+  function hexHsl(hex){ const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2, d = mx - mn; let h = 0, s = 0;
+    if (d){ s = d / (1 - Math.abs(2 * l - 1)); h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h = (h * 60 + 360) % 360; } return [h, s * 100, l * 100]; }
+  // a Focus's automatic shade: the Domain's hue and saturation, lightness spread across its Focuses (t from 0 to 1)
+  function shadeOf(hex, t){ const [h, s, l] = hexHsl(hex); return hslHex(h, s, Math.max(24, Math.min(78, l - 10 + t * 20))); }
+  function domainStyleOf(id){ const st = S(), p = (st && st.prefs) || {}, o = (p.domainStyle || {})[id] || {}, cd = (p.customDomains || []).find(d => d && d.id === id) || {};
+    return {color:isHex(o.color) ? o.color : isHex(cd.color) ? cd.color : DOMAIN_COLOR_DEFAULTS[id] || null, pat:patValid(o.pat), emoji:o.emoji || cd.emoji || null}; }
+  let focusKeep = {k:null, m:new Map()};
+  function focusStyleOf(group){
+    const st = S(); if (!st || !st.prefs) return null;
+    const k = (st.revision || 0) + '|' + (st.groups || []).length + '|' + JSON.stringify([st.prefs.domainStyle || 0, st.prefs.focusStyle || 0, st.prefs.customDomains || 0]);
+    if (focusKeep.k !== k) focusKeep = {k, m:new Map()}; if (focusKeep.m.has(group)) return focusKeep.m.get(group);
+    let out = null; const card = (st.groups || []).find(x => x.id === group), fs = (st.prefs.focusStyle || {})[group] || {};
+    const dom = card && typeof gradeGroupUmbrella === 'function' ? gradeGroupUmbrella(st, group) : null, ds = dom ? domainStyleOf(dom) : null;
+    if (isHex(fs.color)) out = {color:fs.color, pat:patValid(fs.pat) || (ds && ds.pat), auto:false};
+    else if (ds && ds.color){ const sisters = (st.groups || []).filter(x => !x.hidden && gradeGroupUmbrella(st, x.id) === dom).sort((a, b) => (a.order || 0) - (b.order || 0)), i = Math.max(0, sisters.findIndex(x => x.id === group)), t = sisters.length > 1 ? i / (sisters.length - 1) : .5;
+      out = {color:shadeOf(ds.color, t), pat:patValid(fs.pat) || ds.pat, auto:true}; }
+    focusKeep.m.set(group, out); return out;
+  }
+  function focusColor(group){ const s = focusStyleOf(group); return s ? s.color : null; }
+  /* BA3 (BA3-PATTERNS): the on-brand patterns (a woven Tibeb band, Lalibela cross windows, a Mesob basket weave, Temple ashlar, a meander key,
+     a carved lattice, Glow rays, parchment lines) and Gena's shapes, each drawn as cheap CSS (gradients or one small SVG tile), kept per colour pair */
+  const patKeep = new Map();
+  function patCSS(color, pat, alpha){
+    const p = patValid(pat), A = hexOf(color); if (!p || !A) return 'none';
+    const key = p.shape + A + (p.b || '') + alpha; if (patKeep.has(key)) return patKeep.get(key);
+    const rgba = (hex, a) => 'rgba(' + [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(',') + ',' + a + ')';
+    const a = rgba(A, alpha), b = p.b ? rgba(p.b, alpha) : 'transparent', b2 = p.b ? rgba(p.b, alpha) : rgba(A, alpha * .6);
+    const svg = (w, h, body) => "url('data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '">' + body + '</svg>').replace(/'/g, '%27') + "')";
+    const S1 = 'stroke="' + a + '" fill="none" stroke-width="1.4"', S2 = 'stroke="' + b2 + '" fill="none" stroke-width="1.4"', F1 = 'fill="' + a + '"', F2 = 'fill="' + b2 + '"';
+    let css;
+    switch (p.shape){
+      case 'tibeb': css = svg(28, 28, '<path d="M0 9.5h28M0 18.5h28" ' + S1 + '/><path d="M7 14l3.5-3.5L14 14l-3.5 3.5zM21 14l3.5-3.5L28 14l-3.5 3.5zM0 14l3.5-3.5L7 14l-3.5 3.5z" ' + F2 + '/>'); break;
+      case 'lalibela': css = svg(24, 24, '<path d="M10 5h4v5h5v4h-5v5h-4v-5H5v-4h5z" ' + F1 + '/>'); break;
+      case 'mesob': css = svg(26, 26, '<circle cx="13" cy="13" r="4" ' + S1 + '/><circle cx="13" cy="13" r="9" ' + S2 + '/>'); break;
+      case 'stone': css = svg(36, 18, '<path d="M0 .7h36M0 9.7h36M12 .7v9M30 9.7v9" ' + S1 + '/>'); break;
+      case 'meander': css = svg(24, 16, '<path d="M1 15V3h14v8H7V7h4" ' + S1 + '/><path d="M15 15h8V1" ' + S2 + '/>'); break;
+      case 'lattice': css = svg(18, 18, '<path d="M9 0L18 9 9 18 0 9z" ' + S1 + '/><circle cx="9" cy="9" r="1.8" ' + F2 + '/>'); break;
+      case 'rays': css = 'repeating-conic-gradient(from 0deg at 0% 100%, ' + a + ' 0deg 3deg, transparent 3deg 9deg)'; break;
+      case 'parchment': css = 'repeating-linear-gradient(0deg, ' + a + ' 0 1px, transparent 1px 11px)'; break;
+      case 'stripes': css = 'repeating-linear-gradient(45deg, ' + a + ' 0 5px, ' + b + ' 5px 10px)'; break;
+      case 'dots': css = 'radial-gradient(' + a + ' 2px, transparent 2.7px) 0 0/9px 9px'; break;
+      case 'checks': css = 'conic-gradient(' + a + ' 25%, ' + b + ' 0 50%, ' + a + ' 0 75%, ' + b + ' 0) 0 0/12px 12px'; break;
+      case 'zigzag': css = 'conic-gradient(from 135deg at 50% 0, ' + a + ' 90deg, ' + b + ' 0) 0 0/12px 6px'; break;
+      case 'plaid': css = 'repeating-linear-gradient(0deg, ' + b2 + ' 0 5px, transparent 5px 14px), repeating-linear-gradient(90deg, ' + b2 + ' 0 5px, transparent 5px 14px)'; break;
+      case 'diamonds': css = 'conic-gradient(from 45deg, ' + a + ' 25%, ' + b + ' 0 50%, ' + a + ' 0 75%, ' + b + ' 0) 0 0/12px 12px'; break;
+      case 'split': css = 'linear-gradient(135deg, transparent 50%, ' + b2 + ' 50%)'; break;
+      default: css = 'none';
+    }
+    patKeep.set(key, css); return css;
+  }
+  /* BA1-INK, BA1-GLASS (his words, Oct 9: "Default to white but if white cant be seen then pick a color that can be seen"; "the cards should try to be
+     a little clear (sort of like glass that is colored) so that i can still see the green/black walls"): a card is its colour at about a quarter
+     strength over the wall, with a light blur. Its ink is white when white reads at 4.5:1 or better against the card as drawn; otherwise a dark ink,
+     with the colour raised only as far as that ink needs. */
+  const lum = hex => { const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(v => v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4)); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
+  const contrast = (x, y) => { const a = lum(x), b = lum(y); return (Math.max(a, b) + .05) / (Math.min(a, b) + .05); };
+  const mixHex = (top, base, alpha) => '#' + [1, 3, 5].map(i => Math.round(parseInt(top.slice(i, i + 2), 16) * alpha + parseInt(base.slice(i, i + 2), 16) * (1 - alpha)).toString(16).padStart(2, '0')).join('');
+  function cardSkin(color){
+    const A = hexOf(color); if (!A) return null;
+    const wall = S() && S().prefs && S().prefs.theme === 'black' ? '#0c0c0e' : '#13221a', INK_DARK = '#16140f';
+    let alpha = .24, drawn = mixHex(A, wall, alpha), ink = '#ffffff';
+    if (contrast(ink, drawn) < 4.5){ ink = INK_DARK; while (alpha < .92 && contrast(ink, drawn) < 4.5){ alpha += .04; drawn = mixHex(A, wall, alpha); } }
+    const rgb = [1, 3, 5].map(i => parseInt(A.slice(i, i + 2), 16)).join(',');
+    return {bg:'rgba(' + rgb + ',' + alpha.toFixed(2) + ')', ink, alpha, drawn, ratio:contrast(ink, drawn)};
+  }
+  function cardSkinStyle(group){
+    const fs = focusStyleOf(group), color = fs ? fs.color : categoryColor(group), sk = cardSkin(color); if (!sk) return '';
+    const pat = fs && fs.pat ? patCSS(fs.color, fs.pat, .09) : 'none', strip = fs && fs.pat ? patCSS(fs.color, fs.pat, .9) : 'none';
+    return ';--glass-bg:' + sk.bg + ';--card-ink:' + sk.ink + (pat !== 'none' ? ';--pat:' + pat + ';--pat-strip:' + strip : '');
+  }
   function selectedCategoryBar(state,group,date){
     const rows=completionRows(state,date).filter(r=>r.group===group),done=rows.filter(r=>r.status==='done').length;
     return '<span class="category-track" style="--category:'+categoryColor(group)+'"><span class="category-fill" style="width:'+(rows.length?100*done/rows.length:0)+'%"></span></span><span class="category-day-label">'+esc(monthDay(date))+' · '+(date>todayYmd()?'future':rows.length?done+'/'+rows.length+' confirmed':'nothing due')+'</span>';
@@ -9371,7 +9544,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
             return '<button class="cb' + (kind === 'onoff' ? ' io' : '') + (sourced ? ' src' : '') + mark + '" role="checkbox" aria-checked="' + (confirmed ? 'true' : st === 'tentative' || mark === ' part' ? 'mixed' : 'false') + '" data-act="toggleDone" aria-label="' + (confirmed ? 'Review ' : 'Done: ') + esc(label) + ' · ' + said + '"' + (future ? ' disabled' : '') + ' title="' + said + '">' + (confirmed ? '✓' : mark === ' skip' ? '✕' : mark === ' exempt' ? '—' : '') + '</button>' +
               '';
           })()) +
-      '<button class="nm" data-act="openRow">' + esc(label) + '</button>' + (n.carriedFrom ? '<span class="carried-from keep" title="Carried over: it was due ' + esc(medDate(n.carriedFrom)) + '. That day keeps it; doing it today counts today.">↩ ' + esc(parseYmd(n.carriedFrom).toLocaleDateString(undefined, {month:'short', day:'numeric'})) + '</span>' : '') + (quota ? quotaBar(quota) : '') + (met ? '<span class="met-badge keep" title="The goal is already reached; anything more is extra">✓ ' + met + '</span>' : '') + (selfReported ? '<span class="self-mark keep" title="Self-reported: your entry wins over Apple Health and still earns points" aria-label="Self-reported">✎</span>' : '') + (measure ? itemBar(measure) + goalExtras(measure) : goalAfterLine(S(), n, n.date || day) || '') + (measure ? '' : v5Share !== null ? '<span class="pct keep" title="Share of the target that counts under Scoring V2">' + v5Share + '%</span>' : '') + (summary || ptsWord ? '<span class="meta">' + esc(summary) + (ptsWord ? '<span class="pts">' + (summary ? ' · ' : '') + esc(ptsWord) + '</span>' : '') + '</span>' : '') +
+      '<button class="nm" data-act="openRow">' + esc(label) + (n.carriedFrom ? '<span class="carried-from keep" title="Carried over: it was due ' + esc(medDate(n.carriedFrom)) + '. That day keeps it; doing it today counts today.">↩ ' + esc(parseYmd(n.carriedFrom).toLocaleDateString(undefined, {month:'short', day:'numeric'})) + '</span>' : '') + '</button>' +   /* AQ2: the tag sits under the name, so the name keeps its width */ (quota ? quotaBar(quota) : '') + (met ? '<span class="met-badge keep" title="The goal is already reached; anything more is extra">✓ ' + met + '</span>' : '') + (selfReported ? '<span class="self-mark keep" title="Self-reported: your entry wins over Apple Health and still earns points" aria-label="Self-reported">✎</span>' : '') + (measure ? itemBar(measure) + goalExtras(measure) : goalAfterLine(S(), n, n.date || day) || '') + (measure ? '' : v5Share !== null ? '<span class="pct keep" title="Share of the target that counts under Scoring V2">' + v5Share + '%</span>' : '') + (summary || ptsWord ? '<span class="meta">' + esc(summary) + (ptsWord ? '<span class="pts">' + (summary ? ' · ' : '') + esc(ptsWord) + '</span>' : '') + '</span>' : '') +
       (claimable ? '<button class="save claim-one" data-act="claimOne" data-claim="' + esc(claimable.id) + '">Claim ' + pointAmount(claimable, claimable.amount) + ' ✦</button>' : '') + (container ? taskClaimHTML(n) : '') +
       rowActs(n, label) +
       '<details class="more" data-key="more"><summary aria-label="More for ' + esc(label) + '">⋯</summary><div class="more-menu">' + rowActs(n, label, true) + menu + '</div></details>' +
@@ -9418,7 +9591,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (questFocus && hasSeries(nodes, questFocus.id)){ wsReopened.add(g.id + '|' + day); wsCollapsed.delete('group:' + g.id); }   // D3: Quests opened at an item reopens its card
     const closed = settled && resolved > 0 && questAutoClose(st) && !wsReopened.has(g.id + '|' + day) && !here, collapsed = closed || wsCollapsed.has('group:' + g.id);
     const umbrella = (UMBRELLAS.find(u => u[0] === g.umbrella) || [])[1];
-    return '<section class="ws-group' + (settled ? ' done' : '') + (closed ? ' closed' : '') + '" data-group="' + esc(g.id) + '"' + (g.umbrella ? ' data-umbrella="' + esc(g.umbrella) + '"' : '') + ' data-feedback-id="activity-group:' + esc(g.id) + '" data-feedback-label="' + esc(g.name) + '" style="--category:' + categoryColor(g.id) + '">' +
+    return '<section class="ws-group glass' + (settled ? ' done' : '') + (closed ? ' closed' : '') + '" data-group="' + esc(g.id) + '"' + (g.umbrella ? ' data-umbrella="' + esc(g.umbrella) + '"' : '') + ' data-feedback-id="activity-group:' + esc(g.id) + '" data-feedback-label="' + esc(g.name) + '" style="--category:' + categoryColor(g.id) + cardSkinStyle(g.id) + '">' +
       '<div class="gh"><span class="cstrip" aria-hidden="true"></span>' +
       '<button class="tw" data-act="wsToggleGroup" data-node="group:' + esc(g.id) + '"' + (closed ? ' data-closed="1"' : '') + ' aria-expanded="' + (!collapsed) + '" aria-label="' + (collapsed ? 'Expand ' : 'Collapse ') + esc(g.name) + '">' + (collapsed ? '▸' : '▾') + '</button>' +
       '<h3>' + (closed ? '<button class="gopen" data-act="wsToggleGroup" data-node="group:' + esc(g.id) + '" data-closed="1" aria-label="Open ' + esc(g.name) + ', ' + resolved + ' of ' + daily.length + ' done">' + esc(g.name) + '</button>' : '<button class="gopen gname" data-act="wsToggleGroup" data-node="group:' + esc(g.id) + '" aria-expanded="' + (!collapsed) + '" title="' + (collapsed ? 'Unfold' : 'Fold') + '">' + esc(g.name) + '</button>') + '</h3>'   /* BA7: the name folds and unfolds the card, as the arrow does */ + (umbrella && umbrella !== g.name ? '<span class="umb-tag keep"' + (domainAbout(g.umbrella) ? ' title="' + esc(domainAbout(g.umbrella)) + '"' : '') + '>' + esc(umbrella) + '</span>' : '') + '<span class="gcount" data-resolved="' + resolved + '" data-partial="' + partial + '" data-of="' + daily.length + '">' + half(resolved + partial / 2) + ' of ' + daily.length + (sections.daily.length === nodes.length ? '' : ' today') + '</span>' + (closed && toClaim.length ? '<button class="k-chip gold q-toclaim" data-act="claimOne" data-claim="' + esc(toClaim[0].id) + '" data-parity="V36-I4-01" title="Claim ' + esc(toClaim.length === 1 ? 'it' : 'the first; open the card for the rest') + '">' + toClaim.length + ' to claim</button>' : '') + (todayDone ? '<span class="today-done keep" title="Everything today asks of this card is done">✓ Today done</span>' : '') +
@@ -9458,9 +9631,20 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const showEmpty = area === 'plan' && !oneCard && !catching && !(options && (options.groupId || options.swept)) && v33 && !(st.prefs && st.prefs.questEmptyFocus === false);
     const empties = showEmpty ? groupsOf(st).filter(g => !g.hidden && !groups.includes(g) && !groupOff(st, g.id, day) && (!options || !options.umbrella || g.umbrella === options.umbrella) && !(g.retiredFrom && day >= g.retiredFrom) && !parked.has(g.id) && !hidden.has(g.id)) : [];
     const cards = groups.concat(empties).sort((x, y) => (v2 ? order(x.id) - order(y.id) : 0));
-    return (catching ? catchUpBanner(st) : (!options || !options.groupId) && typeof structureV2Card === 'function' ? structureV2Card() : '') + '<div class="ws-groups" data-parity="V35-Q1-01">' + (options?.includeClaims ? claimsCard() : '') + cards.map(g => empties.includes(g) && !(composer && !composer.editSeries && composer.groupId === g.id) ? emptyFocusLine(g) : wsGroupCard(g, rows.filter(r => (r.group || r.groupId) === g.id))).filter(h => !(options && options.swept && /^<section class="ws-group done"/.test(h))).join('') + '</div>' + (options && options.groupId ? '' : cardTools(st));
+    const cardHTML = g => empties.includes(g) && !(composer && !composer.editSeries && composer.groupId === g.id) ? emptyFocusLine(g) : wsGroupCard(g, rows.filter(r => (r.group || r.groupId) === g.id));
+    /* BA4 (his words, Oct 9: "i should be able to click something so that all the focuses group into the same larger card within their domain ... each
+       focus still keeps its distinct but related color and pattern"): By Domain gathers each Domain's Focus cards into one card, in Domain order; By
+       Focus (the default) is one card each. Remembered on this device. */
+    const byDomain = area === 'plan' && !oneCard && !(options && options.groupId) && questByDomain();
+    const body = byDomain ? (() => { const doms = new Map(); for (const g of cards){ const d = gradeGroupUmbrella(st, g.id) || 'none'; if (!doms.has(d)) doms.set(d, []); doms.get(d).push(g); }
+      const ix = d => { const i = GRADE_UMBRELLAS.findIndex(u => u.id === d); return i < 0 ? 99 : i; };
+      return [...doms].sort((a, b) => ix(a[0]) - ix(b[0])).map(([d, list]) => { const u = GRADE_UMBRELLAS.find(x => x.id === d), ds = u ? domainStyleOf(d) : null, inner = list.map(cardHTML).filter(h => !(options && options.swept && /^<section class="ws-group[^"]*\bdone\b/.test(h))).join(''); if (!inner) return '';
+        return '<section class="dom-card" data-dom="' + esc(d) + '" style="--dom:' + (ds && ds.color || 'var(--line)') + '"><div class="dom-head"><span aria-hidden="true">' + (u ? u.emoji : '•') + '</span><h3>' + esc(u ? u.name : 'Not graded') + '</h3><small>' + list.length + (list.length === 1 ? ' Focus' : ' Focuses') + '</small></div><div class="dom-body">' + inner + '</div></section>'; }).join(''); })()
+      : cards.map(cardHTML).filter(h => !(options && options.swept && /^<section class="ws-group done"/.test(h))).join('');
+    return (catching ? catchUpBanner(st) : (!options || !options.groupId) && typeof structureV2Card === 'function' ? structureV2Card() : '') + '<div class="ws-groups' + (byDomain ? ' by-domain' : '') + '" data-parity="V35-Q1-01">' + (options?.includeClaims ? claimsCard() : '') + body + '</div>' + (options && options.groupId ? '' : cardTools(st));
   }
-  function emptyFocusLine(g){ return '<section class="ws-group ws-empty" data-group="' + esc(g.id) + '" data-feedback-id="activity-group:' + esc(g.id) + '" data-feedback-label="' + esc(g.name) + '" style="--category:' + categoryColor(g.id) + '"><div class="gh"><span class="cstrip" aria-hidden="true"></span><h3>' + esc(g.name) + '</h3><button class="ws-addbtn" data-act="wsAdd" data-kind="item" data-group="' + esc(g.id) + '" aria-label="Add to ' + esc(g.name) + '">+ Add</button></div></section>'; }   // AQ1
+  function questByDomain(){ try { return localStorage.getItem('health-tracker.questByDomain') === '1'; } catch (_) { return false; } }   // BA4
+  function emptyFocusLine(g){ return '<section class="ws-group ws-empty glass" data-group="' + esc(g.id) + '" data-feedback-id="activity-group:' + esc(g.id) + '" data-feedback-label="' + esc(g.name) + '" style="--category:' + categoryColor(g.id) + cardSkinStyle(g.id) + '"><div class="gh"><span class="cstrip" aria-hidden="true"></span><h3>' + esc(g.name) + '</h3><button class="ws-addbtn" data-act="wsAdd" data-kind="item" data-group="' + esc(g.id) + '" aria-label="Add to ' + esc(g.name) + '">+ Add</button></div></section>'; }   // AQ1
   function cardTools(st){
     const gone = groupsOf(st).filter(g => g.hidden);
     return '<div class="card-tools"><button class="ws-addbtn" data-act="cardNew">+ New Focus</button>' + (gone.length ? '<details class="plan-fold" data-fold="cards-archived"' + (planFold['cards-archived'] ? ' open' : '') + '><summary><b>Archived cards</b><span class="hint">' + gone.length + ' · items, entries and points kept</span></summary>' + gone.map(g => '<div class="crow"><span>' + esc(g.name) + '</span><button data-act="cardRestore" data-group="' + esc(g.id) + '">Restore</button></div>').join('') + '</details>' : '') + '</div>';
@@ -10992,6 +11176,22 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       case 'gradePickUmb': gradePick[btn.dataset.g] = btn.dataset.u; renderDrawer(); focusFirst('[data-act="gradeAssign"][data-g="' + btn.dataset.g + '"]'); return;
       case 'gradeAssign': { const g = groupById(st, btn.dataset.g), u = gradePick[btn.dataset.g]; if (!g || !u) return; stage(st, 'groups'); g.umbrella = gradeStoredUmbrella(u); g.updatedAt = nowIso(); delete gradePick[btn.dataset.g]; await commit('groups', g.name + ' now counts under ' + GRADE_UMBRELLAS.find(x => x.id === u).name + '.'); return; }
       case 'groupsOpen': openGroupsEditor(); return;
+      case 'questByDomain': { try { localStorage.setItem('health-tracker.questByDomain', btn.dataset.v === '1' ? '1' : '0'); } catch (_) {} render(); return; }   // BA4
+      case 'stylePick': { const f = btn.dataset.f;
+        if (f === 'open'){ const k = btn.dataset.kind, id = btn.dataset.id; stylePick = stylePick && stylePick.kind === k && stylePick.id === id ? null : {kind:k, id, half:0}; renderDrawer(); return; }
+        if (f === 'close'){ stylePick = null; renderDrawer(); return; }
+        if (f === 'half'){ if (stylePick) stylePick.half = +btn.dataset.v; renderDrawer(); return; }
+        await styleField(f, btn.dataset.v); return; }
+      case 'emojiOpen': { const id = btn.dataset.for; emojiOpen = emojiOpen === id ? null : id; renderDrawer(); const inp = document.querySelector('[data-dom-emoji="' + id + '"]'); if (inp){ inp.focus(); inp.select(); } if (NATIVE && emojiOpen) nativePost({type:'emojiPalette'}); return; }   // BA2-EMOJIBTN: the Mac's Emoji and Symbols palette (Control-Command-Space), and Glow's grid
+      case 'emojiPick': { if (!emojiOpen) return; const id = emojiOpen; emojiOpen = null; await setStyle('dom', id, {emoji:btn.dataset.e}, 'Emoji set.'); return; }
+      case 'domainNew': { const n = String(($('#domNewName') || {}).value || '').trim().slice(0, 24), e = String(($('#domNewEmoji') || {}).value || '').trim().slice(0, 8); if (!n){ toast('Name the Domain.'); focusFirst('#domNewName'); return; }
+        if (GRADE_UMBRELLAS.some(u => u.name.toLowerCase() === n.toLowerCase())){ toast('A Domain has that name already.'); return; }
+        stage(st, 'groups'); const used = new Set(GRADE_UMBRELLAS.map(u => domainStyleOf(u.id).color)), color = ['#4a9fb5','#c98a3a','#8aa86b','#b5677a','#6f86c9','#c4a95a'].find(c => !used.has(c)) || '#6f86c9';
+        st.prefs.customDomains = [...(st.prefs.customDomains || []), {id:'d-' + Math.random().toString(36).slice(2, 10), name:n, emoji:e || '✨', color}];
+        await commit('groups', n + ' added. Move Focuses into it below, or add a new one there.'); return; }   // BA2: create (and so split)
+      case 'domainDelete': { const id = btn.dataset.dom; if (!/^d-/.test(id)) return; const moving = (st.groups || []).filter(g => gradeGroupUmbrella(st, g.id) === id); stage(st, 'groups');
+        for (const g of moving){ g.umbrella = 'none'; g.updatedAt = nowIso(); } st.prefs.customDomains = (st.prefs.customDomains || []).filter(d => d.id !== id); const nm = domainName(id);
+        await commit('groups', nm + ' deleted' + (moving.length ? '; ' + (moving.length + (moving.length === 1 ? ' Focus' : ' Focuses')) + ' are not graded until you move them' : '') + '.'); return; }
       case 'groupNew': { const n = String(($('#grpNewName') || {}).value || '').trim(), u = ($('#grpNewUmb') || {}).value; if (!n){ toast('Name the Focus.'); focusFirst('#grpNewName'); return; } stage(st, 'groups'); const g = addGroup(st, n); if (!g){ popUndo(); return; } g.umbrella = gradeStoredUmbrella(u); await commit('groups', n + ' added under ' + GRADE_UMBRELLAS.find(x => x.id === u).name + '.'); return; }
       case 'gradeAddItem': { const id = btn.dataset.u, g = (st.groups || []).find(x => !x.hidden && !x.retiredFrom && gradeGroupUmbrella(st, x.id) === id); openComposer('item', null, g ? g.id : null, '', null, {area:'drawer', more:true, date:day, umb:id}); return; }
       case 'todayAdd': if (dayClosed(st, day)){ toast(closedWord(day)); return; } openComposer('item', null, null, '', null, {area:'home', askCard:true, date:day}); return;

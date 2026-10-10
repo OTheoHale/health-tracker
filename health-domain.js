@@ -1329,6 +1329,14 @@ const GRADE_UMBRELLAS=[
 const GRADE_ITEM_IMPORTANCE=5,GRADE_GROUP_IMPORTANCE=5,GRADE_FAITH_SHARE=.2,GRADE_PROGRAM_START='2026-09-21';
 // Groups from before the V2 structure carry no umbrella field; the V2 card order already says where they belong.
 const GRADE_GROUP_FALLBACK={fitness:'health',food:'health','health-physical':'health','personal-care':'health',hygiene:'health','health-mental':'health',wellbeing:'health','personal-health':'health',home:'home','trash-day':'home',laundry:'home',cleaning:'home',faith:'faith',work:'career',relationship:'social',interests:'hobbies'};
+/* BA2: a Domain he creates (prefs.customDomains [{id 'd-…', name, emoji, color}]) joins the grade Domains, graded like the others (importance 5). */
+let wsDomSig='';
+function wsSyncDomains(state){
+  const list=state&&state.prefs&&Array.isArray(state.prefs.customDomains)?state.prefs.customDomains.filter(d=>d&&/^d-[a-z0-9-]{3,40}$/.test(d.id)):[],sig=JSON.stringify(list.map(d=>[d.id,d.name,d.emoji]));
+  if(sig===wsDomSig)return;wsDomSig=sig;
+  for(let i=GRADE_UMBRELLAS.length-1;i>=0;i--)if(GRADE_UMBRELLAS[i].custom)GRADE_UMBRELLAS.splice(i,1);
+  for(const d of list)if(!GRADE_UMBRELLAS.some(u=>u.id===d.id))GRADE_UMBRELLAS.push({id:d.id,name:String(d.name||'Domain').slice(0,24),emoji:String(d.emoji||'✨').slice(0,8),importance:5,stored:[d.id],custom:true});
+}
 const gradeUmbrellaOfStored=u=>(GRADE_UMBRELLAS.find(x=>x.stored.includes(u))||{}).id||null;
 // The stored id a canonical umbrella is written as when a group moves (an id already in the store wins).
 const gradeStoredUmbrella=id=>({home:'home-care',social:'relationship'})[id]||id;
@@ -1427,6 +1435,7 @@ function gradeTiered(list,tierOf){
    which an earlier build reads as an unknown group and ignores. It is off until he turns it on, so the Overall does not
    move on release day. */
 function umbrellaGradeReport(state,today,period,range,measured,opts){
+  wsSyncDomains(state);   // BA2
   const {from,to,program,live}=gradePeriod(state,today,period||'day',range,opts),tierDay=live?todayYmd():null;   // Fix G1: a Week, Month or All window ends yesterday only because today is still open, so it reads the tier in force today
   // V3.7.1 F5 (audit D-5; his "take ur rec", Oct 5; ASSUMED V371-A1): a window that spans the rule day is graded in two parts, the
   // days before it by the old rule and the days from it by Required and Stretch, joined by their due counts (gradeSplit). A window
