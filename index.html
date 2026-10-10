@@ -1859,6 +1859,22 @@ dialog.ss-wrap{position:fixed;inset:0;z-index:90;width:auto;height:auto;max-widt
 .ss-kids{display:grid;gap:4px;padding-top:12px;border-top:1px solid var(--line)}.ss-kid{display:flex;align-items:center;gap:8px;padding:3px 4px;border-radius:10px}.ss-kid.open{background:rgba(255,255,255,.05)}.ss-kid.off input{opacity:.6}.ss-kid input{flex:1;min-width:0;min-height:30px}.ss-kid small{color:var(--faint);font-size:11.5px;white-space:nowrap}
 .ss-sub{display:grid;gap:12px;margin:2px 0 8px 18px;padding:10px 0 6px 14px;border-left:3px solid var(--category,var(--line))}
 .ss-foot{margin:0;font-size:11.5px;color:var(--faint)}
+/* BH7: one bar across the window (wide layouts); the sidebar and the side panel start under it */
+#barLeft,#barRight{display:flex;align-items:center;gap:4px;min-width:0}#barLeft #pageNav{display:flex;gap:4px}.bar-tog{width:32px;height:32px;min-height:0;padding:0;display:inline-flex;align-items:center;justify-content:center;color:var(--muted)}.bar-tog:hover{color:var(--ink)}
+.bar-clock{font-size:13px;font-weight:500;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:.01em}
+.content>.topbar>#barClock{grid-column:1;grid-row:1;justify-self:end;margin-right:16px}.content>.topbar>#barLeft{grid-column:1;grid-row:1;justify-self:start}.content>.topbar>#barRight{grid-column:3;grid-row:1;justify-self:end}
+@media (max-width:900px){.bar-clock,#barSide,#barRail{display:none}}   /* narrow windows keep the old bar */
+@media (min-width:901px){
+  :root{--bar-h:52px}.app{--side-now:var(--side-w);--left-min:120px}.app.siderail:not(.peeking){--side-now:64px}.app.sidehidden{--side-now:0px}html.mac-inset .app{--left-min:196px}
+  .app{padding-top:var(--bar-h)}.side{top:var(--bar-h)!important;height:calc(100vh - var(--bar-h))!important}
+  .app #ctxRail,#railResize,#sideHide,#sidePeek,#railHide,#railPeek,.drawer-sheet{top:var(--bar-h)!important}.app.siderail.peeking .side,.app.sidehidden.peeking .side{top:var(--bar-h)!important}
+  .app .content>.topbar{position:fixed!important;top:0;left:0;right:0;z-index:46;height:var(--bar-h);min-height:0;margin:0;padding:0 10px;border-radius:0;box-sizing:border-box;grid-template-columns:max(var(--side-now),var(--left-min)) minmax(0,1fr) auto minmax(0,1fr) max(var(--rail-now,var(--rail-w)),150px);background:rgba(4,6,5,.86);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid rgba(227,178,98,.16)}
+  :root[data-theme="light"] .app .content>.topbar{background:rgba(255,253,247,.86)}
+  html.mac-inset .app .content>.topbar{padding-left:84px}
+  .app .content>.topbar>#barLeft{grid-column:1}.app .content>.topbar>#barClock{grid-column:2;justify-self:end;margin-right:20px}.app .content>.topbar>.t{grid-column:3}.app .content>.topbar>#pageDay{grid-column:4;justify-self:start;margin-left:16px}.app .content>.topbar>#barRight{grid-column:5;justify-self:end}
+  .app .content>.topbar>#previewBadge,.app .content>.topbar>#conn{grid-column:2;justify-self:start}
+  .app .content{padding-top:22px}.side-chev,.rail-chev{display:none!important}
+}
 .ss-orig{margin-left:10px;font-size:12px}.ss-recent{display:flex;align-items:center;gap:5px}.ss-recent .sw{width:30px;height:22px;border-radius:6px}.ss-recent .ss-lab{margin-right:4px}
 .ss-emo{position:relative}.ss-glyph{position:absolute;left:0;width:50px;height:36px;display:flex;align-items:center;justify-content:center;pointer-events:none;font-size:20px}.emoji-in.has-glyph{color:transparent;caret-color:var(--ink)}.emoji-in.has-glyph:focus{color:var(--ink)}
 .gi-row{display:flex;flex-wrap:wrap;align-items:center;gap:3px;width:100%;padding-bottom:6px;margin-bottom:4px;border-bottom:1px solid var(--line)}.gi-row .ss-lab{width:100%;margin-bottom:2px}.gi-b{color:var(--brass,#cfaa5c)}.gi-b[aria-pressed="true"]{outline:2px solid var(--brass);outline-offset:1px}
@@ -3051,6 +3067,7 @@ addEventListener('load', () => {
     { let pn = $('#pageNote'); if (!pn){ pn = document.createElement('button'); pn.type = 'button'; pn.id = 'pageNote'; pn.className = 'k-icon-btn page-note'; pn.dataset.act = 'openFeedback'; pn.dataset.level = 'page'; pn.innerHTML = '<i class="note-ico" aria-hidden="true"></i>'; $('#areaTitle').after(pn); }
       let ps = $('#pageSearch'); if (!ps){ ps = document.createElement('button'); ps.type = 'button'; ps.id = 'pageSearch'; ps.className = 'k-btn page-search-pill'; const mac = /Mac|iPhone|iPad/.test(navigator.platform || ''); ps.setAttribute('aria-label', 'Search (' + (mac ? '⌘' : 'Ctrl') + '+K)'); ps.title = ps.getAttribute('aria-label'); ps.innerHTML = '<span aria-hidden="true">⌕</span> Search <kbd>' + (mac ? '⌘K' : 'Ctrl K') + '</kbd>'; ps.addEventListener('click', () => openSearch()); const tb = document.querySelector('.topbar'); if (tb) tb.append(ps); else pn.after(ps); }   // Fix C1: a Search ⌘K pill at the right of the page header   // V3.7 Z2: a search button in every page header
       pn.hidden = area === 'lessons'; pn.dataset.cardId = 'page:' + area; pn.dataset.cardLabel = TITLES[area][0] + ' (the page)'; pn.setAttribute('aria-label', 'Add a note on the ' + TITLES[area][0] + ' page'); pn.title = 'Note on this page'; }   // V3.7 K4: the first level
+    barBuild();   // BH7: one bar across the window
     $('#areaSub').textContent = TITLES[area][1];
     $('#previewBadge').hidden = !preview&&!syntheticTest&&!personalReview;
     $('#previewBadge').textContent=preview?'LOCAL PREVIEW · SYNTHETIC':personalReview?'PERSONAL DATA · REVIEW BUILD':syntheticTest?'PERSISTENT TEST · INVENTED DATA':'LOCAL PREVIEW · SYNTHETIC';
@@ -3077,6 +3094,45 @@ addEventListener('load', () => {
     $('#previewToggle').setAttribute('aria-pressed', preview);
     $('#previewToggle').textContent = preview ? 'Leave preview workspace' : 'Preview workspace';
   }
+  /* BH7 (his words, Oct 10: "the top strip in claude and codex are connected 100% to the sidebars on the left and the right ... can we make it look
+     more uniform like that"; planner's defaults BH7-BAR, BH7-ICONS, BH7-CLOCK): the page bar becomes one bar across the whole window, the sidebar and the
+     rail start under it. Left end: room for the Mac's window buttons (only in the Mac app, which marks <html class="mac-inset">), the sidebar toggle,
+     back and forward. Middle: the Seattle clock, the page title, the day. Right end: Search and the side-panel toggle. Under 900 px the old bar stays. */
+  const barIco = n => '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + K_ICONS[n] + '</svg>';
+  function barBuild(){
+    const tb = document.querySelector('.content>.topbar'); if (!tb) return; if (window.__glowMacInset && !document.documentElement.classList.contains('mac-inset')) document.documentElement.classList.add('mac-inset');   // set by the Mac wrapper
+    let L = document.getElementById('barLeft'), R = document.getElementById('barRight'), C = document.getElementById('barClock');
+    if (!L){ L = document.createElement('div'); L.id = 'barLeft'; L.innerHTML = '<button type="button" class="k-icon-btn bar-tog" id="barSide" data-act="toggleSidebar" aria-controls="appSide">' + barIco('panelLeft') + '</button>'; tb.prepend(L); }
+    if (!R){ R = document.createElement('div'); R.id = 'barRight'; R.innerHTML = '<button type="button" class="k-icon-btn bar-tog" id="barRail" data-act="toggleRail" aria-controls="ctxRail">' + barIco('panelRight') + '</button>'; tb.append(R); }
+    if (!C){ C = document.createElement('span'); C.id = 'barClock'; C.className = 'bar-clock'; C.setAttribute('aria-label', 'Time in Seattle'); C.textContent = clockText(); tb.querySelector('.t').before(C); clockStart(); }
+    const nv = document.getElementById('pageNav'); if (nv && nv.parentElement !== L) L.append(nv);
+    const ps = document.getElementById('pageSearch'); if (ps && ps.parentElement !== R) R.prepend(ps);
+    const app = document.querySelector('.app'), sideOpen = !app.classList.contains('siderail'), railOpen = typeof railHidden === 'function' ? !railHidden() : true;
+    const bs = document.getElementById('barSide'), br = document.getElementById('barRail'), lab = (b, open, what) => { const t = (open ? 'Hide ' : 'Show ') + what; if (b.title !== t){ b.title = t; b.setAttribute('aria-label', t); } b.setAttribute('aria-expanded', String(open)); };
+    lab(bs, sideOpen, 'the sidebar'); lab(br, railOpen, 'the side panel'); barHoles();
+  }
+  // the clock: one text node, once a second, paused while the window is hidden (BH7-CLOCK)
+  let clockFmt = null, clockTimer = 0;
+  function clockText(){ try { clockFmt = clockFmt || new Intl.DateTimeFormat('en-US', {timeZone:'America/Los_Angeles', hour:'numeric', minute:'2-digit', second:'2-digit', hour12:true}); return clockFmt.format(new Date()) + ' Seattle'; } catch (_) { return ''; } }
+  function clockStart(){
+    clearTimeout(clockTimer); if (document.hidden) return;
+    const tick = () => { const c = document.getElementById('barClock'); if (!c) return; const t = clockText(); if (c.firstChild ? c.firstChild.nodeValue !== t : true){ if (c.firstChild) c.firstChild.nodeValue = t; else c.textContent = t; } clockTimer = setTimeout(tick, 1000 - (Date.now() % 1000) + 5); };
+    tick();
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) clearTimeout(clockTimer); else clockStart(); });
+  /* The Mac app drags the window from the bar's empty space: the page tells the wrapper the bar's height and where its controls are (titleBar);
+     nothing is sent outside the Mac app, and only when the shape changed. While a sheet or dialog is open the bar does not drag. */
+  let barSent = '';
+  function barHoles(){
+    if (!NATIVE || !document.documentElement.classList.contains('mac-inset')) return;
+    clearTimeout(barHoles.t); barHoles.t = setTimeout(() => {
+      const tb = document.querySelector('.content>.topbar'); if (!tb) return; const r = tb.getBoundingClientRect(), wide = innerWidth > 900 && r.top <= 0;
+      const off = !wide || !!ss || !!document.querySelector('dialog[open]');
+      const holes = off ? [] : [...tb.querySelectorAll('button:not([hidden]), a, input, select, #areaTitle, #pageDay, #previewBadge:not([hidden]), #conn')].map(e => e.getBoundingClientRect()).filter(b => b.width && b.height).map(b => [Math.round(b.left) - 2, Math.round(b.top) - 2, Math.round(b.width) + (b.height > 36 ? 40 : 4), Math.round(b.height) + 4]);
+      const msg = JSON.stringify({h:off ? 0 : Math.round(r.height), holes}); if (msg === barSent) return; barSent = msg; nativePost({type:'titleBar', h:off ? 0 : Math.round(r.height), holes});
+    }, 120);
+  }
+  addEventListener('resize', () => barHoles(), {passive:true});
   /* AY1 (his words, Oct 9: "the detials button that takes me to review ... uses an old look - how can we update it so it is updated to the modern
      version of our app?"; planner's default AY1-DETAILS): one slim panel under the row: the status as one row of chips, minutes and note on one
      line, today's target in plain words, Move and Edit as buttons, and the rare things (Normal or Minimum, the day's target and time, Take off
@@ -6306,12 +6362,12 @@ addEventListener('load', () => {
   function ssOpen(h, from){
     ctxClose(); ss = {kind:h.kind, id:h.id, sub:null, halves:{}, from:from || document.activeElement};
     let d = $('#styleSheet'); if (!d){ d = document.createElement('dialog'); d.id = 'styleSheet'; d.className = 'ss-wrap'; d.innerHTML = '<div class="ss-back" data-act="ssClose"></div><section class="ss" role="dialog" aria-modal="true" aria-labelledby="ssTitle" data-parity="BH1-SHEET"></section>'; document.body.append(d); }
-    ssDraw(); if (!d.open) d.show(); const f = d.querySelector('.ss input[type="text"], .ss button:not([data-act="ssClose"])'); if (f) f.focus({preventScroll:true});
+    ssDraw(); if (!d.open) d.show(); barHoles(); const f = d.querySelector('.ss input[type="text"], .ss button:not([data-act="ssClose"])'); if (f) f.focus({preventScroll:true});
   }
   function ssClose(){
     const d = $('#styleSheet'), a = document.activeElement; if (!d) { ss = null; return; }
     if (a && d.contains(a) && a.matches('input[type="text"]') && a.value !== a.defaultValue) a.dispatchEvent(new Event('change', {bubbles:true}));   // a typed name or emoji is kept
-    const from = ss && ss.from; ss = null; d.close(); d.querySelector('.ss').innerHTML = '';
+    const from = ss && ss.from; ss = null; d.close(); d.querySelector('.ss').innerHTML = ''; barHoles();
     if (from && from.isConnected){ const t = from.matches('button,input,select,[tabindex]') ? from : from.querySelector('button,[tabindex]'); if (t) t.focus({preventScroll:true}); }
   }
   document.addEventListener('click', async e => {
@@ -11305,8 +11361,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       // V3.5 S2, S4: the chevron (or the logo on the rail) collapses the sidebar to a 64 px icon rail or pins it open; remembered.
       const app = document.querySelector('.app'), rail = app.classList.toggle('siderail'); app.classList.remove('peeking'); hideNavTip();
       try { localStorage.setItem('ht-sidebar-hidden', rail ? '1' : '0'); } catch(err){}
-      const c = $('#sideChev'); if (c){ c.setAttribute('aria-expanded', String(!rail)); c.setAttribute('aria-label', rail ? 'Expand the sidebar' : 'Collapse the sidebar'); c.title = rail ? 'Expand the sidebar' : 'Collapse the sidebar'; c.focus(); }
+      const c = $('#sideChev'); if (c){ c.setAttribute('aria-expanded', String(!rail)); c.setAttribute('aria-label', rail ? 'Expand the sidebar' : 'Collapse the sidebar'); c.title = rail ? 'Expand the sidebar' : 'Collapse the sidebar'; if (btn.id !== 'barSide') c.focus(); }
       dispatchEvent(new Event('resize'));   // the fades follow the new width
+      barBuild();   // BH7
       return;
     }
     if (act === 'wsToggleGroup'){
@@ -11557,7 +11614,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (act === 'upNextLater'){ upNextLater.add(day + '|' + btn.dataset.key); upNextIndex = 0; render(); return; }
     if (act === 'upNextCycle'){ upNextIndex += Number(btn.dataset.n) || 1; render(); return; }
     if (act === 'previewWorkspace'){ document.getElementById('previewToggle').click(); return; }
-    if (act === 'toggleRail'){ try{ localStorage.setItem('ht-rail-hidden', railHidden() ? '0' : '1'); }catch(_){} renderRail(); focusFirst('.rail-chev'); return; }
+    if (act === 'toggleRail'){ try{ localStorage.setItem('ht-rail-hidden', railHidden() ? '0' : '1'); }catch(_){} renderRail(); barBuild(); if (btn.id !== 'barRail') focusFirst('.rail-chev'); return; }   // BH7: the bar's toggle keeps focus
     if (act === 'railStripOpen'){ const i = btn.dataset.i; try{ localStorage.setItem('ht-rail-hidden', '0'); }catch(_){} renderRail(); const card = document.querySelector('#ctxRail [data-rail-card="' + i + '"]'); if (card){ card.scrollIntoView({block:'start'}); card.classList.add('spot'); setTimeout(() => card.classList.remove('spot'), 1500); } return; }
     if (act === 'v2Cancel'){ v2Draft = {date:null, preview:null}; render(); toast('Nothing was changed.'); return; }
     if (act === 'v2Adopt'){
