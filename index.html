@@ -2148,7 +2148,12 @@ addEventListener('load', () => {
      has already redrawn the page since. A nothing-new delivery checks off from existing rows only after he saved something
      or the day turned, once, after paint (it was 0.9 to 2.7 s inside every delivery). */
   let renderSeq=0,manualSaveSeq=0,autoEvidenceSeen=null;
-  function intakeRenderAfterPaint(){const seq=renderSeq;requestAnimationFrame(()=>setTimeout(()=>{if(renderSeq===seq)intakeRender();},0));}
+  /* BC2 (Speed, Oct 9): after an import Today and Quests are recounted in parts (points, the page with only changed cards swapped, header
+     and notices, rail), each its own task, instead of one full draw of 1.3 to 1.6 s; other pages draw as before. */
+  function intakeRenderAfterPaint(){const seq=renderSeq;afterPaint(()=>{if(renderSeq!==seq||intakeEditing())return;if(FAST_AREAS.has(area)&&mainDrawn&&mainDrawn.area===area&&!manualSaving){fastDirty=true;clearTimeout(fastTimer);recountParts();}else render();});}
+  // BC3: once the app is idle after launch, the store keeps the source rows' hash states ready, so the first import is as quick as the rest
+  function warmSealLater(ms){setTimeout(()=>{if(intake.busy||intake.applying||manualSaving){warmSealLater(3000);return;}const e=durableStore.engine;if(e&&e.warmSeal)e.warmSeal().catch(()=>{});},ms||8000);}
+  const intakeYield=()=>new Promise(resolve=>{const c=new MessageChannel();c.port1.onmessage=()=>{c.port1.close();resolve();};c.port2.postMessage(0);});   // a message yields even in a hidden window
   function autoEvidenceLater(){const k=()=>manualSaveSeq+'|'+todayYmd();if(autoEvidenceSeen===k())return;requestAnimationFrame(()=>setTimeout(async()=>{if(intake.busy||manualSaving||autoEvidenceSeen===k())return;try{await runAutoEvidence();}catch(e){console.error('auto evidence',e);}autoEvidenceSeen=k();},0));}
   // A refusal used to reach the panel as its bare native code — "file-empty-or-over-10mb" — with no
   // file named, so three permanently unreadable exports read as one transient glitch.
@@ -2368,7 +2373,7 @@ addEventListener('load', () => {
       if(saved.ok){replaceState(real,draft);dropUndo();rolled=r.rolled.length;intakeLog('rolled up '+r.rolled.length+' metric-days ('+r.removedIds.length+' minute rows) before '+r.before);}
       else{compactedFor=null;intakeLog('rollup not saved: '+(saved.error||saved.code));}
     });
-    if(rolled)intakeRender();
+    if(rolled){intakeRender();warmSealLater(2000);}   // BC3: the roll-up prunes the log, so its running hash is rebuilt at idle, not inside the next import
   }
   async function scanIntake(resetAcknowledged=false){
     if(!NATIVE||!durableStore.active||!real.autoFeed||real.autoFeed.paused||intake.busy||preview||readOnly)return;
@@ -2438,6 +2443,7 @@ addEventListener('load', () => {
             // canonical unit is invalid" — on every scan, forever.
             const merged=HealthAutoExport.reconcile(draft.sourceRecords,parsed,{contract:fileContract,delivery,previousDelivery:previous});
             if(!merged.ok)return merged;
+            await intakeYield();   // BC2: the work below runs as separate tasks, so a tap during an import waits one part, not the whole import
             if(draft.sourceRecords.length+merged.report.added>AUTO_SOURCE_LIMIT){feed.paused=true;feed.capacityReason='Automatic intake paused before exceeding '+AUTO_SOURCE_LIMIT.toLocaleString()+' retained source rows. Existing records and the source file remain intact. Save a private recovery copy; a capacity review is needed before resuming.';const saved=await store.write(draft);if(!saved.ok)return saved;replaceState(real,draft);return {ok:false,capacity:true,error:feed.capacityReason};}
             const accepted=!['stale','conflict'].includes(merged.report.status);
             /* AW1 (AK1 item 1, Oct 9): a delivery that brings nothing new (no row added, revised or given new detail; his phone
@@ -2446,6 +2452,7 @@ addEventListener('load', () => {
             const nothingNew=accepted&&!merged.report.added&&!merged.report.revised&&!merged.report.detailUpdated;
             // AX5b: the merged rows are frozen and shared like committed rows, so the check-off pass below does not copy all of them twice,
             // the projection is worked out once and reused by that pass and the next draw, and the save compares and re-hashes only what changed.
+            const priorRows=draft.sourceRecords;
             if(accepted&&!nothingNew)draft.sourceRecords=HealthStore.sealRows?HealthStore.sealRows(merged.records):merged.records;
             const advances=accepted&&(merged.report.status==='accepted'||merged.report.metadataUpdated>0);
             if(advances){
@@ -2464,7 +2471,11 @@ addEventListener('load', () => {
             if(prior>=0)draft.importReceipts[prior]=receipt;else draft.importReceipts.push(receipt);
             // New records check off the activities they establish in the same saved write, so the
             // rings and Ready to claim move with the data (Mintay, 2026-09-23).
-            const linked=accepted&&!nothingNew?Workspace.autoEvidence(draft):null;   // AW1: nothing new to link; a later pass covers his own edits (autoEvidenceLater)
+            // BC1 (Speed, Oct 9): only the days this delivery's rows changed are checked off again (0.7 to 0.8 s for all 7 days); the full
+            // 7-day pass still runs at launch and after his own saves (autoEvidenceLater).
+            await intakeYield();
+            const changedDays=accepted&&!nothingNew&&Workspace.changedDays?Workspace.changedDays(priorRows,draft.sourceRecords):null;
+            const linked=accepted&&!nothingNew?Workspace.autoEvidence(draft,changedDays?{dates:changedDays}:{}):null;   // AW1: nothing new to link; a later pass covers his own edits (autoEvidenceLater)
             if(linked&&!linked.ok)intakeLog('automatic check-off skipped: '+linked.error);
             const saved=await store.write(draft,{delivery:{digest:token,contentDigest:file.sha256,feedId:contract.feedId,fileId:file.id,modifiedAt:file.modifiedAt,modifiedAtMs:file.modifiedAtMs,status:merged.report.status}});
             if(!saved.ok&&saved.code==='CAS')await store.readFresh();
@@ -9921,6 +9932,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (!FAST_AREAS.has(area) || !mainDrawn || mainDrawn.area !== area || (preserveManualDraft && unsavedForm && !draftLeaving)){ render(); return; }
     const memo = f => typeof withDrawMemo === 'function' ? withDrawMemo(S(), f) : f();
     const parts = [
+      () => { if (typeof scoreIndex === 'function') scoreIndex(S()); },   // BC2: after new rows the score index is rebuilt here, on its own (about 0.1 s), not inside the page draw
       () => memo(() => rewardReport(S(), todayYmd())),   // counted once here, inside a draw memo (each day's plan built once); the page and header below read it from the ledger cache
       () => drawFast({reconcile:false, lag:false}),
       () => memo(() => { renderHeader(); renderNotices(); }),
@@ -11058,7 +11070,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (e.key === '/'){ e.preventDefault(); go('lessons'); focusFirst('#newNote'); return; }
     if (e.key === 'd' || e.key === 'D'){ const rows = agendaFor(S(), day); const n = nextAction(rows); if (!n){ toast('Nothing left to mark today.'); return; } stage(S(), 'log'); markTentative(S(), n.seriesId, day); commit('log', n.name + ' checked off tentatively. Review to confirm.'); }
   });
-  setTimeout(()=>compactStore(),3000);setInterval(()=>compactStore(),60*60*1000);
+  setTimeout(()=>compactStore().finally(()=>warmSealLater(2000)),3000);setInterval(()=>compactStore(),60*60*1000);   // BC3: after launch's roll-up check, the hash states are made ready at idle
   if (NATIVE){ nativePost({type:'hello'}); if(personalReview){setTimeout(async()=>{await refreshIntakeStatus();intakeRender();scanIntake();},300);}else{setTimeout(()=>{syncReminders();nativePost({type:'relayInfo'});nativePost({type:'inbox'});},300);setInterval(()=>nativePost({type:'inbox'}),60000);} }
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){scanIntake();runAutoEvidence();}});
 

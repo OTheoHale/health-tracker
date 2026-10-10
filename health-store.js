@@ -54,9 +54,9 @@
   // slow to once a second.
   const yieldNow=()=>new Promise(resolve=>{if(typeof MessageChannel==='undefined'){setTimeout(resolve,0);return;}const c=new MessageChannel();c.port1.onmessage=()=>{c.port1.close();resolve();};c.port2.postMessage(0);});
   const clock=()=>typeof performance!=='undefined'?performance.now():Date.now();
-  async function feedSliced(s,bytes){let t=clock();for(let o=0;o<bytes.length;o+=1<<20){shaFeed(s,bytes.subarray(o,Math.min(bytes.length,o+(1<<20))));if(clock()-t>25){await yieldNow();t=clock();}}return s;}
-  // The running hash of a whole list (one write-out, as hashState does), kept only if finishing it gives the list's stored seal.
-  async function logRebuild(rows,seal){const bytes=shaText.encode(JSON.stringify(rows)),s=await feedSliced(shaStart(),bytes.subarray(0,bytes.length-1));return logSeal(s)===seal?s:null;}
+  // The running hash of a whole list, kept only if finishing it gives the list's stored seal.
+  // BC3: row by row in 25 ms slices (the same bytes as the list's JSON), not one 339 MB string written out in a single block.
+  async function logRebuild(rows,seal){const s=shaFeed(shaStart(),shaText.encode('['));let t=clock();for(let i=0;i<rows.length;i++){if(i)shaFeed(s,shaComma);shaFeed(s,shaText.encode(JSON.stringify(rows[i])));if(clock()-t>25){await yieldNow();t=clock();}}return logSeal(s)===seal?s:null;}
   const midSave=(s,rows)=>({v:1,h:Array.from(s.h),buf:Array.from(s.buf.subarray(0,s.n)),len:s.len,count:rows.length,last:rows.length?rows[rows.length-1].sequence:0});
   function midLoad(o,rows,seal){
     if(!o||o.v!==1||!Array.isArray(o.h)||o.h.length!==8||!Array.isArray(o.buf)||o.buf.length>63||!Number.isSafeInteger(o.len)||o.count!==rows.length||o.last!==(rows.length?rows[rows.length-1].sequence:0))return null;
@@ -397,7 +397,7 @@
         let revisionsMid=previous.control.revisionsMid||null,revisionsSHA256=previous.control.audit.revisionsSHA256;
         if(newRevisions.length||pruned.length){
           const all=keptRevisions.concat(newRevisions);let resumed=null;
-          if(schema===2&&!pruned.length){resumed=midLoad(previous.control.revisionsMid,previous.revisions,previous.control.audit.revisionsSHA256);if(!resumed&&previous.revisions.length>=newRevisions.length)try{resumed=await logRebuild(previous.revisions,previous.control.audit.revisionsSHA256);}catch(e){resumed=null;}}
+          if(schema===2&&!pruned.length){resumed=midLoad(previous.control.revisionsMid,previous.revisions,previous.control.audit.revisionsSHA256);if(!resumed&&warming){await warming;}if(!resumed&&warmRev&&warmRev.rows===previous.revisions)resumed=shaCopy(warmRev.s);if(!resumed&&previous.revisions.length>=newRevisions.length)try{resumed=await logRebuild(previous.revisions,previous.control.audit.revisionsSHA256);}catch(e){resumed=null;}}
           if(resumed){logAppend(resumed,previous.revisions.length,newRevisions);revisionsSHA256=logSeal(resumed);revisionsMid=midSave(resumed,all);}
           else{revisionsSHA256=await hashState(all);revisionsMid=null;}
         }
@@ -442,7 +442,24 @@
         return {ok:true,delivery:found?clone(found.value):null};
       }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
     }
-    return {open:read,read,migrate,adopt,write,writeClaims:write,schema,readDelivery:digest=>schema===2?findDelivery(digest):list('deliveries',digest),deliveries:()=>list('deliveries'),revisions:()=>list('revisions'),close(){if(database)database.close();database=null;opening=null;},markerKey,dbName};
+    /* BC3 (Speed, Oct 9): the first import after a launch built the source rows' kept hash states inside the import (about 1.4 s on
+       his record). The app calls this once at idle after launch; it hashes the committed rows in 25 ms slices and keeps the states only
+       if they give the stored seal, exactly as sourcesSeal would. */
+    let warming=null,warmRev=null;
+    function warmSeal(){if(!warming)warming=warmNow().finally(()=>{warming=null;});return warming;}
+    async function warmNow(){
+      try{
+        const c=verified;if(schema!==2||!c||!isSealed(c.state.sourceRecords))return false;
+        const rows=c.state.sourceRecords;
+        if(!rowStates.get(rows)){const built=await rowsHash(rows,null,0);if(built.seal!==c.control.sourcesSHA256)return false;rowStates.set(rows,built.states);}
+        // The revision log's running hash: kept in the control record after a write, missing after a roll-up (which prunes the log) or an
+        // older build's write. Rebuilt here once, in slices, and used by the next write only for this very log.
+        const revs=c.revisions;
+        if(Array.isArray(revs)&&revs.length&&!(warmRev&&warmRev.rows===revs)&&!midLoad(c.control.revisionsMid,revs,c.control.audit.revisionsSHA256)){const s=await logRebuild(revs,c.control.audit.revisionsSHA256);if(s)warmRev={rows:revs,s};}
+        return true;
+      }catch(e){return false;}
+    }
+    return {open:read,read,migrate,adopt,write,writeClaims:write,warmSeal,schema,readDelivery:digest=>schema===2?findDelivery(digest):list('deliveries',digest),deliveries:()=>list('deliveries'),revisions:()=>list('revisions'),close(){if(database)database.close();database=null;opening=null;},markerKey,dbName};
   }
   // sealRows (AX5b): freeze and share rows a save is about to commit, so copies of the record share them and the save compares only what changed.
   const api={create,hashState,isSealed,sealRows:rows=>freezeSources({sourceRecords:rows}).sourceRecords,sha:{start:shaStart,feed:shaFeed,hex:shaHex,copy:shaCopy,logOpen,logAppend,logSeal,logRebuild,midSave,midLoad,rowsHash,sourcesSeal}};

@@ -4178,8 +4178,9 @@ function wsAutoEligible(state,series,date){
 function wsAutoEvidence(state,options={}){
   if(!wsPass&&!options.uncached){wsPass={state,fp:new WeakMap(),byId:null,byDay:null};try{return wsAutoEvidence(state,options);}finally{wsPass=null;}}
   const today=options.today||todayYmd(),days=options.days||WS_AUTO_DAYS,changes=[];
-  for(let i=days-1;i>=0;i--){
-    const date=addDays(today,-i);
+  // BC1 (Speed, Oct 9): a delivery passes the days its rows touched (wsChangedDays); only those days inside the window are checked.
+  const dates=Array.isArray(options.dates)?[...new Set(options.dates)].filter(d=>d<=today&&d>addDays(today,-days)).sort():Array.from({length:days},(_,k)=>addDays(today,k-days+1));
+  for(const date of dates){
     for(const series of state.series.slice()){
       const dv=versionFor(series,date);
       if(dv&&dv.matching?.kind==='deficit'){const r=wsAutoDeficit(state,series,date,dv,today);if(r)changes.push(r);continue;}
@@ -4201,6 +4202,16 @@ function wsAutoEvidence(state,options={}){
 /* V3.3 Phase 2 (7.2): the Deficit item checks itself the same day, once the day's food, resting and active energy are all
    there and the deficit is on track (the item's own onTrack figure); a day he already marked, excused or removed is left
    alone. The check is his own confirmation made by the data (`auto`), so his later edit still wins. */
+/* BC1: the days a delivery's rows belong to, read the way the evidence rules read them (a derived daily row's own day, a row's start
+   day, a sleep's end day): every row that is new or gone by identity (committed rows are frozen and shared, so an unchanged row is
+   the very same object). */
+function wsChangedDays(before,after){
+  const was=new Set(before||[]),now=new Set(after||[]),out=new Set();
+  const add=r=>{const h=r&&r.unmapped&&r.unmapped.healthAutoExport;if(h&&h.representation==='derived daily view'&&h.day)out.add(h.day);for(const at of [r&&r.start,r&&r.end])if(typeof at==='string'&&at)try{out.add(sourceLocalDay(at));}catch(_){}};
+  for(const r of now)if(!was.has(r))add(r);
+  for(const r of was)if(!now.has(r))add(r);
+  return [...out].sort();
+}
 function wsAutoDeficit(state,series,date,v,today){
   // 7.2: the day itself only. The sweep walks the last week, and a past day's record never moves (P2-13).
   // V3.6 N7 (ASSUMED A5): also yesterday, once, when its food synced after midnight; two or more days back never changes.
@@ -4992,6 +5003,7 @@ const Workspace={
   commit(state,id,date,committed=true){return wsTransaction(state,draft=>wsCommitOn(draft,id,date,committed));},
   evidencePreview:wsEvidencePreview,confirmEvidence:wsConfirmEvidence,
   autoEvidence(state,options={}){if(!wsEnabled(state))return {ok:true,changes:[]};return wsTransaction(state,draft=>wsAutoEvidence(draft,options));},
+  changedDays:wsChangedDays,
   declineAuto(state,id,date){return wsTransaction(state,draft=>wsDeclineAuto(draft,id,date));},
   unsortedWorkouts:wsUnsortedWorkouts,workoutClass:wsWorkoutClass,
   classifyWorkout(state,key,cls){return wsTransaction(state,draft=>{const r=wsClassifyWorkout(draft,key,cls);if(!r.ok)return r;if(wsEnabled(draft))wsAutoEvidence(draft);return r;});},

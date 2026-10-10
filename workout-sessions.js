@@ -36,15 +36,18 @@
   }
   function select(rows,links={}){
     let groups=(rows||[]).filter(Boolean).slice().sort(order).map(w=>[w]);
-    const groupIds=g=>g.flatMap(ids),split=(a,b)=>paired(links.split,groupIds(a),groupIds(b)),manual=g=>g.some(w=>w.manual);
+    // BC2 (Speed, Oct 9): with no join or split pairs (his usual case) no pair of workouts can match, so their id lists are not built for
+    // every pair (769 workouts: about 0.35 to 0.6 s each time new rows arrive); the overlap is tested before the split.
+    const joins=Array.isArray(links.join)&&links.join.length>0,splits=Array.isArray(links.split)&&links.split.length>0;
+    const groupIds=g=>g.flatMap(ids),split=(a,b)=>splits&&paired(links.split,groupIds(a),groupIds(b)),manual=g=>g.some(w=>w.manual);
     // Resolve explicit joins first so an alias can connect an earlier and a later host; any explicit split wins.
-    for(let changed=true;changed;){changed=false;outer:for(let i=0;i<groups.length;i++)for(let j=i+1;j<groups.length;j++){
+    for(let changed=joins;changed;){changed=false;outer:for(let i=0;i<groups.length;i++)for(let j=i+1;j<groups.length;j++){
       const a=groups[i],b=groups[j];if(!manual(a)&&!manual(b)&&!split(a,b)&&paired(links.join,groupIds(a),groupIds(b))){a.push(...b);a.sort(order);groups.splice(j,1);changed=true;break outer;}
     }}
     groups.sort((a,b)=>order(a[0],b[0]));const kept=[];
     for(const group of groups){const w=group[0],host=kept.find(g=>{
-      if(manual(g)||manual(group)||split(g,group))return false;const k=g[0],over=Math.min(k.end,w.end)-Math.max(k.start,w.start);
-      return over>0&&over>=.5*Math.min(k.end-k.start,w.end-w.start);
+      if(manual(g)||manual(group))return false;const k=g[0],over=Math.min(k.end,w.end)-Math.max(k.start,w.start);
+      return over>0&&over>=.5*Math.min(k.end-k.start,w.end-w.start)&&!split(g,group);
     });if(host)host.push(...group);else kept.push(group);}
     return kept.map(withTraces).sort((a,b)=>a.start-b.start||String(a.id).localeCompare(String(b.id)));
   }
