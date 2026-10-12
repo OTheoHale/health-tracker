@@ -417,11 +417,32 @@ function versionFor(series, date){
 function latestVersion(series){
   return series.versions.reduce((a, v) => (!a || v.version > a.version) ? v : a, null);
 }
+/* BI4 (his words, Oct 12): calendar fields on a one-off, additive (older builds ignore them). cal = {kind:'event'|'task', time 'HH:MM' or none,
+   end 'HH:MM', allDay, lead 0 to 30 days shown early, remind 'morning'|'hour'|'at'|'eve'|'none', yearly}. An Event is a one-off with kind 'event'. */
+const CAL_REMIND = ['morning', 'hour', 'at', 'eve', 'none'];
+function calClean(x){
+  if (!x || typeof x !== 'object') return null;
+  const out = {kind: x.kind === 'event' ? 'event' : 'task'}, t = v => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(v || '')) ? String(v) : null;
+  if (t(x.time) && !x.allDay) out.time = t(x.time);
+  if (out.time && t(x.end) && t(x.end) > out.time) out.end = t(x.end);
+  if (x.allDay || (out.kind === 'event' && !out.time)) out.allDay = true;
+  const lead = Math.round(+x.lead); out.lead = Number.isFinite(lead) ? Math.max(0, Math.min(30, lead)) : 3;
+  out.remind = CAL_REMIND.includes(x.remind) ? x.remind : 'none';
+  if (x.yearly && out.kind === 'event') out.yearly = true;
+  return out;
+}
+// The next day a one-off with calendar fields falls on, on or after `from` (a yearly Event comes back on its month and day; Feb 29 on Feb 28)
+function calNextDate(ver, from){
+  const r = ver && ver.recurrence; if (!r || r.kind !== 'once' || !validCalendarDate(r.date) || ver.needsDate) return null;
+  if (!(ver.cal && ver.cal.yearly) || r.date >= from) return r.date;
+  const on = y => { const d = y + r.date.slice(4); return validCalendarDate(d) ? d : y + '-02-28'; };
+  let y = +from.slice(0, 4), d = on(y); if (d < from) d = on(y + 1); return d;
+}
 function scheduledOn(ver, date){
   if (ver.goal && ver.goal.v === 1 && ver.goal.period && ver.goal.period.kind === 'range' && ((ver.goal.period.from && date < ver.goal.period.from) || (ver.goal.period.to && date > ver.goal.period.to))) return false;   // V3.6 M2 (review F3)
   if (ver.goal && ver.goal.v === 1 && typeof GoalEngine !== 'undefined' && ver.goal.when && ver.goal.when.kind !== 'any' && ver.goal.when.kind !== 'days') return date >= ver.effectiveFrom && GoalEngine.dueOn(ver.goal, date, ver);   // V3.6 M2
   const r = ver.recurrence || {};
-  if (r.kind === 'once') return !ver.needsDate && r.date === date;   // AG2: an "I set each date" item with no date yet is on no day
+  if (r.kind === 'once') return !ver.needsDate && (r.date === date || !!(ver.cal && ver.cal.yearly && date > r.date && calNextDate(ver, date) === date));   // AG2: an "I set each date" item with no date yet is on no day; BI4: a yearly Event
   if (r.startDate && date < r.startDate) return false;
   if (r.endDate && date > r.endDate) return false;
   const variant = recurrenceVariant(ver, date);
@@ -793,7 +814,8 @@ function versionFrom(f, version, effectiveFrom){
     scoring: scoringRule(f.scoring),
     matching: f.matching ? JSON.parse(JSON.stringify(f.matching)) : null,
   };
-  for(const key of ['parentId','category','workspaceKind','budgetQ','deadlineDay','setEach','needsDate','secondChance'])if(Object.prototype.hasOwnProperty.call(f,key))out[key]=f[key];   // AG2: setEach (I set each date), needsDate (no date yet), secondChance (Night after 7 PM)
+  for(const key of ['parentId','category','workspaceKind','budgetQ','deadlineDay','setEach','needsDate','secondChance'])if(Object.prototype.hasOwnProperty.call(f,key))out[key]=f[key];
+  if (f.cal && out.recurrence && out.recurrence.kind === 'once'){ const c = calClean(f.cal); if (c) out.cal = c; }   // BI4: calendar fields, on a one-off only   // AG2: setEach (I set each date), needsDate (no date yet), secondChance (Night after 7 PM)
   if (f.goal && typeof GoalEngine !== 'undefined'){ const g = GoalEngine.normalize(f.goal); if (g){ out.goal = g; if (g.v === 1 && !(f.recurrence && f.recurrence.kind === 'once')) out.recurrence = normalizeRecurrence(GoalEngine.legacyRecurrence(g, effectiveFrom), effectiveFrom); } }   // V3.6 M1
   if (Array.isArray(f.childIds)) out.childIds = [...new Set(f.childIds)];
   return out;
@@ -2667,7 +2689,7 @@ function reminderSchedule(state, today){
     const v = latestVersion(s);
     if (v.recurrence.kind === 'target' || v.recurrence.intervalWeeks > 1 || (v.recurrence.variants || []).length) continue;
     const base = { id: 'ht-' + sid, seriesId: sid, title: v.name, body: v.normal.label + (v.minimum.label ? ' — or the minimum: ' + v.minimum.label : ''), hour: +r.time.slice(0, 2), minute: +r.time.slice(3) };
-    if (v.recurrence.kind === 'once'){ if (v.recurrence.date >= today) out.push(Object.assign(base, { date: v.recurrence.date })); }
+    if (v.recurrence.kind === 'once'){ const on = v.cal ? calNextDate(v, today) : v.recurrence.date, at = on && r.daysBefore ? addDays(on, -r.daysBefore) : on; if (on && at >= today) out.push(Object.assign(base, { date: at })); }   // BI4: a yearly Event's next day; "Day before 6 PM"
     else if (v.recurrence.days.length) out.push(Object.assign(base, { weekdays: v.recurrence.days.map(d => d + 1) }));
   }
   return out;
@@ -3880,7 +3902,7 @@ function planForUncached(state,date){
     const v=versionFor(series,date);if(!v)continue;
     const o=state.occurrences[occKey(series.id,date)]||null;if(o?.removed)continue;
     const due=GoalEngine.dueFor(state,series,v,date);   // V3.6 M2: one due rule (scheduledOn, after, a done deadline)
-    const once=resolved&&!due&&!series.demo&&!(v.childIds&&v.childIds.length)&&v.recurrence&&v.recurrence.kind==='once'&&!v.needsDate&&validCalendarDate(v.recurrence.date)&&v.recurrence.date<date?v.recurrence.date:null;
+    const once=resolved&&!due&&!series.demo&&!(v.childIds&&v.childIds.length)&&v.recurrence&&v.recurrence.kind==='once'&&!v.needsDate&&!(v.cal&&v.cal.kind==='event')&&validCalendarDate(v.recurrence.date)&&v.recurrence.date<date?v.recurrence.date:null;
     const carriedFrom=once&&(o||!(resolved.get(series.id)>=once))?once:null;   // AQ2
     if(!due&&!carriedFrom&&!(o&&(o.added||o.status!==null||o.committed))&&!v.childIds)continue;
     const ov=o?.override||{},variant=recurrenceVariant(v,date),normal=ov.normal||variant?.normal||v.normal,minimum=ov.minimum||variant?.minimum||v.minimum,selected=o?o.selected:'normal';
