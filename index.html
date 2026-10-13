@@ -1005,6 +1005,7 @@ details.fit-workouts>summary{display:flex;align-items:center;gap:10px;cursor:poi
 .cmp-more{display:grid;gap:8px;border-top:1px solid var(--line);padding-top:8px}
 .cmp-row{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
 /* AG1: Edit is the composer; what only editing needs folds under More */
+.sd-card .sd-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0 6px 10px;border-top:1px solid var(--line);border-left:3px solid var(--category)}.sd-card .sd-row:first-of-type{border-top:0}.sd-card .sd-name{display:grid;flex:1 1 200px;min-width:0}.sd-card .sd-name small{color:var(--muted);font-size:12px}.sd-tag{display:inline-flex;padding:0 7px;margin-left:4px;border-radius:999px;border:1px solid color-mix(in srgb,var(--c-purple,#b69cf0) 55%,transparent);color:var(--c-purple,#b69cf0);font-size:11px;font-weight:600}.sd-card .k-head{display:flex;align-items:baseline;gap:10px;justify-content:space-between}.mkf-card .cmp-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}.mkf-card .acts{display:flex;gap:10px}   /* BK4, BK5 */
 .nd-card .nd-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--line)}.nd-card .nd-row:first-of-type{border-top:0}.nd-card .nd-name{display:grid;flex:1 1 180px;min-width:0}.nd-card .nd-name small{color:var(--muted);font-size:12px}.nd-card .nd-date{font:inherit;font-size:13px;min-height:30px}
 .tpl-tabs{display:flex;gap:4px;margin:0 0 10px;padding:3px;border-radius:12px;background:var(--sunk)}.tpl-tab{flex:1;border:0;background:none;color:var(--muted);font:inherit;font-size:13px;font-weight:600;min-height:30px;border-radius:9px;cursor:pointer;white-space:nowrap}.tpl-tab[aria-selected="true"]{background:var(--panel-2);color:var(--ink)}.tpl-tab small{color:var(--faint);font-weight:500}
 .due-row{flex-wrap:wrap}.due-row>.tpl-go{flex:1 1 100%;display:flex!important;flex-direction:row;align-items:center;gap:6px;flex-wrap:wrap;margin:2px 0 0;min-width:0}.due-row>.tpl-go>*{flex:0 0 auto}.tpl-btn{border:1px solid var(--line);background:none;color:var(--ink);font:inherit;font-size:12.5px;min-height:28px;padding:0 10px;border-radius:9px;cursor:pointer}.tpl-btn:hover,.tpl-btn:focus-visible{border-color:var(--line-strong)}.tpl-pickwrap{position:relative;display:inline-flex}.tpl-pickwrap .tpl-pick-date{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}.tpl-pickwrap .tpl-pick-date.show{position:static;width:auto;height:auto;opacity:1;pointer-events:auto}.tpl-weekbar{display:flex;justify-content:flex-end;margin:-4px 0 4px}.tpl-gh{margin:8px 0 4px}
@@ -5730,6 +5731,7 @@ addEventListener('load', () => {
   const filtRange = c => c && validCalendarDate(c.from) && validCalendarDate(c.to) ? {from:c.from, to:c.to} : null;
   function filtState(page){ let v = null; try { v = JSON.parse(localStorage.getItem(filtKey(page)) || 'null'); } catch (_) { v = null; } v = v && typeof v === 'object' ? v : {}; const pins = {}; for (const [k, x] of Object.entries(v.pins && typeof v.pins === 'object' ? v.pins : {})) if (x && filtOk(x.per)) pins[k] = {per:x.per, custom:filtRange(x.custom)}; return {per:filtOk(v.per) ? v.per : 'day', custom:filtRange(v.custom), pins}; }
   function filtSave(page, s){ try { localStorage.setItem(filtKey(page), JSON.stringify(s)); } catch (_) {} }
+  let mkFocus = null;   // BK5: the open Make it a Focus panel {seriesId, date, name}
   let filtPicker = null;   // I1: the open range calendar {page, month, from, to, step}
   const weekMeans = () => 'this';   // Fix R3: Week always means the calendar week; 7d is the trailing week
   // L7: the one week window every Week view and the Overall grade's Week read
@@ -6467,7 +6469,7 @@ addEventListener('load', () => {
     const upnext = '<section class="k-sec today-next-sec"><div class="k-sec-head"><h2>Up Next' + infoBtn('upnext', 'Up Next') + '</h2><button class="link" data-act="todayTab" data-tab="activities" data-parity="TODAY-36">See all ›</button></div>' + infoPop('upnext', 'What is due today by its own days, one routine at a time with every step in view. Skip for now sends one to the back of today’s queue; ‹ › go through what is left. The full day is on Quests.') + next.replace('<section class="panelcard next-action"', '<section class="panelcard next-action" data-parity="TODAY-10"') + '</section>';
     const week = '<section class="k-sec"><div class="k-sec-head"><h2>This Week' + infoBtn('wkstrip', 'This Week') + '</h2>' + filtChipHTML('home', 'week') + '<button class="link" data-act="questTab" data-tab="week">Week ›</button></div>' + infoPop('wkstrip', 'Each day of this week: what it asked, and how much is done (brighter is more). Tap a day to open it on Quests. Your weekly goals (Prayer 3 of 5 and the rest) are on Quests → Week.') + weekStripV34(st) + '</section>';
     const added = composer && composer.area === 'home' ? '<section class="k-card today-add" data-feedback-id="today-add" data-feedback-label="Add an item">' + composerHTML() + '</section>' : '';
-    return head + strip + added + reorgNoticeHTML(st) + nextDatesCard(st) + upcomingHTML(st) + gradeArea('home', () => gradeHero(st) + gradeStrip(st), st) + sundayReviewToday(st) + dayEditor() + quickPanel() + (railHosts() ? '' : sofar) + heroCard(day, {tiles:true}) + '<div class="today-two">' + upnext + week + '</div><div class="today-two today-two-energy"><div class="today-stack">' + fuelCardV35(day) + '</div>' + waterStepsCardV35(day) + '</div>' + macrosNutritionCard(day) + dailyLearnList('today', day);
+    return head + strip + added + reorgNoticeHTML(st) + mkFocusHTML(st) + nextDatesCard(st) + somedayCard(st) + upcomingHTML(st) + gradeArea('home', () => gradeHero(st) + gradeStrip(st), st) + sundayReviewToday(st) + dayEditor() + quickPanel() + (railHosts() ? '' : sofar) + heroCard(day, {tiles:true}) + '<div class="today-two">' + upnext + week + '</div><div class="today-two today-two-energy"><div class="today-stack">' + fuelCardV35(day) + '</div>' + waterStepsCardV35(day) + '</div>' + macrosNutritionCard(day) + dailyLearnList('today', day);
   }
 
   function starterFilePanel(){
@@ -6732,7 +6734,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function questActivities(){
     const st = S(), swept = questSwept.has(day);
     const add = composer && composer.area === 'plan' ? composerHTML() : '<div class="q-add"><button class="q-addline" data-act="questAdd" data-parity="QUESTS-01"><span aria-hidden="true">＋</span>Add a task</button><button class="k-icon-btn q-sweep" data-act="questSweep" aria-pressed="' + swept + '" aria-label="' + (swept ? 'Show finished cards' : 'Sweep finished cards out of view') + '" title="' + (swept ? 'Show finished cards' : 'Sweep finished cards') + '" data-parity="QUESTS-13">🧹</button></div>';
-    return questDayNav() + dayEditor() + add + reorgNoticeHTML(st) + nextDatesCard(st) + upcomingHTML(st) + gradeArea('plan', () => gradeHero(st) + gradeStrip(st), st)   /* BA10 (his words, Oct 9: "make sure that QUests and TOday have overall Grade"): the same Overall card as Today, same source and window */ + umbrellaChips(st) +
+    return questDayNav() + dayEditor() + add + reorgNoticeHTML(st) + mkFocusHTML(st) + nextDatesCard(st) + somedayCard(st) + upcomingHTML(st) + gradeArea('plan', () => gradeHero(st) + gradeStrip(st), st)   /* BA10 (his words, Oct 9: "make sure that QUests and TOday have overall Grade"): the same Overall card as Today, same source and window */ + umbrellaChips(st) +
       (activitiesPending(st) && !(typeof structureV2Adopted === 'function' && structureV2Adopted(st)) ? scoringProposalCard() : '') +
       quickPanel() + wsActivities({includeClaims:false, umbrella:questUmbrella === 'all' ? null : questUmbrella, swept}) + removedFold(st);
   }
@@ -7779,7 +7781,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const focusRow = focusNew && !doms.some(u => u.id === focusNew.dom) ? focusNewHTML(focusNew.dom) : '';
     const sec = (id, title, count, body) => '<section class="panelcard tb-sec" data-feedback-id="template-page-' + id + '" data-feedback-label="Template · ' + title + '"><div class="ph"><h2>' + title + '</h2>' + (count !== '' ? '<span class="hint">' + count + '</span>' : '') + '</div>' + body + '</section>';
     if (!v33) return '<section class="panelcard"><p class="hint keep tpl-classic">Previous layout: weekly and monthly items stay on the day’s cards. <button class="link" data-act="templateV33">Use Template</button></p></section>';
-    return '<div class="tb-page" data-parity="BI2-PAGE"><div class="tb-head">' + chips + tools + '</div>' + focusRow + planDraftHTML(st) +
+    return '<div class="tb-page" data-parity="BI2-PAGE"><div class="tb-head">' + chips + tools + '</div>' + focusRow + somedayCard(st) + planDraftHTML(st) +
       '<section class="panelcard tb-board-card" data-feedback-id="template-page-week" data-feedback-label="Template · Week"><div class="ph"><h2>Week of ' + esc(medDate(start)) + '</h2><span class="hint">Drag an item onto a day, or tap a day’s +</span></div><div class="tb-board">' + days.map(col).join('') + '</div></section>' +
       '<div class="tb-shelf">' + sec('place', 'To place this week', openUnits.length ? openUnits.length : 'all placed', (openUnits.length ? openUnits.map(row).join('') : '<p class="hint keep">Everything due this week has a day or is done.</p>') + (doneUnits.length ? '<details class="tpl-section tpl-donefold" data-fold="tb-done"' + (foldPref('tb-done', false) ? ' open' : '') + '><summary><b>Placed or done</b><span class="hint">' + doneUnits.length + '</span></summary>' + doneUnits.map(row).join('') + '</details>' : '')) +
       '<div class="tb-side">' + sec('needdate', 'Needs a date', needDate.length || '', '<div class="nd-card nd-parked">' + ndBody + '</div>') + sec('saved', 'Saved', saved.length || '', savedBody) + '</div></div></div>';
@@ -9605,6 +9607,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const rem = calReminderFor(out), remW = rem ? ' Reminder ' + (rem.daysBefore ? 'the day before at 6 PM.' : out.remind === 'morning' ? 'that morning at 9 AM.' : 'at ' + hm12(rem.time) + '.') : '';
     if (k === 'event') return 'An Event on ' + on + when + ', on ' + card + (out.yearly ? ', every year' : '') + '.' + early + remW + (a.req ? ' Required: it counts on its own day only.' : ' Optional: not graded.');
     return 'On ' + card + (c.date === today ? ' for today' : ', due ' + on) + when + '.' + early + remW; }
+  /* BK6 (his yes, Oct 13: one kind of Task): Edit lists a Task's steps as they are (kept exactly) and takes new ones on the same lines as Add */
+  function editStepsHTML(c){ const st = S(), s = st.series.find(x => x.id === c.editSeries), v = s && (versionFor(s, c.editFrom) || versionFor(s, c.editDate)), kids = ((v && v.childIds) || []).map(id => st.series.find(x => x.id === id)).filter(Boolean);
+    return '<div class="cmp-steps cmp-steps-old" data-parity="BK6-STEPS">' + (kids.length ? '<span class="scope">Steps</span><div class="cmp-steplist">' + kids.map(k => '<div class="cmp-stepline cmp-stepkept"><span aria-hidden="true">⤷</span><span>' + esc((versionFor(k, c.editFrom) || latestVersion(k)).name) + '</span></div>').join('') + '</div>' : '') + '</div>' + stepLinesHTML(c).replace('<span class="scope">Steps</span>', '<span class="scope">' + (kids.length ? 'More steps' : 'Steps') + '</span>'); }
   function stepLinesHTML(c){ const lines = String(c.subs || '').split('\n').map(x => x.replace(/\s+$/, '')).filter((x, i, l) => x || i === l.length - 1); if (!lines.length || lines[lines.length - 1]) lines.push('');
     return '<div class="cmp-steps" data-parity="BI3-STEPS"><span class="scope">Steps</span><div class="cmp-steplist">' + lines.map((t, i) => '<div class="cmp-stepline"><span aria-hidden="true">⤷</span><input type="text" class="cmp-step" maxlength="90" autocomplete="off" value="' + esc(t) + '" placeholder="' + (i === lines.length - 1 ? (lines.length > 1 ? 'Another step, then Enter' : 'A step, then Enter (optional)') : '') + '" aria-label="Step ' + (i + 1) + '"></div>').join('') + '</div></div>'; }
   /* BI4: what is coming. A one-off with calendar fields shows from its show-early days before its day as an "Upcoming" row on Today and Quests,
@@ -9641,7 +9646,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const leadRow = '<div class="cmp-row" data-parity="BI4-LEAD"><span class="scope">Show on Today and Quests from</span>' + CAL_LEADS.map(([v, n]) => cchip('wsCalLead', v, n, !cal.leadCustom && cal.lead === v)).join('') + cchip('wsCalLead', 'custom', 'Custom', cal.leadCustom || !CAL_LEADS.some(x => x[0] === cal.lead)) + (cal.leadCustom || !CAL_LEADS.some(x => x[0] === cal.lead) ? '<input id="wsCalLeadN" type="number" inputmode="numeric" min="0" max="30" value="' + cal.lead + '" aria-label="Days before"><span class="scope">days</span>' : '') + '<span class="scope">before</span></div>';
     const remRow = '<div class="cmp-row" data-parity="BI4-REMIND"><span class="scope">Remind me</span>' + CAL_REMINDS.map(([v, n]) => cchip('wsCalRemind', v, n, cal.remind === v, (v === 'hour' || v === 'at') && !timed)).join('') + '</div>';
     /* BK-DUEBY (his yes, Oct 13): an optional Due by on a to-do; without one an undone to-do rolls to the next day with no penalty */
-    const dueByRow = c.kind === 'subitem' ? '' : '<div class="cmp-row" data-parity="BK-DUEBY"><label for="wsComposerDueBy" class="scope">Due by</label><input id="wsComposerDueBy" type="date" min="' + esc(c.date) + '" value="' + esc(c.dueBy || '') + '"><span class="scope">' + (c.dueBy ? 'counts as missed on ' + esc(medDate(c.dueBy)) + ' if not done by then' : 'optional · without it, an undone to-do moves to the next day and never counts against you') + '</span>' + (c.dueBy ? '<button type="button" class="link" data-act="wsComposerDueByClear">No due by</button>' : '') + '</div>';
+    const dueByRow = c.kind === 'subitem' ? '' : !c.dueBy && !c.dueByOn ? '<div class="cmp-row" data-parity="BK-DUEBY"><button type="button" class="link" data-act="wsComposerDueByOn">+ Due by</button><span class="scope">optional · without it, an undone to-do moves to the next day and never counts against you</span></div>'   /* an empty date box draws a date in the Mac's WebKit (Known issues, BG22): unset reads as words */
+      : '<div class="cmp-row" data-parity="BK-DUEBY"><label for="wsComposerDueBy" class="scope">Due by</label><input id="wsComposerDueBy" type="date" min="' + esc(c.date) + '" value="' + esc(c.dueBy || c.date) + '"><span class="scope">counts as missed on that day if not done by then</span><button type="button" class="link" data-act="wsComposerDueByClear">No due by</button></div>';
     /* BK-PACE (his words, Oct 13: "3 applications a day, but the larger goal is to have 20 applications a week"): a week's count or amount has a
        daily pace; no day is docked, a missed day carries to the next (never past what is left), the week counts at its target by Sunday */
     const paceRow = c.goal && paceGoal(c.goal) ? '<div class="cmp-row" data-parity="BK-PACE"><label for="wsComposerPace" class="scope">Daily pace</label><input id="wsComposerPace" type="number" inputmode="numeric" min="1" max="100" value="' + (c.pace || paceDefault(c.goal.target.value)) + '" aria-label="Daily pace"><span class="scope">a day · a missed day carries to the next; the week counts in full at ' + esc(String(c.goal.target.value)) + ' by Sunday</span></div>' : '';
@@ -9649,8 +9655,10 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       ? '<div class="cmp-row"><label for="wsComposerDate" class="scope">On</label><input id="wsComposerDate" type="date" value="' + esc(c.date) + '">' + cchip('wsCalAllDay', 1, 'All day', !timed) + cchip('wsCalAllDay', 0, 'At a time', timed) + timeField() + '</div>' + leadRow + remRow +
         '<div class="cmp-row"><span class="scope">Repeats</span>' + cchip('wsCalYearly', 0, 'Never', !cal.yearly) + cchip('wsCalYearly', 1, 'Every year', cal.yearly) + REPEATS.filter(r => !['once', 'goal', 'dates'].includes(r[0])).map(dimChip).join('') + '</div>' +
         '<div class="cmp-row" data-parity="BI4-GRADE"><span class="scope">Grade</span>' + cchip('wsCalReq', 0, 'Optional · not graded', !cal.req) + cchip('wsCalReq', 1, 'Required · counts on its day', cal.req) + '</div>'
+      : ck === 'task' && c.someday
+      ? '<div class="cmp-row" data-parity="BK4-FORM"><span class="scope">Due</span>' + cchip('wsComposerSomeday', 0, 'A date', false) + cchip('wsComposerSomeday', 1, '🌙 Someday', true) + '<span class="scope">no date: it keeps its Focus and Domain, waits on the Someday strip and is never graded until you date it</span></div>'
       : ck === 'task'
-      ? '<div class="cmp-row"><label for="wsComposerDate" class="scope">Due</label><input id="wsComposerDate" type="date" value="' + esc(c.date) + '">' + (timed ? timeField() + '<button type="button" class="link" data-act="wsCalTimeOn" data-v="0">No time</button>' : '<button type="button" class="link" data-act="wsCalTimeOn" data-v="1">+ Time</button>') + '</div>' + dueByRow + leadRow + remRow
+      ? '<div class="cmp-row"><label for="wsComposerDate" class="scope">Due</label><input id="wsComposerDate" type="date" value="' + esc(c.date) + '">' + (c.isChild ? '' : cchip('wsComposerSomeday', 1, '🌙 Someday', false)) + (timed ? timeField() + '<button type="button" class="link" data-act="wsCalTimeOn" data-v="0">No time</button>' : '<button type="button" class="link" data-act="wsCalTimeOn" data-v="1">+ Time</button>') + '</div>' + dueByRow + leadRow + remRow
       : ck === 'repeat'
       ? '<div class="cmp-row"><span class="scope">Repeats</span>' + REPEATS.filter(r => r[0] !== 'once' && r[0] !== 'goal').concat(ed && c.origRepeat === 'keep' ? [['keep', 'As set']] : []).map(chip).join('') + '</div>' + (detail ? '<div class="cmp-row">' + detail + '</div>' : '') + (c.repeat === 'week' ? paceRow : '') + (ed && c.repeat === 'keep' ? '<p class="hint keep cmp-rule" data-parity="AG1-RULE">' + esc(c.ruleWords || '') + ' Its exact fields are under More.</p>' : '')
       : '<p class="hint keep cmp-cap" data-parity="AJ1-CAPTION">Measured: a number, a limit, or data from Apple Health.</p>' + (c.goal ? (c.flow ? goalFlowHTML(c) : goalBuilderHTML(c)) : '') + paceRow;
@@ -9662,7 +9670,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
         '<div class="cmp-row"><label for="wsComposerGImp" class="scope">Weight in the grade</label><input id="wsComposerGImp" type="range" min="0" max="10" step="1" value="' + c.gimp + '" aria-describedby="wsGimpWords"><b class="g-sval">' + c.gimp + '</b></div><p class="hint keep" id="wsGimpWords" data-parity="G3-WORDS">' + esc(gimpWords(c.gimp)) + ' The Importance dots above set its points; this sets how much it moves its Focus’s grade.</p></div></details>';
     const lands = ck === 'event' || ck === 'task' ? calWords(c) : composerLands(c);
     const more = c.more && c.kind !== 'subgroup' ? '<div class="cmp-more" data-parity="BI3-FORM">' +
-        (c.kind === 'subitem' || ed ? '' : stepLinesHTML(c)) +
+        (c.kind === 'subitem' || (ed && (c.isChild || c.goal)) ? '' : ed ? editStepsHTML(c) : stepLinesHTML(c)) +
         sec('Kind') + '<div class="cmp-row cmp-kinds">' + kchip('task', 'Task', false, 'Something to do, once') + kchip('event', 'Event', false, 'Something on a day and time') + kchip('repeat', 'Repeats', false, 'Every day, some days, N a week ...') + kchip('measured', 'Measured', !!hasSteps, hasSteps ? 'A number, a limit or Apple Health data; steps do not fit it' : 'A number, a limit or Apple Health data') + '</div>' +
         sec('When') + when + where + points +
         (ed ? '<p class="hint keep cmp-lands" data-parity="AG1-START">Changes start ' + esc(c.editFrom === todayYmd() ? 'today' : medDate(c.editFrom)) + (c.editScope === 'day' ? ', on that day only' : '') + '. Earlier days keep what they had.</p>' + editMoreHTML(c) : '') +
@@ -9853,12 +9861,12 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const calV = calOut(c); if (composerKind(c) === 'event') c.optional = !calOf(c).req;   // BI4-GRADE: a new Event is Optional unless he picks Required
     if (c.editSeries && !(c.flow && c.flow.convert)){ await composerEditSave(c, title); return; }
     if (c.editSeries){ const id = c.editSeries, today = todayYmd(), changes = goal ? {name:title, goal} : {name:title, goal:null, recurrence:rec}; const r0 = await manualActionTransaction(S(), d => { if (!reviseSeries(d, id, changes, today, today)) return {ok:false, error:'Not saved: the item cannot change before today.'}; if ((c.tier === 'stretch' || c.tier === 'required') && gradeTierOf(gradeConfig(d), id, today) !== c.tier) setGradeConfig(d, 'items', id, 'tier', c.tier); return {ok:true}; }, {persist:!preview, undo:'goal-edit'});   /* V3.7 W2, W3: Convert revises from today (earlier versions stay) and the tier moves with it */ /* edit mode always revises the same item, goal or not (review F8) */ c.busy = false; if (!r0.ok){ c.error = r0.error || 'Not saved.'; render(); return; } composer = null; unsavedForm = false; forgetComposerDrafts(); render(); toast((goal ? 'Goal' : 'Item') + ' changed from today; earlier days keep what they had.'); return; }
-    const fields = { id: c.fieldId, name: title, ...(card ? {category:card} : {}), container: c.kind === 'subgroup' || subs.length > 0, recurrence: rec, ...(goal ? {goal} : {}), ...(c.repeat === 'dates' ? {setEach:true, needsDate:!c.ndate} : {}), ...(rec.kind === 'once' && c.dueBy && c.dueBy >= c.date ? {dueBy:c.dueBy} : {}), ...(goal && paceGoal(goal) && c.pace && c.pace !== paceDefault(goal.target.value) ? {pace:c.pace} : {}), ...extra, ...(calV ? {cal:calV} : {}), ...(calV && calV.kind === 'event' ? {optional:!calOf(c).req} : {}) };
+    const fields = { id: c.fieldId, name: title, ...(card ? {category:card} : {}), container: c.kind === 'subgroup' || subs.length > 0, recurrence: rec, ...(goal ? {goal} : {}), ...(c.repeat === 'dates' ? {setEach:true, needsDate:!c.ndate} : {}), ...(rec.kind === 'once' && c.dueBy && c.dueBy >= c.date && !c.someday ? {dueBy:c.dueBy} : {}), ...(rec.kind === 'once' && c.someday ? {someday:true, needsDate:true} : {}), ...(goal && paceGoal(goal) && c.pace && c.pace !== paceDefault(goal.target.value) ? {pace:c.pace} : {}), ...extra, ...(calV ? {cal:calV} : {}), ...(calV && calV.kind === 'event' ? {optional:!calOf(c).req} : {}) };
     const opts = { scope: rec.kind === 'once' ? 'occurrence' : 'future' }, parentId = c.parentId, ideaId = c.ideaId, date = c.date;
     const fieldsIn = fields, recIn = rec, optsIn = opts;
     const change = d => {
       const fields = JSON.parse(JSON.stringify(fieldsIn)), rec = JSON.parse(JSON.stringify(recIn)), opts = {...optsIn};   // AX1: the change runs twice (shown, then saved); each run gets its own copies
-      const children = subs.map((name, i) => ({id:c.fieldId + '-' + (i + 1), name, ...(card ? {category:card} : {}), recurrence:rec, ...(c.repeat === 'month' ? {goal:monthGoalDef()} : {}), ...(c.more ? {scoring:{importance:c.importance, difficulty:c.difficulty}} : {})}));   // AG3: a monthly load's steps are monthly too
+      const children = subs.map((name, i) => ({id:c.fieldId + '-' + (i + 1), name, ...(card ? {category:card} : {}), recurrence:rec, ...(rec.kind === 'once' && c.someday ? {someday:true, needsDate:true} : {}), ...(c.repeat === 'month' ? {goal:monthGoalDef()} : {}), ...(c.more ? {scoring:{importance:c.importance, difficulty:c.difficulty}} : {})}));   // AG3: a monthly load's steps are monthly too
       if (lau && lauSame.length === 1){ const first = d.series.find(x => x.id === lauSame[0].id), fv = first && versionFor(first, lauToday); if (fv && !/\s\d+$/.test(fv.name || '')) renameFrom(d, first.id, lauBase + ' 1', todayYmd() > lauToday ? todayYmd() : lauToday); }
       const r = subs.length ? Workspace.createWithChildren(d, parentId ? {...fields, parentId} : fields, date, children, opts) : parentId ? Workspace.addChild(d, parentId, fields, date, opts) : Workspace.create(d, fields, date, opts);   // one transaction (P2-20)
       if (!(r && r.ok)) return r && typeof r === 'object' ? r : { ok:false, error:'The workspace returned no result.' };
@@ -9932,7 +9940,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       session:r.session || '', interval:String(r.intervalWeeks || 1), istart:r.startDate || from, tcount:String(r.count || 1), tweeks:String(r.weeks || 1), optional:!!v.optional,
       mk:mt.kind || '', mt:mt.type || '', mmin:String(mt.minimum || 1), importance:sc.importance, difficulty:sc.difficulty,
       counts:it.included !== false, gimp:Number.isFinite(it.importance) ? it.importance : GRADE_ITEM_IMPORTANCE, tier:gradeTierOf(gc, s.id, from), goal:v.goal ? JSON.parse(JSON.stringify(v.goal)) : null, emOpen:false,
-      cal:v.cal ? {kind:v.cal.kind, time:v.cal.time || '19:00', timeOn:!!v.cal.time, end:v.cal.end || '', endOn:!!v.cal.end, allDay:!!v.cal.allDay, lead:Number.isFinite(v.cal.lead) ? v.cal.lead : calLeadDefault(), remind:v.cal.remind || 'none', yearly:!!v.cal.yearly, req:!v.optional, eventInit:true} : null, origCal:!!v.cal, calTouched:false, dueBy:v.dueBy || '', pace:Number.isInteger(v.pace) ? v.pace : null});   // BI4; BK-DUEBY, BK-PACE (an older item reads its pace as its week's number / 7 rounded up)
+      cal:v.cal ? {kind:v.cal.kind, time:v.cal.time || '19:00', timeOn:!!v.cal.time, end:v.cal.end || '', endOn:!!v.cal.end, allDay:!!v.cal.allDay, lead:Number.isFinite(v.cal.lead) ? v.cal.lead : calLeadDefault(), remind:v.cal.remind || 'none', yearly:!!v.cal.yearly, req:!v.optional, eventInit:true} : null, origCal:!!v.cal, calTouched:false, dueBy:v.dueBy || '', pace:Number.isInteger(v.pace) ? v.pace : null, someday:!!v.someday, subs:''});   // BI4; BK-DUEBY, BK-PACE (an older item reads its pace as its week's number / 7 rounded up)
     forgetComposerDrafts();   // the add form's first draw (its defaults, e.g. 3 a week) must never be restored over the item's own values (planner, Journal, Oct 8)
     if (o.area === 'drawer') renderDrawer();
     composerRender(); focusFirst('#wsComposerTitle');
@@ -10011,6 +10019,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       if (base.setEach && c.repeat !== 'dates' && ('recurrence' in changes || 'goal' in changes)){ changes.setEach = false; changes.needsDate = false; }
     }
     const moveTo = c.editScope !== 'day' && (c.parentSel || '') !== (c.origParent || '') ? (c.parentSel || null) : undefined;
+    const newSteps = c.isChild ? [] : String(c.subs || '').split('\n').map(x => x.trim()).filter(Boolean).slice(0, 20), somedayFlip = !!base.someday !== !!c.someday && (base.recurrence || {}).kind === 'once';   // BK6, BK4
+    if (somedayFlip){ delete changes.recurrence; delete changes.dueBy; }
     c.busy = true; c.error = ''; render();
     const r0 = await manualActionTransaction(S(), d => {
       if (c.editScope === 'day'){ const pick = {}; for (const k of ['name', 'normal', 'minimum']) if (k in changes) pick[k] = changes[k]; return Object.keys(pick).length ? Workspace.edit(d, id, pick, from, {scope:'occurrence'}) : {ok:true}; }
@@ -10021,6 +10031,13 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       if ((it.included !== false) !== !!c.counts) setGradeConfig(d, 'items', id, 'included', !!c.counts);
       if ((Number.isFinite(it.importance) ? it.importance : GRADE_ITEM_IMPORTANCE) !== c.gimp) setGradeConfig(d, 'items', id, 'importance', c.gimp);
       if (c.editScope !== 'day' && 'cal' in changes) calSetReminder(d, id, changes.cal);   // BI4-REMIND
+      if (c.editScope !== 'day' && newSteps.length){   /* BK6: every Task takes steps; an old Task with none gains them here, one with steps keeps its own and adds these */
+        const ds = d.series.find(x => x.id === id), pv = versionFor(ds, from) || latestVersion(ds), pr = pv.recurrence || {kind:'once', date:from}, gid = wsGroup(ds, from) || ds.category;
+        const childRec = start => pr.kind === 'once' ? {kind:'once', date:pr.date >= start ? pr.date : start} : JSON.parse(JSON.stringify(pr));
+        const add = start => { newSteps.forEach((nm, i) => wsCreate(d, {id:newId('step') + i, name:nm, category:gid, recurrence:childRec(start), ...(pv.someday ? {someday:true, needsDate:true} : {})}, start, id)); return start; };
+        try { add(from); } catch (e){ if (pr.kind === 'once') return {ok:false, error:'Steps cannot be added: ' + e.message}; try { add(addDays(from, 1)); } catch (e2){ return {ok:false, error:e2.message}; } }   // a Task checked off today takes its new steps from tomorrow; today's entry stays
+      }
+      if (c.editScope !== 'day' && somedayFlip){ const r = bkSetSomeday(d, id, from, !!c.someday, c.date >= from ? c.date : from); if (!r.ok) return r; }   // BK4
       return {ok:true};
     }, {persist:!preview, undo:'edit'});
     c.busy = false;
@@ -10038,6 +10055,19 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       if (!(v.needsDate || happened || d < today) || (!all && ndLater.has(s.id + '|' + (v.needsDate ? '' : d)))) continue;
       out.push({id:s.id, name:v.name, date:v.needsDate ? null : d, happened, status:o && o.status}); }
     return out;
+  }
+  /* BK4: the Someday strip on Today, Quests and Template: each undated one-off with its Focus and Domain, a date to give it, and Edit */
+  function somedayItems(st){ return st.series.filter(x => !x.demo && !x.archivedAt && (() => { const v = latestVersion(x); return v && v.someday && v.needsDate && !v.parentId && !x.parentId; })()).map(x => { const v = latestVersion(x), gid = wsGroup(x, todayYmd()) || x.category, dom = GRADE_UMBRELLAS.find(u => u.id === gradeGroupUmbrella(S(), gid)); return {id:x.id, name:v.name, gid, focus:groupName(gid) || '', dom:dom ? dom.emoji + ' ' + dom.name : '', steps:(v.childIds || []).length}; }); }
+  function somedayCard(st){
+    const list = somedayItems(st); if (!list.length) return '';
+    return '<section class="k-card sd-card" data-parity="BK4-SOMEDAY" data-feedback-id="someday" data-feedback-label="Someday"><div class="k-head"><span class="k-title">🌙 Someday</span><span class="hint keep">' + pl(list.length, 'item') + ' · not graded until dated</span></div>' + list.map(x => '<div class="sd-row" data-series="' + esc(x.id) + '" style="--category:' + categoryColor(x.gid) + '"><span class="sd-name"><b>' + esc(x.name) + '</b><small>' + esc([x.focus, x.dom, x.steps ? pl(x.steps, 'step') : ''].filter(Boolean).join(' · ')) + ' <span class="sd-tag">Someday</span></small></span><input type="date" class="sd-date" min="' + todayYmd() + '" value="' + addDays(todayYmd(), 1) + '" aria-label="A day for ' + esc(x.name) + '"><button class="save" data-act="sdSave">Give it a date</button><button class="link" data-act="sdEdit">Edit</button></div>').join('') + '</section>';
+  }
+  function mkFocusHTML(st){
+    if (!mkFocus) return ''; const sx = st.series.find(x => x.id === mkFocus.seriesId); if (!sx){ mkFocus = null; return ''; }
+    const v = versionFor(sx, mkFocus.date) || latestVersion(sx), dom = gradeGroupUmbrella(st, wsGroup(sx, mkFocus.date)), u = GRADE_UMBRELLAS.find(x => x.id === dom), kids = (v.childIds || []).length;
+    const sisters = visibleGroups(st).filter(g => gradeGroupUmbrella(st, g.id) === dom);
+    return '<section class="k-card mkf-card" data-parity="BK5-FOCUS"><div class="k-head"><span class="k-title">Make “' + esc(v.name) + '” a Focus</span></div><p class="hint keep">' + (kids ? 'Its ' + pl(kids, 'step') + ' become the Focus’s items, with every entry and point. ' : 'It becomes the Focus’s first item, with its entries and points. ') + 'In ' + esc(u ? u.emoji + ' ' + u.name : 'its Domain') + '. A step already there by name is merged, not doubled. Undo puts it back.</p>' +
+      '<div class="cmp-row"><label for="mkfInto" class="scope">Into</label><select id="mkfInto"><option value="">A new Focus</option>' + sisters.map(g => '<option value="' + esc(g.id) + '">' + esc(g.name) + '</option>').join('') + '</select><label for="mkfName" class="scope">named</label><input id="mkfName" type="text" maxlength="40" value="' + esc(mkFocus.name) + '"></div><div class="acts"><button class="save" data-act="mkfSave">Make it a Focus</button><button class="ghost" data-act="mkfCancel">Cancel</button></div></section>';
   }
   function nextDatesCard(st){
     const list = nextDateItems(st); if (!list.length) return '';
@@ -10069,7 +10099,6 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (composer && composer.parentId === pid && composer.kind !== 'item') return composerHTML();
     const gid = (parent && (parent.group || parent.groupId)) || '';
     let out = '<button class="ws-addbtn" data-act="wsAdd" data-kind="subitem" data-parent="' + esc(pid) + '" data-group="' + esc(gid) + '">+ Add</button>';
-    if (childDepth <= 1) out += '<button class="link ws-addsub" data-act="wsAdd" data-kind="subgroup" data-parent="' + esc(pid) + '" data-group="' + esc(gid) + '">task with subtasks</button>';
     return out;
   }
   function wsHierarchyCapture(){
@@ -10188,7 +10217,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const st = S(), date = n.date || day, today = todayYmd(), future = date > today, past = date < today, container = Array.isArray(n.children) && n.children.length > 0;
     const occOf = r => r.occurrence || st.occurrences[r.key || occKey(r.seriesId, r.date || date)] || null;
     const leaves = container ? leafRows(n.children) : [n], open = leaves.filter(r => !r.status && !(occOf(r) && occOf(r).disposition));
-    const KEYS = {skip:'sk', rm:'rm', pt:'pt', del:'del', move:'mv', clr:'clr'}, btn = (act, cls, title, icon, extra) => asMenu ? '<button type="button" class="link row-menu-act" data-act="' + act + '"' + (extra || '') + ' data-key="' + KEYS[cls.split(' ')[0]] + '">' + icon + '<span>' + esc(title.split(' · ')[0]) + '</span></button>' : '<button type="button" class="row-act ' + cls + '" data-act="' + act + '"' + (extra || '') + ' data-key="' + KEYS[cls.split(' ')[0]] + '" aria-label="' + esc(title + ': ' + label) + '" title="' + esc(title) + '">' + icon + '</button>';
+    const KEYS = {skip:'sk', rm:'rm', pt:'pt', del:'del', move:'mv', clr:'clr', st:'st', sd:'sd', mf:'mf', dd:'dd', da:'da'}, btn = (act, cls, title, icon, extra) => asMenu ? '<button type="button" class="link row-menu-act" data-act="' + act + '"' + (extra || '') + ' data-key="' + KEYS[cls.split(' ')[0]] + '">' + icon + '<span>' + esc(title.split(' · ')[0]) + '</span></button>' : '<button type="button" class="row-act ' + cls + '" data-act="' + act + '"' + (extra || '') + ' data-key="' + KEYS[cls.split(' ')[0]] + '" aria-label="' + esc(title + ': ' + label) + '" title="' + esc(title) + '">' + icon + '</button>';
     let out = '';
     if (!future && open.length) out += container ? btn('wsSkipRest', 'skip', 'Skip rest · ' + open.length + ' step' + (open.length === 1 ? '' : 's') + ' not yet marked', ROW_ICONS.skip) : btn('log', 'skip skip-x', 'Skip · didn’t do it', ROW_ICONS.skip, ' data-s="skipped"');
     if (!future && !container && open.length && itemKind(n) !== 'bar') out += btn('log', 'pt', 'Partially done · half credit', ROW_ICONS.partial, ' data-s="partial" data-quick="1"');
@@ -10205,7 +10234,14 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
         out += asMenu ? '<label class="link row-menu-act row-move-pick" data-key="mvd"><span>Move to a date</span>' + pick + '</label>' : '<span class="row-move-wrap">' + pick + '<button type="button" class="row-act move-pick" data-act="rowMovePick" data-key="mvp" aria-label="' + esc('Move ' + label + ' to a date') + '" title="Move to a date">▾</button></span>'; }
       if (removable.length) out += btn('wsRemoveToday', 'rm', 'Move to Template · it waits there for another day', ROW_ICONS.remove);
       if (asMenu && !container && open.length && !n.demo && (n.carriedFrom || cadenceOf(n) !== 'daily')) out += btn('clearToday', 'clr', 'Clear for ' + (date === today ? 'today' : medDate(date)) + ' · off this day and Up next, back tomorrow, no grade change', '<span aria-hidden="true">🧹</span>');   // BK2-CLEAR
-      if (!n.demo) out += btn('wsDeleteRow', 'del', 'Delete · stops from ' + (date === today ? 'today' : medDate(date)) + ', entries kept', ROW_ICONS.del);
+      if (!n.demo && !asMenu) out += btn('rowDelAll', 'del', 'Delete · the whole item (⋯ for just this day)', ROW_ICONS.del);
+    }
+    if (asMenu && !n.demo){   /* BK6, BK4, BK5, BK7 (his answers, Oct 13) */
+      const sx = st.series.find(x => x.id === n.seriesId), vx = sx && (versionFor(sx, date) || latestVersion(sx)), once = !!(vx && vx.recurrence && vx.recurrence.kind === 'once' && !(vx.cal && vx.cal.kind === 'event')), top = !parentFor(sx || {versions:[]}, date), step = !!(vx && vx.parentId) || !top;
+      if (!step && !(vx && vx.goal)) out += btn('taskAddStep', 'st', 'Add a step · any Task can have steps', '<span aria-hidden="true">⤷</span>');
+      if (top && once && !(vx && vx.someday)) out += btn('rowSomeday', 'sd', 'Someday · no date, never graded until you give it one', '<span aria-hidden="true">🌙</span>');
+      if (top && !(vx && vx.goal)) out += btn('makeFocus', 'mf', 'Make it a Focus · ' + (container ? 'its steps become the Focus’s items' : 'it becomes the Focus’s first item'), '<span aria-hidden="true">◎</span>');
+      out += btn('rowDelDay', 'dd', 'Delete just ' + (date === today ? 'today' : medDate(date)) + ' · entries stay', ROW_ICONS.del) + btn('rowDelAll', 'da', 'Delete the whole item · done before: from ' + (date === today ? 'today' : medDate(date)) + ' on; never done: every day', ROW_ICONS.del);
     }
     if (asMenu) return out;
     return out ? '<span class="row-acts">' + out + '</span>' : '';
@@ -10452,7 +10488,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       '<button class="link" data-act="goPlanGroup" data-group="' + esc(g.id) + '">Plan</button><details class="more card-more"><summary aria-label="More for ' + esc(g.name) + '">⋯</summary><div class="more-menu">' + (g.custom || g.umbrella ? '<button class="link" data-act="cardEdit" data-group="' + esc(g.id) + '">Rename or move</button>' : '') + '<button class="link" data-act="cardHideToday" data-group="' + esc(g.id) + '">Hide for today</button><button class="link" data-act="cardPark" data-group="' + esc(g.id) + '">Park in Template</button><button class="link" data-act="cardDelete" data-group="' + esc(g.id) + '">Delete</button></div></details></div>' +
       (collapsed ? '' : '<div class="gbody">' + dupNoteHTML(st, nodes) + '<div class="ws-tree">' +
         (nodes.length ? sections.html : '<p class="hint">Nothing planned in this category today.</p>') + '</div>' +
-        (here ? composerHTML() : '<button class="ws-addbtn" data-act="wsAdd" data-kind="item" data-group="' + esc(g.id) + '">+ Add</button><button class="link ws-addsub" data-act="wsAdd" data-kind="subgroup" data-group="' + esc(g.id) + '">task with subtasks</button>') + '</div>') + '</section>';
+        (here ? composerHTML() : '<button class="ws-addbtn" data-act="wsAdd" data-kind="item" data-group="' + esc(g.id) + '">+ Add</button>') + '</div>') + '</section>';
   }
   /* Fix AA8: two top-level items with the same name on one card (an item added twice) say so once, and one tap keeps one: the other stops
      from today, its entries, claims and points kept (the same Delete the row's own icon does). */
@@ -11586,7 +11622,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
         else if (v === 'repeat') c.repeat = c.lastRepeat && c.lastRepeat !== 'keep' ? c.lastRepeat : c.origRepeat === 'keep' ? 'keep' : 'daily';
         else { c.repeat = 'goal'; c.more = true; if (!c.goal) c.goal = gbBase(); }
         composerRender(); focusFirst('[data-act="wsComposerKind"][data-v="' + v + '"]'); } return; }
-    if (act === 'wsComposerDueByClear'){ if (composer){ composerRead(); composer.dueBy = ''; composerRender(); } return; }   // BK-DUEBY
+    if (act === 'wsComposerSomeday'){ if (composer){ composerRead(); composer.someday = btn.dataset.v === '1'; composerRender(); } return; }   // BK4
+    if (act === 'wsComposerDueByClear'){ if (composer){ composerRead(); composer.dueBy = ''; composer.dueByOn = false; composerRender(); } return; }   // BK-DUEBY
+    if (act === 'wsComposerDueByOn'){ if (composer){ composerRead(); composer.dueByOn = true; composer.dueBy = composer.date; composerRender(); focusFirst('#wsComposerDueBy'); } return; }
     if (['wsCalAllDay', 'wsCalTimeOn', 'wsCalEndOn', 'wsCalLead', 'wsCalRemind', 'wsCalYearly', 'wsCalReq'].includes(act)){ if (composer){ composerRead(); const a = calOf(composer), v = btn.dataset.v; composer.calTouched = true;
         if (act === 'wsCalAllDay'){ a.allDay = v === '1'; if (!a.allDay) a.timeOn = true; if (a.allDay && (a.remind === 'hour' || a.remind === 'at')) a.remind = 'morning'; }
         else if (act === 'wsCalTimeOn'){ a.timeOn = v === '1'; if (!a.timeOn && (a.remind === 'hour' || a.remind === 'at')) a.remind = 'none'; }
@@ -11661,6 +11699,32 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       if (!n){ popUndo(); toast((leaves.length ? r.name + ' is on today already.' : 'Nothing open to move.')); return; }
       commitDrawFirst('move', r.name + (n > 1 ? ' (' + pl(n, 'step') + ')' : '') + ' brought to today. ' + medDate(date) + ' keeps what it expected.', undefined, true); return;
     }
+    /* BK7-DELETE: Delete on any day, both ways, with Undo */
+    if (act === 'rowDelDay' || act === 'rowDelAll'){
+      const sx = seriesId && st.series.find(x => x.id === seriesId); if (!sx){ toast('This item no longer exists.'); return; } const name = (versionFor(sx, date) || latestVersion(sx)).name;
+      stage(st, 'rowDelete'); const r = act === 'rowDelDay' ? bkDeleteDay(st, seriesId, date) : bkDeleteItem(st, seriesId, date);
+      if (!r.ok){ popUndo(); toast(act === 'rowDelDay' ? (r.kept ? name + ' has an entry on ' + relDay(date).toLowerCase() + '; clear the check-off first.' : 'Nothing to delete on that day.') : r.error || 'Not deleted.'); return; }
+      const msg = act === 'rowDelDay' ? name + ' deleted from ' + relDay(date).toLowerCase() + ' only' + (r.kept ? '; ' + pl(r.kept, 'step') + ' with an entry kept' : '') + '.' : r.kind === 'all' ? name + (r.n > 1 ? ' and its ' + pl(r.n - 1, 'step') : '') + ' deleted from every day (it was never done).' : name + ' deleted from ' + medDate(r.from) + ' on. Earlier days keep its entries and points.';
+      commitDrawFirst('rowDelete', msg, undefined, true); return;
+    }
+    // BK4: Someday from a row, and a date for a Someday item from the strip
+    if (act === 'rowSomeday' || act === 'sdSave'){
+      const today = todayYmd(), sx = seriesId && st.series.find(x => x.id === seriesId); if (!sx) return; const name = latestVersion(sx).name;
+      let to = null; if (act === 'sdSave'){ const inp = btn.closest('.sd-row') && btn.closest('.sd-row').querySelector('.sd-date'); to = inp && inp.value; if (!validCalendarDate(to) || to < today){ toast('Pick a day from today on.'); return; } }
+      stage(st, 'someday'); const r = act === 'rowSomeday' ? bkSetSomeday(st, seriesId, date > today ? date : today, true) : bkSetSomeday(st, seriesId, today, false, to);
+      if (!r.ok){ popUndo(); toast(r.error || 'Not changed.'); return; }
+      await commit('someday', act === 'rowSomeday' ? name + ' moved to Someday: no date, not graded. It waits on the Someday strip.' : name + ' is on ' + medDate(to) + '.'); return;
+    }
+    if (act === 'sdEdit'){ const sx = seriesId && st.series.find(x => x.id === seriesId); if (sx){ go('plan'); openEditComposer(seriesId, todayYmd(), {area:'plan'}); } return; }
+    // BK6: Add a step to any Task opens its Edit form at the Steps lines
+    if (act === 'taskAddStep'){ if (!seriesId) return; openEditComposer(seriesId, date, {area:area === 'plan' ? 'plan' : 'edit'}); if (composer){ composer.stepsOpen = true; composerRender(); focusFirst('.ws-composer .cmp-step'); } return; }
+    // BK5: Make it a Focus opens a small panel (a new Focus by name, or one of that Domain's Focuses to merge into)
+    if (act === 'makeFocus'){ if (!seriesId) return; const sx = st.series.find(x => x.id === seriesId); mkFocus = {seriesId, date:date < todayYmd() ? todayYmd() : date, name:(versionFor(sx, date) || latestVersion(sx)).name}; if (area !== 'plan' && area !== 'home') go('plan'); else render(); focusFirst('#mkfName'); return; }
+    if (act === 'mkfCancel'){ mkFocus = null; render(); return; }
+    if (act === 'mkfSave'){ if (!mkFocus) return; const nm = (document.getElementById('mkfName') || {}).value || mkFocus.name, into = (document.getElementById('mkfInto') || {}).value || '';
+      stage(st, 'makeFocus'); let r; try { r = bkMakeFocus(st, mkFocus.seriesId, mkFocus.date, {name:nm, intoGid:into || null}); } catch (e){ r = {ok:false, error:e.message}; }
+      if (!r.ok){ popUndo(); toast(r.error || 'Not changed.'); return; } mkFocus = null;
+      await commit('makeFocus', r.group.name + ' is a Focus with ' + pl(r.moved, 'item') + (r.merged ? '; ' + pl(r.merged, 'duplicate') + ' merged into what was there' : '') + '. Entries and points moved with them.'); return; }
     if (act === 'wsDeleteRow'){
       const r = seriesId ? findPlanRow(st, seriesId, date) : null; if (!r){ toast('This item is unavailable on that date.'); return; }
       if (date < todayYmd()){ toast('Past plans are preserved.'); return; }

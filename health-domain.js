@@ -692,6 +692,66 @@ function unexcuseOcc(state, seriesId, date){
    Nothing is graded, done or skipped, and it is not a resolution: a carried one-off is back the next day. */
 function clearForDay(state, seriesId, date){ const o = ensureOcc(state, seriesId, date); if (o.status || o.removed) return null; o.cleared = true; touch(o); return o; }
 function unclearForDay(state, seriesId, date){ const k = occKey(seriesId, date), o = state.occurrences[k]; if (!o || !o.cleared) return null; delete o.cleared; touch(o); pruneOcc(state, k); return o; }
+/* ---- BK run 1 block B (his answers, Oct 13): Delete both ways, Someday, Make it a Focus. All one transaction each; Undo restores the snapshot. ---- */
+// A Task and every step under it, by the series link and by any dated membership
+function bkFamilyIds(state, seriesId){
+  const ids = [seriesId];
+  for (let i = 0; i < ids.length; i++){ const p = state.series.find(x => x.id === ids[i]); const kids = new Set((p ? p.versions : []).flatMap(v => v.childIds || [])); for (const s of state.series) if ((s.parentId === ids[i] || kids.has(s.id)) && !ids.includes(s.id)) ids.push(s.id); }
+  return ids;
+}
+const bkHasPoints = (state, ids) => { const set = new Set(ids); return Object.values(state.occurrences).some(o => set.has(o.seriesId) && (o.status === 'done' || o.status === 'partial')) || Object.values((state.rewards && state.rewards.claims) || {}).some(c => set.has(c.seriesId)); };
+/* BK7-DELETE (his words: "if i have gotten points for it before then it should just delete that day and future, but if its never been done then yes
+   everyday including past"). The whole item: with points (a done, a partial or a claim) it stops from that day, and a later day with an entry keeps it;
+   never done, it and its steps are removed from every day, past included (its open, skipped or moved days go with it). */
+function bkDeleteItem(state, seriesId, date){
+  const ids = bkFamilyIds(state, seriesId), set = new Set(ids); if (!state.series.some(x => x.id === seriesId)) return {ok:false, error:'This item no longer exists.'};
+  if (bkHasPoints(state, ids)){
+    let from = date; for (const o of Object.values(state.occurrences)) if (set.has(o.seriesId) && o.date >= from && o.status) from = addDays(o.date, 1);
+    for (const id of ids){ const x = state.series.find(z => z.id === id); if (x && !(x.archivedAt && x.archivedAt <= from)) x.archivedAt = from; }
+    return {ok:true, kind:'from', from, n:ids.length};
+  }
+  state.series = state.series.filter(x => !set.has(x.id));
+  for (const x of state.series) for (const v of x.versions) if (Array.isArray(v.childIds) && v.childIds.some(id => set.has(id))) v.childIds = v.childIds.filter(id => !set.has(id));
+  for (const [k, o] of Object.entries(state.occurrences)) if (set.has(o.seriesId)) delete state.occurrences[k];
+  for (const id of ids){ if (state.goalEntries) delete state.goalEntries[id]; if (state.reminders) delete state.reminders[id]; }
+  return {ok:true, kind:'all', n:ids.length};
+}
+// Just this day: each open step (or the item) leaves that one day; a day's entry stays where it happened
+function bkDeleteDay(state, seriesId, date){
+  let n = 0, kept = 0;
+  for (const id of bkFamilyIds(state, seriesId)){ const x = state.series.find(z => z.id === id), v = x && versionFor(x, date); if (!v || (v.childIds && v.childIds.length)) continue; const o = state.occurrences[occKey(id, date)]; if (o && o.status){ kept++; continue; } if (removeOcc(state, id, date)) n++; }
+  return {ok:n > 0, n, kept};
+}
+/* BK4 (his words: "as long as that they are still in the right focus and domain but signify someday"): a one-off with no date. It keeps its Focus and
+   Domain, is on no day (needsDate, as an unset "I set each date"), so it is never graded or carried; it waits on the Someday strip until he dates it. */
+function bkSetSomeday(state, seriesId, from, on, date){
+  const ids = bkFamilyIds(state, seriesId);
+  for (const id of ids){ const x = state.series.find(z => z.id === id), v = x && (versionFor(x, from) || latestVersion(x)); if (!v) continue; const r = v.recurrence || {};
+    if (on && r.kind !== 'once') return {ok:false, error:'Only a one-off can wait for Someday.'}; }
+  for (const id of ids){ const x = state.series.find(z => z.id === id); if (!x || (x.archivedAt && x.archivedAt <= from)) continue; const base = versionFor(x, from) || latestVersion(x);
+    const changes = on ? {someday:true, needsDate:true, recurrence:{kind:'once', date:from}} : {someday:false, needsDate:false, recurrence:{kind:'once', date}};
+    const v = versionFrom({...base, ...changes}, latestVersion(x).version + 1, from); x.versions.push(v); }
+  return {ok:true, n:ids.length};
+}
+/* BK5 (his yes, Oct 13): Make it a Focus. A new Focus in the Task's own Domain (or one he picks there, to merge); the steps become its items and keep
+   every entry and point (their own series move, dated from that day); a step whose name is already an item there is merged: that copy stops from that
+   day, its history kept. A Task with no steps moves itself. The emptied Task stops from that day. */
+function bkMakeFocus(state, seriesId, date, opts){
+  opts = opts || {}; const s = state.series.find(x => x.id === seriesId), v = s && (versionFor(s, date) || latestVersion(s)); if (!s || !v) return {ok:false, error:'This item no longer exists.'};
+  const dom = gradeGroupUmbrella(state, wsGroup(s, date)) || 'home'; let g = opts.intoGid ? groupById(state, opts.intoGid) : null;
+  if (!g){ const name = String(opts.name || v.name || '').trim().slice(0, 40); if (!name) return {ok:false, error:'Name the Focus.'};
+    g = (state.groups || []).find(x => !x.hidden && x.name.trim().toLowerCase() === name.toLowerCase() && gradeGroupUmbrella(state, x.id) === dom) || null;
+    if (!g){ g = addGroup(state, name); g.umbrella = gradeStoredUmbrella(dom); const sis = state.groups.filter(x => x.id !== g.id && gradeGroupUmbrella(state, x.id) === dom && Number.isFinite(x.order)); if (sis.length) g.order = Math.max(...sis.map(x => x.order)) + 0.5; } }
+  const kids = (v.childIds || []).filter(id => state.series.some(x => x.id === id && !(x.archivedAt && x.archivedAt <= date)));
+  const here = new Set(state.series.filter(x => x.id !== seriesId && !kids.includes(x.id) && !x.archivedAt && !x.demo && versionFor(x, date) && !parentFor(x, date) && wsGroup(x, date) === g.id).map(x => String(versionFor(x, date).name || '').trim().toLowerCase()));
+  let moved = 0, merged = 0;
+  for (const id of kids.length ? kids : [seriesId]){ const c = state.series.find(x => x.id === id), cv = versionFor(c, date) || latestVersion(c), nm = String(cv.name || '').trim().toLowerCase();
+    if (here.has(nm)){ c.archivedAt = date; merged++; continue; }
+    if (kids.length && parentFor(c, date)) wsMove(state, id, null, date);
+    wsRevise(state, id, {category:g.id}, date); c.category = g.id; here.add(nm); moved++; }
+  if (kids.length) s.archivedAt = date;
+  return {ok:true, group:g, moved, merged};
+}
 function notToday(state, seriesId, date){
   if (dailyItem(state, seriesId, date)) return { ok:false, error:'A daily item is marked Skipped instead.' };
   const s = state.series.find(x => x.id === seriesId), v = s && versionFor(s, date);
