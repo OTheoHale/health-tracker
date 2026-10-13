@@ -746,6 +746,21 @@ function bkSetSomeday(state, seriesId, from, on, date){
     const v = versionFrom({...base, ...changes}, latestVersion(x).version + 1, from); x.versions.push(v); }
   return {ok:true, n:ids.ids.length};
 }
+/* BK14 (his yes, Oct 13, 1:54 PM): "Someday this month" for a week's or month's goal (Mind RX). Every open day left in its period is cleared with an
+   sdPeriod mark, so it leaves the day lists, Up next and Template and waits in its card's Someday group; nothing is graded differently, so a missed
+   period still shows in that Week or Month grade. Give it a date takes the marks off and places it on that day; the next period has no marks. */
+function bkPeriodOf(state, seriesId, date){ let q = null; try { q = targetProgress(state, seriesId, date); } catch (_) {} return q && validCalendarDate(q.from) && validCalendarDate(q.to) && q.to >= date ? q : null; }
+function bkSomedayPeriod(state, seriesId, date, on, to){
+  const q = bkPeriodOf(state, seriesId, date); if (!q) return {ok:false, error:'Only a week’s or month’s goal can wait for Someday this period.'};
+  let n = 0;
+  for (let d = date; d <= q.to; d = addDays(d, 1)){ const k = occKey(seriesId, d), o = state.occurrences[k];
+    if (on){ if (o && (o.status || o.removed)) continue; const x = ensureOcc(state, seriesId, d); x.cleared = true; x.sdPeriod = true; x.committed = false; touch(x); n++; }
+    else if (o && o.sdPeriod){ delete o.sdPeriod; delete o.cleared; touch(o); pruneOcc(state, k); n++; } }
+  if (on) return n ? {ok:true, n, to:q.to} : {ok:false, error:'Nothing open left this period.'};
+  if (to){ if (to < date || to > q.to) return {ok:false, error:'Pick a day from ' + date + ' to ' + q.to + '.'}; const w = wsCommitOn(state, seriesId, to, true); if (!w || !w.ok) return w || {ok:false, error:'It cannot go on that day.'}; }
+  return {ok:true, n, to:q.to};
+}
+function bkSomedayPeriodOn(state, seriesId, date){ const o = state.occurrences[occKey(seriesId, date)]; return !!(o && o.sdPeriod && o.cleared); }
 /* BK5 (his yes, Oct 13): Make it a Focus. A new Focus in the Task's own Domain (or one he picks there, to merge); the steps become its items and keep
    every entry and point (their own series move, dated from that day); a step whose name is already an item there is merged: that copy stops from that
    day, its history kept. A Task with no steps moves itself. The emptied Task stops from that day. */
