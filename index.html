@@ -1246,6 +1246,7 @@ body[data-area="home"] .topbar .t,body[data-area="home"] .topbar{margin-bottom:1
 .cweek>summary,.cday>summary{cursor:pointer;padding:6px 2px}.cweek>summary b{font-weight:700}.cday{margin-left:14px}.cmini{padding:4px 2px;border-top:1px solid var(--line)}.cmini-top{display:flex;align-items:center;gap:8px;font-size:13px}.cmini-top b{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cmini-top small{color:var(--faint);font-variant-numeric:tabular-nums}.cmini details>summary{font-size:11.5px;color:var(--faint);cursor:pointer}
 .today-wk-n{font-size:11.5px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums;min-height:16px}
 /* BK8: Week dims the days after today (not counted); Day draws the one selected day, centred */
+.q-week-goals{margin:0 0 18px}   /* BK12 */
 .today-wk.future{opacity:.38}.today-wk.future .today-wk-c{background:transparent;box-shadow:inset 0 0 0 1px var(--line)}
 .today-weekcard.one-day .today-week{max-width:132px;margin:0 auto}
 .today-wk-c.has{color:#06140e}.today-wk.empty .today-wk-c{box-shadow:inset 0 0 0 1px var(--line)}.today-wk.on .today-wk-c{box-shadow:0 0 0 2px var(--brass)}.today-wk.on .today-wk-l{color:var(--brass-ink)}
@@ -2150,7 +2151,7 @@ addEventListener('load', () => {
   function dayClose(st){ const dc = (st.prefs && st.prefs.dayClose) || {}; return {closed:dc.closed || {}, reopened:dc.reopened || {}}; }
   function dayClosed(st, date){ if (!date) return false; const dc = dayClose(st); if (dc.reopened[date]) return false; if (dc.closed[date]) return true; return calendarDistance(date, todayYmd()) > CLOSE_AFTER_DAYS; }
   function dayClosesIn(st, date){ return dayClosed(st, date) ? 0 : CLOSE_AFTER_DAYS + 1 - calendarDistance(date, todayYmd()); }
-  function closedWord(date){ return 'Closed · ' + medDate(date) + ' is read-only. Reopen it from Quests → Review.'; }
+  function closedWord(date){ return 'Closed · ' + medDate(date) + ' is read-only. Reopen it from Quests → Close out.'; }
   // V3.4 (S7): display-only steps (a sweep) join the same Undo. Each remembers how deep the record's stack was when it
   // happened, so Undo always takes back the newest step of either kind.
   const uiUndo = [];
@@ -3172,7 +3173,7 @@ addEventListener('load', () => {
       (s !== null ? chip('clear', 'Clear', false) : '') + '</div>';
     const line = '<div class="fields rd-line"><div class="mins"><label for="m-' + k + '">Minutes</label><input id="m-' + k + '" type="number" inputmode="numeric" min="0" step="1" value="' + (r.actualMinutes === null || r.actualMinutes === undefined ? '' : r.actualMinutes) + '"></div><div class="note"><label for="n-' + k + '">Note</label><input id="n-' + k + '" type="text" maxlength="140" value="' + esc(r.note || '') + '"></div><button class="save" data-act="saveDetail">Save</button></div>';
     const acts = '<div class="rd-acts">' + (!past && s === null ? '<button type="button" class="k-btn" data-act="rowMove" data-to="' + addDays(date, 1) + '">Move to ' + (date === today ? 'tomorrow' : esc(medDate(addDays(date, 1)))) + '</button><label class="k-btn rd-pick">A date<input type="date" class="row-move-date" min="' + today + '" aria-label="Move ' + esc(r.name) + ' to a date"></label>' : '') +
-      (past && s === null ? '<button type="button" class="k-btn" data-act="rowMoveToday">Move to today</button>' : '') + '<button type="button" class="k-btn" data-act="wsHierarchyEdit">Edit</button>' + (s === 'done' || s === 'tentative' ? '<button type="button" class="k-btn" data-act="reviewAction">Review</button>' : '') + '</div>';
+      (past && s === null ? '<button type="button" class="k-btn" data-act="rowMoveToday">Move to today</button>' : '') + '<button type="button" class="k-btn" data-act="wsHierarchyEdit">Edit</button>' + (s === 'done' || s === 'tentative' ? '<button type="button" class="k-btn" data-act="reviewAction">Change status</button>' : '') + '</div>';
     const more = past ? '' : '<details class="rd-more"><summary>More</summary>' + segHTML(r, false) + '<div class="form rd-form"><div><label for="day-target">Target for this day</label><input id="day-target" type="text" maxlength="80" value="' + esc(r.target ? r.target.label : '') + '"></div><div><label for="day-time">Time for this day</label><input id="day-time" type="text" maxlength="30" value="' + esc(r.window || '') + '"></div></div><div class="acts"><button data-act="dayTarget">Save day adjustment</button>' + (s === null ? '<button class="ghost" data-act="remove">Take off this day</button>' : '') + '</div></details>';
     return '<div class="row-details" data-parity="AY1-DETAILS"><div class="rd-head">' + (target ? '<span class="rd-target">' + esc(date === today ? 'Today: ' : medDate(date) + ': ') + esc(target) + '</span>' : '<span class="rd-target">' + esc(medDate(date)) + '</span>') + '<button type="button" class="k-icon-btn rd-close" data-act="closePanel" aria-label="Close details">✕</button></div>' + chips + line + acts + more + '</div>';
   }
@@ -5295,7 +5296,7 @@ addEventListener('load', () => {
     const checkRow = r => '<div class="rv-row" data-series="' + esc(r.seriesId) + '" data-date="' + esc(on) + '"><button class="cb" data-act="rvDone" data-series="' + esc(r.seriesId) + '" data-date="' + esc(on) + '" aria-label="Done: ' + esc(r.name) + '"' + (on > today ? ' disabled' : '') + '></button><span><b>' + esc(r.name) + '</b><small>' + esc(groupName(r.group)) + '</small></span><button type="button" class="row-act skip" data-act="rvSkip" data-series="' + esc(r.seriesId) + '" data-date="' + esc(on) + '" aria-label="Skip: ' + esc(r.name) + '" title="Skip · didn’t do it"' + (on > today ? ' disabled' : '') + '>' + ROW_ICONS.skip + '</button></div>';
     const placeRow = x => { const days = []; for (let d = on > today ? on : today, n = 0; d <= x.q.to && n < 7; d = addDays(d, 1), n++) days.push(d);
       return '<div class="rv-row rv-place" data-series="' + esc(x.row.seriesId) + '" data-date="' + esc(on) + '" data-to="' + esc(x.q.to) + '"><span><b>' + esc(x.row.name) + '</b><small>' + x.q.count + ' of ' + x.q.target + ' · ' + esc(groupName(x.row.group)) + ' · by ' + esc(medDate(x.q.to)) + '</small></span><span class="rv-days">' + days.map(d => '<button type="button" class="rep-chip" data-act="rvPlace" data-series="' + esc(x.row.seriesId) + '" data-on="' + esc(d) + '" aria-label="Place ' + esc(x.row.name) + ' on ' + esc(medDate(d)) + '">' + esc(d === today ? 'Today' : new Date(d + 'T12:00:00').toLocaleDateString(undefined, {weekday:'short'})) + '</button>').join('') + (calendarDistance(on, x.q.to) > 6 ? '<span class="rv-date"><input type="date" min="' + esc(today) + '" max="' + esc(x.q.to) + '" aria-label="A date for ' + esc(x.row.name) + '"><button type="button" class="rep-chip" data-act="rvPlaceDate" data-series="' + esc(x.row.seriesId) + '">Place</button></span>' : '') + '<button type="button" class="link" data-act="rvSkipPlace" data-series="' + esc(x.row.seriesId) + '">Skip placing</button></span></div>'; };
-    return '<h2 id="workspaceReviewTitle" tabindex="-1">Review · ' + esc(medDate(on)) + '</h2><p class="hint">Check off what you did, then give the week’s and the month’s items a day, or skip placing for now.</p>' +
+    return '<h2 id="workspaceReviewTitle" tabindex="-1">Close out · ' + esc(medDate(on)) + '</h2><p class="hint">Check off what you did, then give the week’s and the month’s items a day, or skip placing for now.</p>' +
       '<p class="cap">Today · ' + done + ' done' + (skipped ? ', ' + skipped + ' skipped' : '') + ', ' + open.length + ' open</p>' + (open.length ? open.map(checkRow).join('') : '<p class="hint keep">Everything due today has an entry.</p>') +
       '<p class="cap">Place this week and this month · ' + waiting.length + ' waiting</p>' + (waiting.length ? waiting.map(placeRow).join('') : '<p class="hint keep">Nothing waiting to be placed.</p>') +
       '<div class="acts"><button class="save" data-act="wsReviewCancel">Done</button></div>';
@@ -5306,7 +5307,7 @@ addEventListener('load', () => {
   function dayCountRow(st, r){ return !(r.carriedFrom && !r.status) && cadenceOf(r) === 'daily'; }
   function soFarCard(withClaim){
     const st = S(), all = onDayRows(st, day), rows = all.filter(r => dayCountRow(st, r)), asked = rows.filter(r => r.status || dueOn(st, r, day)), done = rows.filter(r => r.status === 'done' || (r.status !== 'skipped' && wsMeasuredDone(st, r, day))).length,   /* AR1 */ total = Math.max(asked.length, done), pct = total ? Math.round(100 * done / total) : 0, nxt = nextAction(all), words = narrateDay(st, day, todayYmd());
-    return '<section class="panelcard sofar" data-feedback-id="day-narration" data-feedback-label="So Far" data-tidy="keep"><div class="ph"><h2>So Far</h2>' + infoBtn('sofar', 'So Far') + '<button class="link sofar-review" data-act="reviewPass" title="Check things off and place the week’s items on the days you choose">Review</button><span class="sofar-count" data-done="' + done + '" data-total="' + total + '" title="Items due on this day, done or not">' + done + ' of ' + total + ' due</span></div>' + infoPop('sofar', words.text + ' ' + words.basis) + '<p class="sofar-line"><b>' + done + ' done</b>' + (nxt ? ' · ' + esc(nxt.name) + ' next' : total ? ' · nothing left' : '') + '</p><div class="sofar-bar" role="img" aria-label="' + done + ' of ' + total + ' done"><i style="width:' + pct + '%"></i></div>' + (withClaim ? claimChipHTML(st) : '') + '</section>';   // Fix M2: the same gold Claim chip on Quests' So Far card, only when points are ready
+    return '<section class="panelcard sofar" data-feedback-id="day-narration" data-feedback-label="So Far" data-tidy="keep"><div class="ph"><h2>So Far</h2>' + infoBtn('sofar', 'So Far') + '<button class="link sofar-review" data-act="reviewPass" title="Close out the day: check things off and place the week’s items on the days you choose">Close out</button><span class="sofar-count" data-done="' + done + '" data-total="' + total + '" title="Items due on this day, done or not">' + done + ' of ' + total + ' due</span></div>' + infoPop('sofar', words.text + ' ' + words.basis) + '<p class="sofar-line"><b>' + done + ' done</b>' + (nxt ? ' · ' + esc(nxt.name) + ' next' : total ? ' · nothing left' : '') + '</p><div class="sofar-bar" role="img" aria-label="' + done + ' of ' + total + ' done"><i style="width:' + pct + '%"></i></div>' + (withClaim ? claimChipHTML(st) : '') + '</section>';   // Fix M2: the same gold Claim chip on Quests' So Far card, only when points are ready
   }
   function claimChipHTML(st){ const lvl = readyToClaim(st); return lvl && lvl.points ? '<button class="k-chip gold today-claim-chip" data-act="claimAll">Claim ' + (Math.round(lvl.points * 100) / 100).toLocaleString() + '</button>' : ''; }
   function laterCard(){
@@ -6709,7 +6710,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
      routines, reminders, programs from other apps) stays one tap away behind ⋯ (ASSUMED QUESTS-51). ---------- */
   let questTab = 'activities', questUmbrella = 'all';
   const questSwept = new Set();   // days whose finished cards are swept out of view (display only, C-13)
-  const QUEST_TABS = [['activities','Activities','📋'],['week','Week','🗓️'],['review','Review','🔎']];
+  const QUEST_TABS = [['activities','Activities','📋'],['week','Week','🗓️'],['review','Close out','🔎']];   // BK11: the sidebar's Review is the one Review
   function questDayNav(){
     const st = S(), closed = dayClosed(st, day), left = dayClosesIn(st, day), today = todayYmd();
     const word = day === today ? 'Today' : day === addDays(today, -1) ? 'Yesterday' : day === addDays(today, 1) ? 'Tomorrow' : '';
@@ -6751,13 +6752,14 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const items = templateLayout(st) === 'v33' ? templateItems(st, day) : {weekly:[], monthly:[]}, waiting = items.weekly.concat(items.monthly).filter(x => !x.met && !x.placed.length);
     const placeable = '<section class="panelcard q-place" data-feedback-id="quests-week-place" data-feedback-label="Place this week" data-parity="QUESTS-WEEK-PLACE"><div class="ph"><h2>Place This Week</h2>' + infoBtn('qplace', 'Place this week') + '<span class="k-chip gold">' + waiting.length + '</span></div>' + infoPop('qplace', 'Weekly and monthly items not yet on a day. Drag one onto a day above, or press a day.') +
       (waiting.length ? waiting.map(x => '<div class="q-prow due-row" draggable="true" data-series="' + esc(x.row.seriesId) + '" data-date="' + esc(day) + '" data-week-item="1" style="--category:' + categoryColor(x.row.group) + '"><span><b>' + esc(x.row.name) + '</b><small>' + x.q.count + ' of ' + x.q.target + '</small></span><span class="q-pdays">' + days.filter(d => d >= today && d <= x.q.to).map(d => '<button class="rep-chip" data-act="rvPlace" data-series="' + esc(x.row.seriesId) + '" data-on="' + d + '" aria-label="Place ' + esc(x.row.name) + ' on ' + esc(medDate(d)) + '">' + esc(new Date(d + 'T12:00:00').toLocaleDateString('en-US', {weekday:'narrow'})) + '</button>').join('') + '</span></div>').join('') : '<p class="hint keep">Everything this week asks is on a day.</p>') + '</section>';
-    return board + placeable + '<div class="cols2">' + claimHistoryCard(st, start, Object.fromEntries(days.filter(d => d <= today).map(d => [d, perfectDay(st, d)]))) + '<div data-parity="TODAY-13">' + goalRailSection(day) + '</div></div>';
+    /* BK12 (his words, Oct 13: "make sure its in its own row above the one to the left of it so that its not squished"): the This Week mini cards take a full-width row above Claims This Week */
+    return board + placeable + '<div class="q-week-goals" data-parity="TODAY-13">' + goalRailSection(day) + '</div>' + claimHistoryCard(st, start, Object.fromEntries(days.filter(d => d <= today).map(d => [d, perfectDay(st, d)])));
   }
   // Q8: Review replaces Agenda. The open items with Skip, the week's and month's items waiting for a day, and Close day.
   function questReview(){
     const st = S(), closed = dayClosed(st, day), html = reviewPassHTML().replace(/<div class="acts"><button class="save" data-act="wsReviewCancel">Done<\/button><\/div>$/, '');
     const close = day > todayYmd() ? '' : closed ? '<button class="k-btn" data-act="dayReopen" data-date="' + esc(day) + '">🔓 Reopen ' + esc(medDate(day)) + '</button>' : '<button class="save" data-act="dayClose" data-date="' + esc(day) + '" data-parity="QUESTS-CLOSE">Close day</button>';
-    return questDayNav() + '<section class="panelcard q-review" data-feedback-id="quests-review" data-feedback-label="Review" data-parity="QUESTS-11">' + html + '<div class="acts">' + close + '</div></section>';
+    return questDayNav() + '<section class="panelcard q-review" data-feedback-id="quests-review" data-feedback-label="Close out" data-parity="QUESTS-11">' + html + '<div class="acts">' + close + '</div></section>';
   }
   function renderPlan(){
     if (questTab === 'plans') return '<div class="q-head"><button class="k-btn" data-act="questTab" data-tab="activities">‹ Activities</button></div>' + renderPlanClassic();
@@ -9964,6 +9966,27 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       (variants ? '<p class="hint keep">Dated versions, kept as they are: ' + esc(variants) + '.</p>' : '') + '</div></details>';
   }
   document.addEventListener('toggle', e => { const d = e.target; if (composer && d && d.matches && d.matches('details.cmp-editmore')) composer.emOpen = d.open; }, true);
+  /* BK1 (his words, Oct 13: "did you catch that thing about the elipses options being behind the glass cards?"): an open ⋯ menu is lifted to a holder
+     on the page itself (it carries the row's series, date and key, so every action reads its row as before), placed under its button or flipped above
+     it when there is not room below, always inside the window, over every card. It goes back when the menu closes, an action is picked, the page
+     scrolls, resizes or redraws. */
+  let menuLift = null;
+  function menuLiftClose(){ if (!menuLift) return; const {holder, menu, details, tick} = menuLift; menuLift = null; clearInterval(tick); menu.style.cssText = ''; if (details.isConnected) details.appendChild(menu); holder.remove(); if (details.open) details.open = false; }
+  document.addEventListener('toggle', e => { const d = e.target; if (!d || !d.matches || !d.matches('details.more, details.q-more')) return;
+    if (!d.open){ if (menuLift && menuLift.details === d) menuLiftClose(); return; }
+    const menu = d.querySelector(':scope > .more-menu'), sum = d.querySelector(':scope > summary'); if (!menu || !sum) return; menuLiftClose();
+    const row = d.closest('[data-series]'), holder = document.createElement('div'); holder.className = 'menu-lift'; if (row) for (const k of ['series', 'date', 'key']) if (row.dataset[k]) holder.dataset[k] = row.dataset[k];
+    document.body.appendChild(holder); holder.appendChild(menu); menuLift = {holder, menu, details:d, tick:setInterval(() => { if (menuLift && !menuLift.details.isConnected) menuLiftClose(); }, 400)};   // a redraw that replaces the row takes the menu away too
+    const r = sum.getBoundingClientRect(), vw = innerWidth, vh = innerHeight; menu.style.cssText = 'position:fixed;visibility:hidden;left:0;top:0;right:auto;z-index:9000;max-height:' + (vh - 16) + 'px;overflow:auto';
+    const mw = menu.offsetWidth, mh = Math.min(menu.offsetHeight, vh - 16), left = Math.max(8, Math.min(r.right - mw, vw - mw - 8)), roomBelow = vh - r.bottom - 8, up = roomBelow < mh + 4 && r.top - 8 > roomBelow;
+    const top = up ? Math.max(8, r.top - mh - 4) : Math.max(8, Math.min(r.bottom + 4, vh - mh - 8));
+    menu.style.left = left + 'px'; menu.style.top = top + 'px'; menu.style.visibility = ''; menu.classList.toggle('flipped', up); }, true);
+  addEventListener('scroll', e => { if (menuLift && !(e.target && e.target.nodeType === 1 && menuLift.menu.contains(e.target))) menuLiftClose(); }, true);
+  addEventListener('resize', () => menuLiftClose());
+  document.addEventListener('click', e => { if (!menuLift) return; const inMenu = menuLift.menu.contains(e.target);
+    if (!inMenu && !menuLift.details.contains(e.target)){ menuLiftClose(); return; }
+    if (inMenu && e.target.closest && e.target.closest('[data-act]')) setTimeout(menuLiftClose, 0);
+    setTimeout(() => { if (menuLift && !menuLift.details.isConnected) menuLiftClose(); }, 0); });
   function editRecurrence(c, base, from){
     const r0 = base.recurrence || {}, int = (x, lo, hi, def) => { const n = Math.round(+x); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : def; };
     const carry = {...(String(c.session || '').trim() ? {session:String(c.session).trim()} : {session:''}), ...(Array.isArray(r0.variants) && r0.variants.length ? {variants:r0.variants} : {})};
@@ -10217,13 +10240,22 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const st = S(), date = n.date || day, today = todayYmd(), future = date > today, past = date < today, container = Array.isArray(n.children) && n.children.length > 0;
     const occOf = r => r.occurrence || st.occurrences[r.key || occKey(r.seriesId, r.date || date)] || null;
     const leaves = container ? leafRows(n.children) : [n], open = leaves.filter(r => !r.status && !(occOf(r) && occOf(r).disposition));
-    const KEYS = {skip:'sk', rm:'rm', pt:'pt', del:'del', move:'mv', clr:'clr', st:'st', sd:'sd', mf:'mf', dd:'dd', da:'da'}, btn = (act, cls, title, icon, extra) => asMenu ? '<button type="button" class="link row-menu-act" data-act="' + act + '"' + (extra || '') + ' data-key="' + KEYS[cls.split(' ')[0]] + '">' + icon + '<span>' + esc(title.split(' · ')[0]) + '</span></button>' : '<button type="button" class="row-act ' + cls + '" data-act="' + act + '"' + (extra || '') + ' data-key="' + KEYS[cls.split(' ')[0]] + '" aria-label="' + esc(title + ': ' + label) + '" title="' + esc(title) + '">' + icon + '</button>';
+    const KEYS = {skip:'sk', rm:'rm', pt:'pt', del:'del', move:'mv', clr:'clr', dn:'dn', ex:'ex', tp:'tp', st:'st', sd:'sd', mf:'mf', dd:'dd', da:'da'}, btn = (act, cls, title, icon, extra) => asMenu ? '<button type="button" class="link row-menu-act" data-act="' + act + '"' + (extra || '') + ' data-key="' + KEYS[cls.split(' ')[0]] + '">' + icon + '<span>' + esc(title.split(' · ')[0]) + '</span></button>' : '<button type="button" class="row-act ' + cls + '" data-act="' + act + '"' + (extra || '') + ' data-key="' + KEYS[cls.split(' ')[0]] + '" aria-label="' + esc(title + ': ' + label) + '" title="' + esc(title) + '">' + icon + '</button>';
     let out = '';
-    if (!future && open.length) out += container ? btn('wsSkipRest', 'skip', 'Skip rest · ' + open.length + ' step' + (open.length === 1 ? '' : 's') + ' not yet marked', ROW_ICONS.skip) : btn('log', 'skip skip-x', 'Skip · didn’t do it', ROW_ICONS.skip, ' data-s="skipped"');
+    if (!future && open.length) out += container ? btn('wsSkipRest', 'skip', 'Skip rest · ' + open.length + ' step' + (open.length === 1 ? '' : 's') + ' not yet marked', ROW_ICONS.skip) : btn('log', 'skip skip-x', 'Skip · didn’t do it, counts', ROW_ICONS.skip, ' data-s="skipped"');
     if (!future && !container && open.length && itemKind(n) !== 'bar') out += btn('log', 'pt', 'Partially done · half credit', ROW_ICONS.partial, ' data-s="partial" data-quick="1"');
     if (!future && container && taskManualLeaves(st, n, date).some(x => !x.status)) out += btn('taskPartial', 'pt', 'Partially done · half credit on every open step', ROW_ICONS.partial);   // AS1
     if (past && open.length && !n.demo && !dayClosed(st, date) && open.some(x => !findPlanRow(st, x.seriesId, today))) out += btn('rowMoveToday', 'move', 'Move to today · ' + medDate(date) + ' keeps what it expected', ROW_ICONS.move);   // AR3
-    if (past && asMenu) out = '<p class="hint keep row-past-note">Past day: skip, partially done, or move to today. ' + esc(medDate(date)) + ' keeps what it expected.</p>' + out;
+    /* BK3 (his yes, Oct 13): a past day keeps every action needed to close it out: Done, Partly, Skip (didn't do it, counts), Exempt (doesn't count),
+       Move to today, Move to a date, Back to Template, Delete, Someday. A day closed after 3 days stays read-only until he reopens it (Close out). */
+    if (asMenu && !future && !container && open.length) out = btn('done', 'dn', 'Done', '<span aria-hidden="true">✓</span>') + out;
+    if (asMenu && !future && !container && open.length) out += btn('exempt', 'ex', 'Exempt · doesn’t count', '<span aria-hidden="true">—</span>');
+    if (asMenu && !future && !container && occOf(n) && occOf(n).disposition === 'excused') out += btn('unexcuse', 'ex', 'Count this day again', '<span aria-hidden="true">↺</span>');
+    if (past && asMenu && open.length && !n.demo && !dayClosed(st, date)){
+      if (!open.some(r => typeof dailyItem === 'function' && dailyItem(st, r.seriesId, date))) out += '<label class="link row-menu-act row-move-pick" data-key="mvd"><span>Move to a date</span><input type="date" class="row-move-date" min="' + today + '" aria-label="Move ' + esc(label) + ' to a date"></label>';
+      if (open.every(r => r.recurrence && r.recurrence.kind === 'target')) out += btn('wsRemoveToday', 'tp', 'Back to Template · it waits there for another day this week', ROW_ICONS.remove);
+    }
+    if (past && asMenu) out = '<p class="hint keep row-past-note">' + (dayClosed(st, date) ? 'Closed day: reopen it from Quests → Close out to change it.' : 'Past day: close it out. Skip counts as not done; Exempt does not count. ' + esc(medDate(date)) + ' keeps what it expected.') + '</p>' + out;
     if (!past){
       // Remove from Today: what has an entry stays where it happened; an item due by its last chance stays on the day.
       const removable = open.filter(r => { if (!(r.recurrence && r.recurrence.kind === 'target')) return true; const q = quotaOf(st, r, date); return !(q && SCORES_ON && GV.necessary({from:q.from, to:q.to, target:q.target, count:q.count, left:quotaChances(st, r.seriesId, date, q.to)}, date, false)); });
@@ -10253,7 +10285,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const st = S(), today = todayYmd();
     if (preview){ toast('Preview data is not saved.'); return; }
     if (!validCalendarDate(to)) return;
-    if (date < today){ toast('Past plans stay where they happened.'); return; }
+    if (date < today && dayClosed(st, date)){ toast(closedWord(date)); return; }   // BK3: an open past day can move a to-do or a week's item on; a daily habit is Skipped or Exempt instead
+    if (date < today && dailyItem(st, seriesId, date)){ toast('A daily habit stays on its day: Skip it (counts) or Exempt it (doesn’t count).'); return; }
     if (to < today){ toast('Pick today or a later day; past days keep what happened.'); return; }
     if (to === date){ toast('It is on ' + medDate(to) + ' already.'); return; }
     const r = findPlanRow(st, seriesId, date); if (!r){ toast('This item is not on that day.'); return; }
@@ -10273,7 +10306,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   // or one-off item leaves the day and waits under Template → Removed Today; a routine takes its open steps with it.
   function rowRemoveToday(st, seriesId, date){
     const r = seriesId ? findPlanRow(st, seriesId, date) : null; if (!r){ toast('This item is unavailable on that date.'); return false; }
-    if (date < todayYmd()){ toast('Past plans are preserved.'); return false; }
+    if (date < todayYmd() && (dayClosed(st, date) || !leafRows(r.children || [r]).every(x => x.status || (x.recurrence && x.recurrence.kind === 'target')))){ toast(dayClosed(st, date) ? closedWord(date) : 'Only a week’s item goes back to Template from a past day.'); return false; }   // BK3
     stage(st, 'remove'); let n = 0, placed = 0;
     for (const x of leafRows(r.children || [r])){ if (x.status) continue; const o = st.occurrences[x.key];
       if (x.recurrence && x.recurrence.kind === 'target' && o && o.committed && !o.added){ o.committed = false; o.updatedAt = nowIso(); placed++; n++; }
