@@ -724,14 +724,27 @@ function bkDeleteDay(state, seriesId, date){
 }
 /* BK4 (his words: "as long as that they are still in the right focus and domain but signify someday"): a one-off with no date. It keeps its Focus and
    Domain, is on no day (needsDate, as an unset "I set each date"), so it is never graded or carried; it waits on the Someday strip until he dates it. */
+/* BK run 2 block F (planner, Oct 13): Someday also on a Task with steps and on one step. A step already marked keeps its day. His Mentorship is a holder
+   that repeats every day, with Shuang (a one-off) and Network (repeats every day) under it: a repeating item can wait for Someday only if it was never
+   done (no entry, no points) and is not a week's or month's goal (that question is open with him), so a routine (Body, Morning) and a habit with history never offer it; it becomes a one-off with no date from that day. */
+function bkSomedayPlan(state, seriesId, from){
+  const ids = bkFamilyIds(state, seriesId), flip = [];
+  for (const id of ids){ const x = state.series.find(z => z.id === id), v = x && (versionFor(x, from) || latestVersion(x)); if (!v || (x.archivedAt && x.archivedAt <= from) || v.someday) continue;
+    const r = v.recurrence || {}, once = r.kind === 'once' && !(v.cal && v.cal.kind === 'event'), holder = Array.isArray(v.childIds) && v.childIds.length > 0;
+    if (v.cal && v.cal.kind === 'event') return {ok:false, error:'An Event keeps its date.'};
+    if (!once && (v.goal || r.kind === 'target' || bkHasPoints(state, holder ? ids : [id]))) return {ok:false, error:'Only a one-off, or something never done yet, can wait for Someday' + (id === seriesId ? '.' : ': “' + v.name + '” repeats and has entries.')};
+    if (holder){ flip.push(id); continue; }
+    const o = once && validCalendarDate(r.date) && !v.needsDate ? state.occurrences[occKey(id, r.date)] : null; if (o && o.status) continue;
+    flip.push(id); }
+  return flip.some(id => { const x = state.series.find(z => z.id === id), v = versionFor(x, from) || latestVersion(x); return !(Array.isArray(v.childIds) && v.childIds.length); }) ? {ok:true, ids:flip} : {ok:false, error:'Nothing open here to wait for Someday.'};
+}
 function bkSetSomeday(state, seriesId, from, on, date){
-  const ids = bkFamilyIds(state, seriesId);
-  for (const id of ids){ const x = state.series.find(z => z.id === id), v = x && (versionFor(x, from) || latestVersion(x)); if (!v) continue; const r = v.recurrence || {};
-    if (on && r.kind !== 'once') return {ok:false, error:'Only a one-off can wait for Someday.'}; }
-  for (const id of ids){ const x = state.series.find(z => z.id === id); if (!x || (x.archivedAt && x.archivedAt <= from)) continue; const base = versionFor(x, from) || latestVersion(x);
+  const ids = on ? bkSomedayPlan(state, seriesId, from) : {ok:true, ids:bkFamilyIds(state, seriesId).filter(id => { const x = state.series.find(z => z.id === id); return x && latestVersion(x).someday; })};
+  if (!ids.ok) return ids;
+  for (const id of ids.ids){ const x = state.series.find(z => z.id === id); if (!x || (x.archivedAt && x.archivedAt <= from)) continue; const base = versionFor(x, from) || latestVersion(x);
     const changes = on ? {someday:true, needsDate:true, recurrence:{kind:'once', date:from}} : {someday:false, needsDate:false, recurrence:{kind:'once', date}};
     const v = versionFrom({...base, ...changes}, latestVersion(x).version + 1, from); x.versions.push(v); }
-  return {ok:true, n:ids.length};
+  return {ok:true, n:ids.ids.length};
 }
 /* BK5 (his yes, Oct 13): Make it a Focus. A new Focus in the Task's own Domain (or one he picks there, to merge); the steps become its items and keep
    every entry and point (their own series move, dated from that day); a step whose name is already an item there is merged: that copy stops from that

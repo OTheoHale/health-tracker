@@ -1006,6 +1006,8 @@ details.fit-workouts>summary{display:flex;align-items:center;gap:10px;cursor:poi
 .cmp-row{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
 /* AG1: Edit is the composer; what only editing needs folds under More */
 .sd-card .sd-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0 6px 10px;border-top:1px solid var(--line);border-left:3px solid var(--category)}.sd-card .sd-row:first-of-type{border-top:0}.sd-card .sd-name{display:grid;flex:1 1 200px;min-width:0}.sd-card .sd-name small{color:var(--muted);font-size:12px}.sd-tag{display:inline-flex;padding:0 7px;margin-left:4px;border-radius:999px;border:1px solid color-mix(in srgb,var(--c-purple,#b69cf0) 55%,transparent);color:var(--c-purple,#b69cf0);font-size:11px;font-weight:600}.sd-card .k-head{display:flex;align-items:baseline;gap:10px;justify-content:space-between}.mkf-card .cmp-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}.mkf-card .acts{display:flex;gap:10px}   /* BK4, BK5 */
+.sd-compact{padding-top:10px;padding-bottom:10px}.sd-line{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}.sd-line .k-title{margin-right:4px}.sd-chip{font:inherit;font-size:13px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);border-left:3px solid var(--category);background:none;color:var(--ink);cursor:pointer;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sd-chip.on,.sd-chip:hover{background:color-mix(in srgb,var(--category) 14%,transparent)}.sd-note{color:var(--muted);font-size:12px;margin-left:auto}.sd-card .sd-pick,.sd-group .sd-pick{border-left:0;padding-left:0;margin-top:6px}.sd-pick{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.sd-pick .sd-date{font:inherit;font-size:13px;min-height:30px;width:auto;flex:0 0 auto}
+.sd-group{margin:8px 0 2px;border-top:1px dashed var(--line);padding-top:6px}.sd-group>summary{cursor:pointer;list-style:none;display:flex;align-items:baseline;gap:6px;color:var(--muted);font-size:13px;font-weight:600}.sd-group>summary::-webkit-details-marker{display:none}.sd-group>summary small{font-weight:400;font-size:12px}.sd-in{display:flex;align-items:center;gap:8px;padding:4px 0 4px 2px;opacity:.82}.sd-in .sd-name{display:flex;align-items:baseline;gap:6px;flex:1 1 auto;min-width:0}.sd-in .sd-name b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sd-in .sd-name b small,.sd-in .sd-name>small{color:var(--muted);font-weight:400;font-size:12px}.sd-in .link{font-size:12px;white-space:nowrap}.sd-in .sd-cb{flex:none;width:22px;height:22px;border:1.5px dashed var(--category,var(--line-strong));border-radius:50%;background:transparent;padding:0;cursor:pointer}.sd-in .sd-cb:hover{background:color-mix(in srgb,var(--category) 20%,transparent)}   /* BK4-INCARD */
 .nd-card .nd-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--line)}.nd-card .nd-row:first-of-type{border-top:0}.nd-card .nd-name{display:grid;flex:1 1 180px;min-width:0}.nd-card .nd-name small{color:var(--muted);font-size:12px}.nd-card .nd-date{font:inherit;font-size:13px;min-height:30px}
 .tpl-tabs{display:flex;gap:4px;margin:0 0 10px;padding:3px;border-radius:12px;background:var(--sunk)}.tpl-tab{flex:1;border:0;background:none;color:var(--muted);font:inherit;font-size:13px;font-weight:600;min-height:30px;border-radius:9px;cursor:pointer;white-space:nowrap}.tpl-tab[aria-selected="true"]{background:var(--panel-2);color:var(--ink)}.tpl-tab small{color:var(--faint);font-weight:500}
 .due-row{flex-wrap:wrap}.due-row>.tpl-go{flex:1 1 100%;display:flex!important;flex-direction:row;align-items:center;gap:6px;flex-wrap:wrap;margin:2px 0 0;min-width:0}.due-row>.tpl-go>*{flex:0 0 auto}.tpl-btn{border:1px solid var(--line);background:none;color:var(--ink);font:inherit;font-size:12.5px;min-height:28px;padding:0 10px;border-radius:9px;cursor:pointer}.tpl-btn:hover,.tpl-btn:focus-visible{border-color:var(--line-strong)}.tpl-pickwrap{position:relative;display:inline-flex}.tpl-pickwrap .tpl-pick-date{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}.tpl-pickwrap .tpl-pick-date.show{position:static;width:auto;height:auto;opacity:1;pointer-events:auto}.tpl-weekbar{display:flex;justify-content:flex-end;margin:-4px 0 4px}.tpl-gh{margin:8px 0 4px}
@@ -6735,7 +6737,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function questActivities(){
     const st = S(), swept = questSwept.has(day);
     const add = composer && composer.area === 'plan' ? composerHTML() : '<div class="q-add"><button class="q-addline" data-act="questAdd" data-parity="QUESTS-01"><span aria-hidden="true">＋</span>Add a task</button><button class="k-icon-btn q-sweep" data-act="questSweep" aria-pressed="' + swept + '" aria-label="' + (swept ? 'Show finished cards' : 'Sweep finished cards out of view') + '" title="' + (swept ? 'Show finished cards' : 'Sweep finished cards') + '" data-parity="QUESTS-13">🧹</button></div>';
-    return questDayNav() + dayEditor() + add + reorgNoticeHTML(st) + mkFocusHTML(st) + nextDatesCard(st) + somedayCard(st) + upcomingHTML(st) + gradeArea('plan', () => gradeHero(st) + gradeStrip(st), st)   /* BA10 (his words, Oct 9: "make sure that QUests and TOday have overall Grade"): the same Overall card as Today, same source and window */ + umbrellaChips(st) +
+    return questDayNav() + dayEditor() + add + reorgNoticeHTML(st) + mkFocusHTML(st) + nextDatesCard(st) + upcomingHTML(st) + gradeArea('plan', () => gradeHero(st) + gradeStrip(st), st)   /* BA10 (his words, Oct 9: "make sure that QUests and TOday have overall Grade"): the same Overall card as Today, same source and window */ + umbrellaChips(st) +
       (activitiesPending(st) && !(typeof structureV2Adopted === 'function' && structureV2Adopted(st)) ? scoringProposalCard() : '') +
       quickPanel() + wsActivities({includeClaims:false, umbrella:questUmbrella === 'all' ? null : questUmbrella, swept}) + removedFold(st);
   }
@@ -7783,7 +7785,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const focusRow = focusNew && !doms.some(u => u.id === focusNew.dom) ? focusNewHTML(focusNew.dom) : '';
     const sec = (id, title, count, body) => '<section class="panelcard tb-sec" data-feedback-id="template-page-' + id + '" data-feedback-label="Template · ' + title + '"><div class="ph"><h2>' + title + '</h2>' + (count !== '' ? '<span class="hint">' + count + '</span>' : '') + '</div>' + body + '</section>';
     if (!v33) return '<section class="panelcard"><p class="hint keep tpl-classic">Previous layout: weekly and monthly items stay on the day’s cards. <button class="link" data-act="templateV33">Use Template</button></p></section>';
-    return '<div class="tb-page" data-parity="BI2-PAGE"><div class="tb-head">' + chips + tools + '</div>' + focusRow + somedayCard(st) + planDraftHTML(st) +
+    return '<div class="tb-page" data-parity="BI2-PAGE"><div class="tb-head">' + chips + tools + '</div>' + focusRow + planDraftHTML(st) +
       '<section class="panelcard tb-board-card" data-feedback-id="template-page-week" data-feedback-label="Template · Week"><div class="ph"><h2>Week of ' + esc(medDate(start)) + '</h2><span class="hint">Drag an item onto a day, or tap a day’s +</span></div><div class="tb-board">' + days.map(col).join('') + '</div></section>' +
       '<div class="tb-shelf">' + sec('place', 'To place this week', openUnits.length ? openUnits.length : 'all placed', (openUnits.length ? openUnits.map(row).join('') : '<p class="hint keep">Everything due this week has a day or is done.</p>') + (doneUnits.length ? '<details class="tpl-section tpl-donefold" data-fold="tb-done"' + (foldPref('tb-done', false) ? ' open' : '') + '><summary><b>Placed or done</b><span class="hint">' + doneUnits.length + '</span></summary>' + doneUnits.map(row).join('') + '</details>' : '')) +
       '<div class="tb-side">' + sec('needdate', 'Needs a date', needDate.length || '', '<div class="nd-card nd-parked">' + ndBody + '</div>') + sec('saved', 'Saved', saved.length || '', savedBody) + '</div></div></div>';
@@ -8767,6 +8769,13 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   /* ---------- Daily Workspace candidate · projection contract v1 ---------- */
   const wsErrors = {};
   const wsCollapsed = new Set();
+  /* BK13 (Oct 13, planner's brief from his notes): a Task with steps is unfolded while a step is open and folds itself to one line when the last one
+     is marked; the caret folds or unfolds it any time, remembered per Task per day with the state it was chosen in, so marking the last step folds it
+     and undoing a step unfolds it again. A new day starts by the rule. */
+  const TASK_FOLD_KEY = 'health-tracker.taskFold';
+  function taskFoldAll(){ try { return JSON.parse(localStorage.getItem(TASK_FOLD_KEY) || '{}') || {}; } catch (_) { return {}; } }
+  function taskFoldGet(k){ return taskFoldAll()[k] || null; }
+  function taskFoldSet(k, v){ const all = taskFoldAll(), keep = addDays(todayYmd(), -7); for (const x of Object.keys(all)) if (x.slice(-10) < keep) delete all[x]; all[k] = v; try { localStorage.setItem(TASK_FOLD_KEY, JSON.stringify(all)); } catch (_) {} }
   let composer = null, wsPreview = null;
   const WSmod = () => (typeof Workspace === 'object' && Workspace) ? Workspace : null;
   const MWmod = () => (typeof MealWater === 'object' && MealWater) ? MealWater : null;
@@ -10073,17 +10082,28 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   const ndLater = new Set();
   function nextDateItems(st, all){   // BA6: all = including the ones he put off with Later (Template > Parked lists them)
     const today = todayYmd(), out = [];
-    for (const s of st.series || []){ if (s.demo || (s.archivedAt && s.archivedAt <= today)) continue; const v = versionFor(s, '9999-12-31'); if (!v || !v.setEach || !v.recurrence || v.recurrence.kind !== 'once') continue;
+    for (const s of st.series || []){ if (s.demo || (s.archivedAt && s.archivedAt <= today)) continue; const v = versionFor(s, '9999-12-31'); if (!v || !v.setEach || v.someday || !v.recurrence || v.recurrence.kind !== 'once') continue;   // BK run 2 F: a Someday item waits in its Focus card, not in Next dates
       const d = v.recurrence.date, o = st.occurrences[occKey(s.id, d)], happened = !!(o && o.status && !v.needsDate);
       if (!(v.needsDate || happened || d < today) || (!all && ndLater.has(s.id + '|' + (v.needsDate ? '' : d)))) continue;
       out.push({id:s.id, name:v.name, date:v.needsDate ? null : d, happened, status:o && o.status}); }
     return out;
   }
-  /* BK4: the Someday strip on Today, Quests and Template: each undated one-off with its Focus and Domain, a date to give it, and Edit */
-  function somedayItems(st){ return st.series.filter(x => !x.demo && !x.archivedAt && (() => { const v = latestVersion(x); return v && v.someday && v.needsDate && !v.parentId && !x.parentId; })()).map(x => { const v = latestVersion(x), gid = wsGroup(x, todayYmd()) || x.category, dom = GRADE_UMBRELLAS.find(u => u.id === gradeGroupUmbrella(S(), gid)); return {id:x.id, name:v.name, gid, focus:groupName(gid) || '', dom:dom ? dom.emoji + ' ' + dom.name : '', steps:(v.childIds || []).length}; }); }
-  function somedayCard(st){
+  /* BK4: Someday items: each undated one-off with its Focus and Domain. BK4-INCARD (his words, Oct 13: "those things that are someday should still be in
+     their own focus but just let me pick from there"): on Quests each waits in a quiet Someday group at the bottom of its own Focus card; on Today they
+     are one compact line (planner's default). A step waits on its own ("Mentorship › Shuang") unless its whole Task waits. */
+  let sdPick = null;   // the Someday item whose date picker is open
+  function somedayItems(st){ const today = todayYmd(), sd = x => { const v = latestVersion(x); return !!(v && v.someday && v.needsDate); };
+    return st.series.filter(x => !x.demo && !(x.archivedAt && x.archivedAt <= today) && sd(x) && (() => { const pid = parentFor(x, '9999-12-31'), p = pid && st.series.find(z => z.id === pid); return !(p && sd(p)); })()).map(x => { const v = latestVersion(x), pid = parentFor(x, '9999-12-31'), p = pid && st.series.find(z => z.id === pid), gid = (p ? wsGroup(p, today) || p.category : null) || wsGroup(x, today) || x.category, dom = GRADE_UMBRELLAS.find(u => u.id === gradeGroupUmbrella(S(), gid)); return {id:x.id, name:v.name, parent:p ? latestVersion(p).name : '', gid, focus:groupName(gid) || '', dom:dom ? dom.emoji + ' ' + dom.name : '', steps:(v.childIds || []).filter(id => st.series.some(z => z.id === id && sd(z))).length}; }); }
+  const sdLabel = x => (x.parent ? x.parent + ' › ' : '') + x.name;
+  function sdPickRow(x){ return '<div class="sd-row sd-pick" data-series="' + esc(x.id) + '"><input type="date" class="sd-date" min="' + todayYmd() + '" value="' + addDays(todayYmd(), 1) + '" aria-label="A day for ' + esc(sdLabel(x)) + '"><button class="save" data-act="sdSave">Give it a date</button><button class="link" data-act="sdEdit">Edit</button><button class="link" data-act="sdPick" data-v="">Cancel</button></div>'; }
+  function somedayCard(st){   // Today: one compact line; a name opens its date on demand
     const list = somedayItems(st); if (!list.length) return '';
-    return '<section class="k-card sd-card" data-parity="BK4-SOMEDAY" data-feedback-id="someday" data-feedback-label="Someday"><div class="k-head"><span class="k-title">🌙 Someday</span><span class="hint keep">' + pl(list.length, 'item') + ' · not graded until dated</span></div>' + list.map(x => '<div class="sd-row" data-series="' + esc(x.id) + '" style="--category:' + categoryColor(x.gid) + '"><span class="sd-name"><b>' + esc(x.name) + '</b><small>' + esc([x.focus, x.dom, x.steps ? pl(x.steps, 'step') : ''].filter(Boolean).join(' · ')) + ' <span class="sd-tag">Someday</span></small></span><input type="date" class="sd-date" min="' + todayYmd() + '" value="' + addDays(todayYmd(), 1) + '" aria-label="A day for ' + esc(x.name) + '"><button class="save" data-act="sdSave">Give it a date</button><button class="link" data-act="sdEdit">Edit</button></div>').join('') + '</section>';
+    const open = list.find(x => x.id === sdPick);
+    return '<section class="k-card sd-card sd-compact" data-parity="BK4-SOMEDAY" data-feedback-id="someday" data-feedback-label="Someday"><div class="sd-line"><span class="k-title">🌙 Someday</span>' + list.map(x => '<button type="button" class="sd-chip' + (x.id === sdPick ? ' on' : '') + '" data-act="sdPick" data-series="' + esc(x.id) + '" data-v="' + esc(x.id) + '" style="--category:' + categoryColor(x.gid) + '" title="' + esc([x.focus, x.dom, x.steps ? pl(x.steps, 'step') : '', 'not graded until dated'].filter(Boolean).join(' · ')) + '" aria-expanded="' + (x.id === sdPick) + '">' + esc(sdLabel(x)) + '</button>').join('') + '<small class="sd-note">not graded until dated</small></div>' + (open ? sdPickRow(open) : '') + '</section>';
+  }
+  function somedayGroupHTML(g, list){   // Quests: the quiet group at the bottom of a Focus card
+    if (!list || !list.length) return ''; const key = 'sd-' + g.id, open = foldPref(key, true);
+    return '<details class="sd-group" data-parity="BK4-INCARD" data-fold="' + esc(key) + '"' + (open ? ' open' : '') + '><summary><span aria-hidden="true">🌙</span> Someday <small>' + list.length + ' · not graded until dated</small></summary>' + list.map(x => '<div class="sd-in" data-series="' + esc(x.id) + '"><button type="button" class="cb sd-cb" role="checkbox" aria-checked="false" data-act="sdDone" aria-label="Check off ' + esc(sdLabel(x)) + ' today" title="Check off today' + (x.steps ? ', every step' : '') + '"></button><span class="sd-name"><b>' + (x.parent ? '<small>' + esc(x.parent) + ' › </small>' : '') + esc(x.name) + '</b>' + (x.steps ? '<small>' + pl(x.steps, 'step') + '</small>' : '') + '</span>' + (x.id === sdPick ? '' : '<button type="button" class="link" data-act="sdPick" data-v="' + esc(x.id) + '">Give it a date</button>') + '</div>' + (x.id === sdPick ? sdPickRow(x) : '')).join('') + '</details>';
   }
   function mkFocusHTML(st){
     if (!mkFocus) return ''; const sx = st.series.find(x => x.id === mkFocus.seriesId); if (!sx){ mkFocus = null; return ''; }
@@ -10271,7 +10291,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (asMenu && !n.demo){   /* BK6, BK4, BK5, BK7 (his answers, Oct 13) */
       const sx = st.series.find(x => x.id === n.seriesId), vx = sx && (versionFor(sx, date) || latestVersion(sx)), once = !!(vx && vx.recurrence && vx.recurrence.kind === 'once' && !(vx.cal && vx.cal.kind === 'event')), top = !parentFor(sx || {versions:[]}, date), step = !!(vx && vx.parentId) || !top;
       if (!step && !(vx && vx.goal)) out += btn('taskAddStep', 'st', 'Add a step · any Task can have steps', '<span aria-hidden="true">⤷</span>');
-      if (top && once && !(vx && vx.someday)) out += btn('rowSomeday', 'sd', 'Someday · no date, never graded until you give it one', '<span aria-hidden="true">🌙</span>');
+      if (!(vx && vx.someday) && !(vx && vx.cal && vx.cal.kind === 'event') && bkSomedayPlan(st, n.seriesId, date > today ? date : today).ok) out += btn('rowSomeday', 'sd', 'Someday · no date, never graded until you give it one', '<span aria-hidden="true">🌙</span>');
       if (top && !(vx && vx.goal)) out += btn('makeFocus', 'mf', 'Make it a Focus · ' + (container ? 'its steps become the Focus’s items' : 'it becomes the Focus’s first item'), '<span aria-hidden="true">◎</span>');
       out += btn('rowDelDay', 'dd', 'Delete just ' + (date === today ? 'today' : medDate(date)) + ' · entries stay', ROW_ICONS.del) + btn('rowDelAll', 'da', 'Delete the whole item · done before: from ' + (date === today ? 'today' : medDate(date)) + ' on; never done: every day', ROW_ICONS.del);
     }
@@ -10423,7 +10443,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const container = Array.isArray(n.children) || n.isFamily === true || Array.isArray(n.childIds) || n.container === true;
     const nid = n.id || n.seriesId || '';
     const key = n.key || (n.seriesId ? occKey(n.seriesId, n.date || day) : '');
-    const st = n.status, confirmed = st === 'done', collapsed = wsCollapsed.has(nid);
+    const fk = nid + '|' + (n.date || day), allMarked = container && kids.length > 0 && leafRows(kids).every(k => k.status || (k.occurrence && k.occurrence.disposition) || wsMeasuredDone(S(), k, k.date || day)), fman = container && n.seriesId ? taskFoldGet(fk) : null;   // BK13
+    const st = n.status, confirmed = st === 'done', forceOpen = container && ((composer && composer.parentId && composer.parentId === n.seriesId) || (questFocus && leafRows(kids).some(k => k.seriesId === questFocus.id))), collapsed = forceOpen ? false : container && n.seriesId && kids.length ? (fman && fman.all === allMarked ? fman.closed : allMarked) : wsCollapsed.has(nid);   // adding a step or opening Quests at one shows the steps
     const label = itemName(n, n.name || n.title || 'Untitled'), kind = itemKind(n), measure = kind === 'bar' ? itemMeasure(S(), n, n.date || day) : null;   // V3.5 D2
     const doneCount = n.family && Number.isFinite(n.family.done) ? n.family.done + leafRows(kids).filter(k => k.status !== 'done' && k.status !== 'skipped' && wsMeasuredDone(S(), k, k.date || day)).length : kids.filter(k => k.status === 'done' || (k.status !== 'skipped' && wsMeasuredDone(S(), k, k.date || day))).length;   // AR1
     const totalCount = n.family && Number.isFinite(n.family.total) ? n.family.total : kids.length;
@@ -10439,7 +10460,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     // "No entry" or "From Apple Health" gave way to it; the less-used actions live behind ⋯.
     const minutes = !container && n.occurrence && Number.isFinite(n.occurrence.actualMinutes) && n.occurrence.actualMinutes > 0 ? Math.round(n.occurrence.actualMinutes) + ' min' : '';
     const share = Number.isFinite(n.shareDisplay) ? n.shareDisplay : (n.allocation && Number.isFinite(n.allocation.displayAmount)) ? n.allocation.displayAmount : null;
-    const word = container ? doneCount + ' of ' + totalCount : st === 'partial' ? 'Partial' : st === 'skipped' ? 'Skipped' : n.occurrence?.disposition === 'excused' ? (n.occurrence.excuse === 'exempt' ? 'Exempt' : 'Not today') : '';
+    const word = container ? (collapsed ? doneCount + '/' + totalCount + ' done' : doneCount + ' of ' + totalCount) : st === 'partial' ? 'Partial' : st === 'skipped' ? 'Skipped' : n.occurrence?.disposition === 'excused' ? (n.occurrence.excuse === 'exempt' ? 'Exempt' : 'Not today') : '';
     const summary = [word, minutes].filter(Boolean).join(' · '), ptsWord = share !== null ? share + ' pts' : '';
     const future = (n.date || day) > todayYmd();
     const tone = container ? '' : confirmed ? ' done' : runningOut(n) ? ' urgent' : '';
@@ -10458,7 +10479,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     ].join('');
     let out = '<div class="ws-node' + tone + (met ? ' met' : '') + '" data-depth="' + depth + '" data-series="' + esc(n.seriesId || '') + '" data-date="' + esc(n.date || day) + '" data-key="' + esc(key) + '"' + (n.seriesId && (n.date || day) >= todayYmd() && !n.demo ? ' draggable="true"' : '') + '><div class="nrow">' +
       (container
-        ? '<button class="tw" data-act="wsToggleGroup" data-node="' + esc(nid) + '" aria-expanded="' + (!collapsed) + '" aria-label="' + (collapsed ? 'Expand ' : 'Collapse ') + esc(label) + '">' + (collapsed ? '▸' : '▾') + '</button>' + taskBoxHTML(n, label)
+        ? '<button class="tw" data-act="wsToggleGroup" data-node="' + esc(nid) + '"' + (n.seriesId && kids.length ? ' data-tfold="' + esc(fk) + '" data-all="' + (allMarked ? 1 : 0) + '"' : '') + ' aria-expanded="' + (!collapsed) + '" aria-label="' + (collapsed ? 'Expand ' : 'Collapse ') + esc(label) + '">' + (collapsed ? '▸' : '▾') + '</button>' + taskBoxHTML(n, label)
         : measure ? '<span class="cb io-auto' + ((measure.met || measure.paceMet) && measure.kind !== 'limit' ? ' on' : '') + '" aria-hidden="true" title="' + (measure.paceMet ? 'On pace for today' : 'Fills itself from your data') + '">' + ((measure.met || measure.paceMet) && measure.kind !== 'limit' ? '✓' : '') + '</span>'   /* Fix X2, X9 (his notes): Net Energy, Active Miles and every measured bar fill themselves; nothing to check off */
         : (() => {
             // Marks (Mintay, Sept 24 evening): ✓ done, ✕ skipped (red), ◐ partial (neutral), — exempt / not today.
@@ -10520,7 +10541,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       '<h3>' + (closed ? '<button class="gopen" data-act="wsToggleGroup" data-node="group:' + esc(g.id) + '" data-closed="1" aria-label="Open ' + esc(g.name) + ', ' + resolved + ' of ' + daily.length + ' done">' + esc(g.name) + '</button>' : '<button class="gopen gname" data-act="wsToggleGroup" data-node="group:' + esc(g.id) + '" aria-expanded="' + (!collapsed) + '" title="' + (collapsed ? 'Unfold' : 'Fold') + '">' + esc(g.name) + '</button>') + '</h3>'   /* BA7: the name folds and unfolds the card, as the arrow does */ + (umbrella && umbrella !== g.name ? '<span class="umb-tag keep"' + (domainAbout(g.umbrella) ? ' title="' + esc(domainAbout(g.umbrella)) + '"' : '') + '>' + esc(umbrella) + '</span>' : '') + '<span class="gcount" data-resolved="' + resolved + '" data-partial="' + partial + '" data-of="' + daily.length + '">' + half(resolved + partial / 2) + ' of ' + daily.length + (sections.daily.length === nodes.length ? '' : ' today') + '</span>' + (closed && toClaim.length ? '<button class="k-chip gold q-toclaim" data-act="claimOne" data-claim="' + esc(toClaim[0].id) + '" data-parity="V36-I4-01" title="Claim ' + esc(toClaim.length === 1 ? 'it' : 'the first; open the card for the rest') + '">' + toClaim.length + ' to claim</button>' : '') + (todayDone ? '<span class="today-done keep" title="Everything today asks of this card is done">✓ Today done</span>' : '') +
       '<button class="link" data-act="goPlanGroup" data-group="' + esc(g.id) + '">Plan</button><details class="more card-more"><summary aria-label="More for ' + esc(g.name) + '">⋯</summary><div class="more-menu">' + (g.custom || g.umbrella ? '<button class="link" data-act="cardEdit" data-group="' + esc(g.id) + '">Rename or move</button>' : '') + '<button class="link" data-act="cardHideToday" data-group="' + esc(g.id) + '">Hide for today</button><button class="link" data-act="cardPark" data-group="' + esc(g.id) + '">Park in Template</button><button class="link" data-act="cardDelete" data-group="' + esc(g.id) + '">Delete</button></div></details></div>' +
       (collapsed ? '' : '<div class="gbody">' + dupNoteHTML(st, nodes) + '<div class="ws-tree">' +
-        (nodes.length ? sections.html : '<p class="hint">Nothing planned in this category today.</p>') + '</div>' +
+        (nodes.length ? sections.html : wsSomedayBy.has(g.id) ? '' : '<p class="hint">Nothing planned in this category today.</p>') + '</div>' + somedayGroupHTML(g, wsSomedayBy.get(g.id)) +
         (here ? composerHTML() : '<button class="ws-addbtn" data-act="wsAdd" data-kind="item" data-group="' + esc(g.id) + '">+ Add</button>') + '</div>') + '</section>';
   }
   /* Fix AA8: two top-level items with the same name on one card (an item added twice) say so once, and one tap keeps one: the other stops
@@ -10532,10 +10553,12 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       const word = x => { const v = versionFor(x, day); return recurWords(v && v.recurrence) || ('added ' + medDate(String(x.createdAt).slice(0, 10))); };
       return '<div class="dup-note" data-dup="' + esc(l[0].name) + '"><span>“' + esc(l[0].name) + '” is on this card twice</span>' + ser.map((x, i) => '<button class="link" data-act="dupKeep" data-keep="' + esc(x.id) + '" data-stop="' + esc(ser.filter(y => y !== x).map(y => y.id).join(',')) + '">Keep the ' + esc(word(x)) + ' one</button>').join('') + '</div>'; }).join('');
   }
+  let wsSomedayBy=new Map();   // BK4-INCARD: this render's Someday items by Focus (Quests only)
   let wsClaimable=[];   // this render's claimable actions, so each activity row can offer its own Claim
   function wsActivities(options){
     try{wsClaimable=rewardReport(S(),todayYmd()).pending;}catch(_){wsClaimable=[];}
     const st = S();
+    wsSomedayBy = new Map(); if (area === 'plan' && day >= todayYmd() && !(options && options.swept)) for (const x of somedayItems(st)){ if (!wsSomedayBy.has(x.gid)) wsSomedayBy.set(x.gid, []); wsSomedayBy.get(x.gid).push(x); }   // BK4-INCARD
     if (!wsHas('tree')) return depCard('Workspace','tree','Direct entry and nested routines') + activitiesCard();
     let rows = wsTry('tree', st, day, options || {});
     if (!Array.isArray(rows)) return depCard('Workspace','tree','Direct entry and nested routines') + activitiesCard();
@@ -10548,7 +10571,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     rows = secondChanceShift(st, rows, day);   // AG2 (e)
     // Groups by the V2 card order; a retired group still shows on a day that has its items (V2.0).
     const v2 = typeof structureV2Adopted === 'function' && structureV2Adopted(st), order = id => { if (st.prefs.reorgAG5V1){ const g = groupById(st, id); return g && Number.isFinite(g.order) ? g.order : 99; } const i = typeof V2_CARD_ORDER !== 'undefined' ? V2_CARD_ORDER.indexOf(id) : -1; return i < 0 ? 99 : i; };   // AG5: the Focus order of his structure
-    const groups = groupsOf(st).filter(g => !groupOff(st, g.id, day) && (!options || !options.groupId || g.id === options.groupId) && (!options || !options.umbrella || g.umbrella === options.umbrella) && (!g.retiredFrom || day < g.retiredFrom || rows.some(r => (r.group || r.groupId) === g.id)) && (oneCard || (placedCards.has(g.id) && !hidden.has(g.id)) || (!parked.has(g.id) && !hidden.has(g.id) && (!v33 || rows.some(r => (r.group || r.groupId) === g.id) || placedCards.has(g.id) || (g.custom && !cardItemCount(st, g, day)))))).sort((x, y) => (v2 ? order(x.id) - order(y.id) : 0));
+    const groups = groupsOf(st).filter(g => !groupOff(st, g.id, day) && (!options || !options.groupId || g.id === options.groupId) && (!options || !options.umbrella || g.umbrella === options.umbrella) && (!g.retiredFrom || day < g.retiredFrom || rows.some(r => (r.group || r.groupId) === g.id)) && (oneCard || (placedCards.has(g.id) && !hidden.has(g.id)) || (!parked.has(g.id) && !hidden.has(g.id) && (!v33 || rows.some(r => (r.group || r.groupId) === g.id) || placedCards.has(g.id) || wsSomedayBy.has(g.id) || (g.custom && !cardItemCount(st, g, day)))))).sort((x, y) => (v2 ? order(x.id) - order(y.id) : 0));
     /* AQ1 (his "sounds good", Oct 8): on Quests a Focus with nothing on the day is one slim line, "Mom  + Add", in its place, so every
        Focus he named is one tap away; one he parked or hid stays in Template; Settings → Preferences hides the empty ones. */
     const showEmpty = area === 'plan' && !oneCard && !catching && !(options && (options.groupId || options.swept)) && v33 && !(st.prefs && st.prefs.questEmptyFocus === false);
@@ -11638,6 +11661,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (act === 'wsToggleGroup'){
       const id = btn.dataset.node || '';
       if (btn.dataset.closed === '1'){ wsReopened.add(id.replace(/^group:/, '') + '|' + day); wsCollapsed.delete(id); }   // V3.5 Q1: a tap reopens a closed card
+      else if (btn.dataset.tfold) taskFoldSet(btn.dataset.tfold, {closed:btn.getAttribute('aria-expanded') === 'true', all:btn.dataset.all === '1'});   // BK13
       else if (wsCollapsed.has(id)) wsCollapsed.delete(id); else wsCollapsed.add(id);
       render();
       const again = document.querySelector('[data-act="wsToggleGroup"][data-node="' + id.replace(/"/g, '\\"') + '"]');
@@ -11746,7 +11770,18 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       let to = null; if (act === 'sdSave'){ const inp = btn.closest('.sd-row') && btn.closest('.sd-row').querySelector('.sd-date'); to = inp && inp.value; if (!validCalendarDate(to) || to < today){ toast('Pick a day from today on.'); return; } }
       stage(st, 'someday'); const r = act === 'rowSomeday' ? bkSetSomeday(st, seriesId, date > today ? date : today, true) : bkSetSomeday(st, seriesId, today, false, to);
       if (!r.ok){ popUndo(); toast(r.error || 'Not changed.'); return; }
-      await commit('someday', act === 'rowSomeday' ? name + ' moved to Someday: no date, not graded. It waits on the Someday strip.' : name + ' is on ' + medDate(to) + '.'); return;
+      if (act === 'sdSave') sdPick = null;
+      await commit('someday', act === 'rowSomeday' ? name + ' moved to Someday: no date, not graded. It waits in its Focus card, under Someday.' : name + ' is on ' + medDate(to) + '.'); return;
+    }
+    if (act === 'sdPick'){ sdPick = btn.dataset.v || null; render(); if (sdPick) focusFirst('.sd-pick .sd-date'); return; }   // BK4-INCARD: a date on demand
+    if (act === 'sdDone'){   // BK4-INCARD: check off from the Someday group: dated today, then done (a Task: every open step)
+      const today = todayYmd(), sx = seriesId && st.series.find(x => x.id === seriesId); if (!sx) return; const name = latestVersion(sx).name;
+      if (dayClosed(st, today)){ toast(closedWord(today)); return; }
+      stage(st, 'someday'); const r = bkSetSomeday(st, seriesId, today, false, today); if (!r.ok){ popUndo(); toast(r.error || 'Not changed.'); return; }
+      const leaves = leafRows(allRows(planFor(st, today)).filter(x => x.seriesId === seriesId)).filter(x => !x.status); let n = 0;
+      for (const x of leaves){ const c = confirmAction(st, x.seriesId, today, {}); if (c && c.ok) n++; }
+      if (!n){ popUndo(); toast('Not checked off: open it on today to mark it.'); return; }
+      sdPick = null; await commit('someday', name + ' done today' + (leaves.length > 1 ? ' · ' + pl(n, 'step') : '') + '. Claim the points when you’re ready.'); return;
     }
     if (act === 'sdEdit'){ const sx = seriesId && st.series.find(x => x.id === seriesId); if (sx){ go('plan'); openEditComposer(seriesId, todayYmd(), {area:'plan'}); } return; }
     // BK6: Add a step to any Task opens its Edit form at the Steps lines
@@ -12442,7 +12477,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   $('#feedbackDialog').addEventListener('cancel', e => { e.preventDefault(); persistFeedback(); closeFeedback(); });
   window.addEventListener('beforeunload', e => { if (feedbackUnsaved){ e.preventDefault(); e.returnValue = ''; } });
   $('#undoBtn').addEventListener('click', () => { const ui = uiUndoTop(); if (ui){ uiUndo.pop(); ui.fn(); render(); toast('Undone · ' + ui.label + '.'); return; } const label = undoLabel(); const shut = preview || typeof undoTouches !== 'function' ? [] : undoTouches(real, d => dayClosed(real, d)); if (shut.length){ toast('Not undone: it would change ' + medDate(shut[0]) + ', which has closed. Reopen that day on Quests first.'); return; } if (preview || !undo(real)) return; panel = null; if (label === 'reorg') real.prefs.reorgAG5V1 = {undone:true, at:nowIso(), day:todayYmd()};   /* AG5: an undone reorganization stays undone (it never runs again by itself) */ { const o = {replaceRewards:label === 'replace' || label === 'restoreSnap',allowSourceRemoval:['localFile','merge','relay'].includes(label)}; if (o.replaceRewards || o.allowSourceRemoval) commit('undo','Previous change undone.', o); else commitDrawFirst('undo','Previous change undone.', o); } });   /* AW1: a plain undo draws first */
-  document.addEventListener('toggle', e => { const d = e.target; if (d && d.matches && d.matches('details.tpl-section') && d.dataset.fold){ try { localStorage.setItem('health-tracker.fold.' + d.dataset.fold, d.open ? '1' : '0'); } catch (_) {} } }, true);
+  document.addEventListener('toggle', e => { const d = e.target; if (d && d.matches && d.matches('details.tpl-section, details.sd-group') && d.dataset.fold){ try { localStorage.setItem('health-tracker.fold.' + d.dataset.fold, d.open ? '1' : '0'); } catch (_) {} } }, true);
   // V3.3 (1.5): Ctrl/Cmd+Z undoes the last delete, dismiss or park (the toast's Undo), while not typing in a field.
   document.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && String(e.key).toLowerCase() === 'z' && !e.target?.matches('input,textarea,select,[contenteditable=true]') && !document.querySelector('dialog[open]') && (canUndo() || uiUndoTop()) && !preview && !$('#undoBtn').hidden){ e.preventDefault(); $('#undoBtn').click(); } });
   $('#previewToggle').addEventListener('click', () => { dropUndo(); preview = !preview; if (preview) demo = buildDemo(); panel = null; pendingImport = null; render(); toast(preview ? 'Preview workspace: everything shown is invented and nothing is saved.' : 'Back to your data.'); });
