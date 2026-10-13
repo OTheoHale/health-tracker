@@ -687,6 +687,11 @@ function unexcuseOcc(state, seriesId, date){
   delete o.disposition; delete o.excuse; touch(o); pruneOcc(state, k);
   return o;
 }
+/* BK2-CLEAR (his words, Oct 13: "clear it out of that day if i dont want it to show me that day/rest of that day - this also means that it doesnt
+   come up in Today Up next card as well"): a reminder-style row (a week's or month's item, a carried one-off) leaves that one day and Up next.
+   Nothing is graded, done or skipped, and it is not a resolution: a carried one-off is back the next day. */
+function clearForDay(state, seriesId, date){ const o = ensureOcc(state, seriesId, date); if (o.status || o.removed) return null; o.cleared = true; touch(o); return o; }
+function unclearForDay(state, seriesId, date){ const k = occKey(seriesId, date), o = state.occurrences[k]; if (!o || !o.cleared) return null; delete o.cleared; touch(o); pruneOcc(state, k); return o; }
 function notToday(state, seriesId, date){
   if (dailyItem(state, seriesId, date)) return { ok:false, error:'A daily item is marked Skipped instead.' };
   const s = state.series.find(x => x.id === seriesId), v = s && versionFor(s, date);
@@ -695,7 +700,7 @@ function notToday(state, seriesId, date){
 }
 function pruneOcc(state, k){
   const o = state.occurrences[k];
-  if (o && o.status === null && !o.disposition && o.selected === 'normal' && !o.removed && !o.added &&
+  if (o && o.status === null && !o.disposition && !o.cleared && o.selected === 'normal' && !o.removed && !o.added &&
       !o.override && !o.note && o.actualMinutes === null && !o.corrections.length && (!o.rewardEventId || o.rewardEventId === k) &&
       // A claimed occurrence stays, so its pinned rule survives an un-mark and a later re-mark pays under it (V3.1).
       !(state.rewards && state.rewards.claims && state.rewards.claims[typeof rewardIdentity === 'function' ? rewardIdentity(state, o) : k])) delete state.occurrences[k];
@@ -814,7 +819,7 @@ function versionFrom(f, version, effectiveFrom){
     scoring: scoringRule(f.scoring),
     matching: f.matching ? JSON.parse(JSON.stringify(f.matching)) : null,
   };
-  for(const key of ['parentId','category','workspaceKind','budgetQ','deadlineDay','setEach','needsDate','secondChance'])if(Object.prototype.hasOwnProperty.call(f,key))out[key]=f[key];
+  for(const key of ['parentId','category','workspaceKind','budgetQ','deadlineDay','setEach','needsDate','secondChance','dueBy','pace','someday'])if(Object.prototype.hasOwnProperty.call(f,key))out[key]=f[key];
   if (f.cal && out.recurrence && out.recurrence.kind === 'once'){ const c = calClean(f.cal); if (c) out.cal = c; }   // BI4: calendar fields, on a one-off only   // AG2: setEach (I set each date), needsDate (no date yet), secondChance (Night after 7 PM)
   if (f.goal && typeof GoalEngine !== 'undefined'){ const g = GoalEngine.normalize(f.goal); if (g){ out.goal = g; if (g.v === 1 && !(f.recurrence && f.recurrence.kind === 'once')) out.recurrence = normalizeRecurrence(GoalEngine.legacyRecurrence(g, effectiveFrom), effectiveFrom); } }   // V3.6 M1
   if (Array.isArray(f.childIds)) out.childIds = [...new Set(f.childIds)];
@@ -1403,10 +1408,11 @@ function gradeRows(state,from,to){
 function gradeRowsFresh(state,from,to){
   const share=(r,d)=>{if(r.status==='partial')return .5;   /* V3.6 I2 (V36-I19): half credit, as Rank history counted it */
     if(r.status!=='done'||typeof v5Rule!=='function')return r.status==='done'?1:0;const t=v5Rule(state,d),series=t&&state.series.find(x=>x.id===r.seriesId);if(!series||!v5Kind(versionFor(series,d)))return 1;const m=v5Inputs(state,series,state.occurrences[occKey(r.seriesId,d)]||{seriesId:r.seriesId,date:d},t);return m?m.credit.n/m.credit.d:1;};
-  const items=new Map(),goals=new Map(),span=calendarDistance(from,to)+1,goalMemo={};
+  const items=new Map(),goals=new Map(),span=calendarDistance(from,to)+1,goalMemo={},oneDay=from===to;
   for(let d=from;d<=to;d=addDays(d,1))for(const r of allRows(planFor(state,d))){
-    if(Array.isArray(r.children)||r.carriedFrom)continue;   // AQ2: a carried one-off belongs to its own day; AR2: a Task is graded by its Subtasks; one with none on this day (a past one-off, or its steps all off the day) counts nothing, as in Perfect and So Far
+    if(Array.isArray(r.children))continue;   // AR2: a Task is graded by its Subtasks; one with none on this day (a past one-off, or its steps all off the day) counts nothing, as in Perfect and So Far
     const gid=r.category||r.group||null,series=state.series.find(x=>x.id===r.seriesId),rec=series&&versionFor(series,d)?.recurrence;
+    if(bkGradeRow(state,r,d,series,oneDay)==='skip')continue;
     // V3.6 M3: an amount, count or reading goal counts once per its window (1/L a day over a window of L days), paid the
     // credit it holds at the latest day of the window inside the graded range; a check goal stays occurrence-based.
     const gv=series&&versionFor(series,d);if(GoalEngine.windowed(gv)&&!r.optional){const sh=GoalEngine.gradeShare(state,series,gv,d,to,goalMemo);const it=items.get(r.seriesId)||{seriesId:r.seriesId,name:r.name,gid,planned:0,done:0,goal:true};it.planned+=sh.planned;it.done+=sh.done;items.set(r.seriesId,it);continue;}
@@ -1414,6 +1420,11 @@ function gradeRowsFresh(state,from,to){
     if(r.optional)continue;
     const it=items.get(r.seriesId)||{seriesId:r.seriesId,name:r.name,gid,planned:0,done:0};it.planned++;it.done+=share(r,d);items.set(r.seriesId,it);
   }
+  // BK-DUEBY: a to-do with a Due by counts once, on its Due by day, unless it was done (or partly done) before then
+  for(const s of state.series){if(s.demo)continue;const v=latestVersion(s);if(!v||!validCalendarDate(v.dueBy)||v.dueBy<from||v.dueBy>to)continue;const at=versionFor(s,v.dueBy)||v;if(!at.recurrence||at.recurrence.kind!=='once'||s.archivedAt&&s.archivedAt.slice(0,10)<=v.dueBy)continue;
+    const o=state.occurrences[occKey(s.id,v.dueBy)];if(o&&(o.disposition==='excused'||o.disposition==='rest'))continue;const start=at.recurrence.date<=v.dueBy?at.recurrence.date:v.dueBy;
+    if(v.dueBy>=todayYmd()||occurrencesOf(state,s.id).some(x=>x.date>=start&&x.date<=v.dueBy&&(x.status==='done'||x.status==='partial')))continue;   // done by then: counted on the day it was done; an open Due by day is not docked until it closes
+    const it=items.get(s.id)||{seriesId:s.id,name:at.name,gid:at.category||s.category||null,planned:0,done:0};it.planned++;items.set(s.id,it);}   // missed: not done on its Due by day
   // Review S3: pro-rated over the days the target existed in this window (from its first version to its archive), not since the window began.
   const liveSpan=g=>{const s=state.series.find(x=>x.id===g.seriesId),starts=(s&&s.versions||[]).filter(v=>v.recurrence&&v.recurrence.kind==='target').map(v=>v.effectiveFrom).filter(validCalendarDate).sort(),a=starts[0]&&starts[0]>from?starts[0]:from,end=s&&validCalendarDate(String(s.archivedAt||'').slice(0,10))&&s.archivedAt.slice(0,10)<=to?addDays(s.archivedAt.slice(0,10),-1):to;return end<a?1:calendarDistance(a,end)+1;};
   // An item that was daily before it became a weekly target keeps its daily days; the target adds its share (review re-check).
@@ -1427,6 +1438,39 @@ function gradeRowsFresh(state,from,to){
     if(live){const P=3*live/7,A=2*live/7,first=Math.min(paired,P),done=first+Math.min(Math.max(0,once-first),A),gid=wsGroup(prayer[0],to);items.set('goal:prayer',{seriesId:'goal:prayer',name:'Prayer week goal',gid,planned:5*live/7,done:Math.min(done,5*live/7),target:true,derived:true});}
   }
   return [...items.values()];
+}
+/* BK (his rules, Oct 13; FIX_LIST BK run 1 block A). One row of a day plan, as the grade reads it:
+   BK2: a weekly or monthly count or goal (a target, a goal kept over more than one day: RX, Shower Curtains, Cardio 4 a week) is not
+   graded on a single day; it is graded in Week and Month. Prayers stay daily (they are said on their day).
+   BK-ROLL: a one-off to-do (not an Event) counts only where something happened to it: done or partly done counts on the day it was
+   done, Skipped counts as not done on that day; left open it rolls forward and never counts on the day it left (past days included).
+   BK-DUEBY: one with a Due by is graded once, on that day, if it was not done before (see the loop after the rows).
+   Exempt or a rest day never counts. Returns 'skip' or null (graded as before). */
+function bkGradeRow(state,r,d,series,oneDay){
+  const o=state.occurrences[r.key];if(o&&(o.disposition==='excused'||o.disposition==='rest'))return 'skip';
+  const v=series&&versionFor(series,d);if(!v)return null;const rec=v.recurrence||{};
+  if(rec.kind==='once'&&!(v.cal&&v.cal.kind==='event')&&!GoalEngine.windowed(v)){
+    const dueBy=(latestVersion(series)||{}).dueBy;
+    if(validCalendarDate(dueBy)&&dueBy>=rec.date)return r.status==='done'||r.status==='partial'||r.status==='tentative'?null:'skip';
+    return r.status==='done'||r.status==='partial'||r.status==='skipped'||r.status==='tentative'?null:'skip';
+  }
+  if(r.carriedFrom)return 'skip';
+  if(oneDay&&bkReminderKind(state,series,v,d))return 'skip';
+  return null;
+}
+// BK-ROLL for Perfect: an open one-off does not block a closed day it left, nor a day it rolled onto, except on its Due by day
+function bkOnceNeutral(state,r,date){
+  if(r.status)return false;const series=state.series.find(x=>x.id===r.seriesId),v=series&&versionFor(series,date),rec=v&&v.recurrence;
+  if(!rec||rec.kind!=='once'||(v.cal&&v.cal.kind==='event')||GoalEngine.windowed(v))return false;
+  const dueBy=(latestVersion(series)||{}).dueBy;if(validCalendarDate(dueBy)&&dueBy===date)return false;
+  return !!r.carriedFrom||date<todayYmd();
+}
+// BK2: an item kept over a week or a month (not a prayer, which is said on its day): Template's This Week and This Month items
+function bkReminderKind(state,series,v,d){
+  if(!v)return false;const k=wsKind(series,d);if(k==='prayer-am'||k==='prayer-pm')return false;
+  if(v.recurrence&&v.recurrence.kind==='target')return true;
+  if(GoalEngine.windowed(v)){const w=GoalEngine.window(v.goal,d,v,state);return !!w&&w.from!==w.to;}
+  return false;
 }
 const gradeMean=list=>{let w=0,s=0;for(const x of list)if(x.score!==null&&x.included&&x.importance>0){w+=x.importance;s+=x.score*x.importance;}return w?s/w:null;};
 /* V3.7 Y3 (note 19, his rule; A8, A9, A10, A59): each item is Required (the goal he set) or Stretch (extra). With R the share of
@@ -3893,17 +3937,25 @@ function planFor(state,date){
 /* AQ2 (his yes, Oct 8: "sure"): an open one-off from an earlier day is carried to today until it is done, skipped, moved or deleted.
    Its own day keeps what it expected (a closed day is never regraded); on today it is not graded or counted (carriedFrom), and
    what he does with it is recorded on today. The one-offs that something happened to on or after their day are resolved. */
-function wsCarryResolved(state){const out=new Map();for(const o of Object.values(state.occurrences||{}))if(o&&(o.status||o.removed||o.disposition)){const d=out.get(o.seriesId);if(!d||o.date>d)out.set(o.seriesId,o.date);}return out;}
+/* BK-ROLL (his yes, Oct 13): an open one-off rolls forward onto every later day up to today, past days included, with its ↩ tag; it stops
+   at the first day something happened to it (done, skipped, deleted, moved, exempt). The dates per series are kept while the record is unchanged. */
+const carryKeep={key:null,state:null,map:null};
+function wsCarryDates(state){
+  const k=typeof liveKey==='function'?liveKey(state):null;if(k!==null&&carryKeep.key===k&&carryKeep.state===state)return carryKeep.map;
+  const out=new Map();for(const o of Object.values(state.occurrences||{}))if(o&&(o.status||o.removed||o.disposition)){const a=out.get(o.seriesId);if(a)a.push(o.date);else out.set(o.seriesId,[o.date]);}
+  if(k!==null){carryKeep.key=k;carryKeep.state=state;carryKeep.map=out;}return out;
+}
+const wsCarryOpen=(dates,once,date)=>!(dates||[]).some(x=>x>=once&&x<date);
 function planForUncached(state,date){
   if(!wsEnabled(state))return legacyPlanFor(state,date);
-  const rows=[],resolved=date===todayYmd()?wsCarryResolved(state):null;
+  const rows=[],resolved=date<=todayYmd()?wsCarryDates(state):null;
   for(const series of state.series){
     if(series.archivedAt&&series.archivedAt<=date)continue;
     const v=versionFor(series,date);if(!v)continue;
-    const o=state.occurrences[occKey(series.id,date)]||null;if(o?.removed)continue;
+    const o=state.occurrences[occKey(series.id,date)]||null;if(o?.removed||o?.cleared)continue;   // BK2-CLEAR
     const due=GoalEngine.dueFor(state,series,v,date);   // V3.6 M2: one due rule (scheduledOn, after, a done deadline)
     const once=resolved&&!due&&!series.demo&&!(v.childIds&&v.childIds.length)&&v.recurrence&&v.recurrence.kind==='once'&&!v.needsDate&&!(v.cal&&v.cal.kind==='event')&&validCalendarDate(v.recurrence.date)&&v.recurrence.date<date?v.recurrence.date:null;
-    const carriedFrom=once&&(o||!(resolved.get(series.id)>=once))?once:null;   // AQ2
+    const carriedFrom=once&&(o||wsCarryOpen(resolved.get(series.id),once,date))?once:null;   // AQ2, BK-ROLL
     if(!due&&!carriedFrom&&!(o&&(o.added||o.status!==null||o.committed))&&!v.childIds)continue;
     const ov=o?.override||{},variant=recurrenceVariant(v,date),normal=ov.normal||variant?.normal||v.normal,minimum=ov.minimum||variant?.minimum||v.minimum,selected=o?o.selected:'normal';
     rows.push({key:occKey(series.id,date),seriesId:series.id,date,...(carriedFrom?{carriedFrom}:{}),name:ov.name||wsDayName(v,date),category:v.category||series.category,anchor:ov.anchor||v.anchor,window:ov.window!==undefined?ov.window:v.window||'',order:ov.order??v.order,version:v.version,demo:!!series.demo,targets:{normal,minimum},selected,target:selected==='minimum'?minimum:normal,status:o&&o.status==='done'&&confirmedProgression(state)&&!actionConfirmation(state,o).confirmed?'tentative':o?o.status:null,confirmation:o?.aliasOf?'Same action · linked in Log':o?actionConfirmation(state,o).label:'No entry',completedVersion:o?.completedVersion||null,actualMinutes:o?.actualMinutes??null,note:o?.note||'',corrections:o?.corrections?.length||0,added:!!o?.added,addedFrom:o?.addedFrom||null,overridden:!!o?.override,aliasOf:o?.aliasOf||null,optional:!!v.optional,once:v.recurrence?.kind==='once',group:wsGroup(series,date),parentId:wsHas(ov,'parentId')?ov.parentId:parentFor(series,date),childIds:v.childIds||null,session:v.recurrence?.session||'',variant:variant?.label||'',recurrence:v.recurrence,matching:v.matching||null,targetProgress:null,workspaceKind:wsKind(series,date),budgetQ:v.budgetQ??null,occurrence:o});
@@ -3949,6 +4001,8 @@ function validateWorkspaceFamily(state){
       if(v.budgetQ!==undefined&&(!Number.isSafeInteger(v.budgetQ)||v.budgetQ<0))return 'A routine budget is malformed.';
       if(v.workspaceKind!==undefined&&typeof v.workspaceKind!=='string')return 'An action kind is malformed.';
       if(v.deadlineDay!==undefined&&(!Number.isInteger(v.deadlineDay)||v.deadlineDay<0||v.deadlineDay>6))return 'A deadline is malformed.';
+      if(v.dueBy!==undefined&&v.dueBy!==null&&!validCalendarDate(v.dueBy))return 'A due-by date is malformed.';   // BK-DUEBY
+      if(v.pace!==undefined&&v.pace!==null&&!(Number.isInteger(v.pace)&&v.pace>=1&&v.pace<=100))return 'A daily pace is malformed.';   // BK-PACE
       const r=v.recurrence||{};
       if(r.kind==='once'&&!validCalendarDate(r.date))return 'A one-off date is malformed.';
       if(r.endDate!==undefined&&(!validCalendarDate(r.endDate)||r.startDate&&r.endDate<r.startDate))return 'An end date is malformed.';
@@ -4319,7 +4373,7 @@ function wsWorkoutRing(state,date,today){
 }
 function wsRings(state,date,options={}){
   const all=flatPlanFor(state,date).filter(r=>!r.demo&&(!options.groupId||r.group===options.groupId)&&(!options.includeRow||options.includeRow(r)));
-  const required=all.filter(r=>wsRequired(state,r)),routineRows=required.filter(r=>!['cardio','strength'].includes(r.workspaceKind));
+  const required=all.filter(r=>wsRequired(state,r)&&!(r.carriedFrom&&!state.occurrences[r.key]?.status)),routineRows=required.filter(r=>!['cardio','strength'].includes(r.workspaceKind));
   const slots=wsSlots(state,routineRows,date,options),done=slots.filter(s=>s.confirmed).length;
   const routine={id:'routine',label:'Routine',status:!slots.length?'no-target':done===slots.length?'closed':slots.some(s=>s.state==='pending-evidence')?'pending-evidence':done?'partial':slots.every(s=>s.state==='future')?'future':slots.every(s=>s.state==='not-done')?'not-done':'open',applicable:slots.length>0,closed:slots.length>0&&done===slots.length,value:done,target:slots.length,unit:'leaves',minimum:null,sourceIds:[],actionIds:routineRows.map(r=>r.seriesId),slots};
   const exercise=kind=>{
@@ -4500,7 +4554,7 @@ function wsPerfectVerdict(state,date){
   const items=rows.map(r=>{const o=state.occurrences[r.key]||{},q=r.targetProgress,parent=r.parentId&&state.series.find(s=>s.id===r.parentId),name=parent&&versionFor(parent,date)?.name;
     const gv=(state.series.find(x=>x.id===r.seriesId)||null),gver=gv&&versionFor(gv,date),gp=GoalEngine.windowed(gver)?GoalEngine.progress(state,gv,date,goalReadings):null,dl=gp&&gver.goal.measure.kind==='check'&&gver.goal.when.kind==='deadline'&&!gp.met&&date<gver.goal.when.date;   // V3.6 M3: a goal counts when met (a limit while it holds, review F6, F7); a deadline check is neutral until its day (F2)
     const onPace=gp&&!gp.met&&gp.window&&gp.window.from&&gp.window.to&&gp.window.from!==gp.window.to&&['sum','count'].includes(gp.measure)&&gp.op==='atLeast'&&Number.isFinite(gp.target)&&gp.target>0&&(gp.value||0)>=gp.target*Math.min(1,(calendarDistance(gp.window.from,date)+1)/(calendarDistance(gp.window.from,gp.window.to)+1))-0.005*gp.target;   // AN1: a weekly or monthly amount on pace counts the day
-    return {id:r.seriesId,name:(name?name+' · ':'')+r.name,fitness:wsPerfectFitness(r),done:gp?(gp.met||!!onPace):r.status==='done',neutral:dl||o.disposition==='excused'||o.disposition==='rest',optional:!!r.optional,quota:q?{from:q.from,to:q.to,target:q.target,count:q.count,left:wsQuotaChances(state,r.seriesId,date,q.to)}:null};});
+    return {id:r.seriesId,name:(name?name+' · ':'')+r.name,fitness:wsPerfectFitness(r),done:gp?(gp.met||!!onPace):r.status==='done',neutral:dl||o.disposition==='excused'||o.disposition==='rest'||bkOnceNeutral(state,r,date),optional:!!r.optional,quota:q?{from:q.from,to:q.to,target:q.target,count:q.count,left:wsQuotaChances(state,r.seriesId,date,q.to)}:gp&&gp.window&&gp.window.to&&bkReminderKind(state,gv,gver,date)?{from:gp.window.from,to:gp.window.to,target:1,count:gp.met?1:0,left:Math.max(1,calendarDistance(date,gp.window.to)+1)}:null};});   // BK2: a week's or month's goal (RX, Shower Curtains) is needed for a Perfect day only on its last chance
   const ring=r=>r?{applicable:!!r.applicable&&!rings.noTargets,closed:!!r.closed,label:(r.label||'Ring')+' ring'}:null;
   return PerfectVerdicts.day({date,items,rings:rings.workout?{cardio:{applicable:true,closed:rings.workout.closed,label:'Workout ring'},strength:null}:{cardio:ring(rings.cardio),strength:ring(rings.strength)}});
 }
