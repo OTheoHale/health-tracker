@@ -49,6 +49,7 @@ button{font:inherit; color:inherit; cursor:pointer}
 :focus-visible{outline:2px solid var(--brass); outline-offset:2px; border-radius:6px}
 #areaTitle:focus,#family-heading:focus{outline:none}
 [hidden]{display:none !important}
+.ws-composer .cmp-row input.cal-clock{width:8.5em;min-width:0;flex:0 0 8.5em}.cal-clock-msg{flex-basis:100%;color:var(--warn,#d9a441)}   /* BJ2 */
 h1,h2,h3,h4{margin:0; letter-spacing:-.01em}
 h1{font:600 32px/1.1 var(--serif)}
 h2{font:600 20px/1.2 var(--serif)}
@@ -2177,7 +2178,7 @@ addEventListener('load', () => {
   }
   function tapAfter(result,say){if(result.shown)return;render();toast(say(result));}
   document.addEventListener('input',e=>{if(e.target?.matches('input,textarea,select,[contenteditable=true]')&&!e.target.closest('[data-autosave],[data-stepper]')){inputGeneration++;if(manualSaving||preserveManualDraft)preservedInputs.add(e.target);
-    if(e.target.id&&e.target.type!=='search'&&(e.target.matches('input:not([type=file]):not([type=date]),textarea')||e.target.matches('.goal-metric-edit input,.goal-setup input'))&&e.target.closest('#main,#ctxRail')){const key=draftKeyOf(e.target);if(e.target.value===''&&!e.target.closest('.goal-metric-edit,.goal-setup'))draftStash.delete(key);else draftStash.set(key,{id:e.target.id,value:e.target.value,unit:S().prefs.units==='kg'?'kg':'lb'});}}},true);
+    if(e.target.id&&e.target.type!=='search'&&(e.target.matches('input:not([type=file]):not([type=date]):not(.cal-clock),textarea')||e.target.matches('.goal-metric-edit input,.goal-setup input'))&&e.target.closest('#main,#ctxRail')){const key=draftKeyOf(e.target);if(e.target.value===''&&!e.target.closest('.goal-metric-edit,.goal-setup'))draftStash.delete(key);else draftStash.set(key,{id:e.target.id,value:e.target.value,unit:S().prefs.units==='kg'?'kg':'lb'});}}},true);
 
   function autoSummary(changes){const names=[...new Set(changes.map(c=>c.name))];return 'From Apple Health: '+names.join(', ')+' checked off. Claim the points when you’re ready.';}
   async function runAutoEvidence(){
@@ -9487,7 +9488,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const g = id => document.getElementById(id);
     if (g('wsComposerTitle')) composer.title = g('wsComposerTitle').value;
     { const steps = document.querySelectorAll('.ws-composer .cmp-step'); if (steps.length) composer.subs = [...steps].map(i => i.value).join('\n'); else if (g('wsComposerSubs')) composer.subs = g('wsComposerSubs').value; }   // BI3: the step lines
-    if (composer.cal){ const a = composer.cal; if (g('wsCalTime') && /^\d\d:\d\d$/.test(g('wsCalTime').value)) a.time = g('wsCalTime').value; if (g('wsCalEnd')) a.end = /^\d\d:\d\d$/.test(g('wsCalEnd').value) ? g('wsCalEnd').value : ''; if (g('wsCalLeadN')){ const n = Math.round(+g('wsCalLeadN').value); if (Number.isFinite(n)) a.lead = Math.max(0, Math.min(30, n)); } }   // BI4
+    if (composer.cal){ const a = composer.cal; if (g('wsCalTime')){ const n = clockParse(g('wsCalTime').value); if (n != null) a.time = clockHM(n); } if (g('wsCalEnd')){ const v = g('wsCalEnd').value.trim(), n = clockParse(v); if (!v) a.end = ''; else if (n != null) a.end = clockHM(n); } if (a.end && a.time && a.end <= a.time) a.end = clockHM(Math.min(23 * 60 + 59, clockMin(a.time) + 60));   /* BJ2 */ if (g('wsCalLeadN')){ const n = Math.round(+g('wsCalLeadN').value); if (Number.isFinite(n)) a.lead = Math.max(0, Math.min(30, n)); } }   // BI4
     if (g('wsComposerDate') && /^\d{4}-\d{2}-\d{2}$/.test(g('wsComposerDate').value)) composer.date = g('wsComposerDate').value;
     if (g('wsComposerCount')) composer.count = Math.max(1, Math.min(14, Math.round(+g('wsComposerCount').value) || 1));
     if (g('wsComposerNote')) composer.note = g('wsComposerNote').value;
@@ -9542,6 +9543,27 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
      one-offs whose calendar fields (time, end, show-early days, reminder, every year) are stored additively as version.cal (health-domain calClean). */
   const calLeadDefault = () => { const n = Math.round(+((S().prefs || {}).eventLead)); return Number.isFinite(n) && n >= 0 && n <= 30 ? n : 3; };   // BI4-LEAD, his Settings default
   function composerKind(c){ return c.repeat === 'goal' ? 'measured' : c.repeat === 'once' ? (c.cal && c.cal.kind === 'event' ? 'event' : 'task') : 'repeat'; }
+  /* BJ2 (planner's default BJ2-TYPED, found entering his events Oct 12: the native box turned "1100AM" into 01:00 PM): Event and Task times are
+     typed. 9am, 9:30, 930a, 7p, 19:00, noon and midnight read; the field shows "9:00 AM"; Up and Down move 15 minutes; a bad entry says
+     what it expects and keeps the old value; a later start pushes the end to an hour after it, and an end before the start is refused. */
+  function clockParse(s){ const t = String(s || '').toLowerCase().replace(/[\s.]/g, ''); if (t === 'noon') return 720; if (t === 'midnight') return 0;
+    const m = /^(\d{1,2})(?::?(\d{2}))?(a|am|p|pm)?$/.exec(t); if (!m) return null; let h = +m[1]; const mi = m[2] ? +m[2] : 0; if (mi > 59) return null;
+    if (m[3]){ if (h < 1 || h > 12) return null; h = h % 12 + (m[3][0] === 'p' ? 12 : 0); } else if (h > 23) return null; return h * 60 + mi; }
+  const clockHM = n => String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0');
+  const clockMin = hm => /^\d\d:\d\d$/.test(hm || '') ? +hm.slice(0, 2) * 60 + +hm.slice(3) : null;
+  const clockShow = hm => { const n = clockMin(hm); if (n == null) return ''; const h = Math.floor(n / 60); return (h % 12 || 12) + ':' + String(n % 60).padStart(2, '0') + ' ' + (h < 12 ? 'AM' : 'PM'); };
+  function calTimeApply(el, n){
+    const a = composer && composer.cal; if (!a) return; const end = el.id === 'wsCalEnd', msg = document.getElementById('wsCalTimeMsg'), say = t => { if (msg){ msg.textContent = t; msg.hidden = !t; } };
+    if (n == null){ if (end && !el.value.trim()){ a.end = ''; say(''); return; } el.value = clockShow(end ? a.end : a.time); say('Type a time like 9am, 9:30, 7p or 19:00. Kept ' + (el.value || 'no end time') + '.'); return; }
+    if (end){ const s = clockMin(a.time); if (s != null && n <= s){ el.value = clockShow(a.end); say('The end must be after ' + clockShow(a.time) + '. Kept ' + (el.value || 'no end time') + '.'); return; } a.end = clockHM(n); }
+    else { a.time = clockHM(n); const e = clockMin(a.end); if (e != null && e <= n){ a.end = clockHM(Math.min(23 * 60 + 59, n + 60)); const f = document.getElementById('wsCalEnd'); if (f) f.value = clockShow(a.end); } }
+    el.value = clockShow(end ? a.end : a.time); say('');
+  }
+  document.addEventListener('change', e => { const t = e.target; if (t && (t.id === 'wsCalTime' || t.id === 'wsCalEnd')) calTimeApply(t, clockParse(t.value)); });
+  document.addEventListener('keydown', e => { const t = e.target; if (!t || (t.id !== 'wsCalTime' && t.id !== 'wsCalEnd') || e.isComposing || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === 'Enter'){ e.preventDefault(); e.stopPropagation(); calTimeApply(t, clockParse(t.value)); return; }   // Enter sets the time; it does not add the item
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown'){ e.preventDefault(); e.stopPropagation(); const a = (composer && composer.cal) || {}, cur = clockParse(t.value) ?? clockMin(t.id === 'wsCalEnd' ? a.end : a.time) ?? 19 * 60;
+      calTimeApply(t, Math.max(0, Math.min(23 * 60 + 45, e.key === 'ArrowUp' ? Math.floor(cur / 15) * 15 + 15 : Math.ceil(cur / 15) * 15 - 15))); } }, true);
   function calOf(c){ if (!c.cal) c.cal = {kind:'task', time:'19:00', timeOn:false, end:'', endOn:false, allDay:false, lead:calLeadDefault(), remind:'none', yearly:false, req:false}; return c.cal; }
   const hm12 = t => { if (!/^\d\d:\d\d$/.test(t || '')) return ''; const h = +t.slice(0, 2), m = t.slice(3); return ((h % 12) || 12) + (m === '00' ? '' : ':' + m) + ' ' + (h >= 12 ? 'PM' : 'AM'); };
   const CAL_LEADS = [[0, 'Same day'], [1, '1 day'], [2, '2 days'], [3, '3 days'], [7, '1 week']];
@@ -9592,7 +9614,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const cchip = (act, v, name, on, dim) => '<button type="button" class="rep-chip' + (dim ? ' dim' : '') + '" data-act="' + act + '" data-v="' + esc(String(v)) + '" aria-pressed="' + !!on + '">' + name + '</button>';
     const sec = t => '<p class="cmp-sec">' + t + '</p>';
     const timed = cal.timeOn && !(ck === 'event' && cal.allDay);
-    const timeField = () => timed ? '<input id="wsCalTime" type="time" value="' + esc(cal.time || '19:00') + '" aria-label="Time">' + (cal.endOn ? '<span class="scope">to</span><input id="wsCalEnd" type="time" value="' + esc(cal.end || '') + '" aria-label="End time"><button type="button" class="link" data-act="wsCalEndOn" data-v="0" aria-label="No end time">×</button>' : '<button type="button" class="link" data-act="wsCalEndOn" data-v="1">+ End time</button>') : '';
+    const timeField = () => timed ? '<input id="wsCalTime" class="cal-clock" type="text" autocomplete="off" spellcheck="false" placeholder="7pm" value="' + esc(clockShow(cal.time || '19:00')) + '" aria-label="Time" aria-describedby="wsCalTimeMsg">' + (cal.endOn ? '<span class="scope">to</span><input id="wsCalEnd" class="cal-clock" type="text" autocomplete="off" spellcheck="false" placeholder="8pm" value="' + esc(clockShow(cal.end || '')) + '" aria-label="End time" aria-describedby="wsCalTimeMsg"><button type="button" class="link" data-act="wsCalEndOn" data-v="0" aria-label="No end time">×</button>' : '<button type="button" class="link" data-act="wsCalEndOn" data-v="1">+ End time</button>') + '<small id="wsCalTimeMsg" class="hint keep cal-clock-msg" role="status" hidden></small>' : '';
     const leadRow = '<div class="cmp-row" data-parity="BI4-LEAD"><span class="scope">Show on Today and Quests from</span>' + CAL_LEADS.map(([v, n]) => cchip('wsCalLead', v, n, !cal.leadCustom && cal.lead === v)).join('') + cchip('wsCalLead', 'custom', 'Custom', cal.leadCustom || !CAL_LEADS.some(x => x[0] === cal.lead)) + (cal.leadCustom || !CAL_LEADS.some(x => x[0] === cal.lead) ? '<input id="wsCalLeadN" type="number" inputmode="numeric" min="0" max="30" value="' + cal.lead + '" aria-label="Days before"><span class="scope">days</span>' : '') + '<span class="scope">before</span></div>';
     const remRow = '<div class="cmp-row" data-parity="BI4-REMIND"><span class="scope">Remind me</span>' + CAL_REMINDS.map(([v, n]) => cchip('wsCalRemind', v, n, cal.remind === v, (v === 'hour' || v === 'at') && !timed)).join('') + '</div>';
     const when = ck === 'event'
@@ -12294,15 +12316,33 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   // V3.3 (1.5): Ctrl/Cmd+Z undoes the last delete, dismiss or park (the toast's Undo), while not typing in a field.
   document.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && String(e.key).toLowerCase() === 'z' && !e.target?.matches('input,textarea,select,[contenteditable=true]') && !document.querySelector('dialog[open]') && (canUndo() || uiUndoTop()) && !preview && !$('#undoBtn').hidden){ e.preventDefault(); $('#undoBtn').click(); } });
   $('#previewToggle').addEventListener('click', () => { dropUndo(); preview = !preview; if (preview) demo = buildDemo(); panel = null; pendingImport = null; render(); toast(preview ? 'Preview workspace: everything shown is invented and nothing is saved.' : 'Back to your data.'); });
+  /* BJ1 (found by the planner entering his events, Oct 12): while a form, sheet, drawer or dialog is open, single-key shortcuts are off (Esc,
+     Cmd+K and Cmd+, still work), so a click outside a field never sends typing to the page. D asks first (planner's default BJ1-DTWICE): D again
+     or Enter checks off, Esc or any other key cancels; the toast after it keeps Undo. */
+  const formOpen = () => !!(composer || panel || drawer || focusNew || ss || filtPicker || document.querySelector('dialog[open], .ws-composer, [data-ws-hierarchy]'));
+  let dArm = null;   // {id, name, day, at}
+  const dDisarm = () => { if (!dArm) return; dArm = null; if ($('#toastMsg').dataset.dask) $('#toast').hidden = true; delete $('#toastMsg').dataset.dask; };
+  function dPress(){
+    const n = nextAction(agendaFor(S(), day));
+    if (dArm && n && dArm.id === n.seriesId && dArm.day === day && Date.now() - dArm.at < 7000){ dArm = null; delete $('#toastMsg').dataset.dask; stage(S(), 'log'); markTentative(S(), n.seriesId, day); commit('log', n.name + ' checked off tentatively. Review to confirm.'); return; }
+    dArm = null; if (!n){ toast('Nothing left to mark today.'); return; }
+    dArm = {id:n.seriesId, name:n.name, day, at:Date.now()}; toast('Check off ' + n.name + '? Press D again or Enter · Esc cancels'); $('#undoBtn').hidden = true; $('#toastMsg').dataset.dask = '1';
+  }
+  document.addEventListener('keydown', e => { if (!dArm || e.isComposing || ['Shift', 'Meta', 'Control', 'Alt', 'CapsLock'].includes(e.key)) return;
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || '') || (e.target && e.target.isContentEditable);
+    if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); dDisarm(); return; }
+    if (e.key === 'Enter' && !typing && !e.metaKey && !e.ctrlKey && !e.altKey && !formOpen()){ e.preventDefault(); e.stopPropagation(); dPress(); return; }
+    if ((e.key === 'd' || e.key === 'D') && !typing && !e.metaKey && !e.ctrlKey && !e.altKey && !formOpen()) return;   // the handler below confirms
+    dDisarm(); }, true);
   document.addEventListener('keydown', e => {
     if ($('#feedbackDialog').open || $('#actionReview').open || document.querySelector('dialog[open]')) return;   // re-review: the ? overlay and the search are dialogs too
     if (e.key === 'Escape' && filtPicker){ filtPicker = null; render(); return; }
     if (e.key === 'Escape' && panel){ panel = null; render(); return; }
     const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || '') || (e.target && e.target.isContentEditable);
-    if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (typing || e.metaKey || e.ctrlKey || e.altKey || formOpen()) return;   // BJ1
     if (/^[0-9]$/.test(e.key)){ const a = keyAreas()[e.key==='0'?9:+e.key - 1]; if (a) go(a); return; }
     if (e.key === '/'){ e.preventDefault(); go('lessons'); focusFirst('#newNote'); return; }
-    if (e.key === 'd' || e.key === 'D'){ const rows = agendaFor(S(), day); const n = nextAction(rows); if (!n){ toast('Nothing left to mark today.'); return; } stage(S(), 'log'); markTentative(S(), n.seriesId, day); commit('log', n.name + ' checked off tentatively. Review to confirm.'); }
+    if (e.key === 'd' || e.key === 'D'){ e.preventDefault(); dPress(); }   // BJ1: asks first
   });
   setTimeout(()=>compactStore().finally(()=>warmSealLater(2000)),3000);setInterval(()=>compactStore(),60*60*1000);   // BC3: after launch's roll-up check, the hash states are made ready at idle
   if (NATIVE){ nativePost({type:'hello'}); if(personalReview){setTimeout(async()=>{await refreshIntakeStatus();intakeRender();scanIntake();},300);}else{setTimeout(()=>{syncReminders();nativePost({type:'relayInfo'});nativePost({type:'inbox'});},300);setInterval(()=>nativePost({type:'inbox'}),60000);} }
@@ -12444,7 +12484,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key === ','){ e.preventDefault(); go('settings'); return; }
     if (document.querySelector('dialog[open]')) return;
     const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || '') || (e.target && e.target.isContentEditable);
-    if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (typing || e.metaKey || e.ctrlKey || e.altKey || formOpen()) return;   // BJ1
     if (e.key === 't' || e.key === 'T'){ e.preventDefault(); day = todayYmd(); panel = null; render(); return; }
     if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.shiftKey && !NO_DAY_AREAS.includes(area) && !(e.target && e.target.closest && e.target.closest('[role=tablist],[role=slider],[role=separator],[role=radiogroup],.railnav,.ws-rail,input,select,textarea,details[open]'))){ e.preventDefault(); day = addDays(day, e.key === 'ArrowLeft' ? -1 : 1); panel = null; upNextIndex = 0; render(); return; }   // AM1 (planner's default)
     if (e.key === '[' || e.key === ']'){ e.preventDefault(); const n = addDays(day, e.key === '[' ? -1 : 1); if (n > todayYmd()){ toast('That day has not happened yet.'); return; } day = n; panel = null; upNextIndex = 0; render(); return; }
