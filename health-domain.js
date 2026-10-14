@@ -749,7 +749,11 @@ function bkSetSomeday(state, seriesId, from, on, date){
 /* BK14 (his yes, Oct 13, 1:54 PM): "Someday this month" for a week's or month's goal (Mind RX). Every open day left in its period is cleared with an
    sdPeriod mark, so it leaves the day lists, Up next and Template and waits in its card's Someday group; nothing is graded differently, so a missed
    period still shows in that Week or Month grade. Give it a date takes the marks off and places it on that day; the next period has no marks. */
-function bkPeriodOf(state, seriesId, date){ let q = null; try { q = targetProgress(state, seriesId, date); } catch (_) {} return q && validCalendarDate(q.from) && validCalendarDate(q.to) && q.to >= date ? q : null; }
+/* BL7 (FIX_LIST BL, Oct 13): his RX is a month goal stored on a daily schedule (the composer's Monthly), not a target, so targetProgress has no period
+   for it; its goal window is the period (one done meets it). */
+function bkPeriodOf(state, seriesId, date){ let q = null; try { q = targetProgress(state, seriesId, date); } catch (_) {}
+  if (!q){ const s = state.series.find(x => x.id === seriesId), v = s && versionFor(s, date); if (v && GoalEngine.windowed(v) && bkReminderKind(state, s, v, date)){ let p = null; try { p = GoalEngine.progress(state, s, date); } catch (_) {} const w = p && p.window; if (w && validCalendarDate(w.from) && validCalendarDate(w.to)) q = {from:w.from, to:w.to, count:p.met ? 1 : 0, target:1}; } }
+  return q && validCalendarDate(q.from) && validCalendarDate(q.to) && q.to >= date ? q : null; }
 function bkSomedayPeriod(state, seriesId, date, on, to){
   const q = bkPeriodOf(state, seriesId, date); if (!q) return {ok:false, error:'Only a week’s or month’s goal can wait for Someday this period.'};
   let n = 0;
@@ -775,7 +779,7 @@ function bkMakeFocus(state, seriesId, date, opts){
   let moved = 0, merged = 0;
   for (const id of kids.length ? kids : [seriesId]){ const c = state.series.find(x => x.id === id), cv = versionFor(c, date) || latestVersion(c), nm = String(cv.name || '').trim().toLowerCase();
     if (here.has(nm)){ c.archivedAt = date; merged++; continue; }
-    if (kids.length && parentFor(c, date)) wsMove(state, id, null, date);
+    if (parentFor(c, date)) wsMove(state, id, null, date);   // BL: a step promoted alone leaves its Task too
     wsRevise(state, id, {category:g.id}, date); c.category = g.id; here.add(nm); moved++; }
   if (kids.length) s.archivedAt = date;
   return {ok:true, group:g, moved, merged};
@@ -4034,6 +4038,26 @@ function wsCarryDates(state){
   if(k!==null){carryKeep.key=k;carryKeep.state=state;carryKeep.map=out;}return out;
 }
 const wsCarryOpen=(dates,once,date)=>!(dates||[]).some(x=>x>=once&&x<date);
+/* BL6 (his model, Oct 13): a past day draws an item under the Focus it lives in now (Promote to Focus, Move to another Focus). A copy merged into a
+   same-named item shows as that item (an open one-off copy beside it is left out) and a holder whose steps all moved is left out. Display only: the
+   grades read each row's own category, which is unchanged. */
+function bkPastHome(state,rows){
+  const today=todayYmd(),nm=x=>String(x||'').trim().toLowerCase(),byName=new Map(),find=id=>state.series.find(x=>x.id===id),drop=new Set(),ids=new Set(rows.map(r=>r.seriesId));
+  for(const s of state.series){if(s.demo||(s.archivedAt&&s.archivedAt<=today))continue;const k=nm((latestVersion(s)||{}).name);if(k&&!byName.has(k))byName.set(k,s);}
+  for(const r of rows){const s=find(r.seriesId);if(!s)continue;const date=r.date,v=versionFor(s,date);
+    if(s.archivedAt&&s.archivedAt<=today){
+      if(v&&Array.isArray(v.childIds)&&v.childIds.length)continue;
+      const pid=parentFor(s,date),p=pid&&find(pid),sv=byName.get(nm(v&&v.name));
+      if(!p||p.archivedAt!==s.archivedAt||!sv||sv.id===s.id)continue;   // merged by Promote to Focus: its holder stopped the same day and a live item has its name
+      if(!r.status&&v&&v.recurrence&&v.recurrence.kind==='once'&&ids.has(sv.id)){drop.add(r.key);continue;}
+      r.group=wsGroup(sv,today);r.parentId=parentFor(sv,today);r.mergedInto=sv.id;continue;
+    }
+    const g=wsGroup(s,today);if(g&&g!==r.group)r.group=g;
+    const p=r.parentId&&find(r.parentId),now=parentFor(s,today);if(p&&p.archivedAt&&p.archivedAt<=today&&now!==r.parentId)r.parentId=now;
+  }
+  for(const r of rows){const s=find(r.seriesId),v=s&&versionFor(s,r.date);if(!s||!(s.archivedAt&&s.archivedAt<=today)||!(v&&Array.isArray(v.childIds)&&v.childIds.length))continue;if(!rows.some(c=>c.parentId===r.seriesId&&!drop.has(c.key)))drop.add(r.key);}
+  for(let i=rows.length-1;i>=0;i--)if(drop.has(rows[i].key))rows.splice(i,1);
+}
 function planForUncached(state,date){
   if(!wsEnabled(state))return legacyPlanFor(state,date);
   const rows=[],resolved=date<=todayYmd()?wsCarryDates(state):null;
@@ -4048,6 +4072,7 @@ function planForUncached(state,date){
     const ov=o?.override||{},variant=recurrenceVariant(v,date),normal=ov.normal||variant?.normal||v.normal,minimum=ov.minimum||variant?.minimum||v.minimum,selected=o?o.selected:'normal';
     rows.push({key:occKey(series.id,date),seriesId:series.id,date,...(carriedFrom?{carriedFrom}:{}),name:ov.name||wsDayName(v,date),category:v.category||series.category,anchor:ov.anchor||v.anchor,window:ov.window!==undefined?ov.window:v.window||'',order:ov.order??v.order,version:v.version,demo:!!series.demo,targets:{normal,minimum},selected,target:selected==='minimum'?minimum:normal,status:o&&o.status==='done'&&confirmedProgression(state)&&!actionConfirmation(state,o).confirmed?'tentative':o?o.status:null,confirmation:o?.aliasOf?'Same action · linked in Log':o?actionConfirmation(state,o).label:'No entry',completedVersion:o?.completedVersion||null,actualMinutes:o?.actualMinutes??null,note:o?.note||'',corrections:o?.corrections?.length||0,added:!!o?.added,addedFrom:o?.addedFrom||null,overridden:!!o?.override,aliasOf:o?.aliasOf||null,optional:!!v.optional,once:v.recurrence?.kind==='once',group:wsGroup(series,date),parentId:wsHas(ov,'parentId')?ov.parentId:parentFor(series,date),childIds:v.childIds||null,session:v.recurrence?.session||'',variant:variant?.label||'',recurrence:v.recurrence,matching:v.matching||null,targetProgress:null,workspaceKind:wsKind(series,date),budgetQ:v.budgetQ??null,occurrence:o});
   }
+  if(date<todayYmd())bkPastHome(state,rows);   // BL6
   const time=r=>/^([01]\d|2[0-3]):[0-5]\d$/.test(r.window||'')?r.window:'99:99';
   const order=(a,b)=>(b.carriedFrom?1:0)-(a.carriedFrom?1:0)||time(a).localeCompare(time(b))||anchorOrder(a.anchor)-anchorOrder(b.anchor)||a.order-b.order||a.seriesId.localeCompare(b.seriesId);   // AQ2: carried first in its card
   rows.sort(order);
