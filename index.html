@@ -654,7 +654,7 @@ summary>.card-feedback.in-summary{display:inline-flex;margin:0 0 0 8px;padding:0
 .co-name .bl-tags{display:inline-flex}.co-name .bl-why{margin-left:8px}
 .co-fg{border-left:3px solid var(--category);padding:2px 0 2px 12px;margin:8px 0 12px}.co-fh{display:flex;align-items:baseline;gap:8px;margin:0 0 2px;font-size:14px;font-weight:600}.co-fh small{color:var(--muted);font-weight:400;font-size:12px}.co-fh .co-left{margin-left:auto}
 .co-res{grid-template-columns:1fr auto;align-items:baseline}.co-res .co-name b{font-weight:500;opacity:.7}.co-res-word{font-size:13px;color:var(--muted);white-space:nowrap}.co-foot .co-skiprest{color:var(--c-orange,#f0a058)}   /* BN2, BN3 */
-.co-task{margin:2px 0}.co-task-head{display:flex;align-items:center;gap:8px;padding:4px 0}.co-task-head small{color:var(--faint)}.co-task>.co-row{margin-left:26px}
+.co-task{margin:2px 0}.co-task-head{display:flex;align-items:center;gap:8px;padding:4px 0}.co-task-head small{color:var(--faint)}.co-task>.co-row{margin-left:50px;position:relative}.co-task>.co-row::before{content:'';position:absolute;left:-38px;top:0;bottom:0;width:1px;background:var(--line-strong);opacity:.55;pointer-events:none}   /* BP1: steps sit right of their Task's name, guide line under its caret */
 .co-tw{border:0;background:transparent;color:var(--ink);opacity:.85;font-size:19px;line-height:1;min-width:24px;min-height:30px;padding:0;border-radius:6px}.co-tw:hover{background:var(--sunk)}
 .co-sec{margin-top:12px}.co-sec h3{font-size:15px;margin:0 0 4px}.co-sec h3 small{color:var(--faint);font-weight:400;margin-left:4px}
 .bo-per{margin:8px 0;border-top:1px solid var(--line);padding-top:6px}.bo-per>summary{cursor:pointer;display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;padding:4px 0;font-weight:600}.bo-tally{color:var(--muted);font-weight:400;font-size:12.5px}.bo-bar{flex:1 1 100%;max-width:360px;height:5px;border-radius:999px;background:var(--sunk-2);overflow:hidden}.bo-bar i{display:block;height:100%;background:var(--c-green,#79d6a9);border-radius:999px}.bo-tier{margin:6px 0 2px 4px}.bo-tier>summary{cursor:pointer;display:flex;align-items:center;gap:6px;padding:3px 0;font-size:13.5px}.bo-tier>summary small{color:var(--faint)}.bo-tier>.info-pop{margin:2px 0 6px}.bo-fg{border-left:3px solid var(--category);padding:2px 0 2px 12px;margin:8px 0 10px}.bo-fh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 2px}.bo-fh h4{margin:0;font-size:13.5px;font-weight:600;flex:1 1 160px}.bo-fh h4 small{color:var(--muted);font-weight:400;font-size:12px;margin-left:4px}.bo-fh .bo-b{border-style:dashed}.bo-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:5px 0 5px 2px;border-top:1px dashed var(--line)}.bo-name{display:grid;flex:1 1 160px;min-width:0}.bo-name b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bo-name small{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bo-name .bl-kind{margin-right:6px}.bo-acts{display:flex;align-items:center;gap:5px;flex:none}.bo-b{display:inline-flex;align-items:center;justify-content:center;width:32px;height:28px;padding:0;border:1px solid var(--line);border-radius:9px;background:none;color:var(--ink);font-size:14px;line-height:1;cursor:pointer}.bo-b:hover,.bo-b:focus-visible{border-color:var(--line-strong);background:var(--sunk)}.bo-b[disabled]{opacity:.3;cursor:default}.bo-pickwrap{position:relative;display:inline-flex}.bo-pickwrap .bo-pick-date{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}.bo-pickwrap .bo-pick-date.show{position:static;width:auto;height:auto;opacity:1;pointer-events:auto}.pick-cal{display:block}.co-opt-grp{margin:6px 0}.co-opt-grp>summary,.co-opt-all>summary{cursor:pointer;padding:4px 0}.co-opt-grp>summary small,.co-opt-all>summary small{color:var(--faint)}
@@ -722,8 +722,10 @@ body[data-area="faith"] .panelcard,body[data-area="faith"] .ws-group{background:
 .ws-node .nm{flex:1;min-width:0;border:0;background:transparent;text-align:left;font-weight:600;font-size:13.5px;padding:0;white-space:normal;overflow-wrap:anywhere;flex-basis:140px}
 .ws-node .meta{font-size:11.5px;color:var(--muted);white-space:nowrap;flex:none}
 .ws-node .share{font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums;flex:none}
-.ws-node[data-depth="1"]{margin-left:16px}
-.ws-node[data-depth="2"]{margin-left:32px}
+.ws-node[data-depth="1"]{margin-left:60px}
+.ws-node[data-depth="2"]{margin-left:120px}
+/* BP1 (his words, Oct 14: "indent a little bit (not too much)"): a step's circle starts 26 px right of its Task's circle (24 px caret column + 10 px gap), a faint guide line runs under the Task's circle */
+.ws-node[data-depth="1"],.ws-node[data-depth="2"]{position:relative}.ws-node[data-depth="1"]::before,.ws-node[data-depth="2"]::before{content:"";position:absolute;left:-10px;top:0;bottom:0;width:1px;background:var(--line-strong);opacity:.55;pointer-events:none}
 .ws-addbtn{border:1px dashed var(--line-strong);background:transparent;border-radius:9px;min-height:32px;padding:0 11px;color:var(--muted);font-size:12.5px;font-weight:600;margin:4px 4px 0 0}
 .ws-addbtn:hover{border-color:var(--brass);color:var(--ink)}
 .ws-composer{border:1px dashed var(--brass);border-radius:11px;padding:10px;margin:7px 0 3px;display:grid;gap:8px;background:var(--sunk)}
@@ -974,7 +976,7 @@ details.fit-workouts>summary{display:flex;align-items:center;gap:10px;cursor:poi
 .ov-bar{display:block;width:100%;height:5px;border-radius:3px;background:var(--line);overflow:hidden}.ov-bar>i{display:block;height:100%;border-radius:3px}
 @media(max-width:900px){.ov-strip{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .spot{outline:2px solid var(--brass);outline-offset:3px;transition:outline-color .6s}
-.upnext-steps{margin:6px 0 10px}.upnext-steps .daily-row:first-child{border-top:0}
+.upnext-steps{margin:6px 0 10px}.upnext-steps.kids{margin-left:12px;padding-left:14px;border-left:1px solid color-mix(in srgb,var(--line-strong) 55%,transparent)}   /* BP1: a routine's steps under its name */.upnext-steps .daily-row:first-child{border-top:0}
 .log-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:6px 0 8px}.log-grid button{min-height:38px;border:1px solid var(--line-strong);border-radius:10px;background:var(--sunk);color:var(--ink);font:500 13px var(--sans);cursor:pointer}.log-grid button:hover,.log-grid button[aria-pressed="true"]{border-color:var(--brass);color:var(--head)}.rail-card.quick-log h2{margin:0 0 2px}
 /* The Journal panel */
 .flyout{position:fixed;top:0;right:0;bottom:0;width:min(440px,94vw);z-index:60;overflow:auto;padding:20px 22px 28px;background:var(--bg);border-left:1px solid var(--line-strong);box-shadow:-24px 0 60px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:10px}
@@ -1062,7 +1064,7 @@ dialog.co-dialog{width:min(780px,94vw);max-width:min(780px,94vw);max-height:86vh
 .ws-group.drop-ok::after{content:attr(data-drop);display:block;margin:6px 0 0;padding:8px 10px;border:1px dashed var(--brass);border-radius:9px;color:var(--brass);font-size:12.5px}
 .shelf.template.drop-ok{outline:2px dashed var(--brass);outline-offset:2px}
 .shelf.template.drop-ok>details>summary::after{content:attr(data-drop);display:block;font-size:11.5px;color:var(--brass);font-weight:400;margin-left:8px}
-.due-row.group{flex-wrap:wrap}.due-row.group .tpl-subs{display:flex;flex-wrap:wrap;gap:3px 10px;flex-basis:100%;margin:2px 0 0 18px}
+.due-row.group{flex-wrap:wrap}.due-row.group .tpl-subs{display:flex;flex-wrap:wrap;gap:3px 10px;flex-basis:100%;margin:2px 0 0 12px;padding-left:12px;border-left:1px solid color-mix(in srgb,var(--line-strong) 55%,transparent)}
 .tpl-sub{border:0;background:transparent;color:var(--muted);font-size:11.5px;padding:0;min-height:0;min-width:0;line-height:1.4;cursor:pointer}.tpl-sub::before{content:"⌞ ";color:var(--faint)}button.tpl-sub:hover{color:var(--brass)}.tpl-sub.met,.tpl-sub.placed{cursor:default;opacity:.7}
 .tpl-badge-n{font-size:11px;border:1px solid var(--brass);color:var(--brass);border-radius:999px;padding:1px 6px;flex:none}
 .tpl-card .tpl-ico{font-style:normal;color:var(--brass);font-size:12px;flex:none}
@@ -5498,26 +5500,39 @@ addEventListener('load', () => {
   const boPrayer = (st, r, date) => ((goalOf(st, r.seriesId, date) || {}).kind === 'prayer');
   const boStretch = (cfg, id, date) => { const c = cfg.items[id] || {}; return c.included === false || c.importance === 0 || gradeTierOf(cfg, id, date) === 'stretch'; };
   const boDomOf = (st, gid) => { const u = GRADE_UMBRELLAS.find(x => x.id === gradeGroupUmbrella(st, gid)); return u ? {id:u.id, label:u.emoji + ' ' + u.name} : {id:'none', label:'Not graded'}; };
-  // the week's or month's open items as units: a row on the day, or one waiting for a day (a Task's open steps are one unit)
+  // the week's or month's open items as units: a row on the day, or one waiting for a day. BP2 (Oct 14, his real app: "Whites › Wash" rows under
+  // "Home › Home"): a Task is one unit with every open step, placed here or waiting, under its own Focus (the Task's, never a step's stored group)
   function boUnits(st, date, per, rows){
     const cfg = gradeConfig(st), out = [], w = coWaits(st, date)[per === 'week' ? 'weekly' : 'monthly'].filter(x => !boPrayer(st, x.row, date)), by = new Map();
+    const task = (pid, gid, name0) => { if (!by.has(pid)){ const ser = st.series.find(z => z.id === pid), v = ser && (versionFor(ser, date) || latestVersion(ser)), u = {key:'w:' + pid, ids:[], items:[], here:[], order:(v && v.childIds) || [], name:v ? v.name : name0, gid:(ser && wsGroup(ser, date)) || gid, kind:'Habit'}; by.set(pid, u); out.push(u); } return by.get(pid); };
     const t = todayYmd(); for (const r of rows){ if (date < t && placedAhead(st, r.seriesId, t, addDays(t, 62)).length) continue;   // placed on today or later from here: shown as its result
-      const pv = r.parentId && (() => { const p = st.series.find(x => x.id === r.parentId); return p && (versionFor(p, date) || latestVersion(p)); })();
-      out.push({key:'d:' + r.key, ids:[r.seriesId], name:(pv ? pv.name + ' › ' : '') + r.name, gid:r.group || 'none', stretch:boStretch(cfg, r.seriesId, date), row:r, kind:blKind(st, r, date), info:''}); }
-    for (const x of w){ const pid = x.row.parentId, gid = bmGid(st, x, date);
-      if (!pid){ out.push({key:'w:' + x.row.seriesId, ids:[x.row.seriesId], name:x.row.name, gid, stretch:boStretch(cfg, x.row.seriesId, date), kind:blKind(st, x.row, date), info:x.q.count + ' of ' + x.q.target + ' · not placed yet'}); continue; }
-      if (!by.has(pid)){ const ser = st.series.find(z => z.id === pid), v = ser && (versionFor(ser, date) || latestVersion(ser)), u = {key:'w:' + pid, ids:[], items:[], name:v ? v.name : x.row.name, gid, kind:'Habit'}; by.set(pid, u); out.push(u); }
-      by.get(pid).items.push(x); }
-    for (const u of by.values()){ const open = bmUnplaced(u.items); u.ids = open.map(i => i.row.seriesId); u.stretch = u.items.every(i => boStretch(cfg, i.row.seriesId, date)); u.info = (u.items.length - open.length) + ' of ' + u.items.length + ' placed · ' + u.items.map(i => esc(i.row.name) + (i.placed.length ? ' ✓' : '')).join(', '); u.html = true; }
+      if (r.parentId){ const u = task(r.parentId, r.group || 'none', r.name); u.here.push(r); u.kind = blKind(st, r, date) || u.kind; continue; }
+      out.push({key:'d:' + r.key, ids:[r.seriesId], name:r.name, gid:r.group || 'none', stretch:boStretch(cfg, r.seriesId, date), row:r, kind:blKind(st, r, date), info:''}); }
+    for (const x of w){ if (!x.row.parentId){ out.push({key:'w:' + x.row.seriesId, ids:[x.row.seriesId], name:x.row.name, gid:bmGid(st, x, date), stretch:boStretch(cfg, x.row.seriesId, date), kind:blKind(st, x.row, date), info:x.q.count + ' of ' + x.q.target + ' · not placed yet'}); continue; }
+      task(x.row.parentId, bmGid(st, x, date), x.row.name).items.push(x); }
+    for (const u of by.values()){ const open = bmUnplaced(u.items), ix = id => { const i = u.order.indexOf(id); return i < 0 ? 99 : i; };
+      const steps = u.here.map(r => ({id:r.seriesId, name:r.name, on:true})).concat(u.items.map(i => ({id:i.row.seriesId, name:i.row.name, on:!!i.placed.length}))).sort((a, b) => ix(a.id) - ix(b.id));
+      u.ids = open.map(i => i.row.seriesId).concat(u.here.map(r => r.seriesId)); u.onDay = !open.length;
+      u.stretch = u.items.every(i => boStretch(cfg, i.row.seriesId, date)) && u.here.every(r => boStretch(cfg, r.seriesId, date));
+      u.info = steps.filter(x => x.on).length + ' of ' + steps.length + ' placed · ' + steps.map(x => esc(x.name) + (x.on ? ' ✓' : '')).join(', '); u.html = true; }
     return out.filter(u => u.ids.length);
   }
-  // "N of M left": every item of the week (or month), done or not, a Task's steps as one; prayers are daily and live in Counts today
+  /* "N of M left": every item of the week (or month), done or not, a Task with its steps as one; prayers are daily and live in Counts today.
+     BP3 (planner's default, Oct 14): items, never steps; the items already on the day count too; Must do and Stretch count the not-done items of
+     their tier, the same set, so Must do + Stretch = "left" always (an item placed on a later day is still left, and counts in its tier). */
   function boTally(st, date, per){
-    const t = templateItems(st, date)[per === 'week' ? 'weekly' : 'monthly'].filter(x => !boPrayer(st, x.row, date)), by = new Map();
-    for (const x of t){ const k = x.row.parentId || x.row.seriesId; by.set(k, (by.get(k) !== false) && x.met); }
-    const all = by.size, left = [...by.values()].filter(m => !m).length, end = t.length ? t[0].q.to : null, tt = todayYmd(), from = addDays(date, 1) > tt ? addDays(date, 1) : tt;
+    const cfg = gradeConfig(st), t = templateItems(st, date)[per === 'week' ? 'weekly' : 'monthly'].filter(x => !boPrayer(st, x.row, date)), by = new Map();
+    const add = (r, met) => { const k = r.parentId || r.seriesId, o = by.get(k) || {met:true, stretch:true}; o.met = o.met && met; o.stretch = o.stretch && boStretch(cfg, r.seriesId, date); by.set(k, o); };
+    for (const x of t) add(x.row, x.met);
+    for (const r of onDayRows(st, date)){ if (r.demo || r.children || !r.seriesId || boPrayer(st, r, date) || blDataFed(st, r, date) || (coPer(st, r, date) || '') !== per) continue;   /* an item his data fills (Miles) is not listed here, so not counted */ const q = quotaOf(st, r, date); add(r, q ? q.count >= q.target : r.status === 'done'); }
+    /* an item placed on a later day of its window (🌅, a picked day) is still left; from today its copy here is cleared, so it is found by its series */
+    const vOf = x => versionFor(x, date), up = new Map(); for (const x of st.series){ const v = vOf(x); if (v && Array.isArray(v.childIds)) for (const c of v.childIds) up.set(c, x.id); }
+    for (const x of st.series){ const v = vOf(x); if (!v || v.childIds || !v.recurrence || v.recurrence.kind !== 'target' || (x.archivedAt && x.archivedAt <= date)) continue; const r = {seriesId:x.id, parentId:up.get(x.id) || null}; if (boPrayer(st, r, date)) continue;
+      let q = null; try { q = targetProgress(st, x.id, date); } catch (_) {} if (!q || (calendarDistance(q.from, q.to) > 7 ? 'month' : 'week') !== per) continue; if (placedAhead(st, x.id, addDays(date, 1), q.to).length) add(r, q.count >= q.target); }
+    const all = by.size, open = [...by.values()].filter(o => !o.met), left = open.length, tier = {must:open.filter(o => !o.stretch).length, stretch:open.filter(o => o.stretch).length};
+    const end = t.length ? t[0].q.to : null, tt = todayYmd(), from = addDays(date, 1) > tt ? addDays(date, 1) : tt;
     const go = !end ? '' : from > end ? 'last day' : per === 'week' ? (from === end ? shortDay(end) : shortDay(from) + '–' + shortDay(end)) + ' to go' : (from === end ? monthDay(end) : monthDay(from) + '–' + (from.slice(0, 7) === end.slice(0, 7) ? parseYmd(end).getDate() : monthDay(end))) + ' to go';
-    return {all, left, go};
+    return {all, left, go, tier};
   }
   function boActs(ids, date, sd, label, onDay){
     const t = todayYmd(), tm = addDays(t, 1), dw = date === t ? 'today' : medDate(date), what = ids.length > 1 ? 'all ' + ids.length : 'it';
@@ -5528,7 +5543,7 @@ addEventListener('load', () => {
   }
   function boUnitHTML(st, u, date, sd, res){
     const k = u.kind ? '<span class="bl-kind">' + esc(u.kind) + '</span>' : '';
-    return '<div class="bo-row' + (res ? ' co-res' : '') + '" data-series="' + esc(u.ids[0] || '') + '" data-date="' + esc(date) + '" data-ids="' + esc(u.ids.join(',')) + '" data-bo="' + esc(u.key) + '"' + (sd ? ' data-sd="1"' : '') + ' style="--category:' + categoryColor(u.gid) + '"><span class="bo-name"><b>' + esc(u.name) + '</b><small>' + k + (u.html ? u.info : esc(u.info || '')) + '</small></span>' + (res ? '<span class="co-res-word">' + esc(res) + '</span>' : boActs(u.ids, date, sd, u.name, !!u.row)) + '</div>';
+    return '<div class="bo-row' + (res ? ' co-res' : '') + '" data-series="' + esc(u.ids[0] || '') + '" data-date="' + esc(date) + '" data-ids="' + esc(u.ids.join(',')) + '" data-bo="' + esc(u.key) + '"' + (sd ? ' data-sd="1"' : '') + ' style="--category:' + categoryColor(u.gid) + '"><span class="bo-name"><b>' + esc(u.name) + '</b><small>' + k + (u.html ? u.info : esc(u.info || '')) + '</small></span>' + (res ? '<span class="co-res-word">' + esc(res) + '</span>' : boActs(u.ids, date, sd, u.name, !!(u.row || u.onDay))) + '</div>';
   }
   // layout B: one flat "Domain › Focus" heading per Focus, in the Domain order, then the Focus order of Quests; the heading's buttons place all of it
   function boHeadsHTML(st, units, date, sd, results){
@@ -5543,8 +5558,8 @@ addEventListener('load', () => {
     'month-must':'Required this month: each one not done by the month’s last day counts as missed in the Month grade.',
     'month-stretch':'Extra for the month: no penalty if not done; they only matter for SSS.'
   };
-  function boTierHTML(st, per, tier, units, date, results){
-    if (!units.length) return ''; const key = 'bo-' + per + '-' + tier, open = foldPref(key, tier === 'must'), n = units.filter(u => !(results && results.has(u.key))).length;
+  function boTierHTML(st, per, tier, units, date, results, tl){
+    if (!units.length) return ''; const key = 'bo-' + per + '-' + tier, open = foldPref(key, tier === 'must'), n = tl ? tl.tier[tier] : units.filter(u => !(results && results.has(u.key))).length;   // BP3: the tally's not-done items of this tier
     return '<details class="bo-fold bo-tier" data-fold="' + key + '"' + (open ? ' open' : '') + '><summary><b>' + (tier === 'must' ? 'Must do' : 'Stretch') + '</b> <small>' + n + ' open</small>' + infoBtn(key, tier === 'must' ? 'Must do' : 'Stretch') + '</summary>' + infoPop(key, BO_INFO[key]) + boHeadsHTML(st, units, date, false, results) + '</details>';
   }
   // what became of a unit he acted on in this walk (BN2: it stays on the page with its result)
@@ -5561,7 +5576,7 @@ addEventListener('load', () => {
     if (seen){ for (const u of units) seen.set(u.key, {...u, per}); for (const u of seen.values()) if (u.per === per && !fresh.has(u.key)){ units.push(u); res.set(u.key, boResult(st, u, date)); } }
     if (!units.length) return ''; const tl = boTally(st, date, per), key = 'bo-' + per, open = foldPref(key, per === 'week'), pct = tl.all ? Math.round(100 * (tl.all - tl.left) / tl.all) : 0;
     const head = (per === 'week' ? '⏳ This week' : '🗓️ This month') + ' <small class="bo-tally">' + tl.left + ' of ' + tl.all + ' left' + (tl.go ? ' · ' + esc(tl.go) : '') + '</small><span class="bo-bar" role="img" aria-label="' + (tl.all - tl.left) + ' of ' + tl.all + ' done"><i style="width:' + pct + '%"></i></span>';
-    return '<details class="bo-fold bo-per" data-fold="' + key + '" data-parity="BO-' + per.toUpperCase() + '"' + (open ? ' open' : '') + '><summary>' + head + '</summary>' + boTierHTML(st, per, 'must', units.filter(u => !u.stretch), date, res) + boTierHTML(st, per, 'stretch', units.filter(u => u.stretch), date, res) + '</details>';
+    return '<details class="bo-fold bo-per" data-fold="' + key + '" data-parity="BO-' + per.toUpperCase() + '"' + (open ? ' open' : '') + '><summary>' + head + '</summary>' + boTierHTML(st, per, 'must', units.filter(u => !u.stretch), date, res, tl) + boTierHTML(st, per, 'stretch', units.filter(u => u.stretch), date, res, tl) + '</details>';
   }
   function boSomedayGroup(st, date, seen){
     const sd = somedayItems(st), key = 'bo-someday', open = foldPref(key, false), res = new Map(), t = todayYmd();
@@ -6793,7 +6808,7 @@ addEventListener('load', () => {
     const nav = '<div class="daynav"><button class="nav-btn" data-act="step" data-n="-1" aria-label="Previous day">‹</button><b>' + esc(dayWord) + '</b>' + (dayWord !== longDate(day) ? '<span class="hint day-sub">' + esc(longDate(day)) + '</span>' : '') + '<button class="nav-btn" data-act="step" data-n="1" aria-label="Next day">›</button><input type="date" class="daypick" value="' + esc(day) + '" aria-label="Pick a day">' + (day !== todayYmd() ? '<button class="link" data-act="jumpToday">Back to today</button>' : '') + '</div><div class="tabs-row"><div class="subtabs" role="tablist" aria-label="Today views">' + [['overview','Overview'],['activities','Activities'],['agenda','Agenda']].map(t => '<button role="tab" aria-selected="' + (todayTab === t[0]) + '" data-act="todayTab" data-tab="' + t[0] + '">' + t[1] + '</button>').join('') + '</div>' + soFarCard() + '</div>';
     const cycle = ordered.length > 1 ? '<button class="link" data-act="upNextLater" data-key="' + esc(unit.key) + '">Skip for now</button><span class="upnext-cycle"><button class="link" data-act="upNextCycle" data-n="-1" aria-label="Previous open item">‹</button><small>' + (ordered.indexOf(unit) + 1) + ' of ' + ordered.length + '</small><button class="link" data-act="upNextCycle" data-n="1" aria-label="Next open item">›</button></span>' : '';
     const routine = u => { if (isWorkouts({seriesId:u.parentId})) return '<div class="upnext-steps">' + dailyRow({seriesId:u.parentId, date:day, key:'family:' + u.parentId, name:'Workout'}) + '</div>' + (cycle ? '<div class="acts">' + cycle + '</div>' : ''); const ser = st.series.find(x => x.id === u.parentId), v = ser && (versionFor(ser, day) || latestVersion(ser)), steps = rows.filter(r => r.parentId === u.parentId), done = steps.filter(r => r.status === 'done').length;
-      return '<h2>' + esc(v ? v.name : 'Routine') + '</h2><p class="hint keep">' + done + ' of ' + steps.length + ' done · check each one off as you go</p><div class="upnext-steps">' + steps.map(dailyRow).join('') + '</div><div class="acts">' + cycle + '</div>'; };
+      return '<h2>' + esc(v ? v.name : 'Routine') + '</h2><p class="hint keep">' + done + ' of ' + steps.length + ' done · check each one off as you go</p><div class="upnext-steps kids">' + steps.map(dailyRow).join('') + '</div><div class="acts">' + cycle + '</div>'; };
     // V3.4 (TODAY-10, TODAY-28): one check-off row everywhere; a single item uses the same row as a routine's steps.
     const single = r => '<div class="upnext-steps">' + dailyRow(r) + '</div>' + (cycle ? '<div class="acts">' + cycle + '</div>' : '');
     const next = '<section class="panelcard next-action" data-feedback-id="next-action" data-feedback-label="Next useful action">' + (n&&n.status==='tentative'?'<p class="cap">Review your check-off</p>':'') + (unit ? (unit.parentId ? routine(unit) : single(n)) : '<h2>🎉 Room to pause.</h2><p class="hint keep">' + (rows.length ? 'Everything due today has an entry.' : 'No activities planned today. Add one in Quests.') + '</p>') + '</section>';
@@ -10961,7 +10976,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       '</div>' + (!container && panel && panel.kind === 'day' && panel.key === key ? rowDetailsHTML(n) : '');   // AY1: Details opens under its row
     if (container && !collapsed){
       out += kids.map(k => wsNode(k, Math.min(depth + 1, 2))).join('');
-      if (depth < 2 && wsCopyHere(n)) out += '<div style="margin-left:' + ((depth + 1) * 16) + 'px">' + wsAddControls(n, depth + 1) + '</div>';
+      if (depth < 2 && wsCopyHere(n)) out += '<div style="margin-left:' + ((depth + 1) * 60) + 'px">' + wsAddControls(n, depth + 1) + '</div>';
     }
     return out + (wsCopyHere(n) ? wsHierarchyEditor(n,n.date||day) : '') + '</div>';
   }
