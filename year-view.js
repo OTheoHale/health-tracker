@@ -205,7 +205,7 @@
     const ms=t.months.filter(s=>s.to>=R.from&&s.from<=R.to&&s.stepDays>=10).sort((a,b)=>b.steps-a.steps);
     const stats='<div class="yv-stats">'+stat(Math.round(goal/1000)+'k days',fmt(days.filter(o=>o.steps>=goal).length)+'<small>/'+days.length+'</small>')+stat('Longest streak',best+' d',bestEnd?dayLabel(add(bestEnd,-(best-1)))+' to '+dayLabel(bestEnd):'')+(R.month?'':stat('Streak now',cur+' d')+stat('Best month',ms[0]?fmt(ms[0].steps):'—',ms[0]?monLabel(ms[0].m):'')+stat('Lightest month',ms.length>1?fmt(ms[ms.length-1].steps):'—',ms.length>1?monLabel(ms[ms.length-1].m):''))+'</div>';
     const key='<div class="yv-key">'+[['var(--c-green)','goal'],['var(--c-yellow)','75%'],['var(--c-orange)','50%'],['var(--c-red)','under half']].map(([c,l])=>'<span><i style="background:'+c+'"></i>'+l+'</span>').join('')+'</div>';
-    return card('calendar','👣','Activity calendar',stats+(R.month?grid(+R.from.slice(0,4)):years.map(grid).join(''))+key,'Each square a day, by steps against your '+fmt(goal)+'.');
+    return card('calendar','👟','Activity calendar',stats+(R.month?grid(+R.from.slice(0,4)):years.map(grid).join(''))+key,'Each square a day, by steps against your '+fmt(goal)+'.');
   }
   const monthPts=(t,R,k)=>t.months.filter(s=>s.to>=R.from&&s.from<=R.to).map(s=>{const v=t.order.filter(o=>o.d>=s.from&&o.d<=s.to&&num(o[k])).map(o=>o[k]);return v.length?[s.from,mean(v)]:null;}).filter(Boolean);
   const change=(a,b,dp,unit,better)=>{if(!num(a)||!num(b))return '—';const d=a-b,steady=Math.abs(d)<Math.pow(10,-dp)/2,good=better===0?null:better>0?d>0:d<0;return '<b style="color:'+(steady||good===null?'var(--muted)':good?'var(--c-green)':'var(--c-orange)')+'">'+(steady?'→ same':(d>0?'↑ ':'↓ ')+fmt(Math.abs(d),dp)+(unit?' '+unit:''))+'</b>';};
@@ -231,7 +231,7 @@
     return t.helps;
   }
   function sleepCard(t,R){
-    const list=inRange(t,R).filter(o=>num(o.sleepH));if(!list.length)return card('sleep','🌙','Sleep','<p class="hint keep yv-none">No nights in this range</p>');
+    const list=inRange(t,R).filter(o=>num(o.sleepH));if(!list.length)return card('sleep','😴','Sleep','<p class="hint keep yv-none">No nights in this range</p>');
     const wday=o=>new Date(dn(o.d)*864e5).getUTCDay(),wk=list.filter(o=>wday(o)>=1&&wday(o)<=5),we=list.filter(o=>wday(o)===6||wday(o)===0);   // a night counts on the morning it ends
     const h=o=>o.sleepH,ms=t.months.filter(s=>s.to>=R.from&&s.from<=R.to);
     const stats='<div class="yv-stats">'+stat('Average',fmt(mean(list.map(h)),1)+' h',list.length+' nights')+stat('Weeknights',wk.length?fmt(mean(wk.map(h)),1)+' h':'—','Sunday to Thursday nights (the mornings Monday to Friday)')+stat('Weekends',we.length?fmt(mean(we.map(h)),1)+' h':'—','Friday and Saturday nights (the mornings Saturday and Sunday)')+stat('7 h or more',fmt(list.filter(o=>o.sleepH>=7).length)+'<small>/'+list.length+'</small>')+'</div>';
@@ -239,7 +239,7 @@
       :'<small class="yv-cap">Hours a night, month by month</small>'+bars(ms.map(s=>({m:s.m,v:s.sleep,colour:num(s.sleep)?tone(100*s.sleep/7):null,note:s.nights+' nights'})),'h',1);
     const wh=helpsOf(t),row=x=>'<li><span>'+esc(x.name)+'</span><b style="color:'+(x.helps?'var(--c-green)':'var(--c-orange)')+'">'+(x.plain>0?'+':'−')+(x.metric==='hrv'?Math.round(Math.abs(x.plain)):Math.round(Math.abs(x.plain)*10)/10)+x.unit+' '+esc(x.label)+'</b><small>'+x.kept+' and '+x.other+' mornings</small></li>';
     const helps='<small class="yv-cap">What Helps Me, every day since '+esc(dayLabel(t.first))+'</small>'+(wh&&wh.rows.length?'<ul class="yv-list">'+wh.rows.map(row).join('')+'</ul>':'<p class="hint keep yv-none">'+(wh&&wh.near&&wh.near[0]?'Needs more days: the closest is '+esc(wh.near[0].name)+', '+wh.near[0].kept+' kept and '+wh.near[0].other+' other days (needs '+wh.minEach+' of each). Habits are checked off only since the program began, so the year adds mornings, not habit days.':'Needs more days')+'</p>');
-    return card('sleep','🌙','Sleep',stats+body+helps);
+    return card('sleep','😴','Sleep',stats+body+helps);
   }
   /* AU1 8: year over year, and the program against his 2025 */
   function yoyCard(t,R){
@@ -272,7 +272,7 @@
     const list=inRange(t,R),pick=(k,hi)=>{const v=list.filter(o=>num(o[k]));if(!v.length)return null;return v.reduce((a,b)=>(hi?b[k]>a[k]:b[k]<a[k])?b:a);};
     const dd=(label,o,k,dp,unit)=>stat(label,o?fmt(o[k],dp)+(unit?' '+unit:''):'—',o?dayLabel(o.d):'');
     const gr=s.grade,parts=gr.components.map(c=>'<span class="yv-part"><small>'+esc(c.name)+'</small><b style="color:'+tone(c.score)+'">'+(c.score===null?'—':c.score)+'</b></span>').join('');
-    return card('month','📅',monLabel(s.m)+(s.partial?' so far':''),'<div class="yv-mtop"><b class="yv-letter" style="color:'+tone(gr.shown)+'">'+(gr.letter||'–')+'</b><span>'+(gr.shown===null||gr.shown===undefined?'No Fitness Grade: '+esc(gr.note||'needs 5 parts'):gr.shown+'% Fitness Grade, '+gr.blocks+' weeks')+'</span><button type="button" class="k-chip" data-yv="back">Back to the year</button></div><div class="yv-parts">'+parts+'</div>'+
+    return card('month','🗓️',monLabel(s.m)+(s.partial?' so far':''),'<div class="yv-mtop"><b class="yv-letter" style="color:'+tone(gr.shown)+'">'+(gr.letter||'–')+'</b><span>'+(gr.shown===null||gr.shown===undefined?'No Fitness Grade: '+esc(gr.note||'needs 5 parts'):gr.shown+'% Fitness Grade, '+gr.blocks+' weeks')+'</span><button type="button" class="k-chip" data-yv="back">Back to the year</button></div><div class="yv-parts">'+parts+'</div>'+
       '<div class="yv-stats">'+dd('Most steps',pick('steps',true),'steps',0)+dd('Fewest steps',pick('steps',false),'steps',0)+dd('Longest sleep',pick('sleepH',true),'sleepH',1,'h')+dd('Shortest sleep',pick('sleepH',false),'sleepH',1,'h')+dd('Most active energy',pick('active',true),'active',0,'kcal')+dd('Least active energy',pick('active',false),'active',0,'kcal')+'</div>');
   }
   /* ---------- the tab, its clicks and its styles ---------- */
