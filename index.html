@@ -10032,6 +10032,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const today = todayYmd(), groups = (st.groups || []).filter(g => /laundry/i.test(g.name || '')).map(g => g.id); if (!groups.length) return;
     const ids = st.series.filter(x => !x.demo && !(x.archivedAt && x.archivedAt <= today) && groups.includes(wsGroup(x, today)) && !parentFor(x, today) && versionFor(x, today) && !versionFor(x, today).childIds).map(x => x.id);
     const r = await manualActionTransaction(st, d => { const p = ids.length ? laundryPackPlan(d, ids) : {ok:true, names:[]}; if (p.ok) d.prefs.laundryPackedV1 = today; return p; }, {persist:true, undo:'laundry'});
+    if (r.ok && !ids.length && undoLabel() === 'laundry') popUndo();   // S3 (Oct 15): same as stepsFollowRoutine; a pack of nothing leaves no Undo step
     if (r.ok && ids.length){ render(); const later = ((r.result && r.result.names) || []).filter(x => x.from > todayYmd()), first = later.map(x => x.from).sort()[0]; toast('Laundry: ' + ids.length + ' loads now come as Wash, Dry and Fold' + (later.length ? ' (' + later.length + ' from ' + medDate(first) + ', so this week’s count stays whole)' : '') + '. Earlier days stay as recorded.'); }
   }
   setTimeout(() => { try { laundryAutoPack(); } catch (_) {} }, 4000);
@@ -10140,6 +10141,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     for (const x of st.series){ if (x.demo || (x.archivedAt && x.archivedAt <= today)) continue; const v = versionFor(x, today); if (!v || !Array.isArray(v.childIds) || !v.childIds.length) continue; const g = wsGroup(x, today);
       for (const cid of v.childIds){ const c = st.series.find(z => z.id === cid); if (c && versionFor(c, today) && wsGroup(c, today) !== g) fix.push([cid, g]); } }
     const r = await manualActionTransaction(st, d => { for (const [cid, g] of fix){ const x = Workspace.edit(d, cid, {category:g}, today); if (x && x.ok === false) return x; } d.prefs.stepsFollowGroupV1 = today; return {ok:true}; }, {persist:true, undo:'steps-group'});
+    if (r.ok && !fix.length && undoLabel() === 'steps-group') popUndo();   // S3 (Oct 15): a once-only write that moved nothing is not an Undo step; its timer can land after his taps, and Undo then took back nothing he could see
     if (r.ok && fix.length){ render(); toast(fix.length + ' steps now sit with their routine’s card again. Earlier days stay as recorded.'); }
   }
   setTimeout(() => { try { stepsFollowRoutine(); } catch (_) {} }, 6000);
