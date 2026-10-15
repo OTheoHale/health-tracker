@@ -2091,6 +2091,8 @@ addEventListener('load', () => {
   if (typeof liveRecordKeep === 'function') liveRecordKeep(real);   // AW1: the live record's points ledger and week strip are kept per change
   let readOnly = boot.readOnly;
   let saveError = boot.error;
+  // BT D: the launch's history check runs behind the first draw; if it fails, the page shows the same integrity notice the launch read shows, at once
+  if (typeof durableStore !== 'undefined') durableStore.onError = msg => { readOnly = true; saveError = msg; try { renderNotices(); } catch (e) { console.error('history check', e); } };
   let recovered = boot.recovered || null;
   let preview = new URLSearchParams(location.search).get('preview') === '1';                                    // Preview workspace: synthetic demo state, never saved
   let demo = null;
@@ -2169,6 +2171,7 @@ addEventListener('load', () => {
     }finally{
       manualSaving--;
       if(!manualSaving)detailAutoSave=false;   // the save a left field started is over; a click held for it replays now
+      if(!manualSaving&&fastDirty&&typeof prepareLater==='function')prepareLater();   // BT E: the save has landed; build the recount's page inside the pause
       if(!manualSaving&&feedbackSaveQueued){feedbackSaveQueued=false;setTimeout(()=>persistFeedback(),0);}
     }
   }
@@ -2206,7 +2209,7 @@ addEventListener('load', () => {
     let prev=null,shownSaid=null;   // AX2: change(draft, quick): the shown run skips followCorrection (about 250 ms); only the save corrects points
     if(say&&st===real&&!preview&&!readOnly&&!manualSaving&&!intake.applying&&FAST_AREAS.has(area)){
       const focused=document.activeElement,action=focused&&focused.dataset&&focused.dataset.act,row=focused&&focused.closest&&focused.closest('[data-series]'),sid=row&&row.dataset.series;
-      try{const draft=cloneRecord(real),r=change(draft,true);if(!(r&&r.ok===false)){prev=cloneRecord(real);replaceState(real,draft);drawFast();refocus(action,sid);shownSaid=say({ok:true,result:r});toast(shownSaid);$('#undoBtn').hidden=false;}}
+      try{const draft=cloneRecord(real),r=change(draft,true);if(!(r&&r.ok===false)){prev=Object.assign({},real);replaceState(real,draft);drawFast();refocus(action,sid);shownSaid=say({ok:true,result:r});toast(shownSaid);$('#undoBtn').hidden=false;}}
       catch(e){console.error('show first',e);if(prev)replaceState(real,prev);prev=null;}
     }
     const run=manualActionTransaction(st,change,{persist:!preview,rebase:true,undo:btn.dataset.act||'tap'}).finally(()=>{mark.busy=false;});   // V3.4 (S7): every one-tap action can be undone
@@ -2214,7 +2217,7 @@ addEventListener('load', () => {
     return run.then(async result=>{
       if(result.ok){undoBtnSync();const said=say(result);if(said&&said!==shownSaid)toast(said);return Object.assign(result,{shown:true});}
       let back=null;try{back=await store.readCommitted();}catch(_){}
-      replaceState(real,back&&back.ok&&back.state?back.state:prev);render();toast(say(result)||'Not saved.');return Object.assign(result,{shown:true});
+      replaceState(real,back&&back.ok&&back.state?back.state:prev);render();toast(say(result)||'Not saved.');return Object.assign(result,{shown:true});   // BT I: prev holds the record's own parts from before the shown draw (replaceState never alters them and copies them back), one clone fewer per tap
     });
   }
   function tapAfter(result,say){if(result.shown)return;render();toast(say(result));}
@@ -11397,6 +11400,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function bindFileInputs(){ document.querySelectorAll('input[type=file][data-act]').forEach(el => { if (el.dataset.bound) return; el.dataset.bound = '1'; el.addEventListener('change', ev => { if (el.isConnected) return; if ((intake.applying || manualSaving) && el.dataset.act !== 'historyFile'){ el.value = ''; toast('A save is in progress. Choose the file again when it finishes.'); return; } onChange(ev); }); }); }
   function render(){
     renderSeq++;   // AW1
+    prepared = null;   // BT E: a full draw supersedes any page kept for the recount
     area = pageAlias(area);   // BG13
     applyDomainNames();   // AG1
     if(manualSaving){renderNotices();return;}
@@ -11500,6 +11504,34 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     renderAfter(openFolds, true);
   }
   let mainDrawn = null, fastDirty = false, fastTimer = 0, drawLag = false;
+  /* BT E (Oct 15): the recount's heavy work (the points ledger and the whole page's HTML, about 0.4 s on his record) is done inside the
+     1.2 s pause, once the save has landed, in small tasks so a tap in the pause is taken at once, and kept aside under the key of the
+     record and view it was built for. When the pause ends the recount swaps the kept page in instead of building it then. What he sees
+     and when he sees it do not change: the swap still happens at the pause's end, from the same ledger (its memo is keyed by the record).
+     Any other draw, tap, typing or view change drops it, and the recount then builds the page as before. */
+  let prepared = null, prepTimer = 0;
+  function prepKey(){ const k = typeof liveKey === 'function' ? liveKey(S()) : null; return k === null ? null : k + '|' + area + '|' + day + '|' + questTab + '|' + questUmbrella + '|' + gradePer + '|' + inputGeneration + '|' + todayYmd(); }
+  function prepareLater(){ clearTimeout(prepTimer); prepared = null; prepTimer = setTimeout(prepareRecount, 60); }
+  function prepareRecount(){
+    prepTimer = 0; prepared = null;
+    const able = () => fastDirty && !manualSaving && !intake.applying && !composer && FAST_AREAS.has(area) && mainDrawn && mainDrawn.area === area && !document.querySelector('dialog[open]') && !(preserveManualDraft && unsavedForm && !draftLeaving);
+    if (!able()) return;
+    const key = prepKey(), seq = renderSeq; if (key === null) return;
+    const memo = f => typeof withDrawMemo === 'function' ? withDrawMemo(S(), f) : f();
+    const parts = [
+      () => { if (typeof scoreIndex === 'function') scoreIndex(S()); },
+      () => memo(() => rewardReport(S(), todayYmd())),
+      () => { const outer = scoreDraw; scoreDraw = {memo:new Map()}; try { const html = memo(pageHTML); if (key === prepKey()) prepared = {key, html}; } finally { scoreDraw = outer; } }
+    ];
+    let i = 0;
+    const step = () => {
+      prepTimer = 0;
+      if (seq !== renderSeq || !able() || key !== prepKey()) return;   // a newer draw, tap or change: the recount builds the page itself
+      try { parts[i++](); } catch (e){ console.error('prepare recount', e); prepared = null; return; }
+      if (i < parts.length) prepTimer = setTimeout(step, 0);
+    };
+    step();
+  }
   function afterPaint(fn){ let done = false; const run = () => { if (done) return; done = true; fn(); }; requestAnimationFrame(() => setTimeout(run, 0)); setTimeout(run, 250); }   // a hidden window has no frames; the timer still runs it
   function reconcileLater(ms){ fastDirty = true; clearTimeout(fastTimer); fastTimer = setTimeout(reconcileNow, ms || 1200); }
   function reconcileNow(){
@@ -11543,8 +11575,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if ($('#newNote')) noteDraft = {text:$('#newNote').value,area:$('#noteArea').dataset.value || 'General'};
     const scroller = document.scrollingElement || document.documentElement, keepTop = scroller.scrollTop, openFolds = foldsOpen();
     scoreDraw = {memo:new Map()};
+    const kept = o.reconcile === false && o.lag === false && prepared && prepared.key === prepKey() ? prepared : null; prepared = null;   // BT E: the recount's swap uses the page built inside the pause
     let html; drawLag = o.lag !== false; if (typeof rewardLag === 'function') rewardLag(drawLag);
-    try { html = typeof withDrawMemo === 'function' ? withDrawMemo(S(), pageHTML) : pageHTML(); } finally { drawLag = false; if (typeof rewardLag === 'function') rewardLag(false); }
+    try { html = kept ? kept.html : typeof withDrawMemo === 'function' ? withDrawMemo(S(), pageHTML) : pageHTML(); } finally { drawLag = false; if (typeof rewardLag === 'function') rewardLag(false); }
     let patched = false; try { patched = patchMain(html); } catch (e){ console.error('quick draw', e); }
     if (!patched) setMain(html);
     renderAfter(openFolds, true);
@@ -12807,7 +12840,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   }
   $('#feedbackText').addEventListener('input', persistFeedback);
   $('#feedbackDialog').addEventListener('cancel', e => { e.preventDefault(); persistFeedback(); closeFeedback(); });
-  window.addEventListener('beforeunload', e => { if (feedbackUnsaved){ e.preventDefault(); e.returnValue = ''; } });
+  window.addEventListener('beforeunload', e => { if (feedbackUnsaved || manualSaving > 0){ e.preventDefault(); e.returnValue = ''; } });   // BT D follow-up: a tap whose save is queued (at launch, behind the history check) or running warns before a reload; the Mac wrapper shows no such prompt
   $('#undoBtn').addEventListener('click', () => { const ui = uiUndoTop(); if (ui){ uiUndo.pop(); ui.fn(); render(); toast('Undone · ' + ui.label + '.'); return; } const label = undoLabel(); const shut = preview || typeof undoTouches !== 'function' ? [] : undoTouches(real, d => dayClosed(real, d)); if (shut.length){ toast('Not undone: it would change ' + medDate(shut[0]) + ', which has closed. Reopen that day on Quests first.'); return; } if (preview || !undo(real)) return; panel = null; if (label === 'reorg') real.prefs.reorgAG5V1 = {undone:true, at:nowIso(), day:todayYmd()};   /* AG5: an undone reorganization stays undone (it never runs again by itself) */ { const o = {replaceRewards:label === 'replace' || label === 'restoreSnap',allowSourceRemoval:['localFile','merge','relay'].includes(label)}; if (o.replaceRewards || o.allowSourceRemoval) commit('undo','Previous change undone.', o); else commitDrawFirst('undo','Previous change undone.', o); } });   /* AW1: a plain undo draws first */
   document.addEventListener('toggle', e => { const d = e.target; if (d && d.matches && d.matches('details.tpl-section, details.sd-group, details.bo-fold, details.co-opt-all') && d.dataset.fold){ try { localStorage.setItem('health-tracker.fold.' + d.dataset.fold, d.open ? '1' : '0'); } catch (_) {} } }, true);
   // V3.3 (1.5): Ctrl/Cmd+Z undoes the last delete, dismiss or park (the toast's Undo), while not typing in a field.

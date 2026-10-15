@@ -196,14 +196,25 @@
         return {ok:true,state:null,authority:'legacy',needsMigration:true};
       }
       if(c.schema!==schema||!a||!Array.isArray(a.keyOrder)||c.sourceCount!==value.sources.length||c.receiptCount!==value.receipts.length)return failed('CORRUPT',message.CORRUPT);
-      if(!c.audit||c.audit.revisionCount!==value.revisions.length||c.audit.deliveryCount!==value.deliveries.length)return failed('CORRUPT',message.CORRUPT);
+      const history=await reconcileHistory(c,value.revisions,value.deliveries);if(!history.ok)return history;
+      return reconcileRecord(value);
+    }
+    /* BT D (the launch split, Oct 15): the two halves of the launch check, so the page can draw from the record and the source rows
+       (about 1 s on his record) while the revision log (about 3.5 s: 123,000 entries, 297 MB as JSON) is read and checked behind it.
+       The checks are the ones reconcile() always made, in the same order within each half. */
+    async function reconcileHistory(c,revisions,deliveries){
+      if(!c.audit||c.audit.revisionCount!==revisions.length||c.audit.deliveryCount!==deliveries.length)return failed('CORRUPT',message.CORRUPT);
       // Schema 2: pruned history leaves gaps (sequences only increase), and a compaction writes 'rollup' revisions.
-      const badRevision=(row,index)=>schema===2&&row.entity==='rollup'?!(Number.isInteger(row.sequence)&&(index===0||row.sequence>value.revisions[index-1].sequence)&&typeof row.generation==='string'&&row.generation&&Number.isInteger(row.revision)&&row.revision>=1&&row.summary&&typeof row.summary==='object'):
-        (schema===2?!(Number.isInteger(row.sequence)&&(index===0||row.sequence>value.revisions[index-1].sequence)):row.sequence!==index+1)||row.entity!=='source'||typeof row.generation!=='string'||!row.generation||!Number.isInteger(row.revision)||row.revision<1||typeof row.sourceId!=='string'||(!row.before&&!row.after)||(row.before&&row.before.id!==row.sourceId)||(row.after&&row.after.id!==row.sourceId);
-      if(value.revisions.some(badRevision))return failed('CORRUPT',message.CORRUPT);
-      if(value.deliveries.some(row=>!row.value||typeof row.generation!=='string'||!row.generation||!Number.isInteger(row.revision)||row.revision<1||typeof row.value.digest!=='string'||row.id!==JSON.stringify([row.generation,row.value.digest])))return failed('CORRUPT',message.CORRUPT);
-      const audit=await auditIdentity(value.revisions,value.deliveries);
+      const badRevision=(row,index)=>schema===2&&row.entity==='rollup'?!(Number.isInteger(row.sequence)&&(index===0||row.sequence>revisions[index-1].sequence)&&typeof row.generation==='string'&&row.generation&&Number.isInteger(row.revision)&&row.revision>=1&&row.summary&&typeof row.summary==='object'):
+        (schema===2?!(Number.isInteger(row.sequence)&&(index===0||row.sequence>revisions[index-1].sequence)):row.sequence!==index+1)||row.entity!=='source'||typeof row.generation!=='string'||!row.generation||!Number.isInteger(row.revision)||row.revision<1||typeof row.sourceId!=='string'||(!row.before&&!row.after)||(row.before&&row.before.id!==row.sourceId)||(row.after&&row.after.id!==row.sourceId);
+      if(revisions.some(badRevision))return failed('CORRUPT',message.CORRUPT);
+      if(deliveries.some(row=>!row.value||typeof row.generation!=='string'||!row.generation||!Number.isInteger(row.revision)||row.revision<1||typeof row.value.digest!=='string'||row.id!==JSON.stringify([row.generation,row.value.digest])))return failed('CORRUPT',message.CORRUPT);
+      const audit=await auditIdentity(revisions,deliveries);
       if(audit.revisionsSHA256!==c.audit.revisionsSHA256||audit.deliveriesSHA256!==c.audit.deliveriesSHA256)return failed('CORRUPT',message.CORRUPT);
+      return {ok:true};
+    }
+    async function reconcileRecord(value){
+      const c=value.control,a=value.app;
       function unpack(rows){
         rows.sort((x,y)=>x.order-y.order);
         if(rows.some((row,index)=>row.order!==index||!row.value||row.id!==row.value.id))throw new Error('order');
@@ -221,6 +232,53 @@
       if(schema===2)freezeSources(state);
       return {ok:true,state,authority:'indexeddb',control:c,revisions:value.revisions,deliveries:value.deliveries};
     }
+    // The split open: the record and rows now, the history behind it. Only for a marked schema-2 store; anything else takes the full read.
+    let history=null;   // {state:'pending'|'ok'|'failed', promise, kept, result}
+    async function openSplit(){
+      if(schema!==2)return read();
+      try{
+        const mark=marker(),db=await connect();
+        const first=await transaction(db,['meta','sources','receipts'],'readonly',(tx,set,abort)=>{
+          gather(tx,[['control',tx.objectStore('meta').get('authority')],['app',tx.objectStore('meta').get('app')],['sources',tx.objectStore('sources').getAll()],['receipts',tx.objectStore('receipts').getAll()]],value=>set(Object.assign({ok:true},value)),abort);
+        });
+        if(!first.ok)return first;
+        if(!first.control||!mark)return read();   // legacy, empty, staged or adopting: the full read says what it always said
+        if(mark.authorityId!==first.control.authorityId)return failed('CORRUPT',message.CORRUPT);
+        const c=first.control,a=first.app;
+        if(c.schema!==schema||!a||!Array.isArray(a.keyOrder)||c.sourceCount!==first.sources.length||c.receiptCount!==first.receipts.length)return failed('CORRUPT',message.CORRUPT);
+        const rec=await reconcileRecord(first);if(!rec.ok)return rec;
+        verified=null;
+        const kept={state:shareClone(rec.state),control:c};
+        history={state:'pending',promise:null,kept,result:null};
+        return {ok:true,state:rec.state,authority:'indexeddb',revision:rec.state.revision,generation:rec.state.rewardGeneration,historyPending:true};
+      }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
+    }
+    // The second half. Started once (the page starts it under its workspace lock, so a save queues behind it); a save that arrives
+    // first waits for it here as well, and never writes after it has failed.
+    function verifyHistory(){
+      if(!history)return Promise.resolve({ok:true});
+      if(history.promise)return history.promise;
+      history.promise=(async()=>{
+        try{
+          const db=await connect();
+          // the control record is read again with the log, so a save from another tab between the two halves is checked against its own control, not reported as damage
+          const h=await transaction(db,['meta','revisions','deliveries'],'readonly',(tx,set,abort)=>{
+            gather(tx,[['control',tx.objectStore('meta').get('authority')],['revisions',tx.objectStore('revisions').getAll()],['deliveries',tx.objectStore('deliveries').getAll()]],value=>set(Object.assign({ok:true},value)),abort);
+          });
+          const kept=history.kept.control,same=h.ok&&!!h.control&&JSON.stringify(h.control)===JSON.stringify(kept);
+          const r=!h.ok?h:!h.control||h.control.authorityId!==kept.authorityId||h.control.schema!==schema?failed('CORRUPT',message.CORRUPT):await reconcileHistory(h.control,h.revisions,h.deliveries);
+          if(!r.ok){history.state='failed';history.result=r;return r;}
+          if(history.state==='pending'){if(same)verified={state:history.kept.state,control:kept,revisions:h.revisions,deliveries:h.deliveries};history.state='ok';}   // overtaken: no cached start, the next save reads afresh
+          history.result={ok:true};return history.result;
+        }catch(e){const r=failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});history.state='failed';history.result=r;return r;}
+      })();
+      return history.promise;
+    }
+    async function historyReady(){
+      if(!history)return {ok:true};
+      if(history.state==='pending')await verifyHistory();
+      return history.state==='failed'?history.result:{ok:true};
+    }
     async function read(includeAudit=false){
       try{
         const mark=marker(),value=await reconcile(await snapshot());
@@ -229,11 +287,12 @@
         if(!mark)return failed('STAGED',message.STAGED,{blockedMigration:true,needsMigration:true});
         if(mark.authorityId!==value.control.authorityId)return failed('CORRUPT',message.CORRUPT);
         verified={state:schema===2?shareClone(value.state):clone(value.state),control:value.control,revisions:value.revisions,deliveries:value.deliveries};
+        if(history&&history.state==='pending'&&!history.promise)history=null;   // a full read before the second half started has done its work
         return Object.assign({ok:true,state:value.state,authority:'indexeddb',revision:value.state.revision,generation:value.state.rewardGeneration},includeAudit?{control:value.control,revisions:value.revisions,deliveries:value.deliveries}:{});
       }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
     }
     async function migrate(state,options){
-      verified=null;
+      verified=null;history=null;
       try{
         const supplied=clone(state),problem=validate(supplied),sha=await hashState(supplied),backup=options&&options.backup;
         if(problem||!backup||backup.verified!==true||typeof backup.id!=='string'||!backup.id||!/^[a-f0-9]{64}$/.test(backup.sha256||'')||backup.stateSHA256!==sha)return failed('MIGRATION',message.MIGRATION);
@@ -273,7 +332,7 @@
     // database, with its revision and delivery audit, then take authority here. The source database is
     // only read, never written, so the previous app version can still open it (rollback).
     async function adopt(state,from){
-      verified=null;
+      verified=null;history=null;
       if(schema!==2||!from||typeof from.database!=='string'||from.database===dbName)return failed('MIGRATION',message.MIGRATION);
       try{
         const mark=marker();
@@ -330,6 +389,7 @@
       }catch(e){return failed('STORAGE',message.STORAGE,{detail:String((e&&e.name)||'Error')+': '+String((e&&e.message)||'').slice(0,200)});}
     }
     async function write(state,options){
+      const ready=await historyReady();if(!ready.ok)return ready;   // BT D: never onto an unverified log
       const cached=verified;verified=null;
       const result=await writeFrom(state,options,cached);
       // A cached starting point that another tab has since overtaken fails its CAS check; the same
@@ -459,7 +519,7 @@
         return true;
       }catch(e){return false;}
     }
-    return {open:read,read,migrate,adopt,write,writeClaims:write,warmSeal,schema,readDelivery:digest=>schema===2?findDelivery(digest):list('deliveries',digest),deliveries:()=>list('deliveries'),revisions:()=>list('revisions'),close(){if(database)database.close();database=null;opening=null;},markerKey,dbName};
+    return {open:read,openSplit,verifyHistory,historyReady,read,migrate,adopt,write,writeClaims:write,warmSeal,schema,readDelivery:digest=>schema===2?findDelivery(digest):list('deliveries',digest),deliveries:()=>list('deliveries'),revisions:()=>list('revisions'),close(){if(database)database.close();database=null;opening=null;},markerKey,dbName};
   }
   // sealRows (AX5b): freeze and share rows a save is about to commit, so copies of the record share them and the save compares only what changed.
   const api={create,hashState,isSealed,sealRows:rows=>freezeSources({sourceRecords:rows}).sourceRecords,sha:{start:shaStart,feed:shaFeed,hex:shaHex,copy:shaCopy,logOpen,logAppend,logSeal,logRebuild,midSave,midLoad,rowsHash,sourcesSeal}};

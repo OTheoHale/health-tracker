@@ -2017,6 +2017,10 @@ function mergeRewardLedger(cur, inc){
   }
   for (const [id,at] of Object.entries(inc.rewards.unlocks)) if (!cur.rewards.unlocks[id]) cur.rewards.unlocks[id] = at;
 }
+/* BT I (Oct 15): an Add went through three validations of the same record (wsTransaction's draft, actionTransaction's draft, the store's
+   own on the record it writes). The transaction's draft is marked while its change runs, so a nested wsTransaction leaves the one
+   validation to actionTransaction, which refuses the same records with the same words; the store's own check is its contract and stays. */
+const txDrafts=new WeakSet();
 async function actionTransaction(state, change, options){
   const opts=options||{}, revision=state.revision||0;
   const run=async()=>{
@@ -2029,7 +2033,7 @@ async function actionTransaction(state, change, options){
     if(!opts.rebase&&(current.revision||0)!==revision)return {ok:false,error:'This action changed in another window. Reload and review again.'};
     // V3.4 (S7): opts.undo names an undoable tap (Done, Skip, an add); the record before it joins the undo stack.
     const before=opts.undo?undoSnapshot(current,opts.undo):null;
-    const draft=cloneRecord(current), result=change(draft);
+    const draft=cloneRecord(current);txDrafts.add(draft);let result;try{result=change(draft);}finally{txDrafts.delete(draft);}
     if(result && result.ok===false)return result;
     const problem=validateState(draft);if(problem)return {ok:false,error:problem};
     const same=(state.revision||0)===(current.revision||0);
@@ -3514,7 +3518,11 @@ store.connect = async function(){
   // and never written again, so the previous version can still open it if V3.0 is rolled back.
   const engine=globalThis.HealthStore.create({key:STORE_KEY,dbName:V31_DB,markerKey:STORE_KEY+'.v31-authority',schema:2,validateState,sourceSignature});
   durableStore.engine=engine;
-  let opened=await engine.open();
+  /* BT D (his choice, Oct 14; built Oct 15): the launch reads and verifies the record and the source rows (about 1 s on his record) and
+     lets the page draw; the revision log (about 3.5 s) is read and verified behind it under the workspace lock, so any save made before
+     that check has finished queues behind it and the engine refuses every write once it has failed. A failure shows the same integrity
+     notice the launch read shows today (durableStore.onError, set by the page). */
+  let opened=await (typeof engine.openSplit==='function'?engine.openSplit():engine.open());
   // First open of this version: copy the newest earlier database (V3.0's, else V2.x's), read by an
   // engine of its own and never written again, so each earlier version can still open its own.
   let markedV3=false;try{markedV3=!!localStorage.getItem(STORE_KEY+'.v3-authority');}catch(e){}
@@ -3533,6 +3541,11 @@ store.connect = async function(){
   if(loaded.authority==='indexeddb'){
     if(loaded.state.autoFeed&&typeof globalThis.HealthAutoExport==='undefined'){durableStore.error='The feed adapter is unavailable. Reopen the complete review app before saving.';return;}
     durableStore.active=true;durableStore.cache=loaded.state;
+    if(loaded.historyPending){
+      const finish=r=>{durableStore.verifying=null;if(r&&r.ok){durableStore.historyVerified=true;return;}const msg=(r&&r.error)||'The local database did not reconcile.';durableStore.error=msg;if(typeof durableStore.onError==='function')try{durableStore.onError(msg);}catch(e){}};
+      const run=()=>engine.verifyHistory().then(finish,e=>finish({ok:false,error:String(e&&e.message||e)}));
+      durableStore.verifying=typeof navigator!=='undefined'&&navigator.locks?navigator.locks.request(STORE_KEY+'.workspace',run):run();
+    }
   }
 };
 store.read = function(){
@@ -4141,7 +4154,7 @@ function validateWorkspaceFamily(state){
 function wsCommitOn(draft,id,date,committed){const s=draft.series.find(s=>s.id===id),v=s&&versionFor(s,date);if(!v||v.childIds||!validCalendarDate(date)||!scheduledOn(v,date))return {ok:false,error:'Choose an available leaf on this date.'};const o=ensureOcc(draft,id,date);o.committed=!!committed;if(committed&&v.recurrence?.kind==='target'&&v.recurrence.count===1&&v.recurrence.mode!=='rolling'&&!o.status&&!draft.rewards.claims[o.rewardEventId])o.rewardEventId=id+'|week:'+weekStartOf(date,1);touch(o);return {ok:true,record:o};}
 function wsTransaction(state,change){
   const draft=state.syntheticWorkspace===true?wsClone(state):cloneRecord(state);wsEnsure(draft);
-  try{const result=change(draft);if(result?.ok===false)return result;const error=validateState(draft);if(error)return {ok:false,error};replaceState(state,draft);return result&&result.ok!==undefined?result:{ok:true,record:result||null};}
+  try{const result=change(draft);if(result?.ok===false)return result;const error=txDrafts.has(state)?null:validateState(draft);if(error)return {ok:false,error};replaceState(state,draft);return result&&result.ok!==undefined?result:{ok:true,record:result||null};}   // BT I: inside a transaction the outer validation covers this draft
   catch(error){return {ok:false,error:error.message};}
 }
 /* Fasting (Mintay, 2026-09-24): outside a season the Wednesday and Friday fasts read "Wed Fasting" and
