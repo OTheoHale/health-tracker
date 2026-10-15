@@ -3071,7 +3071,7 @@ addEventListener('load', () => {
     const {band,when,detail}=freshnessMeta(S().autoFeed);
     button.style.setProperty('--band',band);button.setAttribute('aria-label','Refresh. Last checked '+when);button.title='Refresh · last checked '+when;
     const label=button.querySelector('.fresh-label'),info=document.querySelector('#info-freshness p');
-    if(label)label.textContent=intake.deferred&&manualSaving>0?'Saving…':when==='Not checked'?'Not checked yet':'Checked '+when;   // Fix AC1if(info)info.textContent=detail;
+    if(label)label.textContent=intake.deferred&&manualSaving>0?'Saving…':when==='Not checked'?'Not checked yet':'Checked '+when; if(info)info.textContent=detail;   // Fix AC1 (code restored Oct 15: a trailing comment had swallowed it since V4.0.5, so the freshness ⓘ never refreshed)
     for(const pill of sourcePillData(S())){
       const el=document.querySelector('[data-source-pill="'+pill.id+'"]');if(!el)continue;
       el.title=pill.detail;el.setAttribute('aria-label',pill.name+' — '+pill.word+'. '+pill.detail);
@@ -3299,7 +3299,7 @@ addEventListener('load', () => {
     return drawn('person', () => {
       const g = goalsV2(st), today = todayYmd(), n = v => v !== null && v !== undefined && v !== '' && Number.isFinite(+v) && +v > 0 ? +v : null;
       let tr = null; try { tr = weightTrend(st, today); } catch (_) { tr = null; }
-      return {age:Scores.ageOn(today, n(g.birthYear) ? Math.round(g.birthYear) : null, n(g.birthMonth) ? Math.round(g.birthMonth) : null), sex:sexOf(st) || 'male', sexSet:sexOf(st) !== null, birthYear:n(g.birthYear) ? Math.round(g.birthYear) : null, birthMonth:n(g.birthMonth) ? Math.round(g.birthMonth) : null,
+      return {age:typeof Scores === 'undefined' ? null : Scores.ageOn(today, n(g.birthYear) ? Math.round(g.birthYear) : null, n(g.birthMonth) ? Math.round(g.birthMonth) : null), sex:sexOf(st) || 'male', sexSet:sexOf(st) !== null, birthYear:n(g.birthYear) ? Math.round(g.birthYear) : null, birthMonth:n(g.birthMonth) ? Math.round(g.birthMonth) : null,
         heightCm:n(g.heightIn) ? g.heightIn * 2.54 : null, weightKg:tr ? tr.latest * 0.45359237 : null, need:n(g.sleepNeedH) || SLEEP_NEED_DEFAULT_H, hrMaxOverride:n(g.maxHeartRate), proteinG:n(g.proteinTargetG), kcal:n(g.calorieTarget), deficit:n(g.deficit.daily) || 0};
     });
   }
