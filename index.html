@@ -7496,7 +7496,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const yv = typeof YearView !== 'undefined' ? YearView.hook({S, scoreIndex, sleepNights, stepsGoal, scorePerson, gradeTone, render, on:SCORES_ON}) : null;   // AU2: the Year tab (year-view.js)
     const pTab = yv && yv.html ? 'year' : progTabV === 'collection' ? 'collection' : progTabV === 'week' ? 'week' : 'grades';
     if (yv && yv.html) return yv.html.replace(/<div class="yv-tabs"[\s\S]*?<\/div>/, progTabsHTML('year'));   // BB8
-    if (pTab === 'collection') return '<div class="pg-head">' + progTabsHTML('collection') + '</div>' + renderCollection() + scoringProposalCard();   // BB8: Collection is a tab
+    if (pTab === 'collection') return '<div class="pg-head">' + progTabsHTML('collection') + '</div>' + renderCollection() + scoringProposalCard() + progressionLearnList('collection');   // BB8: Collection is a tab; its Learn list (perfect day, week, month, points level) comes with it, as before BB8
     if (pTab === 'week') return '<div class="pg-head">' + progTabsHTML('week') + '</div>' + renderWeekReview(S());   // BK9: Review › Week
     const st = S(), W = progWindow(st, 'practice'), MW = progWindow(st, 'momentum'), t = progTally(st, W.from, W.to), prev = progTally(st, addDays(W.from, -W.len), addDays(W.from, -1));
     // P1: the frame
