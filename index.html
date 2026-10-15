@@ -2569,12 +2569,18 @@ addEventListener('load', () => {
      to one row per metric and day (compactAgedDays), in one locked, sealed write whose revision entry
      records what left. Runs a few seconds after launch and hourly; a day's work is done once. */
   let compactedFor=null;
+  /* BQ A7 (his decision, Oct 14): the roll-up ran 3 s after launch and then hourly; when an open dialog (the Close out walk opens itself on
+     the first Today visit of a day) or a save held it back, it waited for the hourly timer. It now tries again every 30 s until it has run
+     for the day. The roll-up itself is unchanged (same rows removed, same totals); only the moment it runs moves. */
+  let compactRetry=0;
+  function compactLater(){if(compactRetry)return;compactRetry=setTimeout(()=>{compactRetry=0;compactStore();},30000);}
   async function compactStore(){
-    if(!durableStore.active||preview||readOnly||!real.autoFeed||intake.busy||typeof navigator==='undefined'||!navigator.locks)return;
+    if(!durableStore.active||preview||readOnly||!real.autoFeed||typeof navigator==='undefined'||!navigator.locks)return;
     const today=todayYmd();if(compactedFor===today)return;
+    if(intake.busy){compactLater();return;}
     let rolled=0;
     await navigator.locks.request(STORE_KEY+'.workspace',async()=>{
-      if(intakeEditing())return;
+      if(intakeEditing()){compactLater();return;}
       const current=await store.readCommitted();if(!current.ok)return;
       const draft=cloneRecord(current.state),r=compactAgedDays(draft,today);
       if(!r.ok){intakeLog('rollup skipped: '+r.error);return;}
@@ -3240,7 +3246,6 @@ addEventListener('load', () => {
   function detailFields(r){
     return '<div class="fields"><div class="mins"><label for="m-' + r.key + '">Minutes</label><input id="m-' + r.key + '" type="number" inputmode="numeric" min="0" step="1" value="' + (r.actualMinutes === null || r.actualMinutes === undefined ? '' : r.actualMinutes) + '"></div><div class="note"><label for="n-' + r.key + '">Note</label><input id="n-' + r.key + '" type="text" maxlength="140" value="' + esc(r.note || '') + '"></div><button class="save" data-act="saveDetail">Save</button></div>';
   }
-  function storyCard(title, n){ return '<section class="panelcard story" data-feedback-id="weekly-story" data-feedback-label="This week, in words"><h2>' + esc(title) + '</h2><p>' + esc(n.text) + '</p><p class="basis">' + esc(n.basis) + '</p></section>'; }
 
   /* ---------- V3.1 scores on the page ----------
      scores.js does the sums from the stored rows, glow-views.js draws the pieces, and this block gathers
@@ -3582,11 +3587,6 @@ addEventListener('load', () => {
     const v=vo2Display(st);if(!v)return 'No reading yet';
     return (v.apple?'Apple '+v.apple.value.toFixed(1)+' · '+medDate(v.apple.day)+(v.fresh?'':' · stale, not placed'):'No Apple reading in 180 days')+(v.estimate?' · estimate '+v.estimate.value.toFixed(1)+' (est.) · '+medDate(v.rest.day):' · estimate needs age and recent resting HR');
   }
-  function vo2Ladder(st){
-    const v=vo2Display(st),recipe=GlowLearn.recipes().vo2;
-    const previous=v&&v.fresh?Scores.latestReading(scoreIndex(st),'vo2_max',addDays(v.apple.day,-1),Scores.TABLE.vo2.staleDays):null;
-    return GV.ladder(v&&v.stand||{metric:'vo2_max',rung:null},{name:'VO₂ max'+(v&&v.estimated?' (est.)':''),asOf:v&&v.asOf?'as of '+medDate(v.asOf):'',note:'Needs a Watch reading, or age and resting HR',info:infoBtn('stand-vo2_max','VO₂ max')+infoPop('stand-vo2_max',recipe.how+' '+recipe.formula+' '+recipe.optimal,'vo2')})+(previous?GV.delta({now:v.value,prev:previous.value,better:'up',unit:'ml/kg/min',period:'since '+medDate(previous.day)}):'')+'<p class="hint keep">'+esc(vo2Comparison(st))+'</p>';
-  }
   function metricLearnCards(st,ids){
     if(!SCORES_ON)return [];
     const x=scoreIndex(st),u=unitPrefs(st),p=scorePerson(st),today=todayYmd(),readings={},s=x?standOf(st):null,h=x?healthAgeOf(st):null,growth=ids===GROWTH_LEARN;
@@ -3737,7 +3737,6 @@ addEventListener('load', () => {
   const infoPop = (id, text, learn) => { const target=V36_INFO_LEARN(id)||learn||({readiness:'readiness',sleep:'sleep-score',load:'load',fuel:'fuel',faith:'faith','fitness-sleep':'sleep-score','sleep-detail':'sleep-score',momentum:'momentum',trends:'faith-readiness',perfect:'perfect-day','sleep-credit-weeks':'sleep-credit','rank-history':'rank-history','on-plan':'on-plan','points-level':'points-level'}[id.replace(/^ring-/,'')]);return '<div class="info-pop" id="info-' + id + '" hidden role="note"><p class="hint">' + esc(text) + '</p>' + (target ? '<button class="link" data-act="learnOpen" data-learn="' + esc(target) + '">Learn more</button>' : '') + '</div>'; };
   const hmShort = hours => { const m = Math.round(hours * 60); return Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0'); };
   const titleWord = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-  function trackKey(){ return '<p class="scale-key track"><span>low → high reading</span><span><i class="box"></i>your typical range</span><span><i class="pt"></i>recent readings</span><span><i class="kn"></i>latest</span></p>'; }
 
   /* ---------- Today: the five scores ---------- */
   function heroCard(date, options){
@@ -3798,31 +3797,6 @@ addEventListener('load', () => {
     const el = selector && document.querySelector('#main ' + selector); if (!el) return;
     el.scrollIntoView({block:'center', behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
     el.classList.add('spot'); setTimeout(() => el.classList.remove('spot'), 1800);
-  }
-  function readinessCard(date){
-    const st = S(), b = SCORES_ON ? bodyScores(st, date) : null; if (!b) return '';
-    const r = b.readiness, i = r.inputs, w = b.warning, tone = c => 'style="color:' + GV.tone(c) + '"';
-    const z = i.zH, hrv = z === null || z === undefined ? ['—','neutral'] : z >= 0.5 ? ['above your normal','green'] : z <= -1 ? ['well below your normal','orange'] : z <= -0.5 ? ['below your normal','yellow'] : ['within normal','green'];
-    const dr = i.rhr && Number.isFinite(i.rhr.today) && Number.isFinite(i.rhr.mu) ? Math.round(i.rhr.today - i.rhr.mu) : null, rhr = dr === null ? ['—','neutral'] : [(dr > 0 ? '+' : dr < 0 ? '−' : '') + Math.abs(dr) + ' bpm vs baseline' + (i.rhr.yesterday ? ' (yesterday’s)' : ''), dr <= 1 ? 'green' : dr <= 4 ? 'yellow' : 'orange'];
-    const flag = id => { const c = w && w.checks.find(k => k.id === id); return !c || c.value === null ? '—' : !c.taking ? 'building' : c.outlier ? 'unusual' : 'normal'; }, flags = flag('rr') + ' · ' + flag('temp'), unusual = /unusual/.test(flags);
-    const why = r.confidence ? 'Confidence: ' + r.confidence.toLowerCase() + (r.missing.length ? ' (no ' + r.missing.join(', ').toLowerCase() + ')' : w && w.checks.find(k => k.id === 'temp' && k.value === null) ? ' (no wrist temperature yet)' : '') : r.building ? 'Needs 7 nights of HRV or resting HR (' + r.building.n + ' so far)' : 'No HRV or resting heart rate for this day yet.';
-    return '<section class="panelcard" data-feedback-id="readiness" data-feedback-label="Readiness" data-tidy="keep"><div class="ph"><h2>Readiness</h2>' + infoBtn('readiness', 'Readiness') + '</div>' + infoPop('readiness', SCORE_INFO.readiness) +
-      '<div class="score-rows"><span>HRV (7-day vs your normal)</span><b ' + tone(hrv[1]) + '>' + esc(hrv[0]) + '</b><span>Resting heart rate</span><b ' + tone(rhr[1]) + '>' + esc(rhr[0]) + '</b><span>Sleep</span><b ' + tone('blue') + '>' + (i.sleep === null || i.sleep === undefined ? '—' : i.sleep) + '</b>' +
-      '<span>Yesterday’s load</span><b ' + tone(i.load ? (i.load.label === 'above' ? 'orange' : i.load.label === 'below' ? 'yellow' : 'green') : 'neutral') + '>' + esc(i.load ? (i.load.label || 'no band yet') : '—') + '</b><span>Breathing · wrist temp</span><b ' + tone(unusual ? 'orange' : 'neutral') + '>' + esc(flags) + '</b></div>' +
-      (r.capped ? '<p class="hint keep" style="color:' + GV.tone('orange') + '">Held at Pace: ' + esc(r.capReasons.join(', ').toLowerCase()) + '.</p>' : '') + '<p class="hint keep">' + esc(why) + '</p></section>';
-  }
-  function healthAgeCard(){
-    const st = S(), h = SCORES_ON ? healthAgeOf(st) : null; if (!h) return '';
-    const p = scorePerson(st), now = h.now, fit = h.fitness, since = now.before ? parseYmd(now.before.asOf).toLocaleDateString(undefined, {month:'long'}) : null;
-    const head = '<section class="panelcard" data-feedback-id="health-age" data-feedback-label="Health Age" data-tidy="keep"><div class="ph"><h2>Health Age</h2>' + infoBtn('health-age', 'Health Age') + '</div>' + infoPop('health-age', healthAgeCalcText() + ' ' + SCORE_INFO.healthAge + ' ' + SCORE_INFO.fitnessAge);
-    const fitness = '<span>Fitness age (VO₂ max)</span><b' + (fit.colour ? ' style="color:' + GV.tone(fit.colour) + '"' : '') + '>' + esc(fit.value === null ? '—' : fit.label) + '</b>';
-    const link = '<button class="link stand-more" data-act="go" data-area="stand">Growth →</button>';
-    if (p.age === null) return head + '<p class="hint keep">Health Age needs your birth year. Add it under Goals on the Body page; it stays on this device.</p><div class="score-rows">' + fitness + '</div><button class="link stand-more" data-act="go" data-area="profile">Open Body → Goals</button></section>';
-    if (now.value === null) return head + '<p class="hint keep">Not enough yet: ' + esc(now.missing.join(', ')) + '. It needs VO₂ max and at least two more measures over the last 30 days.</p><div class="score-rows">' + fitness + '</div>' + link + '</section>';
-    const change = now.change === null ? '' : Math.abs(now.change) < 0.5 ? GV.chip({text:'steady since ' + since, tone:'neutral'}) : GV.chip({arrow:now.change < 0 ? '▼' : '▲', text:(Math.abs(Math.round(now.change)) || 1) + ' year' + (Math.abs(Math.round(now.change)) > 1 ? 's' : '') + ' since ' + since, tone:now.change < 0 ? 'green' : 'orange'});
-    const list = (names, colour) => names.length ? '<b style="color:' + GV.tone(colour) + '">' + esc(names.join(' · ').toLowerCase().replace(/vo₂/g, 'VO₂').replace(/hrv/g, 'HRV')) + '</b>' : '<b>—</b>';
-    return head + '<div class="score-big"><b style="color:' + GV.tone(now.colour) + '">' + now.value + '</b><small>years · you are ' + p.age + ' · ' + esc(now.confidence.toLowerCase()) + ' confidence</small></div>' + (change ? '<p style="margin:0 0 8px">' + change + '</p>' : '') +
-      '<div class="score-rows">' + fitness + '<span>Pulling up</span>' + list(now.inputs.pullingUp, 'orange') + '<span>Helping</span>' + list(now.inputs.helping, 'green') + '</div><p class="hint keep">As of ' + esc(medDate(now.window.asOf)) + ' · fixed for the week' + (now.missing.length ? ' · missing ' + esc(now.missing.join(', ').toLowerCase()) : '') + '</p>' + link + '</section>';
   }
 
   /* ---------- Perfect tiers (recognition only in V3.1) ----------
@@ -3915,35 +3889,9 @@ addEventListener('load', () => {
       '<p class="scale-key"><span><i style="background:linear-gradient(160deg,#fff0c4,var(--brass))"></i>Perfect day</span><span><i style="background:transparent;border:1.5px solid var(--c-green)"></i>Perfect Fitness</span><span><i style="background:color-mix(in srgb,var(--brass) 18%,rgba(0,0,0,.3))"></i>Something open</span><span><i style="background:var(--sunk)"></i>Nothing due</span></p>' +
       (r.pending ? '<p class="hint keep" role="status">Reading ' + r.pending + ' earlier day' + (r.pending === 1 ? '' : 's') + '…</p>' : '') + counts + '</div></div></section>';
   }
-  function perfectProgress(date){
-    if (!SCORES_ON) return '';
-    const st = S(), v = perfectVerdict(st, date); if (v.perfect === null && v.fitness === null) return '';
-    const bar = (done, due, cls) => '<i class="perfect-bar' + cls + '" role="img" aria-label="' + done + ' of ' + due + ' due done"><i style="width:' + (due ? Math.round(100 * done / due) : 0) + '%"></i></i>';
-    const line = (title, ok, done, due, open, cls) => ok === null ? '' : bar(done, due, cls) + '<p><b>' + title + '</b> · ' + (ok ? (cls ? '🏃' : '🌟') + ' earned' : done + ' of ' + due + ' due done') + (open.length ? ' · open: ' + esc(open.slice(0, 3).join(', ')) + (open.length > 3 ? ' +' + (open.length - 3) : '') : '') + '</p>';
-    return '<div class="perfect-progress" data-perfect="' + (v.perfect === true ? 'earned' : 'open') + '"><h3>Perfect Day ' + infoBtn('perfect-day', 'Perfect Day') + '</h3>' + infoPop('perfect-day', SCORE_INFO.perfect) + line('Perfect', v.perfect, v.done, v.due, v.open, '') + line('Perfect Fitness', v.fitness, v.fitnessDone, v.fitnessDue, v.fitnessOpen, ' fit') + '</div>';
-  }
 
   /* ---------- Body: figures, Vitals, Growth ---------- */
   const quartile = (values, q) => { const v = values.slice().sort((a, b) => a - b), i = (v.length - 1) * q, lo = Math.floor(i); return v[lo] + (v[Math.min(lo + 1, v.length - 1)] - v[lo]) * (i - lo); };
-  function bodyFiguresCard(st,fitdays){
-    if (!SCORES_ON) return '';
-    fitdays=fitdays||window.HealthBodySnapshot?.fitdays;
-    const p = scorePerson(st), today = todayYmd(), unit = st.prefs.units === 'kg' ? 'kg' : 'lb', g = goalsV2(st), perKg = unit === 'kg' ? 1 : 2.2046226218487757;
-    const reading=metrics=>bodyReading(st,metrics,fitdays),x=scoreIndex(st);
-    // Two windows (Mintay, Sept 27): against the reading about two weeks earlier and the one about four weeks earlier.
-    const before = (metric, date, days) => { if (!x) return null; const r = Scores.latestReading(x, metric, addDays(date, -days), days === 14 ? 24 : 45); return r ? r.value : null; };
-    const tile = (label, big, chip, when) => {const id=label.toLowerCase().replace(/\s+/g,'-'),r=GlowLearn.recipes()[id];return '<div class="body-figure" data-figure="'+id+'"><small>'+esc(label)+infoBtn('figure-'+id,label)+'</small>'+infoPop('figure-'+id,r.how+' '+r.formula,id)+'<b>'+big+'</b>'+chip+(when?'<small>'+esc(when)+'</small>':'')+'</div>';};
-    const none = label => tile(label, '<span class="dim">—</span>', GV.chip({text:'No reading yet'}), '');
-    const chip = (delta, goodDown, span) => delta === null ? GV.chip({text:'no reading ' + span + ' ago'}) : Math.abs(delta) < 0.25 ? GV.chip({text:'steady · ' + span}) : GV.chip({arrow:delta < 0 ? '▼' : '▲', text:(Math.round(Math.abs(delta) * 10) / 10).toFixed(1) + ' in ' + span, tone:goodDown === null ? 'neutral' : (delta < 0) === goodDown ? 'green' : 'orange'});
-    const trend = (now, metric, date, goodDown) => { const two = before(metric, date, 14), four = before(metric, date, 28); return two === null && four === null ? '' : '<span class="trend-pair">' + chip(two === null ? null : (now - two) * perKg, goodDown, '2 weeks') + chip(four === null ? null : (now - four) * perKg, goodDown, '4 weeks') + '</span>'; };
-    const w = reading(['weight_body_mass','weight_&_body_mass']), fat = reading(['body_fat_percentage']), lean = bodyReading(st, ['lean_body_mass'], null);   // K2: this tile is Apple Health's own lean mass; the report's muscle mass is the Muscle figure
-    const down = Number.isFinite(g.weightLb.jan7) && w ? g.weightLb.jan7 < w.value * 2.2046226218487757 : null;
-    const range = fat ? Scores.range('body_fat_percentage', fat.value, whoOf(p)) : null;
-    return '<div class="body-figures" data-feedback-id="body-figures" data-feedback-label="Body figures">' +
-      (w ? tile('Weight', (w.value * perKg).toFixed(1) + ' <small>' + unit + '</small>', trend(w.value, 'weight_body_mass', w.date, down), medDate(w.date)+' · '+w.source) : none('Weight')) +
-      (fat ? tile('Body fat', fat.value.toFixed(1) + ' <small>%</small>', GV.chip({text:range.state === 'in' ? 'in the healthy range' : range.text.replace(' % ', ' ').replace('over the range', 'over the healthy range').replace(/ under$/, ' under the healthy range'), tone:range.colour}), medDate(fat.date)+' · '+fat.source) : none('Body fat')) +
-      (lean ? tile('Lean mass', (lean.value * perKg).toFixed(1) + ' <small>' + unit + '</small>', trend(lean.value, 'lean_body_mass', lean.date, false), medDate(lean.date)+' · '+lean.source) : none('Lean mass')) + '</div>';
-  }
   const VITAL_ROWS = [
     {id:'hrv', metric:'heart_rate_variability', label:'HRV', sub:'ms · overnight', kind:'overnight', digits:0, ranked:true},
     {id:'rhr', metric:'resting_heart_rate', label:'Resting HR', sub:'bpm · lower is better', kind:'latest', digits:0, ranked:true},
@@ -4208,10 +4156,6 @@ addEventListener('load', () => {
 
   /* Every tile above follows the range picked on Fitness (the Sept 24 rule). The scores look at today and
      the last 28 days whatever is picked, so they sit under their own heading. */
-  function scoreCards(st){
-    const load = loadCard(st), insight = insightCard(st); if (!load && !insight) return '';
-    return '<div class="cols2 fit-cards score-cards"><div class="fit-title wide"><h2>Scores</h2><span class="hint">today and the last 28 days, whatever range is picked above</span></div>' + load + insight + '</div>';
-  }
 
   /* ---------- Progress: the Trends band ---------- */
   const FAITH_TREND_RULE={window:60,min:5};
@@ -4267,15 +4211,6 @@ addEventListener('load', () => {
     {id:'walk',label:'Endurance · 6-minute walk',metrics:['six_minute_walking_test_distance'],kinds:['other'],unit:'m',digits:0},
     {id:'hrv',label:'Recovery · HRV',metrics:['heart_rate_variability'],kinds:['other'],unit:'ms',digits:0,stand:'heart_rate_variability'}
   ];
-  function latestMetric(state,metrics,kinds){
-    if(typeof latestMeasurement==='function'){const x=latestMeasurement(state,metrics);if(x)return {value:x.value,date:x.date,start:x.start,source:x.source};}
-    let best=null;
-    for(const kind of kinds)for(const r of relayedRecords(state,kind)){
-      const meta=r.unmapped&&r.unmapped.healthAutoExport;if(!meta||!metrics.includes(meta.metric)||!Number.isFinite(r.value))continue;
-      const date=sourceLocalDay(r.start);if(!best||date>best.date||date===best.date&&r.start>best.start)best={value:r.value,date,start:r.start,source:r.sourceApp||'Apple Health'};
-    }
-    return best;
-  }
   let mfWindow = 'day';
   /* ---------- V3.5 D1, D3, D4: the metric drawer, the tap map and the Learn view ---------- */
   // Every metric that shows a number on Body, Today and Fitness. learn: its Learn card; add: how a reading is added here.
@@ -4687,17 +4622,7 @@ addEventListener('load', () => {
      Grade (G5) will go. The rank history on Progress keeps its own record. */
   // V3.5 G5: the interim Body rank (B9) gave its place to the Fitness Grade (fitnessGradeCard).
 
-  function waistAddCard(){ return ''; }
 
-  function overallRankCard(st){
-    if(!SCORES_ON)return '';
-    const win=(typeof rankWindow!=='undefined'&&rankWindow)||'rolling',rr=overallRankReport(st,todayYmd(),win),names={fitness:'Fitness',food:'Food & Hydration',care:'Personal Care',faith:'Faith',work:'Work & Learning',health:'Health',hygiene:'Hygiene',relationship:'Relationship',career:'Career'};
-    return '<section class="panelcard" data-feedback-id="overall-rank" data-feedback-label="Overall rank"><div class="ph"><h2>Overall Rank</h2><span class="hint">'+esc(rr.from===rr.to?medDate(rr.from):medDate(rr.from)+' – '+medDate(rr.to))+'</span></div>'+
-      '<div class="seg rank-window" role="group" aria-label="Rank window">'+[['day','Day'],['week','Week'],['rolling','Month']].map(([k,l])=>'<button data-act="rankWindow" data-w="'+k+'" aria-pressed="'+(win===k)+'">'+l+'</button>').join('')+'</div>'+
-      infoBtn('rank','Overall Rank')+infoPop('rank',GlowLearn.recipes().rank.how+' '+GlowLearn.recipes().rank.formula+' Active importance: '+rr.slots.filter(r=>r.included).map(r=>(names[r.gid]||r.gid)+' '+r.weight).join(', ')+'. Grades: '+RANK_CUTOFFS.slice().reverse().map(([v,l])=>l+' ≥'+v+'%').join(', ')+'.','rank')+
-      '<div class="rank-row"><div class="rank-grade" style="--tone:'+(rr.overall===null?'var(--line)':perfColor(rr.overall/80))+'">'+esc(rr.letter||'—')+'</div><div class="rank-list">'+rr.slots.map(x=>'<div class="rank-area" style="--tone:'+(x.pct===null?'var(--line)':perfColor(x.pct/80))+'"><span>'+esc(names[x.gid]||groupName(x.gid)||x.gid)+'</span><b title="'+(x.pct===null?'Nothing scheduled':x.done+' of '+x.planned+' · '+Math.round(x.pct)+'%')+'">'+esc(x.included?(x.letter||'—'):'Excluded')+'</b><i class="rank-meter" role="img" aria-label="'+esc((names[x.gid]||x.gid)+': '+(x.included&&x.pct!==null?Math.round(x.pct)+'%':'not graded'))+'"><i style="width:'+(x.included&&x.pct!==null?Math.max(0,Math.min(100,x.pct)):0)+'%"></i></i></div>').join('')+'</div></div>'+
-      '<button class="link" data-act="goGrades">Edit importance and inclusion</button></section>';
-  }
   /* Body (the approved "best of both" order, Sept 26): the body view first and full width, his three figures
      with their trend chips under it, Measured Fitness beside Vitals, Overall Rank beside the Growth
      summary; Goals stay in the rail. The Collection card left this page: the level sits in the header orb
@@ -4784,25 +4709,6 @@ addEventListener('load', () => {
     const ageCard = card('age-card', null, 'Age', '🧬', null, noBirth ? '<p class="hint keep gr-empty" data-age-empty>Enter your birth year in Body → Goals.</p>' : ageVal('Health Age', now && now.value !== null ? now.value : null, 'health') + ageVal('VO₂ Age', fitA && fitA.value !== null ? fitA.label : null, 'fitness') + '');
     const hc = (html, id) => withChip(html, 'profile', id);   // Fix C3: the hero cards that read a window carry the chips
     return '<div class="k-grid body-heroes" data-parity="V37-B3-01">' + weightGoal + hc(compCard, 'musclefat') + '</div>';   // BB3: Composition replaces Muscle & Fat, BMI and Age (Health Age is in Standing below; VO₂ Age goes to Fitness)
-  }
-  function bodyOverview(st){
-    if (!SCORES_ON) return '';
-    const door = (id, title, html) => '<button type="button" class="ring-link" data-act="ringGo" data-score="' + id + '" title="Open ' + title + '">' + html + '</button>';
-    const s=standOf(st),vd=vo2Display(st, day),vo2=vd&&vd.stand,placed=vo2&&vo2.rung?GV.rungPlace(vo2):null;
-    const fitness=GV.ring({id:'measured',share:placed?placed.place:null,colour:placed?placed.tone:null,centre:placed?vo2.value.toFixed(1):undefined,title:'Measured Fitness',word:placed?'VO₂ max'+(vd.estimated?' (est.)':'')+' · '+placed.word:'No VO₂ max yet',wordColour:placed?placed.tone:'neutral',label:'Measured Fitness: VO₂ max '+(placed?vo2.value.toFixed(1)+(vd.estimated?' estimated':''):'not available')});
-    const steady = r => r.ranked ? !['red','orange'].includes(r.tone) : r.tone === 'green', vit = vitalRows(st).filter(r => r.tone), calm = vit.filter(steady).length, vTone = !vit.length ? null : calm === vit.length ? 'green' : calm >= vit.length - 1 ? 'yellow' : 'orange';
-    const vitals = GV.ring({id:'vitals', share:vit.length ? calm / vit.length : null, colour:vTone, centre:vit.length ? calm + '/' + vit.length : undefined, title:'Vitals', word:vit.length ? (calm === vit.length ? 'all steady' : 'look at ' + vit.filter(r => !steady(r)).map(r => r.label).join(', ')) : 'No readings yet', wordColour:vTone || 'neutral', label:'Vitals: ' + (vit.length ? calm + ' of ' + vit.length + ' in range' : 'not available')});
-    let rr = null; try { rr = overallRankReport(st, todayYmd(), (typeof rankWindow !== 'undefined' && rankWindow) || 'rolling'); } catch (_) { rr = null; }
-    const has = rr && rr.overall !== null && rr.letter, rank = GV.ring({id:'rank', share:has ? rr.overall / 100 : null, colour:has ? perfColor(rr.overall / 80) : null, centre:has ? rr.letter : undefined, title:'Overall Rank', word:has ? Math.round(rr.overall) + '% of required done' : 'Nothing scheduled yet', wordColour:has ? perfColor(rr.overall / 80) : 'neutral', label:'Overall Rank ' + (has ? rr.letter : 'not available')});
-    // V3.5 G5: the Fitness Grade takes the Overall Rank's place here as on the rail (C-28); the interim rank shows only when it cannot be drawn
-    const fg = fitnessGradeNow(st), fgRing = fg ? GV.ring({id:'rank', share:fg.letter ? fg.percent / 100 : null, colour:fg.letter ? gradeTone(fg.percent) : null, centre:fg.letter || undefined, title:'Fitness Grade', word:fg.letter ? Math.round(fg.percent) + '% · ' + fg.present + ' of 7' : (fg.note || 'Not enough data yet'), wordColour:fg.letter ? gradeTone(fg.percent) : 'neutral', label:'Fitness Grade ' + (fg.letter || 'not available')}) : null;
-    const graded = s ? s.rows.filter(r => r.rung) : [], good = graded.filter(r => ['good','trained','athlete','elite'].includes(r.rung)).length, gTone = !graded.length ? null : good === graded.length ? 'violet' : good / graded.length >= .6 ? 'green' : good / graded.length >= .3 ? 'yellow' : 'orange';
-    const growth = GV.ring({id:'stand', share:graded.length ? good / graded.length : null, colour:gTone, centre:graded.length ? good + '/' + graded.length : undefined, title:'Growth', word:graded.length ? 'measures at Good or better' : 'Needs a few weeks of readings', wordColour:gTone || 'neutral', label:'Growth: ' + (graded.length ? good + ' of ' + graded.length + ' measures at Good or better' : 'not available')});
-    const quiet = h => h.replace(/<em [^>]*>[\s\S]*?<\/em>/, '');   // the words under each ring go (BODY-86); each ring opens its card
-    // V3.7 X11: the two count rings print their denominator and what is not graded (audit D-6: "0/4" hid it)
-    const ungraded = s ? s.rows.filter(r => !r.rung).map(r => (STAND_NAMES[r.metric] || [r.metric])[0]) : [], den = (t, p) => '<small class="ring-den" data-parity="' + p + '">' + esc(t) + '</small>';
-    const growthDen = den(graded.length ? good + '/' + graded.length + ' graded' : 'none graded yet', 'V37-X11-01'), vitalsDen = den(vit.length ? calm + '/' + vit.length + ' steady' : 'no readings yet', 'V37-X11-02');
-    return '<section class="panelcard score-hero body-overview" data-parity="BODY-01" data-feedback-id="body-overview" data-feedback-label="Body overview" data-tidy="keep"><div class="ph"><h2>Overview</h2>' + infoBtn('body-overview', 'Overview') + filtPageHTML('profile') + '</div>' + infoPop('body-overview', 'Four aggregates, each opening its card: Measured Fitness (your VO₂ max tier), Vitals (steady of total), the Fitness Grade (seven measured parts; until it can be drawn, Overall Rank, routine completion by section) and Growth (measures at Good or better). Colours: red is behind, then orange, yellow, green; violet is excellent. No raw value repeats here.') + '<div class="score-rings four">' + '<span data-parity="BODY-02">' + door('measured', 'Measured Fitness', quiet(fitness)) + '</span><span data-parity="BODY-03">' + door('vitals', 'Vitals', quiet(vitals)) + vitalsDen + '</span><span data-parity="BODY-04">' + (fgRing ? '<button type="button" class="ring-link" data-act="gradeOpen" data-u="fitness" data-score="fitness" title="Open the Fitness Grade">' + quiet(fgRing) + '</button>' : door('rank', 'Overall Rank', quiet(rank))) + '</span><span data-parity="BODY-05">' + door('stand', 'Growth', quiet(growth)) + growthDen + '</span></div></section>';
   }
   function profileCard(){
     const st = S();
@@ -5232,10 +5138,6 @@ addEventListener('load', () => {
     return '<div class="ggrid">' + visibleGroups(st).map(g => { const rows = agendaFor(st, day).filter(r => r.group === g.id); return '<section class="panelcard" data-feedback-id="activity-group:' + esc(g.id) + '" data-feedback-label="' + esc(g.name) + '"><div class="ph"><h2>' + esc(g.name) + '</h2><button class="link" data-act="goPlanGroup" data-group="' + g.id + '">Plan</button></div>' + (rows.length ? rows.map(dailyRow).join('') : '<p class="hint">Nothing planned today.</p>') + '</section>'; }).join('') + '</div>';
   }
 
-  function agendaCard(){
-    const st = S(), parked = parkedCards(st, day), hidden = hiddenToday(st, day), rows = agendaFor(st, day).filter(r => !inTemplate(st, r, day) && !parked.has(r.group) && !hidden.has(r.group));   // V3.3 (2.2, 2.6)
-    return '<section class="panelcard" data-feedback-id="your-agenda" data-feedback-label="Your agenda"><div class="ph"><h2>Your agenda</h2><button class="link" data-act="go" data-area="plan">Recurring plan</button></div><p class="hint">The same activities and entries, ordered through your day.</p>' + (rows.length ? rows.map(dailyRow).join('') : '<p class="hint">Nothing planned for this day.</p>') + '</section>';
-  }
 
   function dataWhen(value){ return pacificTime(value); }
   function dataNumber(value){ return Number.isFinite(value) ? String(Math.round(value * 10) / 10) : 'Unknown'; }
@@ -5268,11 +5170,6 @@ addEventListener('load', () => {
     return '<section class="panelcard day-editor" data-series="' + r.seriesId + '" data-date="' + day + '" data-key="' + r.key + '"><div class="ph"><h2 tabindex="-1">' + esc(r.name) + '</h2><button class="ghost small" data-act="closePanel">Close</button></div><p class="hint">This occurrence only · ' + esc(medDate(day)) + '</p>' + (family ? '<p class="hint">Family progress comes from its child tasks.</p>' + r.children.map(dailyRow).join('') : (past ? '' : segHTML(r,false)) + '<div class="acts">' + actionButtons(r) + (r.status !== null ? '<button class="ghost" data-act="clear">Clear entry</button>' : '') + '</div>' + stateLine(r) + detailFields(r) + (past ? '<p class="hint">Past targets are preserved. Entries can be corrected.</p>' : '<div class="form" style="margin-top:12px"><div><label for="day-target">Target for this day</label><input id="day-target" type="text" maxlength="80" value="' + esc(r.target.label) + '"></div><div><label for="day-time">Time for this day</label><input id="day-time" type="text" maxlength="30" value="' + esc(r.window) + '"></div></div><div class="acts"><button data-act="dayTarget">Save day adjustment</button></div>')) + (!family && day >= todayYmd() && r.status === null ? '<div class="fields" style="margin-top:12px"><div class="note"><label for="mv-' + r.key + '">Move this occurrence to</label><input id="mv-' + r.key + '" type="date" min="' + todayYmd() + '" value="' + addDays(day,1) + '"></div><button data-act="move">Move</button><button class="ghost" data-act="remove">Take off this day</button></div>' : '') + '<div class="acts"><button class="link" data-act="editRecurring">Edit this and future occurrences</button></div></section>';
   }
   const LOG_TABS = [['food','Food'],['water','Water'],['movement','Workout'],['checkin','Check in']];
-  function logLauncher(){
-    return '<section class="panelcard rail-card quick-log" data-feedback-id="log-something" data-feedback-label="Quick entry" data-tidy="keep"><h2>Log</h2><div class="log-grid">' +
-      LOG_TABS.map(t => '<button data-act="quickLog" data-tab="' + t[0] + '" aria-pressed="' + (quickTab === t[0]) + '">' + t[1] + '</button>').join('') + '<button data-act="journalOpen">Journal</button></div>' +
-      '<p class="hint keep">' + esc(medDate(day)) + ' · <button class="link" data-act="go" data-area="data">All entries</button></p></section>';
-  }
   function quickPanel(){
     if (!quickTab) return '';
     const name = (LOG_TABS.find(t => t[0] === quickTab) || [,'Log'])[1];
@@ -5597,7 +5494,7 @@ addEventListener('load', () => {
     const again = resume && saved && saved.date === date && Array.isArray(saved.cards) && saved.cards.length && saved.cards.every(id => CO_PHASES.includes(id));   // a walk saved card by card (V5.0.36) starts again by phase
     if (!cards.length && !again){ toast('Nothing open on ' + medDate(date) + '.'); return; }
     coWalk = again ? {date, cards:saved.cards, i:Math.min(saved.i, saved.cards.length), dir:1, seen:{}} : {date, cards, i:0, dir:1, seen:{}};
-    workspaceReview = {kind:'cowalk'}; workspaceDialog(coWalkHTML()).classList.add('co-dialog');
+    workspaceReview = {kind:'cowalk'}; workspaceDialog(typeof withDrawMemo === 'function' ? withDrawMemo(S(), coWalkHTML) : coWalkHTML()).classList.add('co-dialog');   // BQ A1: the walk's rows read the draw's one plan per day, not a fresh plan per lookup
   }
   function coWalkSave(){ if (coWalk) try { localStorage.setItem(CO_KEY, JSON.stringify({date:coWalk.date, cards:coWalk.cards, i:coWalk.i})); } catch (_) {} }
   function coWalkHTML(){
@@ -5632,7 +5529,9 @@ addEventListener('load', () => {
       (b.roll.length ? '<p class="hint keep co-line-sum">↩ ' + pl(b.roll.length, 'to-do') + ' rolling to ' + coNextWord(date) + ', nothing lost.</p>' : '') + (b.optional.length ? '<p class="hint keep co-line-sum">' + pl(b.optional.length, 'optional item') + ' keep going; none count as missed.</p>' : '') +
       foot('<button type="button" class="k-btn" data-act="coFinish">Done</button>');
   }
-  function coWalkDraw(){ const dlg = document.getElementById('workspaceReview'); if (!coWalk || !dlg || !dlg.open || !workspaceReview || workspaceReview.kind !== 'cowalk') return; const keep = dlg.querySelector('.co-card, .co-sum, .co-sec') ? dlg.scrollTop : 0, at = coWalk.i, folds = new Map([...dlg.querySelectorAll('details')].map(d => [foldKey(d), d.open])); dlg.innerHTML = coWalkHTML(); if (at === coWalk.i) dlg.querySelectorAll('details').forEach(d => { const k = foldKey(d); if (folds.has(k)) d.open = folds.get(k); });   /* BO line 8: an action keeps every fold on the page as it was */ dlg.scrollTop = at === coWalk.i ? keep : 0; const nx = dlg.querySelector('.co-row .co-act:not([disabled])'); if (nx && at !== coWalk.i) nx.focus({preventScroll:true}); }
+  /* BQ A1 (Oct 14): the walk is drawn after render's memoized block, so its plan lookups (onDayRows, findPlanRow per row) each rebuilt the day plan;
+     building its HTML inside withDrawMemo reads the one cached plan per day (115 to 230 ms off every draw and tap while the walk is open; same HTML). */
+  function coWalkDraw(){ const dlg = document.getElementById('workspaceReview'); if (!coWalk || !dlg || !dlg.open || !workspaceReview || workspaceReview.kind !== 'cowalk') return; const keep = dlg.querySelector('.co-card, .co-sum, .co-sec') ? dlg.scrollTop : 0, at = coWalk.i, folds = new Map([...dlg.querySelectorAll('details')].map(d => [foldKey(d), d.open])); dlg.innerHTML = typeof withDrawMemo === 'function' ? withDrawMemo(S(), coWalkHTML) : coWalkHTML(); if (at === coWalk.i) dlg.querySelectorAll('details').forEach(d => { const k = foldKey(d); if (folds.has(k)) d.open = folds.get(k); });   /* BO line 8: an action keeps every fold on the page as it was */ dlg.scrollTop = at === coWalk.i ? keep : 0; const nx = dlg.querySelector('.co-row .co-act:not([disabled])'); if (nx && at !== coWalk.i) nx.focus({preventScroll:true}); }
   // The first open of a day, once: yesterday still has something to close out (and is not closed)
   function coWalkAuto(){
     if (preview || readOnly || area !== 'home' || coWalk || document.querySelector('dialog[open]')) return; const st = S(), t = todayYmd(), y = addDays(t, -1);
@@ -5665,10 +5564,6 @@ addEventListener('load', () => {
     return '<section class="panelcard sofar" data-feedback-id="day-narration" data-feedback-label="So Far" data-tidy="keep"><div class="ph"><h2>So Far</h2>' + infoBtn('sofar', 'So Far') + '<button class="link sofar-review" data-act="coWalk" title="Close out the day, one Focus card at a time">Close out</button><span class="sofar-count" data-done="' + done + '" data-total="' + total + '" title="Items due on this day, done or not">' + done + ' of ' + total + ' due</span></div>' + infoPop('sofar', words.text + ' ' + words.basis) + '<p class="sofar-line"><b>' + done + ' done</b>' + (nxt ? ' · ' + esc(nxt.name) + ' next' : total ? ' · nothing left' : '') + '</p><div class="sofar-bar" role="img" aria-label="' + done + ' of ' + total + ' done"><i style="width:' + pct + '%"></i></div>' + (withClaim ? claimChipHTML(st) : '') + '</section>';   // Fix M2: the same gold Claim chip on Quests' So Far card, only when points are ready
   }
   function claimChipHTML(st){ const lvl = readyToClaim(st); return lvl && lvl.points ? '<button class="k-chip gold today-claim-chip" data-act="claimAll">Claim ' + (Math.round(lvl.points * 100) / 100).toLocaleString() + '</button>' : ''; }
-  function laterCard(){
-    const st = S(), rows = onDayRows(st, day).filter(r => r.status === null && dueOn(st, r, day));
-    return '<section class="panelcard rail-card" data-feedback-id="coming-up" data-feedback-label="Coming up" data-tidy="keep"><h2>Later Today</h2>' + (rows.length ? rows.slice(0, 4).map(dailyRow).join('') + (rows.length > 4 ? '<p class="hint keep">and ' + (rows.length - 4) + ' more in Activities</p>' : '') : '<p class="hint keep">Nothing else is due today.</p>') + '</section>';
-  }
   /* ---------- V3.4 Today: the "how am I doing" page (T1–T9). The day's cards and the composer are on Quests. ---------- */
   // S6: one freshness scale. Green within 3 days, blending to yellow at 6 and to red at 10, red after; words always beside.
   const FRESH_STOPS = [[3, 140], [6, 52], [10, 4]];
@@ -6876,11 +6771,6 @@ out += '<div class="notice"><strong>Review before import.</strong> ' + c.measure
     out += '<text x="'+L+'" y="'+(H-7)+'" fill="var(--faint)" font-size="11">'+esc(dataWhen(new Date(low).toISOString()))+'</text><text x="'+(W-5)+'" y="'+(H-7)+'" text-anchor="end" fill="var(--faint)" font-size="11">'+esc(dataWhen(new Date(high).toISOString()))+'</text>';
     return out+'</svg>';
   }
-  function fitnessControls(){
-    if(fitnessRange==='week')return '<div class="acts"><button data-act="fitnessWeek" data-n="-1">Previous week</button><button data-act="fitnessWeek" data-n="0">This week</button></div>';
-    if(fitnessRange==='custom')return '<div class="form"><div><label for="fitness-from">From</label><input type="date" id="fitness-from" value="'+fitnessFrom+'"></div><div><label for="fitness-to">To</label><input type="date" id="fitness-to" value="'+fitnessTo+'"></div><button data-act="fitnessCustom">Apply dates</button></div>';
-    return '';
-  }
   function renderData(){
     if(area==='fitness')return fitnessPage(S());   // V3.6 F3, F4: the Fitness page has its own renderer
     // The raw source list is shown only in Data; Fitness reads its separate projected histories.
@@ -7791,10 +7681,6 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     return '<section class="panelcard rail-card jr-card" data-feedback-id="journal-rail" data-feedback-label="Journal so far"><h2>Journal</h2><div class="jr-figs"><div><b>' + inWk.length + '</b><small>days this week</small></div><div><b>' + inMo.length + '</b><small>this month</small></div></div><div class="jr-parts">' + parts + '</div><p class="hint keep">' + (last ? 'Last entry ' + esc(monthDay(last)) : 'No entries yet') + '</p></section>';
   }
   /* ---------- Collection ---------- */
-  function journalCard(){
-    const j = journalFor(S(),day);
-    return '<section class="panelcard" data-feedback-id="journal" data-feedback-label="Journal"><div class="ph"><h2>Journal</h2><span class="hint">' + esc(medDate(day)) + '</span></div><p class="hint">A private place to set an intention, reflect and leave yourself feedback. Writing here never changes your plan or enters the improvement log.</p>' + (familyReflection ? '<div class="proposal"><p class="cap">Reflection prompt</p><p>' + esc(familyReflection) + '</p><p class="hint">A question to explore, not a conclusion. Nothing is added to your journal until you write and save.</p></div>' : '') + [['intention','Intention','What matters today?'],['reflection','Reflection','What did you notice?'],['feedback','Feedback for yourself','What would help next time?']].map(f => '<label for="journal-' + f[0] + '">' + f[1] + '</label><textarea id="journal-' + f[0] + '" maxlength="10000" placeholder="' + f[2] + '">' + esc(j[f[0]]) + '</textarea>').join('') + '<div class="acts"><button class="save" data-act="saveJournal">Save journal</button></div>' + (j.updatedAt ? '<p class="hint">Saved ' + esc(pacificTime(j.updatedAt)) + '. Included in your private exports.</p>' : '') + '</section>';
-  }
   function claimsCard(){
     const rw = rewardReport(S(),todayYmd());
     if (!rw.pending.length) return '';
@@ -7966,12 +7852,6 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     return '<section class="panelcard suggest-card" data-feedback-id="goal-suggestion" data-feedback-label="Suggested target"><div class="ph"><h2>Suggested Target</h2><span class="hint">This week</span></div><p>You are '+Math.abs(Math.round(unitPrefs(st).lb(sg.vsPace)*10)/10)+' '+unitPrefs(st).mass+' '+(sg.reason==='behind'?'above':'below')+' the plan line. Net Energy goal '+NE.plain(-sg.from)+' → <b>'+NE.plain(-sg.to)+' kcal</b> a day?</p><div class="acts"><button class="save" data-act="goalAccept" data-to="'+sg.to+'" data-week="'+esc(sg.week)+'">Accept</button><button data-act="goalDismiss" data-week="'+esc(sg.week)+'">Dismiss</button></div></section>';
   }
 
-  function checkpointCard(){
-    const st = S(), cp = nextCheckpoint(st), g = goalsV2(st), tr = weightTrend(st);
-    if (!cp) return '';
-    const left = calendarDistance(todayYmd(), cp.date), pace = weightPaceLb(st, cp.date), n = x => (Math.round(x * 10) / 10).toLocaleString();
-    return '<section class="panelcard" data-feedback-id="checkpoint" data-feedback-label="Checkpoint"><div class="ph"><h2>' + esc(cp.main ? 'Checkpoint' : cp.name) + '</h2><span class="hint">' + esc(medDate(cp.date)) + '</span></div><p class="big">' + (left > 0 ? left + ' <small class="dim">days to go</small>' : 'Today') + '</p>' + (pace !== null ? '<p class="hint">Plan for that day: ' + n(unitPrefs(st).lb(pace)) + ' '+unitPrefs(st).mass + (tr ? ' · now ' + n(unitPrefs(st).lb(tr.latest)) + ' '+unitPrefs(st).mass : '') + (g.weightLb.jan7 ? ' · goal ' + n(unitPrefs(st).lb(g.weightLb.jan7)) + ' '+unitPrefs(st).mass : '') + '</p>' : '<p class="hint">' + esc(planLineNeeds(st).replace(/^the plan line needs/, 'The plan for this date needs')) + '.</p>') + '</section>';
-  }
   /* What is still due this week and this month, each with a + that plans it for the day shown. It lands on its
      own card; "Move to another card" on the item changes that. */
   /* ---------- Template (V3.3 Phase 1, brief §3) ----------
@@ -8254,7 +8134,6 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     return '<details class="panelcard"><summary>Link two entries for the same real action</summary><p class="hint">Keep the confirmed action and identify its duplicate. This preserves history, removes duplicate points and may lower level. Distinct actions should stay separate.</p><label for="alias-duplicate">Duplicate plan entry</label><select id="alias-duplicate"><option value="">Choose</option>'+options+'</select><label for="alias-kept">Keep this confirmed action</label><select id="alias-kept"><option value="">Choose</option>'+options+'</select><button data-act="mergeActionAlias">Review link</button></details>';
   }
   function actionLogCard(){const rows=flatPlanFor(S(),day).filter(r=>!r.demo);return '<section class="panelcard"><h2>Did / did not · '+esc(medDate(day))+'</h2><p class="hint">These are the same actions shown in Today and Plan. Logging detail alone does not confirm an action.</p>'+rows.map(dailyRow).join('')+'</section>';}
-  function profileTrajectory(){const st=S(),end=todayYmd(),start=addDays(end,-27),list=weightHistory(st,start,end,st.prefs.units).filter(x=>x.weight!==null);return '<section class="panelcard"><h2>Your trajectory · 28 days</h2><p>'+esc(list.length>=2?'Recorded weight observations are available; compare their dates and sources in Fitness.':'Not enough comparable measurements for a body trend.')+'</p><p class="hint">Checkpoint '+esc(st.prefs.checkpoint||'not chosen')+' is a review date, not a promised outcome. Body composition remains Unassessed.</p><button data-act="go" data-area="fitness">Explore dated measurements</button><button data-act="go" data-area="progress">Review routine practice</button></section>';}
 
   function categoryLegend(state){return '<div class="plan-visual-legend">'+visibleGroups(state).map(g=>'<span><i style="background:'+categoryColor(g.id)+'" aria-hidden="true"></i>'+esc(titleCase(g.name))+'</span>').join('')+'</div><p class="hint">Bars show confirmed / committed actions. Select a day for exact outcomes; empty and future work stays unfilled.</p>'; }
   // One colour per category everywhere it appears (cards, rows, rings, bars). Faith is royal purple. A category
@@ -9267,10 +9146,6 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       '. Nothing is shown in its place and no state is guessed.</p>';
   }
   function depCard(module, fn, what){ return '<section class="panelcard"><h2>' + esc(what) + '</h2>' + depNote(module, fn, what) + '</section>'; }
-  function unknownShape(obj, wanted){
-    const keys = obj && typeof obj === 'object' ? Object.keys(obj) : [];
-    return '<p class="hint dep-missing">This build returned a record without ' + esc(wanted) + '. Keys actually present: ' + (keys.length ? '<code>' + esc(keys.join(', ')) + '</code>' : 'none') + '. Nothing is inferred from the missing field.</p>';
-  }
 
   const RING_ORDER = ['routine','cardio','strength'];
   const RING_R = { routine:76, cardio:57, strength:38 };
@@ -9360,11 +9235,6 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const rows=week.map(w=>{const s0=w.night&&at(w.night.start),e0=w.night&&at(w.night.end);return '<span class="sched-d">'+esc(new Date(w.d+'T12:00:00').toLocaleDateString(undefined,{weekday:'short'}))+'</span><span class="sched-t">'+(s0!==null&&e0!==null&&w.night?'<i style="left:'+s0.toFixed(1)+'%;width:'+Math.max(2,e0-s0).toFixed(1)+'%;background:'+(typeof GlowViews!=='undefined'&&GlowViews.sleepColour?GlowViews.sleepColour(w.night.minutes,SLEEP_GOAL_MIN):'#5b8fd6')+'" title="'+esc(clockOf(w.night.start)+' → '+clockOf(w.night.end))+'"></i>':'')+'</span>';}).join('');
     return tiles+'<p class="cap" style="margin-top:12px">Schedule · last 7 nights</p><div class="sched">'+rows+'</div><div class="sched-axis"><span>8 PM</span><span>12 AM</span><span>4 AM</span><span>8 AM</span><span>12 PM</span></div>';
   }
-  function unsortedWorkoutsCard(){
-    if(typeof Workspace==='undefined'||!Workspace.unsortedWorkouts)return '';
-    const list=Workspace.unsortedWorkouts(S());if(!list.length)return '';
-    return '<section class="panelcard" data-feedback-id="unsorted-workouts" data-feedback-label="Which kind of workout"><h2>Which kind of workout?</h2><p class="hint">Recorded, but the app can’t tell whether these are cardio or strength. Choose once; every later workout of the same type follows your choice.</p>'+list.map(u=>'<div class="acts" data-wkey="'+esc(u.key)+'"><span><b>'+esc(u.type)+'</b> · '+u.count+'× · '+Math.round(u.minutes)+' min this week</span><button data-act="wsClassify" data-cls="cardio">Cardio</button><button data-act="wsClassify" data-cls="strength">Strength</button><button data-act="wsClassify" data-cls="other">Neither</button></div>').join('')+'</section>';
-  }
   /* ---------- Fitness at a glance (Mintay, 2026-09-23): the week's story first, detail on demand ----------
      One value per day per metric: when two writers report the same day the larger figure stands,
      because Apple Health already merged them; nothing is added across writers. */
@@ -9399,7 +9269,6 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     return 'rgb('+ca.map((v,k)=>Math.round(v+(cb[k]-v)*t)).join(',')+')';
   }
   function heatKey(){return '<div class="grad-key heat" aria-label="Colour key: blue eating over or a quiet day, amber warming up, orange and red burning"><span>Quiet</span><i aria-hidden="true"></i><span>Burning</span></div>';}
-  function perfWord(ratio){return !Number.isFinite(ratio)?'':ratio>=1.3?'▲ Excellent':ratio>=1?'● On target':ratio>=.8?'◐ Close':ratio>=.5?'▼ Behind':'▼▼ Far behind';}
   function gradientKey(){return '<div class="grad-key" aria-label="Colour key: red far behind, orange behind, yellow close, green on target, violet excellent"><span>Behind</span><i aria-hidden="true"></i><span>Excellent</span></div>';}
   function tile(title,big,sub,pct,color,sparkHTML){
     return '<div class="glance-tile"><p class="cap">'+esc(title)+'</p><p class="glance-big">'+big+'</p><div class="glance-bar"><i style="width:'+Math.round(Math.min(1,pct||0)*100)+'%;background:'+color+'"></i></div><p class="hint">'+sub+'</p>'+sparkHTML+'</div>';
@@ -9407,32 +9276,6 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   // Every tile follows the range picked above it (Mintay, 2026-09-24). It used to show the seven days
   // before the end date whatever was picked, so "Week · Sun–Sat" read Thu–Wed while the detail below
   // said Sun–Sat. Day values show the range's last lived day; totals cover the whole range.
-  function fitnessGlance(st,from,end){
-    const today=todayYmd(),last=end>today?today:end,first=from>last?last:from,days=[];for(let d=first;d<=last;d=addDays(d,1))days.push(d);
-    const thisWeek=weekStartOf(fitnessAnchor,(S().prefs.weekStart===0?0:1))===weekStartOf(today,(S().prefs.weekStart===0?0:1));
-    const label=fitnessRange==='today'?'Today':fitnessRange==='week'?(thisWeek?'This Week':'Week of '+medDate(first)):fitnessRange==='custom'?'Custom Range':'Last '+days.length+' Days';
-    const dayName=d=>d===today?'today':new Date(d+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
-    const steps=dailyMax(st,'steps',first,last),energy=dailyMax(st,'activeEnergy',first,last);
-    const cls=r=>Workspace.workoutClass?Workspace.workoutClass(st,r.reference):null;
-    const wk=workoutSessionsInRange(st,first,last);
-    const minutesBy=c=>wk.filter(w=>cls(w)===c).reduce((a,w)=>a+(w.minutes||0),0);
-    const perDay=c=>{const m=new Map();for(const w of wk)if(cls(w)===c)m.set(w.date,(m.get(w.date)||0)+(w.minutes||0));return m;};
-    const cardioDays=[...perDay('cardio').values()].filter(v=>v>=20).length,strengthDays=[...perDay('strength').values()].filter(v=>v>=15).length,weekly=fitnessRange==='week'||fitnessRange==='7';
-    const nights=sleepNights(st),lastNight=nights.get(last)||(last===today?nights.get(addDays(last,-1)):null),sleepVals=new Map(days.filter(d=>nights.get(d)).map(d=>[d,nights.get(d).minutes/60]));
-    const s=steps.get(last),e=energy.get(last),many=days.length>1;
-    const dots=(n,of,color)=>'<span class="glance-dots">'+Array.from({length:of},(_,i)=>'<i style="background:'+(i<n?color:'var(--line)')+'"></i>').join('')+'</span>';
-    const tiles='<div class="glance-grid">'+
-      tile('Steps '+dayName(last),s===undefined?'—':Math.round(s).toLocaleString(),s===undefined?'No steps recorded '+(last===today?'yet today':'that day'):(s<12000?Math.round(12000-s).toLocaleString()+' to go · ':'')+Math.round(100*s/12000)+'% of 12,000',s/12000,'#7fc8a9',many?spark(days,steps,12000,'#7fc8a9'):'')+
-      tile('Active energy '+dayName(last),e===undefined?'—':Math.round(e).toLocaleString()+' <small>kcal</small>',e===undefined?'No energy recorded '+(last===today?'yet today':'that day'):Math.round(100*e/1000)+'% of 1,000 kcal',e/1000,'#e8a15c',many?spark(days,energy,1000,'#e8a15c'):'')+
-      tile('Workouts · '+label,Math.round(minutesBy('cardio')+minutesBy('strength'))+' <small>min</small>',weekly?'Cardio '+dots(cardioDays,4,'#6fb6e0')+' '+cardioDays+'/4 days · Strength '+dots(strengthDays,4,'#c98fd8')+' '+strengthDays+'/4':'Cardio '+cardioDays+' day'+(cardioDays===1?'':'s')+' · Strength '+strengthDays+' day'+(strengthDays===1?'':'s'),weekly?Math.min(cardioDays,4)/8+Math.min(strengthDays,4)/8:Math.min(1,(minutesBy('cardio')+minutesBy('strength'))/(45*Math.max(1,days.length))),'#6fb6e0','')+
-      tile(last===today?'Last night':'Night into '+dayName(last),lastNight?(lastNight.minutes/60).toFixed(1)+' <small>h asleep</small>':'—',lastNight?Math.round(100*lastNight.minutes/sleepGoalMin(st))+'% of '+hoursWord(sleepNeedH(st))+' h':(st.autoFeed&&st.autoFeed.contract.sleepMode!=='include'?'Sleep not brought in yet':'No night recorded'),lastNight?lastNight.minutes/sleepGoalMin(st):0,'#5b8fd6',many?spark(days,sleepVals,sleepNeedH(st),'#5b8fd6'):'')+
-      '</div>';
-    const tag=w=>{const c=cls(w);return '<span class="glance-tag" style="--t:'+(c==='cardio'?'#6fb6e0':c==='strength'?'#c98fd8':'var(--muted)')+'">'+(c==='cardio'?'Cardio':c==='strength'?'Strength':c==='other'?'Other':'Choose in Activities')+'</span>';};
-    const list=wk.length?'<ul class="glance-list">'+wk.slice(0,10).map(w=>'<li><span>'+esc(new Date(w.date+'T12:00:00').toLocaleDateString(undefined,{weekday:'short'})+(()=>{const t=w.start&&!/^\d{1,2}:\d{2}$/.test(w.start)?new Date(w.start):null;return t&&!isNaN(t)?' '+pacificTime(w.start,'time'):w.start?' '+w.start+' Pacific':'';})())+'</span><b>'+esc(w.type)+'</b><span>'+(w.minutes===null?'—':Math.round(w.minutes)+' min')+'</span><span class="hint">'+esc(w.source||'')+(w.also?' · also '+esc(w.also.join(', ')):'')+'</span>'+tag(w)+'</li>').join('')+'</ul>':'<p class="hint">No workouts recorded '+(days.length===1?'this day':'in this range')+'.</p>';
-    const weights=weightHistory(st,addDays(last,-29),last,st.prefs.units).filter(w=>w.weight!==null&&w.weight!==undefined);
-    const wLine=weights.length?(()=>{const first=weights[0],lastW=weights[weights.length-1],d=lastW.weight-first.weight,u=st.prefs.units==='kg'?'kg':'lb';return '<p><b>'+lastW.weight.toFixed(1)+' '+u+'</b> latest · '+esc(medDate(lastW.date))+(weights.length>1?' · <span style="color:'+(d<=0?'#7fc8a9':'#e8a15c')+'">'+(d>0?'+':'')+d.toFixed(1)+' '+u+'</span> over 30 days':'')+'</p>';})():'<p class="hint">No body weight in the last 30 days.</p>';
-    return '<section class="panelcard glance" data-feedback-id="fitness-glance" data-feedback-label="Fitness at a glance"><div class="ph"><h2>'+esc(label)+'</h2><span class="hint">'+esc(first===last?medDate(first):medDate(first)+' – '+medDate(last))+'</span></div>'+tiles+'<div class="glance-cols"><div><h3>Workouts</h3>'+list+'</div><div><h3>Weight</h3>'+wLine+'</div></div></section>';
-  }
   /* Fitness as four cards (Mintay, 2026-09-24): Activity, Sleep, Workouts, Vitals, each following the
      picked range. Activity's tiles open their own timeline — hours for a single day, days otherwise —
      coloured on the one scale against the goal. Vitals sit on your own 28-day typical range, with a
@@ -9650,13 +9493,6 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const t=todayYmd(),weeks=[];
     for(let i=3;i>=0;i--){const mon=addDays(weekStartOf(t,1),-7*i),to=i===0?addDays(t,-1):addDays(mon,6);const ps=st.rewards&&st.rewards.progression&&st.rewards.progression.effectiveFrom;if(to<mon||(ps&&to<ps)){weeks.push({mon,r:null});continue;}let r=null;try{r=overallRankReport(st,t,'range',{from:mon,to});}catch(_){r=null;}weeks.push({mon,r});}
     return weeks;
-  }
-  function rankHistoryCard(st){
-    const weeks=rankHistoryWeeks(st),names={fitness:'Fitness',food:'Food & Hydration',care:'Personal Care',faith:'Faith',work:'Work & Learning',health:'Health',hygiene:'Hygiene',relationship:'Relationship',career:'Career'};
-    const gids=(weeks.find(w=>w.r)||{r:{slots:[]}}).r.slots.map(x=>x.gid),cell=(r,gid)=>{const x=r&&r.slots.find(y=>y.gid===gid);return x&&x.letter?'<span class="rk" style="color:'+perfColor(x.pct/85)+'" title="'+Math.round(x.pct)+'%">'+x.letter+'</span>':'<span class="dim">—</span>';};
-    return '<section class="panelcard" data-feedback-id="rank-history" data-feedback-label="Rank history"><div class="ph"><h2>Rank History</h2><span class="hint">by section, week by week</span>'+infoBtn('rank-history','Rank history')+'</div>'+infoPop('rank-history','Dated completion shares, weighted by the included sections. The current week stops yesterday; blank sections are ungraded.')+'<div class="rank-hist" style="grid-template-columns:minmax(0,1.4fr) repeat('+weeks.length+',minmax(0,1fr))"><span></span>'+weeks.map(w=>'<span class="cap">'+esc(monthDay(w.mon))+'</span>').join('')+
-      '<b>Overall</b>'+weeks.map(w=>w.r&&w.r.letter?'<span class="rk big" style="color:'+perfColor(w.r.overall/85)+'">'+w.r.letter+'</span>':'<span class="dim">—</span>').join('')+
-      gids.map(g=>'<span>'+esc(names[g]||g)+'</span>'+weeks.map(w=>cell(w.r,g)).join('')).join('')+'</div></section>';
   }
   function fitnessWindow(from,end){
     const today=todayYmd(),last=end>today?today:end,first=from>last?last:from,days=[];for(let d=first;d<=last;d=addDays(d,1))days.push(d);
@@ -10640,11 +10476,6 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if(button)button.focus();
     if(!button||document.activeElement!==button)focusFirst('#areaTitle');
   }
-  function wsHierarchyOpen(id,date){
-    const s=S().series.find(s=>s.id===id),v=s&&versionFor(s,date);if(!v){toast('This activity is unavailable on that date.');return;}
-    panel={kind:'hierarchy',key:occKey(id,date),seriesId:id,date,returnTo:{area,seriesId:id,date},scope:date<todayYmd()?'day':'future',fields:JSON.parse(JSON.stringify({...v,...(S().occurrences[occKey(id,date)]?.override||{})})),parentId:parentFor(s,date)||'',raw:null,error:''};
-    unsavedForm=false;render();focusFirst('#wh-name');
-  }
   function wsHierarchyEditor(r,date){
     if(composer&&composer.editSeries===r.seriesId&&composer.area==='edit'&&composer.editDate===date)return '<section class="panelcard ws-editcard" data-ws-edit="'+esc(r.seriesId)+'">'+composerHTML()+'</section>';   // AG1: Edit is the + Add composer
     if(panel?.kind!=='hierarchy'||panel.key!==occKey(r.seriesId,date))return '';
@@ -11089,7 +10920,6 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function focusNewHTML(dom){ const u = GRADE_UMBRELLAS.find(x => x.id === dom); if (!u) return ''; return '<div class="focus-new" data-dom="' + esc(dom) + '" data-parity="BI1-FORM"><b>New Focus in ' + esc(u.name) + '</b><input type="text" id="focusNewName" maxlength="40" value="' + esc(focusNew && focusNew.dom === dom ? focusNew.name || '' : '') + '" placeholder="Name, for example Cousins" aria-label="New Focus in ' + esc(u.name) + '"><button type="button" class="k-btn" data-act="focusNewSave" data-dom="' + esc(dom) + '">Add Focus</button><button type="button" class="link" data-act="focusNewCancel">Cancel</button><p class="hint">Then its first item. Colour and pattern follow ' + esc(u.name) + '; change them with a right-click.</p></div>'; }
   function focusNewTail(dom){ if (focusNew) return focusNewHTML(focusNew.dom); const u = dom && GRADE_UMBRELLAS.find(x => x.id === dom); return u ? '<div class="q-newfocus"><button type="button" class="ws-addbtn" data-act="focusNewAt" data-dom="' + esc(dom) + '" data-parity="BI1-TAIL">+ New Focus in ' + esc(u.name) + '</button></div>' : ''; }
   function emptyFocusesLine(list, dom, none){ const add = dom ? '<button type="button" class="ws-empty-chip new-focus" data-act="focusNewAt" data-dom="' + esc(dom) + '" data-parity="BI1-EMPTY"><span class="ws-empty-plus" aria-hidden="true">+</span>New Focus</button>' : ''; if (none && add) return '<div class="ws-empties"><span class="ws-empties-h">No Focus yet</span>' + add + '</div>'; return list.length ? '<div class="ws-empties" data-parity="BG20-EMPTY"><span class="ws-empties-h">Empty</span>' + list.map(g => '<button type="button" class="ws-empty-chip" data-act="wsAdd" data-kind="item" data-group="' + esc(g.id) + '" style="--category:' + categoryColor(g.id) + '" title="Add to ' + esc(g.name) + '" aria-label="Add to ' + esc(g.name) + '"><i aria-hidden="true"></i>' + esc(g.name) + '<span class="ws-empty-plus" aria-hidden="true">+</span></button>').join('') + add + '</div>' : ''; }   // BG20
-  function emptyFocusLine(g){ return '<section class="ws-group ws-empty glass" data-group="' + esc(g.id) + '" data-feedback-id="activity-group:' + esc(g.id) + '" data-feedback-label="' + esc(g.name) + '" style="--category:' + categoryColor(g.id) + cardSkinStyle(g.id) + '"><div class="gh"><span class="cstrip" aria-hidden="true"></span><h3>' + esc(g.name) + '</h3><button class="ws-addbtn" data-act="wsAdd" data-kind="item" data-group="' + esc(g.id) + '" aria-label="Add to ' + esc(g.name) + '">+ Add</button></div></section>'; }   // AQ1
   function cardTools(st, noNew){
     const gone = groupsOf(st).filter(g => g.hidden);
     return '<div class="card-tools">' + (noNew ? '' : '<button class="ws-addbtn" data-act="cardNew">+ New Focus</button>') + (gone.length ? '<details class="plan-fold" data-fold="cards-archived"' + (planFold['cards-archived'] ? ' open' : '') + '><summary><b>Archived cards</b><span class="hint">' + gone.length + ' · items, entries and points kept</span></summary>' + gone.map(g => '<div class="crow"><span>' + esc(g.name) + '</span><button data-act="cardRestore" data-group="' + esc(g.id) + '">Restore</button></div>').join('') + '</details>' : '') + '</div>';
@@ -11097,8 +10927,6 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
 
   const WATER_PRESETS = [8, 16, 32, 40];
   function nowHM(){ return pacificTime(new Date(),'clock'); }
-  function firstNum(o, keys){ for (const k of keys) if (o && Number.isFinite(o[k])) return o[k]; return null; }
-  function firstArr(o, keys){ for (const k of keys) if (o && Array.isArray(o[k])) return o[k]; return null; }
   const MW_NUTRIENTS = [['calories','Calories (kcal)'],['proteinG','Protein (g)'],['carbsG','Carbohydrate (g)'],['fatG','Fat (g)'],['fiberG','Fiber (g)'],['sodiumMg','Sodium (mg)']];
   let mwWorkspace = null, mwUI = null;
   function mwDrafts(){
@@ -11249,10 +11077,6 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       mwError('meal')+'<p class="hint">Ingredient quantities use the saved reference unit. Saving a recipe records nothing eaten.</p></div></section>';
   }
 
-  function safeJSON(value){
-    try { const text = JSON.stringify(value, null, 1); return typeof text === 'string' ? text.slice(0, 4000) : String(value); }
-    catch(err){ return 'This preview could not be displayed as text (' + ((err && err.message) || String(err)) + '). Nothing was applied.'; }
-  }
   function policyReviewHTML(){
     return '<details class="ws-policy"><summary>Continuity policy and recorded alternatives</summary><p><b>Candidate policy:</b> confirmed care leaves keep their exact shares; a partial instance restarts the full-instance chain. Pending evidence holds the continuity bonus until that instance is resolved.</p><p><b>Alternatives for your review:</b> partial work could hold the chain; a later confirmation could resume the pending bonus. Neither alternative is applied by this candidate. In the same invented mixed 90-day reference, totals are 4,740 under the candidate, 4,761 with partial holds, 4,758.25 with pending resumes, and 4,852.25 with both. These are sensitivity checks, not predictions.</p></details>';
   }
@@ -11349,14 +11173,6 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     return '<section class="panelcard journal-line" data-parity="BB1-JOURNAL" data-feedback-id="faith-journal" data-feedback-label="Journal" data-tidy="keep"><div class="ph"><h2><span aria-hidden="true">📓</span> Journal</h2><button class="save" data-act="journalOpen" data-date="' + esc(date) + '">' + (text ? 'Open' : 'Write') + '</button></div><p class="hint keep">' + (text ? esc(text.slice(0, 140)) + (text.length > 140 ? '…' : '') : esc(journalPrompts(date)[0])) + '</p><div class="acts"><button class="link" data-act="go" data-area="journal">All entries</button></div></section>';   // BG7
   }
   /* Journal in Faith (V2.0): the day's readings, a general prompt, and prompts from his plan and day. */
-  function faithJournalCard(date){
-    const st = S(), info = typeof EotcCalendar !== 'undefined' ? EotcCalendar.dayInfo(date) : null, j = journalFor(st, date);
-    const general = ['What am I grateful for today?','Where did I see God’s help today?','What do I want to bring to prayer tonight?','What am I carrying that I can put down?','Who can I serve or thank tomorrow?'][new Date(date + 'T12:00:00').getDay() % 5];
-    const open = leafRows(planFor(st, date)).filter(r => !r.status && !r.optional).slice(0, 1)[0], fast = info && (info.fasts.length || info.wedFriFast);
-    const prompts = [general, fast ? 'How did the fast go, and what did it teach me?' : null, open ? 'What would help me with “' + open.name + '” tomorrow?' : null, info ? 'One line from today’s ' + info.readings.month + ' readings that stays with me.' : null].filter(Boolean);
-    return '<section class="panelcard faith-journal" data-feedback-id="faith-journal" data-feedback-label="Journal"><div class="ph"><h2>Journal</h2><span class="hint">' + esc(medDate(date)) + '</span></div><ul class="prompts">' + prompts.map(t => '<li>' + esc(t) + '</li>').join('') + '</ul>' +
-      '<label for="fj-reflection" class="sr-only">Reflection</label><textarea id="fj-reflection" rows="4" placeholder="Write freely. Private to this device.">' + esc(j.reflection || '') + '</textarea><div class="acts"><button class="save" data-act="faithJournalSave" data-date="' + esc(date) + '">Save entry</button></div></section>';
-  }
   /* Under the window's point: the church's date and what the day is (a fast with its first and last day, a feast). */
   function faithHeadLine(date){
     if (typeof EotcCalendar === 'undefined') return '';
@@ -11485,10 +11301,6 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const t=todayYmd(),pts=c=>(c.unit==='quarter-point'?(typeof claimBalance==='function'?claimBalance(c):c.amount)/4:(typeof claimBalance==='function'?claimBalance(c):c.amount));
     const claimed=(rw.claims||[]).filter(c=>c.date===t).reduce((n,c)=>n+pts(c),0),waiting=(rw.pending||[]).filter(e=>e.date===t).reduce((n,e)=>n+pts(e),0),f=x=>(Math.round(x*100)/100).toLocaleString();
     return '<div class="rs"><small>Today</small><b>'+f(claimed)+' <small>pts</small></b><span>'+(waiting?f(waiting)+' ready to claim':'nothing waiting')+'</span></div>';
-  }
-  function railStrip(st){
-    const cp=typeof nextCheckpoint==='function'?nextCheckpoint(st):null,left=cp?calendarDistance(todayYmd(),cp.date):null;
-    return '<div class="rail-strip">'+(cp?'<div class="rs"><small>'+esc(cp.main?'Goal date':cp.name)+'</small><b>'+(left>0?left+' <small>days</small>':'Today')+'</b><span>'+esc(medDate(cp.date))+'</span></div>':'')+todayPointsHTML(st)+'</div>';
   }
   function railClaims(st){
     let rw=null;try{rw=rewardReport(st,todayYmd());}catch(_){rw=null;}if(!rw)return '';

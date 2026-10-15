@@ -691,7 +691,6 @@ function unexcuseOcc(state, seriesId, date){
    come up in Today Up next card as well"): a reminder-style row (a week's or month's item, a carried one-off) leaves that one day and Up next.
    Nothing is graded, done or skipped, and it is not a resolution: a carried one-off is back the next day. */
 function clearForDay(state, seriesId, date){ const o = ensureOcc(state, seriesId, date); if (o.status || o.removed) return null; o.cleared = true; touch(o); return o; }
-function unclearForDay(state, seriesId, date){ const k = occKey(seriesId, date), o = state.occurrences[k]; if (!o || !o.cleared) return null; delete o.cleared; touch(o); pruneOcc(state, k); return o; }
 /* ---- BK run 1 block B (his answers, Oct 13): Delete both ways, Someday, Make it a Focus. All one transaction each; Undo restores the snapshot. ---- */
 // A Task and every step under it, by the series link and by any dated membership
 function bkFamilyIds(state, seriesId){
@@ -1868,10 +1867,18 @@ function adjustConfirmedClaim(state,id,note){
    rule-4 batch keeps each claim's own rule). Nothing is paid twice: the claim id is the occurrence. */
 function followCorrection(state,seriesId,date,reason){
   if(!confirmedProgression(state))return null;
+  /* BQ A3 (Oct 14): the correction re-derives the ledger lines (confirmedEligibility, wsBonusLines, wsGoalLines) on the save's draft, and
+     each of those built the same day plans again (about 150 plan builds, 200 to 300 ms per check off, Add, Move or walk tap). The reads
+     run inside one draw memo of their own, created here, after the tap's change to the draft, and dropped when this returns. A draft is
+     never the live record, so nothing it builds reaches the live caches (planKeep, gradeRowsKeep, rewardMemo key on liveKey, null here);
+     the claims the correction writes are not inputs to a day plan. Same adjustments, same lines. */
+  const run=()=>{
   const o=state.occurrences[occKey(seriesId,date)],id=o?rewardIdentity(state,o):occKey(seriesId,date);
   if(!state.rewards.claims[id]){const s=state.series.find(x=>x.id===seriesId),v=s&&(versionFor(s,date)||latestVersion(s)),lines=typeof wsLineCorrections==='function'?wsLineCorrections(state,v&&v.name?'Recalculated with '+v.name+' ('+String(reason||'corrected')+')':reason):[];return lines.length?{id:null,before:0,after:0,lines}:null;}
   const before=claimBalance(state.rewards.claims[id]),result=adjustConfirmedClaim(state,id,reason);
   return result?{id,before,after:claimBalance(state.rewards.claims[id]),lines:result.lineChanges||[]}:null;
+  };
+  return drawMemo&&drawMemo.state===state?run():withDrawMemo(state,run);
 }
 function completionRows(state,date){
   return flatPlanFor(state,date).filter(r=>{
@@ -2405,7 +2412,6 @@ function addIfitSessions(state,sessions,links){
     state.ifitSessions[x.id]=keep;out.added.push(x.id);}
   return out;
 }
-function removeIfitSessions(state,ids){for(const id of ids||[])if(state.ifitSessions)delete state.ifitSessions[id];return true;}
 // O3: an iFIT session as a workout row the goal source and the session selector read ("iFIT session"; the watch's record wins, A56)
 function ifitWorkoutRows(state){return Object.values(state.ifitSessions||{}).map(x=>({id:x.id,kind:'workout',type:'iFIT session',sourceApp:'iFIT file',start:x.start,end:x.end||new Date(Date.parse(x.start)+x.durationSec*1000).toISOString(),durationSec:x.durationSec,unmapped:{healthAutoExport:{distance:Number.isFinite(x.distanceM)?{qty:x.distanceM/1609.344,units:'mi'}:null}},ifit:true}));}
 /* V3.7 O8: the share of a workout's minutes that hold a heart-rate sample: its own per-minute trace when the record has one,
@@ -2989,7 +2995,6 @@ function markNotFixed(state, id, text, release){
   n.updatedAt = new Date(Math.max(Date.now(), noteChangedAt(n) + 1)).toISOString();
   return n;
 }
-function notePage(n){ const c = n.sourceCard || null; return c && c.page ? c.page : null; }
 /* The export (Copy all open, Copy all including resolved, Copy on a day or a page): each suggestion on its own entry
    with the date and time it was written in Pacific time, its build, page, card and item, its id and his full text,
    grouped under day headers. */
@@ -3119,6 +3124,7 @@ function narrateWeek(state, start, today){
   if (ahead) parts.push(ahead + (ahead === 1 ? ' day is' : ' days are') + ' still ahead.');
   return { text: parts.join(' '), basis: 'Based on ' + lived.length + ' lived days of planned activities; example routines left out; nothing imported.' };
 }
+
 
 /* ---- examples: per-item, judged by what was actually done to each one ---- */
 function exampleStatus(state){
@@ -4096,21 +4102,27 @@ function validateWorkspaceFamily(state){
   const ids=new Set();
   for(const s of state.series){if(ids.has(s.id))return 'Duplicate action identity.';ids.add(s.id);}
   const dates=[...new Set(state.series.flatMap(s=>s.versions.map(v=>v.effectiveFrom)))].sort();
+  /* BQ A2 (Oct 14): the same checks as before, but each date's parent of every series and the children of every series are read once
+     into maps, instead of filtering all series for each series (23 dates x 147 x 147 lookups, about 25 ms of every save on his record). */
+  const byId=new Map(state.series.map(s=>[s.id,s]));
   for(const date of dates){
+    const versionOf=new Map(),parentOf=new Map(),directOf=new Map();
+    for(const s of state.series){const v=versionFor(s,date);if(v)versionOf.set(s.id,v);parentOf.set(s.id,parentFor(s,date));}
+    for(const s of state.series){const p=parentOf.get(s.id);if(!p||!versionOf.has(s.id))continue;const list=directOf.get(p);if(list)list.push(s);else directOf.set(p,[s]);}
     for(const s of state.series){
-      const v=versionFor(s,date);if(!v)continue;
+      const v=versionOf.get(s.id);if(!v)continue;
       if(!validCalendarDate(v.effectiveFrom)||!Number.isInteger(v.version)||v.version<1)return 'A dated version is malformed.';
-      const direct=state.series.filter(child=>versionFor(child,date)&&parentFor(child,date)===s.id);
+      const direct=directOf.get(s.id)||[];
       if(direct.length&&(!Array.isArray(v.childIds)||direct.some(child=>!v.childIds.includes(child.id))))return 'A dated container is missing child membership.';
       let cursor=s,depth=1;const seen=new Set([s.id]);
-      while(parentFor(cursor,date)){
-        const parent=state.series.find(p=>p.id===parentFor(cursor,date));
-        if(!parent||!versionFor(parent,date))return 'A task has an invalid dated parent.';
+      while(parentOf.get(cursor.id)){
+        const parent=byId.get(parentOf.get(cursor.id));
+        if(!parent||!versionOf.has(parent.id))return 'A task has an invalid dated parent.';
         if(seen.has(parent.id))return 'A task hierarchy contains a cycle.';
         if(++depth>3)return 'Only routine, section and leaf depth is supported.';
         seen.add(parent.id);cursor=parent;
       }
-      if(v.childIds!==undefined&&(!Array.isArray(v.childIds)||new Set(v.childIds).size!==v.childIds.length||v.childIds.some(id=>!state.series.some(c=>c.id===id&&parentFor(c,date)===s.id))))return 'A family has invalid dated children.';
+      if(v.childIds!==undefined&&(!Array.isArray(v.childIds)||new Set(v.childIds).size!==v.childIds.length||v.childIds.some(id=>!(byId.has(id)&&parentOf.get(id)===s.id))))return 'A family has invalid dated children.';
       if(v.budgetQ!==undefined&&(!Number.isSafeInteger(v.budgetQ)||v.budgetQ<0))return 'A routine budget is malformed.';
       if(v.workspaceKind!==undefined&&typeof v.workspaceKind!=='string')return 'An action kind is malformed.';
       if(v.deadlineDay!==undefined&&(!Number.isInteger(v.deadlineDay)||v.deadlineDay<0||v.deadlineDay>6))return 'A deadline is malformed.';
@@ -4265,7 +4277,6 @@ function wsWorkoutClass(state,record){
 }
 function wsEvidenceFingerprint(record){if(record?.origin==='derived'&&record.unmapped?.healthAutoExport?.representation==='derived daily view')return JSON.stringify(['derived',record.id]);return JSON.stringify([evidenceFingerprint(record),record.sourceApp||null,record.device||null,record.sourceRecordId||null,record.unmapped?.starter?.duration_sec??record.unmapped?.reportedDurationExactSec??record.unmapped?.workoutDurationExactSec??null,record.unmapped?.starter?.source_name??null,record.unmapped?.healthAutoExport?.originalWriter??null]);}
 function wsExactMinutes(record){const original=record.unmapped?.starter?.duration_sec??record.unmapped?.reportedDurationExactSec??record.unmapped?.workoutDurationExactSec;const sec=typeof original==='number'?original:record.durationSec;return Number.isFinite(sec)&&sec>=0?sec/60:null;}
-function wsWatch(record){return /apple\s*watch|watch\d|watchos/i.test([record.device,record.sourceApp,record.unmapped?.healthAutoExport?.originalWriter,record.unmapped?.starter?.source_name].filter(Boolean).join(' '));}
 function wsEvidenceProblem(state,record,series,date){
   const v=versionFor(series,date),kind=wsKind(series,date),policy=v?.matching;
   if(!v||v.childIds)return 'Choose an independently recorded leaf.';
