@@ -195,6 +195,45 @@ const GenaFeed = (() => {
       changed.push([s.id, date]);
     }
   }
+  /* One time at his switch (his words, Nov 1: "keep what Glow has recorded and then whatever else is empty on glow but has stuff on gena go ahead and fill it in", "all fasting should be checked off as i have never skipped").
+     The two weeks before the cutover: a day Glow has nothing for takes Gena's mark on his own goal, and a day Glow recorded stays. Fasting: every fast day to the cutover is done. These days sit before the cutover, so no later read touches them.
+     No points: a day with no pinned rule pays nothing, so the past can't double-pay. An item with no goal of his before the switch has nowhere to go, and the ended rows map one Gena item to many goals, so no day of theirs is his to fill */
+  const FILL_DAYS = 14;
+  function fillPlan(st, g, T){
+    const cut = st.prefs.genaCutover || st.prefs.genaPending, from = addDays(cut, -FILL_DAYS), last = addDays(cut, -1), to = T < last ? T : last, copy = reduce(g, from), map = st.prefs.genaMap || {}, plan = new Map(), days = [];
+    for (let x = from; x <= to; x = addDays(x, 1)) days.push(x);
+    const open = o => !o || (!o.status && !o.disposition && !o.removed);
+    for (const row of ROWS){
+      if (row.ends || !(row.glow || row.named)) continue;
+      const ids = foundId(copy, row, map); if (!ids.length) continue;
+      for (const goal of goalIds(st, row, last)){
+        const s = st.series.find(x => x.id === goal); if (!s) continue;
+        for (const date of days){
+          const v = versionFor(s, date); if (!v || v.childIds) continue;
+          const status = statusOf(copy, ids, row, date), key = occKey(goal, date);
+          if ((status === 'done' || status === 'partial') && open(st.occurrences[key])) plan.set(key, {id:goal, date, status, was:null});
+        }
+      }
+    }
+    const fast = st.series.find(x => x.id === 'dw-fasting');
+    if (fast){
+      const first = fast.versions.map(v => v.effectiveFrom).filter(Boolean).sort()[0];
+      for (let date = first; date && date <= to; date = addDays(date, 1)){
+        const v = versionFor(fast, date); if (!v) continue;
+        const info = typeof EotcCalendar !== 'undefined' ? EotcCalendar.dayInfo(date) : null, key = occKey('dw-fasting', date), o = st.occurrences[key];
+        if (!(scheduledOn(v, date) || (info && info.fasting)) || (info && info.noFast) || (o && (o.removed || o.status === 'done'))) continue;
+        plan.set(key, {id:'dw-fasting', date, status:'done', was:(o && (o.status || o.disposition)) || null});
+      }
+    }
+    return [...plan.values()];
+  }
+  function fillApply(d, plan){
+    for (const p of plan){
+      const o = d.occurrences[occKey(p.id, p.date)]; if (o && o.disposition === 'excused') unexcuseOcc(d, p.id, p.date);
+      const r = logOcc(d, p.id, p.date, p.status, {}); if (r) delete r.quarterRule;
+    }
+    d.prefs.genaFilled = (d.prefs.genaFilled || []).concat(plan.map(p => [p.id, p.date, p.was]));
+  }
   const schedule = r => JSON.stringify([r.kind, r.days, r.count, r.weeks, r.intervalWeeks, r.everyDays]);
   const stamp = (s, fed) => { s.genaFed = fed; return s; };
   /* The first read and every read that differs: everything since the cutover from the fresh copy. Only genaFed series, their days and their groups change */
@@ -304,7 +343,7 @@ const GenaFeed = (() => {
     return {ok:true};
   }
   const cardFocus = gid => gid.slice(5).split('~')[0];   // a card's Focus: gena-<id>, or gena-<id>~<day> after a move
-  return {ROWS, DOMAINS, NOT, MENTOR_FOCUS, isCopy, isV7, notReady, read, reduce, sigOf, apply, cutover, undo, nextMonday, habitMark, cardFocus};
+  return {ROWS, DOMAINS, NOT, MENTOR_FOCUS, FILL_CUT:'2026-11-02', fillPlan, fillApply, isCopy, isV7, notReady, read, reduce, sigOf, apply, cutover, undo, nextMonday, habitMark, cardFocus};
 })();
 if (typeof window !== 'undefined') window.GenaFeed = GenaFeed;
 if (typeof module !== 'undefined') module.exports = GenaFeed;

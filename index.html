@@ -3030,14 +3030,28 @@ addEventListener('load', () => {
     if (!r.ok){ miss(r.error || 'unknown'); return; }
     glFresh(); render(); toast('Gena is connected from ' + glMonday(on) + '. A backup was saved first; Data has Undo the switch.');
   }
+  /* The one-time fill (GenaFeed.fillPlan): a verified backup first, then one transaction. It can run before the Monday, so tonight's view is right, and again on the Monday, because it only ever takes what is still empty */
+  const glFillDue = st => { const p = st.prefs || {}, cut = p.genaCutover || p.genaPending; return !!cut && !p.genaFill1 && cut >= GenaFeed.FILL_CUT; };
+  async function glFill(raw){
+    const st = S(); if (!glFillDue(st)) return;
+    const T = todayYmd(), done = T >= (st.prefs.genaCutover || st.prefs.genaPending); let plan;
+    try { plan = GenaFeed.fillPlan(st, raw, T); } catch (e){ console.error('[gena] fill', e); return; }
+    if (plan.length){ const proof = await verifiedRecovery(real); if (!proof || !proof.ok){ glSet('glow.genaErr', 'no verified backup (' + ((proof && proof.error) || 'unknown') + ')'); return; } }
+    if (!plan.length && !done) return;
+    const r = await manualActionTransaction(S(), d => { try { GenaFeed.fillApply(d, GenaFeed.fillPlan(d, raw, T)); if (done) d.prefs.genaFill1 = T; return {ok:true}; } catch (e){ console.error('[gena] fill', e); return {ok:false, error:String(e && e.message || e)}; } }, {persist:!preview, rebase:true});
+    if (!r.ok){ glSet('glow.genaErr', String(r.error || 'not saved')); return; }
+    if (plan.length){ render(); toast('Filled ' + plan.length + ' past days from Gena and your fasts. What Glow had recorded stayed.'); }
+  }
   const glFresh = () => { glSet('glow.genaErr', ''); glSet('glow.genaRead', String(Date.now())); };   // only a read that went all the way: a failed one keeps the last good time, so the amber shows
   const glEditing = () => !preview && intakeEditing();   // a background read waits while he types: the next one, in 5 minutes or on coming back, picks it up
   async function glRead(loud){
     const st = S(), id = glGist(); if (glBusy || !id || !st.prefs || !(st.prefs.genaCutover || st.prefs.genaPending) || readOnly || manualSaving || (!loud && glEditing())) return;
-    if (!st.prefs.genaCutover && st.prefs.genaPending > todayYmd()) return;   // Glow stands until the Monday
+    const wait = !st.prefs.genaCutover && st.prefs.genaPending > todayYmd();   // Glow stands until the Monday, but for the one-time fill
+    if (wait && !glFillDue(st)) return;
     glBusy = true; glLoud = !!loud; if (loud) glPill();
     try { let raw; try { raw = await GenaFeed.read(id); } catch (e){ glSet('glow.genaErr', String(e.message || e)); if (loud){ toast(e.plain ? e.message : 'Gena did not answer; the last copy stays.'); render(); } return; }
       if (!loud && glEditing()) return;
+      await glFill(raw); if (wait) return;
       if (!st.prefs.genaCutover){ const lack = GenaFeed.notReady(raw); if (lack){ glSet('glow.genaErr', lack); if (loud){ toast(lack + ' Nothing changed.'); render(); } return; } await glSwitch(raw, st.prefs.genaPending, todayYmd()); return; }
       const T = todayYmd(); let copy, sig;
       try { copy = GenaFeed.reduce(raw, st.prefs.genaCutover); sig = GenaFeed.sigOf(copy, T); } catch (e){ console.error('[gena] reduce', e); glSet('glow.genaErr', String(e && e.message || e)); if (loud){ toast('Gena was read but not understood: ' + (e && e.message || e) + '. The last copy stays.'); render(); } return; }
