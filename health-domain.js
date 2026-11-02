@@ -447,6 +447,7 @@ function scheduledOn(ver, date){
   if (r.endDate && date > r.endDate) return false;
   const variant = recurrenceVariant(ver, date);
   if (!(variant ? variant.days : r.days || []).includes(dow(date))) return false;
+  if (r.kind === 'weekly' && r.everyDays > 1 && r.startDate){ const n = calendarDistance(r.startDate, date); return n >= 0 && n % r.everyDays === 0; }   // Gena's every N days, from its start
   if (r.kind === 'weekly' && r.intervalWeeks > 1 && r.startDate){
     const elapsed = calendarDistance(weekStartOf(r.startDate, 1), weekStartOf(date, 1));
     return Math.floor(elapsed / 7) % r.intervalWeeks === 0;
@@ -669,7 +670,7 @@ function clearOcc(state, seriesId, date){
    counts as missed. A daily item is Skipped instead; an item on set days moves to tomorrow when it can. */
 function dailyItem(state, seriesId, date){
   const s = state.series.find(x => x.id === seriesId), v = s && versionFor(s, date), r = (v && v.recurrence) || {};
-  return r.kind === 'weekly' && (r.days || []).length === 7 && !(r.intervalWeeks > 1);
+  return r.kind === 'weekly' && (r.days || []).length === 7 && !(r.intervalWeeks > 1) && !(r.everyDays > 1);
 }
 function excuseOcc(state, seriesId, date, why){
   const row = findPlanRow(state, seriesId, date);
@@ -881,6 +882,9 @@ function normalizeRecurrence(rec, effectiveFrom){
     out.weeks = Math.max(1, Math.min(52, Math.floor(+rec.weeks) || 1));
     out.mode = rec.mode === 'rolling' ? 'rolling' : 'fixed';
     out.startDate = validCalendarDate(rec.startDate) ? rec.startDate : effectiveFrom;
+  } else if (+rec.everyDays > 1){
+    out.everyDays = Math.min(365, Math.floor(+rec.everyDays));
+    out.startDate = validCalendarDate(rec.startDate) ? rec.startDate : effectiveFrom;
   } else if (+rec.intervalWeeks > 1){
     out.intervalWeeks = Math.min(52, Math.floor(+rec.intervalWeeks));
     out.startDate = validCalendarDate(rec.startDate) ? rec.startDate : effectiveFrom;
@@ -1015,6 +1019,19 @@ function addFamilyMembership(state, parent, childIds, effectiveFrom, today){
 /* Fix H3 (Mintay, Oct 6): one window rule. An item with a period counts in fixed blocks: a week is the calendar week (the Week setting's
    first day), a longer period is 4-week-style blocks counted from the Program start, and the blocks move with it. A stored "rolling" mode is
    honoured, except for Church, which is always fixed blocks. Without `state` (a caller that has none) the older anchor is the start date. */
+const monthEndOf = date => { const t = new Date(Date.UTC(+date.slice(0, 4), +date.slice(5, 7), 0)); return t.toISOString().slice(0, 10); };
+/* A goal of his and its Gena twin are one line: his days to the cutover, Gena's after it. genaOwn: the goal behind a twin */
+function genaLine(state, seriesId){
+  if (!state.prefs || !state.prefs.genaCutover) return [seriesId];
+  const s = state.series.find(x => x.id === seriesId), goal = (s && s.genaFed && s.genaFed.goal) || seriesId;
+  return state.series.filter(x => x.id === goal || (x.genaFed && x.genaFed.goal === goal)).map(x => x.id);
+}
+/* What a day's status can't hold, from the feed's cache: a room's share of its steps. Partial with none is the usual half */
+const genaShare = (state, seriesId, date) => { const x = state.prefs && state.prefs.genaDetail && state.prefs.genaDetail.shares[seriesId]; return x && Number.isFinite(x[date]) ? x[date] : .5; };
+// a calendar-month item has no one next date: it says the month, and the day of the week when it has one
+function monthNextWord(days, date){ const month = new Date(addDays(monthEndOf(date), 1) + 'T12:00:00').toLocaleDateString('en-US', {month:'long'}), day = days && days.length === 1 ? 'a ' + new Date(2026, 10, 1 + days[0]).toLocaleDateString('en-US', {weekday:'long'}) + ' in ' : ''; return 'next: ' + day + month; }
+// a calendar-month item has no one next date: it says the month, and the day of the week when it has one
+function monthNextWord(days, date){ const month = new Date(addDays(monthEndOf(date), 1) + 'T12:00:00').toLocaleDateString('en-US', {month:'long'}), day = days && days.length === 1 ? 'a ' + new Date(2026, 10, 1 + days[0]).toLocaleDateString('en-US', {weekday:'long'}) + ' in ' : ''; return 'next: ' + day + month; }
 function recurrenceWindow(ver, date, state){
   const r = ver.recurrence || {};
   if (r.kind !== 'target') return null;
@@ -1022,6 +1039,7 @@ function recurrenceWindow(ver, date, state){
   if (date < anchor) return null;
   if (state && !(r.mode === 'rolling' && ver.workspaceKind !== 'church')){
     if (r.weeks === 1){ const ws = weekStartOf(date, state.prefs && state.prefs.weekStart === 0 ? 0 : 1); return { from:ws, to:addDays(ws, 6), mode:'fixed', target:r.count }; }
+    if (r.weeks === 4 && state.prefs && state.prefs.genaCutover && date >= state.prefs.genaCutover) return { from:date.slice(0, 8) + '01', to:monthEndOf(date), mode:'fixed', target:r.count };   // from the cutover a month's item is the calendar month, as Gena's card (the item model, C5)
     const b = programBlockOf(state, date, r.weeks); if (b) return { from:b.from, to:b.to, mode:'fixed', target:r.count };
   }
   const from = r.mode === 'rolling' && ver.workspaceKind !== 'church' ? (addDays(date, 1-span) < anchor ? anchor : addDays(date, 1-span)) : addDays(anchor, Math.floor(calendarDistance(anchor, date) / span) * span);
@@ -1040,7 +1058,7 @@ function targetProgress(state, seriesId, date){
   const s = state.series.find(x => x.id === seriesId), v = s && versionFor(s, date);
   const window = v && recurrenceWindow(v, date, state);
   if (!window) return null;
-  const events = new Set(occurrencesOf(state,seriesId).filter(o => o.date >= window.from && o.date <= window.to && o.date <= date && o.status === 'done' && (!confirmedProgression(state)||actionConfirmation(state,o).confirmed)).map(o => o.rewardEventId || occKey(o.seriesId, o.date)));
+  const line = genaLine(state, seriesId), events = new Set(line.flatMap(id => occurrencesOf(state,id)).filter(o => o.date >= window.from && o.date <= window.to && o.date <= date && o.status === 'done' && (!confirmedProgression(state)||actionConfirmation(state,o).confirmed)).map(o => line.length > 1 ? o.date : o.rewardEventId || occKey(o.seriesId, o.date)));
   return Object.assign({}, window, { count:events.size, remaining:Math.max(0, window.target-events.size), complete:events.size >= window.target });
 }
 
@@ -1440,6 +1458,7 @@ const GRADE_UMBRELLAS=[
   {id:'health',name:'Health',emoji:'💪',importance:8,stored:['health']},
   {id:'family',name:'Family',emoji:'👪',importance:7,stored:['family']},
   {id:'career',name:'Career',emoji:'💼',importance:6,stored:['career']},
+  {id:'growth',name:'Growth',emoji:'🌱',importance:6,stored:['growth']},
   {id:'home',name:'Home',emoji:'🏠',importance:6,stored:['home-care','home']},
   {id:'social',name:'Social',emoji:'🤝',importance:6,stored:['relationship','social']},
   {id:'hobbies',name:'Hobbies',emoji:'🎨',importance:4,stored:['hobbies']}
@@ -1497,7 +1516,7 @@ function gradeRows(state,from,to){
   return rows.map(r=>({...r}));
 }
 function gradeRowsFresh(state,from,to){
-  const share=(r,d)=>{if(r.status==='partial')return .5;   /* V3.6 I2 (V36-I19): half credit, as Rank history counted it */
+  const share=(r,d)=>{if(r.status==='partial')return genaShare(state,r.seriesId,d);   /* a room reads its share of steps; otherwise V3.6 I2 (V36-I19): half credit, as Rank history counted it */
     if(r.status!=='done'||typeof v5Rule!=='function')return r.status==='done'?1:0;const t=v5Rule(state,d),series=t&&state.series.find(x=>x.id===r.seriesId);if(!series||!v5Kind(versionFor(series,d)))return 1;const m=v5Inputs(state,series,state.occurrences[occKey(r.seriesId,d)]||{seriesId:r.seriesId,date:d},t);return m?m.credit.n/m.credit.d:1;};
   const items=new Map(),goals=new Map(),span=calendarDistance(from,to)+1,goalMemo={},oneDay=from===to;
   for(let d=from;d<=to;d=addDays(d,1))for(const r of allRows(planFor(state,d))){
@@ -1507,7 +1526,7 @@ function gradeRowsFresh(state,from,to){
     // V3.6 M3: an amount, count or reading goal counts once per its window (1/L a day over a window of L days), paid the
     // credit it holds at the latest day of the window inside the graded range; a check goal stays occurrence-based.
     const gv=series&&versionFor(series,d);if(GoalEngine.windowed(gv)&&!r.optional){const sh=GoalEngine.gradeShare(state,series,gv,d,to,goalMemo);const it=items.get(r.seriesId)||{seriesId:r.seriesId,name:r.name,gid,planned:0,done:0,goal:true};it.planned+=sh.planned;it.done+=sh.done;items.set(r.seriesId,it);continue;}
-    if(rec&&rec.kind==='target'&&rec.count>0){const g=goals.get(r.seriesId)||{seriesId:r.seriesId,name:r.name,gid,count:rec.count,weeks:rec.weeks||1,done:0};if(r.status==='done')g.done++;else if(r.status==='partial')g.done+=.5;goals.set(r.seriesId,g);continue;}
+    if(rec&&rec.kind==='target'&&rec.count>0){const g=goals.get(r.seriesId)||{seriesId:r.seriesId,name:r.name,gid,count:rec.count,weeks:rec.weeks||1,done:0};if(r.status==='done')g.done++;else if(r.status==='partial')g.done+=genaShare(state,r.seriesId,d);goals.set(r.seriesId,g);continue;}
     if(r.optional)continue;
     const it=items.get(r.seriesId)||{seriesId:r.seriesId,name:r.name,gid,planned:0,done:0};it.planned++;it.done+=share(r,d);items.set(r.seriesId,it);
   }
@@ -1591,7 +1610,15 @@ function gradeTiered(list,tierOf){
    page supplies ({health:[{id, name, score}]}); its include and importance live under gradeConfig.groups['measured:<id>'],
    which an earlier build reads as an unknown group and ignores. It is off until he turns it on, so the Overall does not
    move on release day. */
+/* GRADE-EXCEED (his rule, decided Oct 23, 2026; docs/GRADE_EXCEED_BRIEF.md): the grade is grade-exceed.js once the page has given it its
+   readers (globalThis.gradeExceedIO); the V3.7 report below stays as umbrellaGradeReportV37, for the before and after and for a build without it.
+   Every window is recomputed with the new rule, past days included; nothing stored changes. */
 function umbrellaGradeReport(state,today,period,range,measured,opts){
+  if(typeof GradeExceed==='undefined'||typeof globalThis.gradeExceedIO!=='function')return umbrellaGradeReportV37(state,today,period,range,measured,opts);
+  wsSyncDomains(state);const {from,to,program}=gradePeriod(state,today,period||'day',range,opts);
+  return GradeExceed.umbrellaReport(state,from,to,program,period||'day',globalThis.gradeExceedIO(state));
+}
+function umbrellaGradeReportV37(state,today,period,range,measured,opts){
   wsSyncDomains(state);   // BA2
   const {from,to,program,live}=gradePeriod(state,today,period||'day',range,opts),tierDay=live?todayYmd():null;   // Fix G1: a Week, Month or All window ends yesterday only because today is still open, so it reads the tier in force today
   // V3.7.1 F5 (audit D-5; his "take ur rec", Oct 5; ASSUMED V371-A1): a window that spans the rule day is graded in two parts, the
@@ -1865,6 +1892,35 @@ function adjustConfirmedClaim(state,id,note){
    whose points were claimed — Skipped, Done again, Tentative, new minutes — the claim is brought to what
    the facts now earn by the same signed, logged adjustment the review uses (adjustConfirmedClaim; the
    rule-4 batch keeps each claim's own rule). Nothing is paid twice: the claim id is the occurrence. */
+/* The Gena feed's one pass (his real switch, Oct 31; docs/GLOW_LITE_PLAN.md §4): points follow corrected facts once per read, whatever changed. The same changes
+   and signatures as adjustConfirmedClaim's batch (wsCorrectionBatch, wsApplyCorrectionBatch), with the entitlements worked out once and the claims signed with that
+   one set: the app's own path took about 35 s for a read that changes a claimed day, this one about 5 s on his record. An older-rule claim takes the app's own call. */
+function correctClaimsOnce(st,pairs,reason){
+  if(!confirmedProgression(st))return 0;
+  const idOf=([sid,d])=>{const o=st.occurrences[occKey(sid,d)];return o?rewardIdentity(st,o):occKey(sid,d);};
+  const hit=pairs.map(idOf).filter(id=>st.rewards.claims[id]);if(!hit.length)return 0;
+  const since=addDays(pairs.map(p=>p[1]).sort()[0],-7);   // a claim reads its own day and the days and weeks before it, so one older than the first corrected day's week can't move
+  const old=hit.filter(id=>st.rewards.claims[id].ruleVersion!==4),epochs=new Set(hit.filter(id=>st.rewards.claims[id].ruleVersion===4).map(id=>st.rewards.claims[id].epochId));
+  withDrawMemo(st,()=>{
+    const at=nowIso(),byId=new Map();for(const o of Object.values(st.occurrences)){const k=rewardIdentity(st,o);if(!byId.has(k))byId.set(k,[]);byId.get(k).push(o);}
+    let ent=null;const recs=new Map((st.sourceRecords||[]).map(r=>[r.id,r]));
+    const sign=c=>{if(!ent)ent=new Map(confirmedEligibility(st,todayYmd()).map(e=>[e.id,e]));
+      const occ=(byId.get(c.eventId)||[]).map(o=>[o.date,o.status,o.removed,o.updatedAt]).sort((x,y)=>x[0].localeCompare(y[0]));
+      const ev=(c.evidenceIds||[]).map(id=>{const r=recs.get(id),e=st.rewards.evidence[id];return [id,e?e.retractedAt:'missing',r?evidenceFingerprint(r):'missing',r?(r.clashes||[]):'missing',sourceIsActive(st,id)];});
+      const cur=ent.get(c.id);return JSON.stringify([occ,ev,cur?cur.amount:null]);};
+    for(const ep of epochs){
+      for(const c of Object.values(st.rewards.claims)){
+        if(c.ruleVersion!==4||c.epochId!==ep||(c.seriesId&&c.seriesId[0]==='@')||c.date<since)continue;
+        const e=(byId.get(c.id)||[]).map(o=>wsQuarterEntitlement(st,o,c.epochId)).find(Boolean),before=claimBalance(c),after=(e&&e.amount)||0;if(before===after)continue;
+        c.adjustments=c.adjustments||[];c.adjustments.push({id:newId('adjust'),at,delta:after-before,reason,revision:c.adjustments.length+1,ruleVersion:4,unit:'quarter-point',epochId:c.epochId,calculation:(e&&e.calculation)||null});
+        c.reconciledAt=at;c.reconciliationSignature=sign(c);
+      }
+      wsLineCorrections(st,reason,ep);
+    }
+    for(const id of old)adjustConfirmedClaim(st,id,reason);
+  });
+  return hit.length;
+}
 function followCorrection(state,seriesId,date,reason){
   if(!confirmedProgression(state))return null;
   /* BQ A3 (Oct 14): the correction re-derives the ledger lines (confirmedEligibility, wsBonusLines, wsGoalLines) on the save's draft, and
@@ -4551,6 +4607,7 @@ function wsChainEvent(state,rootId,date){
 function wsPriorChain(state,rootId,date,epoch){
   const series=state.series.find(s=>s.id===rootId),first=series?.versions.map(v=>v.effectiveFrom).sort()[0];
   let chain={priorFull:0,pending:false};if(!first)return chain;
+  if(series.genaFed?.goal){let own=state.series.find(s=>s.id===series.genaFed.goal),up=own&&parentFor(own,addDays(first,-1));while(up){own=state.series.find(s=>s.id===up);up=own&&parentFor(own,addDays(first,-1));}if(own)chain=wsPriorChain(state,own.id,first,epoch);}   // a twin's streak carries on from his goal's, one line across the cutover
   const start=first<epoch.effectiveFrom?epoch.effectiveFrom:first;
   const current=versionFor(series,date);
   if(current?.recurrence?.kind==='target'&&current.recurrence.count===1&&current.recurrence.mode!=='rolling'){
@@ -5427,10 +5484,11 @@ const wsLegacyTargetProgress=targetProgress;
 targetProgress=function(state,id,date){
   if(!wsEnabled(state))return wsLegacyTargetProgress(state,id,date);
   const series=state.series.find(s=>s.id===id),v=series&&versionFor(series,date),window=v&&recurrenceWindow(v,date,state);if(!window)return null;
-  const kind=wsKind(series,date),qualified=new Set(),full=new Set();let minutes=0,pending=0;
+  const kind=wsKind(series,date),qualified=new Set(),full=new Set(),line=genaLine(state,id);let minutes=0,pending=0;
   for(let day=window.from;day<=window.to&&day<=date;day=addDays(day,1)){
-    const current=versionFor(series,day);if(!current||!scheduledOn(current,day))continue;
-    const o=state.occurrences[occKey(id,day)],eventId=o?rewardIdentity(state,o):day;
+    const owner=line.length>1&&line.map(x=>state.series.find(s=>s.id===x)).find(s=>state.occurrences[occKey(s.id,day)]?.status)||series;   // own and twin are one line: a month that crosses the cutover counts his days too
+    const current=versionFor(owner,day);if(!current||!scheduledOn(current,day))continue;
+    const o=state.occurrences[occKey(owner.id,day)],eventId=o?rewardIdentity(state,o):day;
     if(current.childIds){const status=wsChainEvent(state,id,day);if(status==='full'){qualified.add(day);full.add(day);}else if(status==='pending')pending++;continue;}
     if(!o||!o.status)continue;
     if(kind==='cardio'||kind==='strength'){const q=wsEvidenceQuantity(state,id,day);if(actionConfirmation(state,o).confirmed&&!q.pending){minutes+=q.minutes;if(q.minutes>=(current.minimum?.minutes||(kind==='cardio'?20:15)))qualified.add(eventId);if(q.minutes>=(current.normal?.minutes||(kind==='cardio'?45:15)))full.add(eventId);}else pending++;}
