@@ -100,6 +100,8 @@ const GenaFeed = (() => {
     let text = file.content; if (file.truncated || !text){ const raw = await f(file.raw_url, {cache:'no-store'}); if (!raw.ok) throw new Error('Gist file answered ' + raw.status); text = await raw.text(); }
     const copy = JSON.parse(text); if (!isCopy(copy)) throw new Error('Not a Gena file'); if (!isV7(copy)) throw Object.assign(new Error(OLD), {plain:true}); return copy;
   }
+  /* The switch ends the goals it maps, so it waits for the items that carry them. Only the find rows can be absent from a V7 copy: Monthly care comes from his private file, not from migrateV7 */
+  const notReady = g => { const have = new Set((g.habits || []).map(h => String(h.name || '').trim().toLowerCase())), lack = ROWS.filter(r => r.find && !have.has(r.find.toLowerCase())).map(r => r.find); return lack.length ? 'Monthly care is not in Gena yet (' + lack.join(', ') + '). Import it first.' : ''; };
   /* What the feed keeps of a copy, from the cutover on. Rule copies are read through their live rule, so a moved rule keeps its old copies on the same card */
   function reduce(g, cutover){
     const projects = new Map((g.projects || []).map(p => [p.id, p])), rules = new Map((g.templates || []).map(t => [t.id, t])), all = (g.tasks || []).concat(g.archive || []);
@@ -302,7 +304,7 @@ const GenaFeed = (() => {
     return {ok:true};
   }
   const cardFocus = gid => gid.slice(5).split('~')[0];   // a card's Focus: gena-<id>, or gena-<id>~<day> after a move
-  return {ROWS, DOMAINS, NOT, MENTOR_FOCUS, isCopy, isV7, read, reduce, sigOf, apply, cutover, undo, nextMonday, habitMark, cardFocus};
+  return {ROWS, DOMAINS, NOT, MENTOR_FOCUS, isCopy, isV7, notReady, read, reduce, sigOf, apply, cutover, undo, nextMonday, habitMark, cardFocus};
 })();
 if (typeof window !== 'undefined') window.GenaFeed = GenaFeed;
 if (typeof module !== 'undefined') module.exports = GenaFeed;

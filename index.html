@@ -1149,7 +1149,7 @@ dialog.co-dialog .co-alldone:hover{background:color-mix(in srgb,var(--c-green,#7
 .side .nav{display:flex;flex-direction:column;gap:2px}.side .nav button{min-height:38px;height:38px;padding:0 12px;white-space:nowrap}.side .nav .nav-sep{margin:6px 6px}
 .side .spacer{flex:1;min-height:8px}
 #sideFresh .freshness{margin:0}#sideFresh .fresh-btn{width:100%;justify-content:flex-start;border-radius:999px;background:var(--sunk);border:0;height:30px;font-size:12.5px;font-weight:600}
-#sideFresh .attn-btn,#sideFresh .attn-list{display:none!important}#sideFresh .freshness{display:flex;align-items:center;gap:4px}#sideFresh .info{flex:none;margin:0}
+#freshGena{margin-bottom:6px}.app .side>.nav{flex:0 1 auto;min-height:0;overflow-y:auto;scrollbar-width:none}#sideFresh .attn-btn,#sideFresh .attn-list{display:none!important}#sideFresh .freshness{display:flex;align-items:center;gap:4px}#sideFresh .info{flex:none;margin:0}
 .side .buildid{font-size:11.5px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:8px 6px 0}.side .buildid b{display:none}.side .buildid .info{display:none}
 .side-resize{right:0;width:9px}
 .app.sidehidden{grid-template-columns:minmax(0,1fr)}
@@ -2237,6 +2237,8 @@ body:not([data-area="plan"]):not([data-area="template"]):not([data-area="log"]) 
 .lv-sub { text-align: left; }
 .rail-top .fresh-label { display: none !important; }
 .gl-jik { background: rgba(16,8,28,.9) !important; margin-top: 12px; }
+.gl-jik-left { display: flex; flex-direction: column; min-width: 0; }
+.fw-season-card .fw-seasons { margin-top: 0; padding-top: 0; border-top: 0; } .fw-season-card .chip { max-width: 100%; white-space: normal; } .fw-season-card .fw-season-add { display: none; }
 .gl-jik .lv-cells i { max-height: 16px; }
 .lv-stack { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .lv-stack > * { margin: 0 !important; }
@@ -2470,7 +2472,7 @@ addEventListener('load', () => {
     </nav>
     <a class="gena-link" href="https://skabone.github.io/gena/" target="_blank" rel="noopener">Open Gena ↗</a>
     <div class="spacer"></div>
-    <div id="sideFresh"><div id="fresh"></div></div>
+    <div id="sideFresh"><div id="freshGena"></div><div id="fresh"></div></div>
     <div id="sidebarSources"></div>
     <div class="ck"><p class="cap">Next checkpoint</p><b id="ckDate">—</b><p class="hint" id="ckLeft"></p></div>
     <div class="buildid" id="buildIdentity"></div>
@@ -2859,7 +2861,9 @@ addEventListener('load', () => {
       const col = main.querySelector('.panelcard.faith-week'); if (!col || main.querySelector('.gl-jik')) return;
       const days = glLast(28), row = (e, name, id, cls) => '<div class="care-heat gl-mind' + (cls || '') + '"><b><span aria-hidden="true">' + e + '</span> ' + name + '</b>' + glMarks(id, days, name) + '<small>' + days.filter(d => glDone(id, d)).length + '</small></div>';
       const journal = main.querySelector('[data-parity="BB1-JOURNAL"]'), html = glCard('gl-jik', '✝️', 'The last 4 weeks', row('☀️', 'Morning', 'dw-prayer-am') + row('🌙', 'Night', 'dw-prayer-pm') + row('📖', 'Journal', 'dw-journal') + row('🕊️', 'Fasting', 'dw-fasting') + row('⛪', 'Church', 'dw-church', ' gl-jik-church') + glLegend());
-      if (journal){ journal.insertAdjacentHTML('beforebegin', html); journal.classList.add('v6-gone'); } else col.insertAdjacentHTML('afterend', html);
+      /* His word, Nov 1: The last 4 weeks sits under This Week, so nothing covers the cross. The Activities column stays on the right, and the cross stands in it */
+      const left = document.createElement('div'); left.className = 'gl-jik-left'; col.replaceWith(left); left.append(col); left.insertAdjacentHTML('beforeend', html);
+      if (journal) journal.classList.add('v6-gone');
       for (const d of main.querySelectorAll('details, summary')) if (/Add season/.test(d.textContent) && d.textContent.length < 40) d.classList.add('v6-gone');
     },
     profile(main){
@@ -2962,6 +2966,22 @@ addEventListener('load', () => {
     if (!st.prefs || !st.prefs.genaCutover) return {asOf:'Gena not connected', asOfTitle:'Connect it on Data', asOfOld:false};
     return {asOf:at ? 'Gena as of ' + fmt(at) : 'Gena: no read yet', asOfTitle:'The last good read of Gena. A failed read keeps this copy and its time, never zeros.', asOfOld:!read || Date.now() - read > 864e5};
   }
+  /* Gena's own pill, above the Health pill and separate from it: the dot and time are the last read, and its tooltip has the last save in Gena. One line, so the Health pill keeps its place. A tap reads now; before the switch it says where things stand */
+  function glPillHTML(){
+    const st = S(), p = st.prefs || {}, T = todayYmd(), err = glGet('glow.genaErr'), read = +glGet('glow.genaRead') || 0, live = p.genaCutover || (p.genaPending && p.genaPending <= T), L = glAsOf(st), green = '#6fcf8f', amber = '#e6c35c', red = '#d9534f';
+    const stamp = at => { const d = new Date(at), z = 'America/Los_Angeles'; return d.toLocaleDateString('en-US', {month:'short', day:'numeric', timeZone:z}) + ', ' + d.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', timeZone:z}); };
+    const on = p.genaPending ? new Date(p.genaPending + 'T12:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric'}) : '';
+    const v = glBusy && glLoud ? {band:amber, word:'Reading Gena…', line:p.genaAt ? 'Updated ' + stamp(p.genaAt) : ''}
+      : !live ? (on ? {band:'var(--muted)', word:'Gena from ' + on, line:'Glow stands until then'} : {band:'var(--muted)', word:'Connect Gena', line:'Not connected yet'})
+      : {band:err ? red : L.asOfOld ? amber : green, word:read ? 'Gena ' + pacificTime(read, 'compact') : 'Gena not read', line:p.genaAt ? 'Updated ' + stamp(p.genaAt) : 'No read yet'};
+    const why = 'Glow reads Gena when it opens, every 5 minutes, and when you come back to it. Tap to read now. A failed read keeps the last copy and never zeros a grade.' + (err ? ' Last try: ' + err + '.' : '');
+    return '<div class="freshness"><button type="button" class="fresh-btn" data-gl-gena="pill" style="--band:' + v.band + '" aria-label="' + esc(v.word + '. ' + v.line) + '" title="' + esc(v.word + ' · ' + v.line) + '"><i aria-hidden="true"></i><span class="fresh-label">' + esc(v.word) + '</span></button>' + infoBtn('gena-pill', 'Gena') + infoPop('gena-pill', why) + '</div>';
+  }
+  function glSource(st){
+    const p = st.prefs || {}, T = todayYmd(), read = +glGet('glow.genaRead') || 0, err = glGet('glow.genaErr'), live = !!(p.genaCutover || (p.genaPending && p.genaPending <= T)), on = p.genaPending ? new Date(p.genaPending + 'T12:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric'}) : '';
+    return {live, read, err, on, status:live ? 'Connected' : on ? 'Starts ' + on : 'Not connected'};
+  }
+  function glPill(){ const el = document.getElementById('freshGena'); if (el && !el.querySelector('.info[aria-expanded="true"]')) el.innerHTML = glPillHTML(); }
   function glTopLines(main){
     const st = S(), L = glAsOf(st), p = st.prefs || {}; if (main.querySelector('.gl-top-lines')) return;
     const asks = (p.genaAsks || []).map((a, i) => '<div class="gl-ask"><span>' + esc(a.text) + '</span>' + (a.domain ? '<button type="button" class="k-chip" data-gl-ask="grade" data-i="' + i + '">Give it a grade</button><button type="button" class="k-chip" data-gl-ask="skip" data-i="' + i + '">No grade</button>' : a.to ? '<button type="button" class="k-chip" data-gl-ask="swap" data-i="' + i + '">Use it</button><button type="button" class="k-chip" data-gl-ask="ok" data-i="' + i + '">Leave it</button>' : '<button type="button" class="k-chip" data-gl-ask="ok" data-i="' + i + '">OK</button>') + '</div>').join('');
@@ -2973,6 +2993,10 @@ addEventListener('load', () => {
     if (t.dataset.glGena === 'cancel'){ await manualActionTransaction(S(), d => { delete d.prefs.genaPending; return {ok:true}; }, {persist:true}); render(); return; }
     if (t.dataset.glGena === 'connect'){ const i = document.getElementById('glGistId'), id = i ? i.value.trim() : ''; if (!id){ toast('Paste the gist id from Gena’s Cloud sync.'); return; } glSet('glow.genaGist', id); await glConnect(); return; }
     if (t.dataset.glGena === 'read'){ await glRead(true); return; }
+    if (t.dataset.glGena === 'pill'){ const p = S().prefs || {}, live = p.genaCutover || (p.genaPending && p.genaPending <= todayYmd());
+      if (!live){ if (p.genaPending) toast('Gena takes over on ' + glMonday(p.genaPending) + '. Glow stands until then.'); else GlowPages.go('data'); return; }
+      if (!glGist()){ toast('Gena is read on the Mac.'); return; }
+      await glRead(true); return; }
     if (t.dataset.glGena === 'undo'){ if (!confirm('Undo the switch? Your own goals run again and Gena’s copy leaves Glow.')) return; const r = await manualActionTransaction(S(), d => GenaFeed.undo(d), {persist:!preview, rebase:true}); render(); toast(r.ok ? 'The switch is undone.' : 'Not undone: ' + (r.error || 'unknown')); return; }
     const k = +t.dataset.i;
     await manualActionTransaction(S(), d => {
@@ -2986,13 +3010,14 @@ addEventListener('load', () => {
   }, true);
   /* The switch lands on a Monday (the item model §10). Connect checks the gist and sets the Monday, and Glow stands until then: nothing else changes and Gena's marks before it don't score.
      On that Monday, or the first read after it, the switch runs: a verified backup first, then one transaction and one Undo: the grade rule's items, his mapped goals ended, the Focus groups, Gena's days from the Monday */
-  let glBusy = false;
+  let glBusy = false, glLoud = false;
   const glMonday = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'});
   async function glConnect(){
     const id = glGist(), st = S(); if (!id || glBusy) return; if (st.prefs.genaCutover) return glRead(true);
     if (preview || readOnly || !NATIVE){ toast('Connect Gena in the Mac app.'); return; }
     glBusy = true;
     try { let raw; try { raw = await GenaFeed.read(id); } catch (e){ glSet('glow.genaErr', String(e.message || e)); toast(e.plain ? e.message + ' Nothing changed.' : 'Gena did not answer: ' + (e.message || e) + '. Nothing changed.'); render(); return; }
+      const lack = GenaFeed.notReady(raw); if (lack){ glSet('glow.genaErr', lack); toast(lack + ' Nothing changed.'); render(); return; }
       const T = todayYmd(), on = GenaFeed.nextMonday(st.prefs.genaPending || T);
       if (on > T){ glFresh(); if (st.prefs.genaPending !== on){ const r = await manualActionTransaction(st, d => { d.prefs.genaPending = on; return {ok:true}; }, {persist:true}); if (!r.ok){ toast('Not connected: ' + (r.error || 'unknown') + '. Nothing changed.'); render(); return; } } render(); toast('Gena takes over on ' + glMonday(on) + '. Glow stands until then, and marks in Gena before it don’t score.'); return; }
       await glSwitch(raw, on, T);
@@ -3010,17 +3035,17 @@ addEventListener('load', () => {
   async function glRead(loud){
     const st = S(), id = glGist(); if (glBusy || !id || !st.prefs || !(st.prefs.genaCutover || st.prefs.genaPending) || readOnly || manualSaving || (!loud && glEditing())) return;
     if (!st.prefs.genaCutover && st.prefs.genaPending > todayYmd()) return;   // Glow stands until the Monday
-    glBusy = true;
+    glBusy = true; glLoud = !!loud; if (loud) glPill();
     try { let raw; try { raw = await GenaFeed.read(id); } catch (e){ glSet('glow.genaErr', String(e.message || e)); if (loud){ toast(e.plain ? e.message : 'Gena did not answer; the last copy stays.'); render(); } return; }
       if (!loud && glEditing()) return;
-      if (!st.prefs.genaCutover){ await glSwitch(raw, st.prefs.genaPending, todayYmd()); return; }
+      if (!st.prefs.genaCutover){ const lack = GenaFeed.notReady(raw); if (lack){ glSet('glow.genaErr', lack); if (loud){ toast(lack + ' Nothing changed.'); render(); } return; } await glSwitch(raw, st.prefs.genaPending, todayYmd()); return; }
       const T = todayYmd(); let copy, sig;
       try { copy = GenaFeed.reduce(raw, st.prefs.genaCutover); sig = GenaFeed.sigOf(copy, T); } catch (e){ console.error('[gena] reduce', e); glSet('glow.genaErr', String(e && e.message || e)); if (loud){ toast('Gena was read but not understood: ' + (e && e.message || e) + '. The last copy stays.'); render(); } return; }
       if (sig === st.prefs.genaSig){ glFresh(); if (loud){ toast('Gena: nothing new.'); render(); } return; }   // different, never newer: nothing differs, nothing runs
       const done = await manualActionTransaction(S(), d => { try { const a = GenaFeed.apply(d, copy, T); d.prefs.genaSig = sig; d.prefs.genaAt = copy.at; correctClaimsOnce(d, a.changed, 'Gena feed'); return {ok:true}; } catch (e){ console.error('[gena] apply', e); return {ok:false, error:String(e && e.message || e)}; } }, {persist:!preview, rebase:true});
       if (!done.ok){ console.error('[gena] apply', done.error); glSet('glow.genaErr', String(done.error || 'not saved')); if (loud){ toast('Gena was read but not saved: ' + (done.error || 'unknown') + '. The last copy stays.'); render(); } return; }
-      glFresh(); await manualClaimRewards(S(), null, {persist:!preview, today:todayYmd()}); if (loud || !glEditing()) render();
-    } finally { glBusy = false; }
+      glFresh(); await manualClaimRewards(S(), null, {persist:!preview, today:todayYmd()}); if (loud || !glEditing()) render(); if (loud) toast('Gena: updated.');
+    } finally { glBusy = false; glLoud = false; glPill(); }
   }
   setTimeout(() => afterPaint(() => { glRead().catch(e => console.error('[gena] read', e)); }), 2500);
   setInterval(() => { glRead().catch(() => {}); }, 300000);
@@ -4079,11 +4104,11 @@ addEventListener('load', () => {
       const name=s.id==='apple-fitness'?'Apple Health':d.short,word=s.id==='ifit'?(x.lastWorkout?'last workout '+freshnessAge(x.lastWorkout).ago:'no workout yet'):shared&&!st.autoFeed?'not connected':age.at?age.ago:'no data yet';
       const detail=shared?(st.autoFeed?'Watch and iPhone via the shared Apple Health export feed: '+(paused?'paused':age.word)+'. Newest feed data '+dataWhen(feedAt)+'. ':'No automatic Apple Health export feed is connected. Latest imported data '+dataWhen(x.lastSample)+'. ')+(s.id==='ifit'?'This is shared-feed health, not a verified direct iFIT connection. Last workout '+dataWhen(x.lastWorkout)+'. ':''):d.detail+'. '+x.note;
       return {id:s.id,name,word,detail,tone:shared&&paused?'none':age.tone};
-    });
+    }).concat((()=>{const g=glSource(st),age=freshnessAge(g.read?new Date(g.read).toISOString():null);return [{id:'gena',name:'Gena',word:!g.live?g.status.toLowerCase():g.err?'last read failed':g.read?'read '+age.ago:'no read yet',detail:!g.live?(g.on?'Gena takes over on that Monday. Glow stands until then.':'Connect Gena on this page.'):'Your check-offs, read from Gena’s cloud copy on open, every 5 minutes and when you come back. '+(g.err?'Last try: '+g.err+'. The last copy stays.':'The last copy stays if a read fails.'),tone:!g.live?'none':g.err?'stale':g.read?age.tone:'none'}];})());
   }
   function sourcePills(st){
     const rows=sourcePillData(st).map(p=>'<button class="conn" data-source-pill="'+esc(p.id)+'" data-act="goData" aria-label="'+esc(p.name+' — '+p.word+'. '+p.detail)+'" title="'+esc(p.detail)+'"><i class="fresh-dot f-'+p.tone+'" aria-hidden="true"></i><b>'+esc(p.name)+'</b><small>'+esc(p.word)+'</small></button>').join('');
-    return '<span class="cap">Sources</span>'+rows+infoBtn('sources','sources')+infoPop('sources','Apple Health combines Watch and iPhone. Its dot and iFIT’s dot describe the shared export feed; iFIT’s workout age is a separate, neutral label. Bevel uses its own reported data. No dot verifies an account connection or completes an activity.');
+    return '<span class="cap">Sources</span>'+rows+infoBtn('sources','sources')+infoPop('sources','Apple Health combines Watch and iPhone. Its dot and iFIT’s dot describe the shared export feed; iFIT’s workout age is a separate, neutral label. Bevel uses its own reported data. Gena’s dot is Glow’s last read of your check-offs. No dot verifies an account connection or completes an activity.');
   }
   function levelOrbHTML(){
     let rw = null;
@@ -4129,7 +4154,7 @@ addEventListener('load', () => {
     const mode = String((window.HealthDelivery && window.HealthDelivery.mode) || 'local').replace(/^mac$/i, 'Mac').replace(/^web$/i, 'Web');
     $('#buildIdentity').innerHTML = '<b>Build</b>' + esc(((window.HealthDelivery && window.HealthDelivery.build) || (typeof BUILD === 'string' ? BUILD : 'unknown')).replace(/-(V\d+(?:\.\d+)*)$/,' · $1')) + ' · ' + esc(mode) + ' <button type="button" class="info" data-act="info" aria-expanded="false" aria-controls="info-build" aria-label="About this build">i</button><div class="info-pop" id="info-build" hidden><p class="hint" style="font-size:11px">' + esc(env + ' · ' + storeKind) + '. ' + (preview ? 'Invented records for review. Nothing is saved.' : 'Private records on this device.') + '</p></div>';
     { const v = window.HealthDelivery && window.HealthDelivery.version, b = document.getElementById('brandVersion'); if (v && b && b.textContent !== v) b.textContent = v; }
-    $('#fresh').innerHTML = freshnessHTML();
+    glPill(); $('#fresh').innerHTML = freshnessHTML();
     $('#levelOrb').innerHTML = levelOrbHTML();
     $('#topStats').innerHTML = '';   // V3.4 (T7): no global strip; weight lives on Today's strip and Body, steps and deficit in Fuel
     { const t = $('#stoneToggle'); if (t){ const black = st.prefs.theme === 'black'; t.innerHTML = '<i class="swatch ' + (black ? 'verde' : 'black') + '" aria-hidden="true"></i>' + (black ? 'Speakeasy Verde' : 'Black Lacquer'); t.setAttribute('aria-label', 'Switch to ' + (black ? 'Speakeasy Verde' : 'Black Lacquer')); t.title = 'Switch the room'; } }
@@ -10220,7 +10245,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   }
   function dataSourcesCard(st){
     const rows = DATA_SOURCES().map(s => { const f = dataSourceFacts(st, s.id), status = s.id === 'apple-health' ? (st.autoFeed ? (st.autoFeed.paused ? 'Paused' : 'Connected') : 'Not connected') : f.count ? 'Receiving' : 'No records', fresh = f.age === null ? '—' : f.age === 0 ? 'Today' : f.age === 1 ? 'Yesterday' : f.age + ' days ago', ft = f.age === null ? 'neutral' : f.age <= 1 ? 'green' : f.age <= 3 ? 'yellow' : 'orange';
-      return '<button type="button" class="dt-src" data-act="dataSource" data-src="' + s.id + '"' + (s.id === 'gpt-relay' ? ' data-parity="V36-DATA-C07"' : '') + '><span aria-hidden="true">' + s.emoji + '</span><b>' + esc(s.name) + '</b><span class="k-chip dt-chip" data-src-status>' + esc(status) + '</span><span class="k-chip dt-chip" style="color:' + gvTone(ft) + '" data-src-fresh>' + esc(fresh) + '</span></button>'; }).join('');
+      return '<button type="button" class="dt-src" data-act="dataSource" data-src="' + s.id + '"' + (s.id === 'gpt-relay' ? ' data-parity="V36-DATA-C07"' : '') + '><span aria-hidden="true">' + s.emoji + '</span><b>' + esc(s.name) + '</b><span class="k-chip dt-chip" data-src-status>' + esc(status) + '</span><span class="k-chip dt-chip" style="color:' + gvTone(ft) + '" data-src-fresh>' + esc(fresh) + '</span></button>'; }).join('') + (() => { const g = glSource(st), days = g.live && g.read ? Math.max(0, Math.round((new Date(todayYmd() + 'T12:00:00') - new Date(new Date(g.read).toLocaleDateString('en-CA') + 'T12:00:00')) / 864e5)) : null, fresh = days === null ? '—' : days === 0 ? 'Today' : days === 1 ? 'Yesterday' : days + ' days ago', ft = days === null ? 'neutral' : g.err ? 'orange' : days <= 1 ? 'green' : 'yellow';
+      return '<button type="button" class="dt-src" data-gl-gena="pill" data-src="gena"><span aria-hidden="true">🌸</span><b>Gena</b><span class="k-chip dt-chip" data-src-status>' + esc(g.status) + '</span><span class="k-chip dt-chip" style="color:' + gvTone(ft) + '" data-src-fresh>' + esc(fresh) + '</span></button>'; })();
     return '<section class="k-card dt-sources" id="dataSources" data-parity="V36-DATA-C02" data-feedback-id="data-sources" data-feedback-label="Sources"><div class="k-head"><span aria-hidden="true">🧭</span><span class="k-title">Sources</span>' + infoBtn('data-sources', 'Sources') + '</div>' + infoPop('data-sources', 'Each source and how its records reach Glow. Apple Health is the folder Health Auto Export writes to; Apple Fitness, Bevel Pro and iFIT arrive through it under their own writer names and are never attributed to each other. A tap shows when it was checked and imported, its newest sample, what kinds it sends and how many records are here.') + rows + '<span data-parity="V36-FITNESS-C19" hidden></span></section>';   // C19 (Sources & Receipts) is this card now
   }
   function openDataSource(id){
@@ -12643,15 +12669,15 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       '</div>';
     return '<section class="panelcard faith-week" data-feedback-id="faith-week" data-feedback-label="Faith this week"><div class="ph"><h2>This Week</h2></div>' +
       '<p class="hint">Each day has four prayer squares: the top pair is morning and night done, the bottom pair is partly done (half credit). The Fast square fills when done, with a green rim when your data confirmed it; faint squares are days ahead, and a blank space means nothing was planned. The prayer goal is 3 days with both prayers and 2 more days with at least one. Church counts one Sunday in any rolling four weeks. These are the same records as Today, Quests and Progress, and points go to your one account.</p>' +
-      grid + minis + fastingSeasonsLine(st) + '</section>';
+      grid + minis + '</section>';
   }
   function fastingSeasonsLine(st){
     const list = Workspace.fastingSeasons ? Workspace.fastingSeasons(st) : [], today = todayYmd(), shown = list.filter(x => !x.to || x.to >= today);
     const when = x => medDate(x.from) + ' – ' + (x.to ? medDate(x.to) : 'open');
     const info = typeof EotcCalendar !== 'undefined' ? EotcCalendar.dayInfo(day) : null, fr = info && info.fasting && SCORES_ON ? fastResilienceOf(st) : null, season = info && info.fasts.length ? info.fasts[0].name : info && info.wedFriFast ? (info.weekday === 3 ? 'Wednesday fast' : 'Friday fast') : '';
     const footnote = fr ? '<p class="hint keep fw-fr" data-value="' + (fr.value === null ? '' : fr.value) + '">Fast Resilience ' + (fr.value === null ? '— · ' + esc(fr.missing.length ? 'needs ' + fr.missing.join(' and ') : 'not enough readings') : '<b>' + fr.value + '</b> · ' + esc(fr.label)) + ' · ' + esc(season) + ' · assumes you kept the calendar’s fasts · <button class="link" data-act="go" data-area="progress">Progress</button></p>' : '';
-    return '<div class="fw-seasons"><span class="cap">Fasting seasons</span>' + (shown.length ? shown.map(x => '<span class="chip quiet">' + esc(x.name) + ' · ' + esc(when(x)) + '</span>').join('') : '<span class="hint">None coming up</span>') + footnote +
-      '<details class="fw-season-add"><summary>+ Add season</summary><div class="form"><div><label for="fs-name">Name</label><input id="fs-name" type="text" maxlength="60" placeholder="e.g. the season’s name"></div><div><label for="fs-from">First day</label><input id="fs-from" type="date"></div><div><label for="fs-to">Last day</label><input id="fs-to" type="date"></div><button class="save" data-act="faithSeasonAdd">Add season</button></div></details></div>';
+    return '<section class="panelcard fw-season-card" data-feedback-id="fasting-seasons" data-feedback-label="Fasting seasons"><div class="ph"><h2>Fasting seasons</h2></div><div class="fw-seasons">' + (shown.length ? shown.map(x => '<span class="chip quiet">' + esc(x.name) + ' · ' + esc(when(x)) + '</span>').join('') : '<span class="hint">None coming up</span>') + footnote +
+      '<details class="fw-season-add"><summary>+ Add season</summary><div class="form"><div><label for="fs-name">Name</label><input id="fs-name" type="text" maxlength="60" placeholder="e.g. the season’s name"></div><div><label for="fs-from">First day</label><input id="fs-from" type="date"></div><div><label for="fs-to">Last day</label><input id="fs-to" type="date"></div><button class="save" data-act="faithSeasonAdd">Add season</button></div></details></div></section>';
   }
 
   /* ---------- render ---------- */
@@ -12700,7 +12726,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   function railBody(st){
     if(area==='home')return goalRailV6(st)+levelCardV34(st);   // V6 T4: the goal card is BV option A   // V3.4 (T6): Goal countdown and Level; Later Today joined Up Next; Template is on Quests
     if(area==='journal')return journalRailCard(st);   // Fix Z2: the Journal page has its rail block too
-    if(area==='faith')return gradeArea('faith',()=>gradeStrip(st,['faith']),st)+faithCalendarCard(day);   // V3.5 G9: the Faith grade in the rail
+    if(area==='faith')return gradeArea('faith',()=>gradeStrip(st,['faith']),st)+faithCalendarCard(day)+fastingSeasonsLine(st);   // V3.5 G9: the Faith grade in the rail
     if(area==='profile')return '<div data-parity="BODY-73">'+gradeArea('profile',()=>fitnessGradeCard(st)+gradeStrip(st,['health']),st)+'</div>'+goalMarkersCard();   // V3.5 G5, G9: the Fitness Grade replaces the Overall Rank (C-28); Health beside it   // V3.5 (B9): the interim rank in the rail, where the Fitness Grade will go; Growth is in Fitness Trends
     if(area==='stand')return '<div data-parity="V36-GROWTH-P03">'+gradeArea('stand',()=>growthRailOverall(st),st)+'</div>';   // V3.6 G1: the Overall Grade in the shared grade area; the Goals card's one home is Body (GROW-12)
     if(area==='fitness')return '<div data-parity="V36-FITNESS-P03">'+gradeArea('fitness',()=>fitnessGradeCard(st)+gradeStrip(st,['health']),st)+'</div>';   // V3.6 F5: the Fitness Grade and Health; Left Today is dropped (A32, its numbers are on Today)
