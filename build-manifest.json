@@ -1,10 +1,10 @@
 {
-  "build": "2026-11-01-V6.0.1",
+  "build": "2026-11-01-V6.0.2",
   "files": {
     "body-view.css": "99ac2f68372870c587372c1f4065f47381e29fbfc78009e823e276ece1146ba6",
     "body-view.js": "99eb9f33adee08178e79eaef97c23f0fc7b5669f4e3803d9b8d5c34122bead39",
     "convert-starter.js": "40c333c133bdb5045fd7fe8660861c723ee1a940628a16d6f9bf05ff9cfa0fc4",
-    "delivery.js": "da6ff10af725794bf1262fc0c7254cea33837ee3792a6b9cd8c3c00f3a5a48de",
+    "delivery.js": "c03d1caaa7feac396779a146657815020d005c18fd3d2d0542eb2a006fa4a535",
     "eotc-calendar.js": "1fcc866733b1160d7f01d603aaa191e7f8879a3f844275941078d33bf5dde0c4",
     "fitness-grade.js": "a69876d8719b32b2c43f1b4ace6d4d0adb56c82739432dca82c68e7ae0c2984a",
     "gena-feed.js": "4696d326e0150411f073590e8766c5ddfe76382f800df06aceab256d96eb2817",
@@ -26,7 +26,7 @@
     "icons/talents-coin.svg": "e11217af3e4376febf886c1e09e01e108dbefffdfc6694d5cfb039ef697d3eaa",
     "icons/temple-columns.svg": "e4fd4b9df1e20885f65c9c175484b5e49c69627ab98cb12ac5daff3c25e78c23",
     "ifit-reader.js": "7a206ae0d1e4880c5082d1a193961dd66af0148d594b4c1936d1c2559925b0bb",
-    "index.html": "b4884c086f822b3347734e74cc2ab44d5bbbe402c3d7cb2592a496d069938b32",
+    "index.html": "5ff85b45c71f7f554a480b5b3194f6ca033a45ad57f7d2c2528f466986d0ff1d",
     "manifest.webmanifest": "1df1641bf89b82effa7b1c00ef3ae33eddc61a0b9d5524b507d076f797097cef",
     "meal-water.js": "2ec35f37435af8cc8e5af71b16b7f3cc13436ef6150aa77c9373422b64e79a4a",
     "model-viewer.min.js": "774edda21e1be2a0934e460ca5943af1fe3f88da130a9f98bd6a9d611576cacf",
@@ -36,7 +36,7 @@
     "quarter-points.js": "7d8a7554b70172264ce5ee8f6897d02ed0a9c7e271a206f53957785cc258e58d",
     "scores.js": "60bfaabafe6973dba302a4fcdab18bee7c2afd22532fcd52427e739db55311b3",
     "scoring-v5.js": "2fd45ed76f1105ba8795e2f392162ed1045fda43385f1f70cdd7833c11afef48",
-    "sw.js": "88f465c5a892f84640637b4320cf885dc08a70508d62ef8851ce979a681462ea",
+    "sw.js": "ff39d53b6ffa277533961ea6e3ec79929aecd81e0f33b91b3e7b060db76e7dc7",
     "workout-sessions.js": "363125a1d6492ea29eb7f67e32a57eab75a484587bc7a8aceabc9722b578856f",
     "workspace-proposal.js": "4e8f5f8d5ee14e9ae40a74086335d372658ca1a7017de7b9311773b12a5d8090",
     "year-view.js": "2a5216b9ebfc22088a78bc448c4d0fb9902d90e9d2ca7dfe559aed659bc9be39"
