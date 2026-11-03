@@ -8,7 +8,7 @@ const GlowChart=(()=>{
   function niceTicks(lo,hi,n){const span=hi-lo||1,p=Math.pow(10,Math.floor(Math.log10(span))),steps=[10,5,2,1,.5,.2,.1].map(x=>x*p);
     for(const c of steps){const t=[];for(let v=Math.ceil(lo/c)*c;v<=hi+1e-9;v+=c)t.push(+v.toFixed(6));if(t.length>=(n||3))return {ticks:t,lo,hi};}return {ticks:[lo,hi],lo,hi};}
   function cursor(){const L=[];return {i:null,on(f){L.push(f);},set(i,src){this.i=i;L.forEach(f=>f(i,src));}};}
-  /* spec: {days, from, to, series:[{get,color,width,dash,dots,dotR,ring,label,opacity}], bands:[{lo,hi,fill}], hline:{y,color,width},
+  /* spec: {days, from, to, series:[{get,color,colorOf(v,i),width,dash,dots,dotR,ring,label,opacity}], bands:[{lo,hi,fill}], hline:{y,color,width},
             marks:[{i,color,label}], yFmt, height, ticks, pad, cursor, today(i), rightFmt, interactive(true), styleCurrent(false)} */
   function make(root,spec){
     root.classList.add('gc');root.innerHTML='';root.style.position='relative';root.style.touchAction='pan-y';
@@ -36,8 +36,9 @@ const GlowChart=(()=>{
       if(spec.hline)el('line',{x1:ml,x2:ml+iw,y1:ys(spec.hline.y),y2:ys(spec.hline.y),stroke:spec.hline.color||'var(--line-strong)','stroke-width':spec.hline.width||.75},g);
       if(spec.today!=null&&spec.today>=a&&spec.today<=b){const x=xs(spec.today);el('line',{x1:x,x2:x,y1:mt,y2:mt+ih,stroke:'var(--line-strong)','stroke-width':.75,'stroke-dasharray':'1 3'},g);
         if(spec.todayLabel!==false){const t=el('text',{x:x+4,y:mt+ih-4,'font-size':10,fill:'var(--faint)'},g);t.textContent='today';}}
-      spec.series.forEach(s=>{if(s.dots){for(let i=a;i<=b;i++){const v=s.get(D[i],i);if(v==null)continue;const r=s.dotR||3.2;
-          el('circle',{cx:xs(i),cy:ys(v),r,fill:s.ring&&s.ring(D[i])?'var(--bg)':s.color,stroke:s.color,'stroke-width':1.25},g);}return;}
+      spec.series.forEach(s=>{if(s.dots){for(let i=a;i<=b;i++){const v=s.get(D[i],i);if(v==null)continue;const r=s.dotR||3.2,c=s.colorOf?s.colorOf(v,i):s.color;
+          el('circle',{cx:xs(i),cy:ys(v),r,fill:s.ring&&s.ring(D[i])?'var(--bg)':c,stroke:c,'stroke-width':1.25},g);}return;}
+        if(s.colorOf){let prev=null;for(let i=a;i<=b;i++){const v=s.get(D[i],i);if(!inY(v)){prev=null;continue;}if(prev)el('path',{d:'M'+xs(prev.i).toFixed(1)+' '+ys(prev.v).toFixed(1)+' L'+xs(i).toFixed(1)+' '+ys(v).toFixed(1),fill:'none',stroke:s.colorOf((v+prev.v)/2,i),'stroke-width':s.width||1.5,'stroke-dasharray':s.dash||'none','stroke-linecap':'round',opacity:s.opacity||1},g);prev={i,v};}return;}   // a line whose colour changes along it
         let d='',pen=false;for(let i=a;i<=b;i++){const v=s.get(D[i],i);if(!inY(v)){pen=false;continue;}d+=(pen?'L':'M')+xs(i).toFixed(1)+' '+ys(v).toFixed(1)+' ';pen=true;if(s.breakAfter&&s.breakAfter(D[i],i))pen=false;}
         if(d)el('path',{d,fill:'none',stroke:s.color,'stroke-width':s.width||1.5,'stroke-dasharray':s.dash||'none','stroke-linejoin':'round','stroke-linecap':'round',opacity:s.opacity==null?1:s.opacity},g);});
       (spec.marks||[]).forEach(m=>{if(m.i<a||m.i>b)return;const v=m.y!=null?m.y:null;if(v==null)return;el('circle',{cx:xs(m.i),cy:ys(v),r:3.5,fill:'var(--bg)',stroke:m.color||'var(--brass)','stroke-width':1.25},g);
@@ -48,7 +49,7 @@ const GlowChart=(()=>{
     }
     function showSel(i){if(!state.ov)return;state.ov.innerHTML='';if(i<state.a||i>state.b)return;const x=state.xs(i);
       el('line',{x1:x,x2:x,y1:state.mt,y2:state.mt+state.ih,stroke:'var(--ink)','stroke-width':.75,opacity:.55},state.ov);
-      spec.series.forEach(s=>{const v=s.get(spec.days[i],i);if(v==null||(spec.yFixed&&(v<spec.yFixed[0]||v>spec.yFixed[1])))return;el('circle',{cx:x,cy:state.ys(v),r:(s.dotR||3.2)+1.2,fill:'var(--bg)',stroke:s.color,'stroke-width':1.5},state.ov);});}
+      spec.series.forEach(s=>{const v=s.get(spec.days[i],i);if(v==null||(spec.yFixed&&(v<spec.yFixed[0]||v>spec.yFixed[1])))return;el('circle',{cx:x,cy:state.ys(v),r:(s.dotR||3.2)+1.2,fill:'var(--bg)',stroke:s.colorOf?s.colorOf(v,i):s.color,'stroke-width':1.5},state.ov);});}
     function pick(clientX){const r=svg.getBoundingClientRect();const x=clientX-r.left;const n=state.b-state.a;let i=state.a+Math.round((x-state.ml)/(state.iw||1)*n);i=Math.max(state.a,Math.min(state.b,i));cur.set(i,root);}
     if(inter){root.addEventListener('pointermove',e=>{if(e.pointerType==='touch'&&!e.buttons)return;pick(e.clientX);});
       root.addEventListener('pointerdown',e=>{root.focus({preventScroll:true});pick(e.clientX);});

@@ -105,16 +105,16 @@ const GenaFeed = (() => {
   /* What the feed keeps of a copy, from the cutover on. Rule copies are read through their live rule, so a moved rule keeps its old copies on the same card */
   function reduce(g, cutover){
     const projects = new Map((g.projects || []).map(p => [p.id, p])), rules = new Map((g.templates || []).map(t => [t.id, t])), all = (g.tasks || []).concat(g.archive || []);
-    const focusOf = id => { const p = projects.get(id); return p ? id : null; };
+    const focusOf = id => { const p = projects.get(id); return p && !p.noFocus ? id : null; };   // Gena's quiet No Focus reads as no Focus
     const out = {at:g.savedAt || null, habits:{}, rules:{}, once:{}, focuses:{}, domains:{}, loads:{}, kits:[], noFocus:0}, since = o => { const k = {}; for (const [d, v] of Object.entries(o || {})) if (d >= cutover) k[d] = v; return k; };
     for (const d of g.profiles || []) out.domains[d.id] = {name:String(d.name || '').slice(0, 40)};
-    for (const p of g.projects || []) out.focuses[p.id] = {name:String(p.name || '').slice(0, 40), emoji:p.emoji || '', domain:p.profileId || null, ended:p.state === 'ended' || p.state === 'done' || p.state === 'archived', projects:[]};
+    for (const p of g.projects || []) if (!p.noFocus) out.focuses[p.id] = {name:String(p.name || '').slice(0, 40), emoji:p.emoji || '', domain:p.profileId || null, ended:p.state === 'ended' || p.state === 'done' || p.state === 'archived', projects:[]};
     // A Gena Project (a role under Job Search) is no card of its own: its live ones show on their Focus's card, and its work counts through that Focus
     for (const e of g.efforts || []) if (out.focuses[e.projectId] && !['ended', 'off'].includes(e.state)) out.focuses[e.projectId].projects.push(String(e.name || '').slice(0, 40));
     for (const h of g.habits || []){
       const log = {}, marks = {}; for (const [d, v] of Object.entries(g.habitLog || {})) if (d >= cutover && v && v[h.id]) log[d] = v[h.id];
       for (const [d, v] of Object.entries(g.habitMarks || {})) if (d >= cutover && v && v[h.id]) marks[d] = String(v[h.id]);
-      const o = out.habits[h.id] = {name:String(h.name || '').slice(0, 80), goal:h.goal || 1, box:+h.box > 0 ? +h.box : 1, parts:slotsOf(h), per:h.per === 'week' || h.per === 'month' ? h.per : 'day', weekdays:Array.isArray(h.weekdays) ? h.weekdays.slice() : [], every:Math.floor(+h.every) || 0, everyUnit:h.everyUnit || '', start:h.start || null, dayMin:+h.dayMin > 0 ? +h.dayMin : 0, once:!!h.once, optional:!!h.optional, focus:focusOf(h.projectId), log, marks, skips:since(h.skips)};
+      const o = out.habits[h.id] = {name:String(h.name || '').slice(0, 80), goal:h.goal || 1, box:+h.box > 0 ? +h.box : 1, parts:slotsOf(h), per:h.per === 'week' || h.per === 'month' ? h.per : 'day', weekdays:Array.isArray(h.weekdays) ? h.weekdays.slice() : [], every:Math.floor(+h.every) || 0, everyUnit:h.everyUnit || '', start:h.start || null, dayMin:+h.dayMin > 0 ? +h.dayMin : 0, once:!!h.once, eotc:!!h.eotc, optional:!!h.optional, focus:focusOf(h.projectId), log, marks, skips:since(h.skips)};
       if (h.paused){ o.paused = true; if (h.pausedSince) o.pausedSince = h.pausedSince; if (h.pausedUntil) o.pausedUntil = h.pausedUntil; }
     }
     for (const r of g.templates || []){
@@ -129,7 +129,7 @@ const GenaFeed = (() => {
       if (t.loadKind){   // a kit: met for the week of Fold, by that step's date. Started and left, it earns and costs nothing
         const steps = t.subs || [], left = t.subsDone || [], fold = steps[steps.length - 1] || left[left.length - 1], on = !!fold && (fold.done || left.includes(fold)), day = on ? fold.doneOn || t.completedOn || t.day || null : null, s = stepsOf(t);
         if (day && day >= cutover){ const k = out.loads[t.loadKind] = out.loads[t.loadKind] || {log:{}}; k.log[day] = (k.log[day] || 0) + 1; }
-        if (!day || day >= cutover) out.kits.push({kind:t.loadKind, done:s.done, of:s.of, day, open:!day || s.open > 0});
+        if (!day || day >= cutover) out.kits.push({kind:t.loadKind, name:String(t.title || '').slice(0, 40), done:s.done, of:s.of, day, open:!day || s.open > 0, on:t.day || null, stepDays:steps.concat(left).map(x => x.doneOn).filter(Boolean)});   // on and stepDays: the days it shows on This Week
         continue;
       }
       if (t.tplId && out.rules[t.tplId]){
@@ -276,7 +276,7 @@ const GenaFeed = (() => {
         const tid = 'gena-' + fid + '--' + goal; seen.add(tid); let tw = d.series.find(s => s.id === tid);
         // a Hygiene chip is daily in Gena and so many a week in Glow's goal, so a Perfect day doesn't ask for all nine
         if (!tw){ tw = createSeries(d, {...base, matching:null, parentId:null, childIds:undefined, container:false, ...(row.week ? {recurrence:{kind:'target', days:allDays(), count:row.week, weeks:1, mode:'fixed', startDate:cut, session:''}} : {})}, cut); tw.id = tid; tw.category = own.category; delete tw.versions[0].parentId; delete tw.versions[0].childIds; stamp(tw, {id:fid, goal, kind:row.kind}); }
-        twinned.add(fid); tw.archivedAt = null; tw.genaFed.focus = row.kit ? null : (copy.habits[fid] || copy.rules[fid]).focus;   // it counts on its Focus's card, wherever his goal lived
+        twinned.add(fid); tw.archivedAt = null; if (copy.habits[fid] && copy.habits[fid].eotc) for (const v of tw.versions) v.eotc = true; tw.genaFed.focus = row.kit ? null : (copy.habits[fid] || copy.rules[fid]).focus;   // it counts on its Focus's card, wherever his goal lived
         sync(d, tw, days.map(x => [x, statusOf(copy, ids, row, x)]), T, changed);
       }
     }

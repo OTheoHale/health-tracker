@@ -439,6 +439,7 @@ function calNextDate(ver, from){
   let y = +from.slice(0, 4), d = on(y); if (d < from) d = on(y + 1); return d;
 }
 function scheduledOn(ver, date){
+  if (ver.eotc && typeof EotcCalendar !== 'undefined') return date >= ver.effectiveFrom && !!EotcCalendar.dayInfo(date).fasting;   // Gena's Fasting: the church's fast days, seasons included, with no edit when one starts
   if (ver.goal && ver.goal.v === 1 && ver.goal.period && ver.goal.period.kind === 'range' && ((ver.goal.period.from && date < ver.goal.period.from) || (ver.goal.period.to && date > ver.goal.period.to))) return false;   // V3.6 M2 (review F3)
   if (ver.goal && ver.goal.v === 1 && typeof GoalEngine !== 'undefined' && ver.goal.when && ver.goal.when.kind !== 'any' && ver.goal.when.kind !== 'days') return date >= ver.effectiveFrom && GoalEngine.dueOn(ver.goal, date, ver);   // V3.6 M2
   const r = ver.recurrence || {};

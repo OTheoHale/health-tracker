@@ -2152,11 +2152,11 @@ dialog.ss-wrap{position:fixed;inset:0;z-index:90;width:auto;height:auto;max-widt
 .nr-macs{display:flex;flex-direction:column;gap:2px;margin:6px 0 8px}
 .nr-mac{display:grid;grid-template-columns:64px minmax(40px,1fr) auto;align-items:center;gap:10px;padding:5px 0;border-top:1px solid var(--line);font-size:14px}
 .nr-mac:first-child{border-top:0}
-.nr-bar{height:4px;border-radius:2px;background:var(--sunk);overflow:hidden}.nr-bar i{display:block;height:100%;border-radius:2px}
+.nr-bar{position:relative;height:4px;border-radius:2px;background:var(--sunk)}.nr-bar i{position:relative;display:block;height:100%;border-radius:2px}.nr-bar em{position:absolute;top:-3px;bottom:-3px;border-radius:2px;background:color-mix(in srgb,var(--ink) 16%,transparent)}.nr-bar em.tick{width:2px;background:var(--ink)}
 .nr-macv{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}.nr-macv small{font-weight:400;color:var(--muted);font-size:12px}
 .nr-rule{margin:12px 0 0}
 /* T4: the rail's Weight & Goal */
-.goal6{padding:16px 18px 14px}
+.goal6{padding:16px 18px 14px}.goal6-seg{display:flex;margin:4px 0 8px}.goal6-seg button{flex:1 1 auto;height:26px;padding:0 6px;font-size:12px}
 .goal6-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
 .goal6-val{font:600 22px/1.1 var(--serif);font-variant-numeric:tabular-nums;color:var(--ink)}.goal6-val small{font:500 12px var(--sans);color:var(--muted);margin-left:4px}
 .goal6-cap{margin-top:2px;font-size:12.5px}
@@ -2303,7 +2303,7 @@ body:not([data-area="plan"]):not([data-area="template"]):not([data-area="log"]) 
 .today-water svg[data-parity="V36-F6-01"] { width: 178px !important; height: 175px !important; flex: none; }
 .gl-thisweek { padding: 16px 18px; margin-top: 14px; }
 .gl-thisweek .k-head { display: flex; align-items: center; }
-.lw-grid { display: grid; grid-template-columns: minmax(118px, auto) repeat(7, minmax(0, 1fr)) 36px; gap: 5px 6px; align-items: center; margin-top: 6px; }
+.lw-grid { display: grid; grid-template-columns: minmax(118px, auto) repeat(var(--n, 7), minmax(0, 1fr)) 90px 36px; gap: 5px 6px; align-items: center; margin-top: 6px; }
 .lw-grid > small { text-align: center; color: var(--muted); font-size: 11.5px; }
 .lw-grid > small.on { color: var(--ink); font-weight: 700; }
 .lw-name { display: flex; gap: 7px; align-items: center; border: 0; background: none; color: var(--ink); font: 600 13px/1.2 inherit; font-family: inherit; padding: 0; text-align: left; cursor: pointer; min-height: 0; }
@@ -2311,6 +2311,28 @@ body:not([data-area="plan"]):not([data-area="template"]):not([data-area="log"]) 
 .lw-c::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--s, 0) * 100%); background: var(--c); border-radius: 6px; }
 .lw-c.on { outline: 1px solid var(--brass); }
 .lw-c.ahead, .lw-c.none { background: transparent; outline: 1px dashed rgba(127,127,127,.2); }
+.lw-c.off { visibility: hidden; }
+.lw-s { display: none; }
+.lw-t { position: relative; z-index: 1; display: block; font-size: 13px; font-weight: 600; font-style: normal; line-height: 20px; text-align: center; color: #fff; text-shadow: 0 0 3px rgba(0,0,0,.85); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lw-two { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: transparent; overflow: visible; }
+.lw-two::after { display: none; }
+.lw-two .lw-seg.m-open, .lw-c.lw-open { background: #5c625d !important; border-color: transparent; }
+.gl-key { margin-top: 10px; font-size: 13px; color: var(--muted); }
+.gl-key summary { cursor: pointer; font-weight: 600; }
+.gl-key p { margin: 6px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.gl-key i { flex: none; width: 22px; height: 12px; border-radius: 3px; display: inline-block; }
+.lw-two .lw-seg { width: auto; min-width: 0; height: 20px; border-radius: 5px; display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: 9px; font-weight: 400; line-height: 1; }
+.lw-many { height: auto; min-height: 20px; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; }
+.lw-two.lw-many .lw-seg { height: 15px; border-radius: 4px; border-width: 1px; white-space: nowrap; letter-spacing: -.5px; }
+.gl-laundry .care-heat { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; align-items: center; gap: 6px; }
+.gl-load { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.lw-two.gl-load-now { flex: 0 0 66px; width: 66px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.lw-run { text-align: right !important; color: var(--ink); font-size: 11.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lw-sep { grid-column: 1 / -1; height: 1px; margin-top: 8px; background: var(--line); }
+.lw-car { flex: none; width: 10px; color: var(--muted); font-size: 11px; }
+.lw-name.lv1 { padding-left: 14px; font-weight: 500; }
+.lw-name.lv2 { padding-left: 28px; font-weight: 400; color: var(--muted); }
+.lw-nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lw-n { text-align: right !important; color: var(--muted); font-size: 11.5px; }
 /* Flags: a band with a marker, as Sleep reads */
 .lf-row { display: grid; grid-template-columns: 22px minmax(96px, 124px) minmax(60px, 1fr) minmax(62px, auto) 46px; gap: 8px; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); }
@@ -2325,7 +2347,14 @@ body:not([data-area="plan"]):not([data-area="template"]):not([data-area="log"]) 
   #main { overflow-x: clip; }
   [data-parity="V35-G9-01"] > *, [data-parity="V35-G9-01"] { flex-wrap: wrap; min-width: 0; }
   .lv-card .k-head, .gl-grades .k-head { flex-wrap: wrap; }
-  .lw-grid { grid-template-columns: minmax(82px, auto) repeat(7, minmax(0, 1fr)) 26px; gap: 4px 3px; }
+  .lw-grid { grid-template-columns: minmax(82px, auto) repeat(var(--n, 7), minmax(0, 1fr)) 46px 24px; gap: 4px 3px; }
+  .lw-run, .lw-n { font-size: 8.5px !important; }
+  .lw-many { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lw-t { display: flex; justify-content: center; transform: scale(.62); letter-spacing: -.3px; }
+  .lw-l { display: none; }
+  .lw-s { display: inline; }
+  .lw-two.lw-many .lw-seg { height: 13px; font-size: 8px; }
+  .lw-seg.w2 { grid-column: span 2; }
   .lw-grid > small { font-size: 9.5px; }
   .lw-name { font-size: 12px; gap: 4px; }
 }
@@ -2348,7 +2377,7 @@ body:not([data-area="plan"]):not([data-area="template"]):not([data-area="log"]) 
 .gl-grades .ov-row > :last-child { text-align: right; }
 .today-wbody { flex-wrap: wrap; }
 /* His second look: This Week's groups, the fixed readout, text that stays inside its card */
-.lw-group { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; font-weight: 600; }
+.lw-group { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; margin-top: 8px; padding: 6px 0 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; min-height: 0; text-align: left; }
 .lw-group:first-of-type { margin-top: 2px; }
 .bv-readout { display: grid !important; grid-template-columns: 1.5fr repeat(10, minmax(0, 1fr)); gap: 4px 8px; min-height: 0; line-height: 1.3; }
 .lg-f { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
@@ -2560,11 +2589,11 @@ addEventListener('load', () => {
   /* Pages that left the sidebar are hidden, never deleted: the Data page opens them. A stray link to one lands on the page that took its place */
   let glHiddenOpen = false;
   document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('button[data-area]'); if (b) glHiddenOpen = !!b.closest('.nav, [data-gl-hidden]'); }, true);
-  const GL_PARTS = {care:[['Brush AM', 'dw-brush'], ['Floss', 'dw-floss'], ['Tongue', 'dw-tongue'], ['Rinse', 'dw-rinse'], ['Face', 'dw-wash-face'], ['Shower', 'dw-shower'], ['B1', 'dw-bathroom-1'], ['B2', 'dw-bathroom-2'], ['Brush PM', 'dw-night-brush']],
+  const GL_PARTS = {care:[['Brush AM', 'dw-brush', '☀️🪥'], ['Floss', 'dw-floss', '🧵'], ['Tongue', 'dw-tongue', '👅'], ['Rinse', 'dw-rinse', '🫧'], ['Face', 'dw-wash-face', '🙂'], ['Shower', 'dw-shower', '🚿'], ['B1', 'dw-bathroom-1', '🚽1'], ['B2', 'dw-bathroom-2', '🚽2'], ['Brush PM', 'dw-night-brush', '🌙🪥']],
     monthly:[['SUD Group', /^SUD (Group|Appointment)$/i, false], ['SUD Individual', /^SUD Individual$/i, false], ['RX', /^RX$/i, false], ['Therapy', /^Therapy$/i, true]], laundry:[['Whites', 'dw-laundry-whites'], ['Bedding', 'dw-laundry-bedding'], ['Towels', 'dw-laundry-towels'], ['Colors', 'dw-laundry-colors']]};
   function glInfo(){
     const st = S(), has = id => st.series.some(s => s.id === id), named = re => { const s = st.series.find(x => re.test((latestVersion(x) || {}).name || '')); return s ? s.id : null; };
-    return {care:GL_PARTS.care.filter(x => has(x[1])).map(([name, id]) => ({name, id})), monthly:GL_PARTS.monthly.map(([n, re, opt]) => [n, named(re), opt]).filter(x => x[1]), laundry:GL_PARTS.laundry.filter(x => has(x[1])), cutover:(st.prefs && st.prefs.genaCutover) || '', ...glAsOf(st)};
+    return {care:GL_PARTS.care.filter(x => has(x[1])).map(([name, id, e]) => ({name, id, e})), monthly:GL_PARTS.monthly.map(([n, re, opt]) => [n, named(re), opt]).filter(x => x[1]), laundry:GL_PARTS.laundry.filter(x => has(x[1])), cutover:(st.prefs && st.prefs.genaCutover) || '', ...glAsOf(st)};
   }
   const glMentorInfo = () => { const st = S(), m = (st.prefs && st.prefs.genaMentors) || {}, glow = ['Mentorship', 'Network', 'Chris', 'Shuang'].flatMap(n => st.series.filter(s => (latestVersion(s) || {}).name === n).map(s => s.id)); return {glow, people:m.people || [], days:m.days || {}}; };
   // A check-off lives in Gena: a tap on one says so. The hidden pages keep working for his own rows
@@ -2601,8 +2630,9 @@ addEventListener('load', () => {
   const GL_WORD = {done:'done', partial:'partly done', skipped:'skipped', excused:'doesn’t apply'};
   const glLegend = () => '<div class="gl-legend" data-parity="GL-MARKS" aria-hidden="true">' + [['done', 'Done'], ['partial', 'Partial'], ['skipped', 'Skipped'], ['excused', 'Doesn’t apply'], ['', 'Open']].map(([m, w]) => '<span><i class="gl-m ' + (m ? 'm-' + m : 'm-open') + '"></i>' + w + '</span>').join('') + '</div>';
   const glMarks = (id, days, name) => '<span class="lv-cells gl-marks">' + days.map(d => { const m = glMark(id, d); return '<i class="gl-m m-' + (m || 'open') + '" title="' + esc(name + ', ' + monthDay(d) + ': ' + (GL_WORD[m] || 'open')) + '"></i>'; }).join('') + '</span>';
-  // two parts on one day read as one mark: both alike that mark; one done and one not is half
-  const glPair = (a, b, d) => { const x = glMark(a, d), y = glMark(b, d); if (x === y) return x; if ([x, y].every(v => v === 'excused' || v === null)) return null; return x === 'done' || y === 'done' || x === 'partial' || y === 'partial' ? 'partial' : x || y; };
+  // done twice a day: two segments, each its own mark (his word, Nov 2: partial is only a truly partial one); the day is met when both are
+  const glTwo = (a, b, d) => ({two:[['☀️', 'morning', glMark(a, d)], ['🌙', 'night', glMark(b, d)]]});
+  const glPartSeg = (s, title, m) => '<b class="lw-seg gl-m m-' + (m || 'open') + (s.length > 2 ? ' w2' : '') + '" title="' + esc(title + ': ' + (GL_WORD[m] || 'open')) + '">' + (s || (m === 'done' ? '✓' : '')) + '</b>';
   const glIn = gid => S().series.filter(s => s.category === gid && !(s.versions[s.versions.length - 1] || {}).childIds);
   function glDoneIn(ids, from, to){ const set = new Set(ids.flatMap(glIds)), days = new Set(); for (const o of Object.values(S().occurrences)) if (set.has(o.seriesId) && o.status === 'done' && o.date >= from && o.date <= to) days.add(o.seriesId.replace(/^gena-.*--/, '') + '|' + o.date); return days.size; }
   // Bars, the Applications a week style: a column, its count on it, its label under it; a dashed line marks a goal
@@ -2627,9 +2657,10 @@ addEventListener('load', () => {
   const glDay = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short'}).slice(0, 2);
   // A day-bar card for a metric: today's value, the change, and the days as bars coloured by a rule
   function glMetric(cls, emoji, title, id, n, o){
-    const rows = glSeries(id, n), have = rows.filter(r => Number.isFinite(r.v)), last = have[have.length - 1], prev = have[have.length - 2], dg = o.digits || 0, f = Math.pow(10, dg), fmt = v => (Math.round(v * f) / f).toLocaleString('en-US');
-    const big = '<div class="lv-big"><b style="color:' + (last && o.tone ? o.tone(last.v) : 'var(--ink)') + '">' + (last ? fmt(last.v) : '—') + '</b>' + (o.unit ? '<small>' + esc(o.unit) + '</small>' : '') + (o.live && last && last.d === todayYmd() ? '<small class="lv-chg">so far today</small>' : last && prev ? glChange(last.v, prev.v, o.better, dg) : '') + '</div>';
-    return glCard(cls, emoji, title, big + glBars(rows.map(r => ({v:r.v, lab:n > 10 ? (r.d.slice(8) % 2 ? '' : String(+r.d.slice(8))) : glDay(r.d), show:'', col:Number.isFinite(r.v) && o.tone ? o.tone(r.v) : undefined, title:monthDay(r.d) + ': ' + (Number.isFinite(r.v) ? fmt(r.v) + (o.unit ? ' ' + o.unit : '') : 'no reading')})), {goal:o.goal, goalWord:o.goalWord}), {area:o.area, right:o.right, info:o.info});
+    // o.days: the page filter's days; a view of several days leads with their average
+    const rows = o.days ? (m => o.days.map(d => ({d, v:m.has(d) ? m.get(d) : null})))(metricSeries(S(), id, Math.max(1, calendarDistance(o.days[0], todayYmd()) + 1))) : glSeries(id, n), many = rows.length > 1 && !!o.days, have = rows.filter(r => Number.isFinite(r.v)), last = have[have.length - 1], prev = have[have.length - 2], dg = o.digits || 0, f = Math.pow(10, dg), fmt = v => (Math.round(v * f) / f).toLocaleString('en-US'), avg = have.length ? have.reduce((a, r) => a + r.v, 0) / have.length : null, lead = many ? avg : last ? last.v : null;
+    const big = '<div class="lv-big"><b style="color:' + (lead !== null && o.tone ? o.tone(lead) : 'var(--ink)') + '">' + (lead !== null ? fmt(lead) : '—') + '</b>' + (o.unit ? '<small>' + esc(o.unit) + '</small>' : '') + (many ? '<small class="lv-chg">average</small>' : o.live && last && last.d === todayYmd() ? '<small class="lv-chg">so far today</small>' : last && prev ? glChange(last.v, prev.v, o.better, dg) : '') + '</div>';
+    return glCard(cls, emoji, title, big + glBars(rows.map(r => ({v:r.v, lab:rows.length > 10 ? (r.d.slice(8) % 2 ? '' : String(+r.d.slice(8))) : glDay(r.d), show:'', col:Number.isFinite(r.v) && o.tone ? o.tone(r.v) : undefined, title:monthDay(r.d) + ': ' + (Number.isFinite(r.v) ? fmt(r.v) + (o.unit ? ' ' + o.unit : '') : 'no reading')})), {goal:o.goal, goalWord:o.goalWord}), {area:o.area, right:o.right, info:o.info});
   }
   /* ---- the grade card: a letter out of 100 for the window, then its parts, each a bar; the row opens that part's page ---- */
   const GL_PAGE = {faith:'faith', health:'ov-temple', family:'hearth', home:'hearth', social:'hearth', career:'talents', growth:'talents', hobbies:'talents'};
@@ -2732,10 +2763,12 @@ addEventListener('load', () => {
     const st = S(), ids = groupsOf(st).filter(g => doms.includes(gradeGroupUmbrella(st, g.id))).flatMap(g => glIn(g.id).map(s => s.id)), weeks = glWeeks(8), cnt = weeks.map(w => glDoneIn(ids, w, addDays(w, 6)));
     return glCard(cls, emoji, title, glBars(weeks.map((w, i) => ({v:cnt[i], lab:w.slice(5).replace(/^0/, '').replace('-', '/'), title:'Week of ' + monthDay(w) + ': ' + cnt[i] + ' done'})), {tall:true}));
   }
+  const GL_STEPS = [['🫧', 'wash', '-wash'], ['💨', 'dry', '-dry'], ['👕', 'fold', '-fold']];
   function glLaundry(){   // A load is a kit in Gena: Wash, Dry, Fold. A kind is met for the week of Fold; an open load shows its steps, and more of a kind in a week is a count. It is optional
     const L = glInfo(), weeks = glWeeks(6), wk = weeks[weeks.length - 1], D = S().prefs.genaDetail, kits = (D && D.kits) || []; if (!L || !L.laundry.length) return '';
+    const steps = (id, w) => { const end = addDays(w, 6); return glDoneIn([id], w, end) ? 3 : GL_STEPS.filter(x => glDoneIn([id + x[2]], w, end)).length; };
     const key = name => name.toLowerCase().replace(/\s+/g, '-'), n = L.laundry.filter(x => glDoneIn([x[1]], wk, addDays(wk, 6))).length, week = kits.filter(k => k.day && k.day >= wk && k.day <= addDays(wk, 6));
-    const rows = L.laundry.map(([name, id]) => { const k = key(name), open = kits.filter(x => x.kind === k && !x.day), more = week.filter(x => x.kind === k).length - 1; return '<div class="care-heat gl-mind"><b>' + esc(name) + '</b>' + glCells(weeks.map(w => { const c = glDoneIn([id], w, addDays(w, 6)); return {share:c ? 1 : 0, title:name + ', week of ' + monthDay(w) + (c ? ': done' : ': not done')}; })) + '<small class="gl-kit">' + [...open.map(x => x.done + ' of ' + x.of), more > 0 ? '+' + more : ''].filter(Boolean).map(esc).join(' · ') + '</small></div>'; }).join('');
+    const rows = L.laundry.map(([name, id]) => { const k = key(name), open = kits.filter(x => x.kind === k && !x.day), more = week.filter(x => x.kind === k).length - 1; return '<div class="care-heat gl-mind"><b>' + esc(name) + '</b><span class="gl-load">' + glCells(weeks.slice(0, -1).map(w => { const n = steps(id, w); return {share:n / 3, title:name + ', week of ' + monthDay(w) + ': ' + n + ' of 3'}; })) + '<i class="lw-c lw-two gl-load-now">' + GL_STEPS.map(([e, word], i) => glPartSeg(e, name + ' ' + word + ', this week', i < Math.max(steps(id, wk), open[0] ? open[0].done : 0) ? 'done' : null)).join('') + '</i></span><small class="gl-kit">' + (more > 0 ? '+' + more : '') + '</small></div>'; }).join('');
     return glCard('gl-laundry', '🧺', 'Laundry · ' + n + ' of ' + L.laundry.length, '<small class="lv-sub">Each load, the last 6 weeks</small>' + rows);
   }
   function glRooms(){   // Clean: a row a room, a square a week
@@ -2762,27 +2795,72 @@ addEventListener('load', () => {
     const sect = (name, dom, emoji) => { const cards = list(dom).map(g => glFocus(g, g.genaEmoji || emoji)).join(''); return cards ? '<h2 class="sect-h">' + name + '</h2><div class="k-grid c3">' + cards + '</div>' : ''; };
     return '<div class="gl-talents" data-parity="GL-TALENTS"><div class="cols2 ov-cols pg-top">' + glGradeCard('Talents Grade', ['career', 'growth', 'hobbies'], 'talents', 'umb') + '<div class="ov-vis-col">' + appCard + '</div></div><div class="lv-grid2">' + glMentors() + glTotal('gl-t-weeks', '🪙', 'Talents, each week', ['career', 'growth', 'hobbies']) + '</div>' + sect(domainName('career'), 'career', '💼') + sect('Growth', 'growth', '🌱') + sect('Hobbies', 'hobbies', '🎨') + glEmpty(['career', 'growth', 'hobbies']) + '</div>';
   }
+  document.addEventListener('toggle', e => { if (e.target.classList && e.target.classList.contains('gl-key')) try { localStorage.setItem('health-tracker.weekKey', e.target.open ? '1' : '0'); } catch (_) {} }, true);
+  // This Week's key: what the card draws now, folded by default and remembered
+  function glWeekKey(){
+    let open = false; try { open = localStorage.getItem('health-tracker.weekKey') === '1'; } catch (_) {}
+    const bar = bg => '<i style="background:' + bg + '"></i>';
+    return '<details class="gl-key"' + (open ? ' open' : '') + '><summary>Key</summary>' +
+      '<p>' + bar('#79d6a9') + 'Done ' + bar('#5c625d') + 'Open ' + bar('linear-gradient(90deg,#79d6a9 50%,#5c625d 50%)') + 'Partly done ' + bar('linear-gradient(135deg,#5c625d 44%,#c9cdc8 44%,#c9cdc8 56%,#5c625d 56%)') + 'Skipped ' + bar('linear-gradient(#8a8f88,#8a8f88) center/100% 2px no-repeat') + 'Doesn’t apply</p>' +
+      '<p>Blank means not due that day. Prayer, Journal, Hygiene and the Hearth and Talents rows split into a piece for each thing that day; Hearth and Talents change with what Gena has.</p>' +
+      '<p>' + bar('linear-gradient(90deg,#ee7a6a,#f0a058,#e6cf5c,#6fd39a,#6fc8d8,#b69cf0)') + 'Steps, Sweat and Water fill to the goal: red is far under, blue is at it, purple is 30% over. The number is the real amount.</p>' +
+      '<p>Sleep keeps its hours colors. Fuel fills as you reach your deficit, and reads red when you’re over.</p>' +
+      '<p>Total is what you did of what the filter’s view asks for. Goal is this calendar week. Tap a section, Domain or Focus to open or close it. Past seven days, each column is a week.</p></details>';
+  }
   /* ---- Today: This Week holds what Gena and Glow track together; a real visual beside each summary circle ---- */
   function glThisWeek(){
-    const st = S(), t = todayYmd(), wk = weekStartOf(t, st.prefs.weekStart === 0 ? 0 : 1), days = [0, 1, 2, 3, 4, 5, 6].map(i => addDays(wk, i)), L = glInfo(), ids = L ? L.care : [];
-    const steps = metricSeries(st, 'steps', 14), sleep = metricSeries(st, 'sleep', 14), water = metricSeries(st, 'water', 14), net = metricSeries(st, 'net', 14), goal = NetEnergy.goal(st), need = sleepGoalMin(st) / 60, sg = stepsGoal(st), inDom = (...ids) => groupsOf(st).filter(g => ids.includes(gradeGroupUmbrella(st, g.id))).flatMap(g => glIn(g.id).map(s => s.id)), hm = inDom('home'), fam = inDom('family', 'social'), job = inDom('career'), grow = inDom('growth');
+    const st = S(), t = todayYmd(), W = filtWin('home', 'thisweek'), first = st.prefs.weekStart === 0 ? 0 : 1, week = [0, 1, 2, 3, 4, 5, 6].map(i => addDays(weekStartOf(W.to, first), i)), win = W.per === 'week' ? [0, 1, 2, 3, 4, 5, 6].map(i => addDays(W.from, i)) : W.days, L = glInfo(), ids = L ? L.care : [];
+    // the card follows the page's filter: a column a day up to seven days, a column a week past that
+    const cols = win.length <= 7 ? win.map(d => ({days:[d], label:new Date(d + 'T12:00:00').toLocaleDateString('en-US', win.length === 1 ? {weekday:'short', month:'short', day:'numeric'} : {weekday:'short'})})) : win.reduce((a, d) => { const k = weekStartOf(d, first), c = a[a.length - 1]; if (c && c.k === k) c.days.push(d); else a.push({k, days:[d], label:monthDay(d)}); return a; }, []);
+    const span = Math.max(14, calendarDistance(win[0], t) + 1, calendarDistance(week[0], t) + 1), steps = metricSeries(st, 'steps', span), sleep = metricSeries(st, 'sleep', span), water = metricSeries(st, 'water', span), net = metricSeries(st, 'net', span), goal = NetEnergy.goal(st), need = sleepGoalMin(st) / 60, sg = stepsGoal(st), inDom = (...ids) => groupsOf(st).filter(g => ids.includes(gradeGroupUmbrella(st, g.id))).flatMap(g => glIn(g.id).map(s => s.id)), hm = inDom('home'), fam = inDom('family', 'social'), job = inDom('career'), grow = inDom('growth');
     const x = SCORES_ON ? scoreIndex(st) : null, mins = {}; if (x) for (const q of Scores.sessions(x)) mins[q.day] = (mins[q.day] || 0) + (q.minutes || 0);
-    const fast = st.series.find(q => q.id === 'dw-fasting'), fastDue = d => { const v = fast && versionFor(fast, d); return !!(v && scheduledOn(v, d)); };
-    const count = /Family|DRM|Home|Career|Growth/;
-    const groups = [['<i style="color:#b69cf0;font-style:normal">✠</i>', 'JIK', [['🙏', 'Prayer', d => glPair('dw-prayer-am', 'dw-prayer-pm', d), 'faith'], ['🕊️', 'Fasting', d => fastDue(d) ? glMark('dw-fasting', d) || '' : null, 'faith'], ['⛪', 'Church', d => glMark('dw-church', d), 'faith', glDoneIn(['dw-church'], t.slice(0, 8) + '01', t.slice(0, 8) + '31') + '/1'], ['📖', 'Journal', d => glMark('dw-journal', d), 'faith', '+' + glDoneIn(['dw-journal'], wk, addDays(wk, 6))]]],
-      ['<img src="icons/temple-columns.svg" alt="" width="16" height="16">', 'Temple', [['👟', 'Steps', d => steps.has(d) ? Math.min(1, steps.get(d) / sg) : null, 'fitness'], ['💦', 'Sweat', d => Math.min(1, (mins[d] || 0) / WORKOUT_MIN), 'fitness'], ['😴', 'Sleep', d => sleep.has(d) ? Math.min(1, sleep.get(d) / need) : null, 'care'], ['💧', 'Water', d => water.has(d) ? Math.min(1, water.get(d) / (waterNow(st, d).goal || 100)) : null, 'nourish'], ['🔥', 'Fuel', d => net.has(d) ? (net.get(d) <= goal ? 1 : net.get(d) <= 0 ? .6 : .2) : null, 'nourish']]],
-      ['🌿', 'Care', [['🪥', 'Hygiene', d => { const m = ids.map(q => glMark(q.id, d)); return m.length && m.every(x => x === 'excused') ? 'excused' : m.length && m.every(x => x === 'skipped') ? 'skipped' : m.filter(x => x === 'done').length / (ids.length || 1); }, 'care']]],
-      ['<img src="icons/hearth-fireplace.svg" alt="" width="16" height="16">', 'Hearth', [['👪', domainName('family'), d => Math.min(1, glDoneIn(fam, d, d)), 'hearth'], ['🏠', domainName('home'), d => Math.min(1, glDoneIn(hm, d, d) / 3), 'hearth']]],
-      ['<img src="icons/talents-coin.svg" alt="" width="16" height="16">', 'Talents', [['💼', domainName('career'), d => Math.min(1, glDoneIn(job, d, d) / 3), 'talents'], ['🌱', 'Growth', d => Math.min(1, glDoneIn(grow, d, d)), 'talents']]]];
-    const tone = s => GV.tone(s >= .95 ? 'green' : s >= .6 ? 'yellow' : 'orange');
-    const head = '<span></span>' + days.map(d => '<small class="' + (d === t ? 'on' : '') + '">' + new Date(d + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short'}) + '</small>').join('') + '<span></span>';
-    const line = ([e, name, f, page, own]) => { const vals = days.map(d => d > t ? undefined : f(d)), lived = vals.filter(v => v !== undefined && v !== null && v !== 'excused'), hit = lived.filter(v => v === 'done' || (typeof v === 'number' && v >= (count.test(name) ? .01 : name === 'Hygiene' ? .6 : .95))).length; return '<button type="button" class="lw-name" data-area="' + page + '"><span aria-hidden="true">' + e + '</span>' + esc(name) + '</button>' + vals.map((v, i) => v === undefined ? '<i class="lw-c ahead"></i>' : typeof v === 'string' && v ? '<i class="lw-c gl-m m-' + v + (days[i] === t ? ' on' : '') + '" title="' + esc(name + ', ' + monthDay(days[i]) + ': ' + GL_WORD[v]) + '"></i>' : !v ? '<i class="lw-c' + (days[i] === t ? ' on' : '') + '"></i>' : '<i class="lw-c' + (days[i] === t ? ' on' : '') + '" title="' + esc(name + ', ' + monthDay(days[i]) + ': ' + Math.round(v * 100) + '%') + '" style="--c:' + tone(v) + ';--s:' + Math.max(.18, v).toFixed(2) + '"></i>').join('') + '<small class="lw-n">' + (own || hit + '/' + lived.length) + '</small>'; };
-    const body = groups.map(([icon, name, list]) => '<div class="lw-group"><span aria-hidden="true">' + icon + '</span>' + name + '</div>' + list.map(line).join('')).join('');
-    return '<section class="k-card gl-thisweek" data-parity="GL-THISWEEK" data-feedback-id="gl-thisweek" data-feedback-label="This Week"><div class="k-head"><span aria-hidden="true">📅</span><span class="k-title">This Week</span>' + infoBtn('gl-thisweek', 'This Week') + '<span class="gl-win">' + esc(monthDay(days[0]) + ' – ' + monthDay(days[6])) + '</span></div>' + infoPop('gl-thisweek', 'Your week on one card: what Gena checked off and what Glow measured, day by day.') + '<div class="lw-grid">' + head + body + '</div>' + glLegend() + '</section>';
+    let fold = {}; try { fold = JSON.parse(localStorage.getItem('health-tracker.weekFold')) || {}; } catch (_) {}
+    const isOpen = (k, dflt) => k in fold ? !!fold[k] : dflt;
+    // a fast shows only where the church's calendar has one, the one Gena reads, so a season starts by itself
+    const fastDue = d => typeof EotcCalendar !== 'undefined' && !!EotcCalendar.dayInfo(d).fasting;
+    // a row that counts items: the day's rectangle is cut into what was due or done that day, each filled when done (his word, Nov 2); a goal and its Gena twin are one
+    let doneBy = null; const doneOn = d => { if (!doneBy){ doneBy = new Map(); for (const o of Object.values(st.occurrences)) if (o.status === 'done'){ if (!doneBy.has(o.date)) doneBy.set(o.date, []); doneBy.get(o.date).push(o); } } return doneBy.get(d) || []; };
+    const dayPlan = new Map(), sets = new Map(), base = id => id.replace(/^gena-.*--/, ''), setOf = list => { if (!sets.has(list)) sets.set(list, new Set(list.flatMap(glIds))); return sets.get(list); };
+    const itemsOn = (list, d, extra) => { if (!dayPlan.has(d)){ let p = []; try { p = flatPlanFor(st, d); } catch (_) {} dayPlan.set(d, p); } const set = setOf(list), out = new Map(); for (const r of dayPlan.get(d)) if (set.has(r.seriesId)) out.set(base(r.seriesId), [r.seriesId, r.name]); for (const o of doneOn(d)) if (set.has(o.seriesId) && !out.has(base(o.seriesId))){ const q = st.series.find(x => x.id === o.seriesId); out.set(base(o.seriesId), [o.seriesId, (latestVersion(q) || {}).name || '']); } const more = extra ? extra(d) : []; if (!out.size && !more.length) return 0; const two = [...out.values()].map(([id, nm]) => ['', nm, glIds(base(id)).concat(id).some(x => { const o = st.occurrences[occKey(x, d)]; return o && o.status === 'done'; }) ? 'done' : null]).concat(more); return {two, keep:true, cols:Math.min(two.length, 6)}; };
+    // a load in Gena isn't a day's plan row: it shows the day it was set for, the days a step was done, and today while it waits undated, so the row follows whatever Gena has that day
+    const KIT_EMOJI = {whites:'🤍', bedding:'🛏️', towels:'🛁', colors:'🎨'}, kitList = (st.prefs.genaDetail || {}).kits || [], kitOn = (k, d) => k.on === d || k.day === d || (k.stepDays || []).includes(d) || (d === t && k.open && !k.on), kitPiece = k => [KIT_EMOJI[k.kind] || '🧺', k.name || k.kind, k.done >= k.of ? 'done' : k.done ? 'partial' : null], kitsOn = d => kitList.filter(k => kitOn(k, d)).map(kitPiece);
+    // Journal is two a day in Gena: a rectangle each, a ✓ when done, read from Gena's count; a day before the switch holds one mark
+    const journalOn = d => { const n = ((st.prefs.genaDetail || {}).journal || {})[d]; return Number.isFinite(n) ? n : glDone('dw-journal', d) ? 1 : 0; };
+    const brushFirst = q => q.name === 'Brush AM' ? 0 : q.name === 'Brush PM' ? 1 : 2, hyg = [...ids].sort((a, b) => brushFirst(a) - brushFirst(b));
+    const active = f => win.some(d => f(d));
+    const itemRows = (list, key) => list.map(id => { const q = st.series.find(x => x.id === id), one = [id]; return {e:'', name:(latestVersion(q) || {}).name || id, page:'hearth', f:d => itemsOn(one, d), any:true, key:key + ':' + id}; }).filter(r => active(r.f));
+    const kitRows = key => [...new Set(kitList.filter(k => win.some(d => kitOn(k, d))).map(k => k.kind))].map(kind => { const ks = kitList.filter(k => k.kind === kind), f = d => { const two = ks.filter(k => kitOn(k, d)).map(kitPiece); return two.length ? {two, keep:true, cols:Math.min(two.length, 6)} : 0; }; return {e:KIT_EMOJI[kind] || '🧺', name:ks[0].name || kind, page:'hearth', f, any:true, key:key + ':' + kind}; });
+    // a Domain opens to its Focuses, a Focus to its items; each is what Gena has in this view, so a thing added or dropped there shows or leaves by itself
+    const focusRows = (doms, page) => { const out = doms.flatMap(glCards).map(g => { const list = glFocusIds(g), laundry = /laundry/i.test(g.name), key = 'f:' + g.id, f = d => itemsOn(list, d, laundry ? kitsOn : null); return {e:g.genaEmoji || '', name:g.name, page, f, any:true, key, kids:() => laundry ? kitRows(key).concat(itemRows(list, key)) : itemRows(list, key)}; }).filter(r => active(r.f)); if (doms.includes('home') && !out.some(r => /laundry/i.test(r.name)) && win.some(d => kitsOn(d).length)) out.push({e:'🧺', name:'Laundry', page, f:d => { const two = kitsOn(d); return two.length ? {two, keep:true, cols:Math.min(two.length, 6)} : 0; }, any:true, key:'f:laundry', kids:() => kitRows('f:laundry')}); return out; };
+    const metric = (e, name, page, raw, goalOf, fmt, o) => { o = o || {}; const share = o.share || ((v, d) => v / goalOf(d)); return {e, name, page, raw, goalOf, fmt, share, colOf:o.colOf, runFmt:o.runFmt, f:d => { const v = raw(d); return v == null ? null : share(v, d); }}; };
+    const fuelFmt = v => { const a = Math.abs(v), sign = v > 0 ? '+' : v < 0 ? '−' : ''; return sign + Math.round(a).toLocaleString('en-US') + '|' + sign + (a >= 1000 ? Math.round(a / 100) / 10 : Math.round(a)); }, fuelRun = v => { const a = Math.abs(v); return (v > 0 ? '+' : v < 0 ? '−' : '') + (a >= 1000 ? (Math.round(a / 100) / 10) + 'k' : Math.round(a)); };
+    const domain = (e, name, page, list, doms, extra) => ({e, name, page, f:d => itemsOn(list, d, extra), any:true, key:'d:' + doms[0], kids:() => focusRows(doms, page)});
+    const groups = [{key:'g:jik', icon:'<i style="color:#b69cf0;font-style:normal">✠</i>', name:'JIK', rows:[{e:'🙏', name:'Prayer', page:'faith', f:d => glTwo('dw-prayer-am', 'dw-prayer-pm', d)}, {e:'🕊️', name:'Fasting', page:'faith', f:d => glMark('dw-fasting', d) || '', due:fastDue}, {e:'⛪', name:'Church', page:'faith', f:d => glMark('dw-church', d), own:glDoneIn(['dw-church'], t.slice(0, 8) + '01', t.slice(0, 8) + '31') + '/1'}, {e:'📖', name:'Journal', page:'faith', f:d => { const n = journalOn(d), m = glMark('dw-journal', d), off = m === 'skipped' || m === 'excused' ? m : null; return {two:[1, 2].map(i => ['', i === 1 ? 'first entry' : 'second entry', n >= i ? 'done' : off])}; }, own:'+' + week.reduce((a, d) => a + journalOn(d), 0)}]},
+      {key:'g:temple', icon:'<img src="icons/temple-columns.svg" alt="" width="16" height="16">', name:'Temple', rows:[metric('👟', 'Steps', 'fitness', d => steps.has(d) ? steps.get(d) : null, () => sg, v => (Math.round(v / 100) / 10) + 'k|' + Math.round(v / 1000) + 'k'), metric('💦', 'Sweat', 'fitness', d => mins[d] || 0, () => WORKOUT_MIN, v => Math.round(v) + 'm|' + Math.round(v)), metric('😴', 'Sleep', 'care', d => sleep.has(d) ? sleep.get(d) : null, () => need, v => v.toFixed(1) + 'h|' + v.toFixed(1), {colOf:v => GV.sleepColour(v * 60, need * 60)}), metric('💧', 'Water', 'nourish', d => water.has(d) ? water.get(d) : null, d => waterNow(st, d).goal || 100, v => Math.round(v) + 'oz|' + Math.round(v), {runFmt:v => Math.round(v) + 'oz'}), metric('🔥', 'Fuel', 'nourish', d => net.has(d) ? net.get(d) : null, () => goal, fuelFmt, {share:v => Math.max(.01, v / goal), colOf:v => goalScaleTone(v / goal), runFmt:fuelRun})]},
+      {key:'g:care', icon:'🌿', name:'Care', rows:[{e:'🪥', name:'Hygiene', page:'care', f:d => ({two:hyg.map(q => [q.e, q.name, glMark(q.id, d)]), keep:true}), frac:.6, key:'d:hygiene', kids:() => hyg.map(q => ({e:q.e, name:q.name, page:'care', f:d => ({two:[['', q.name, glMark(q.id, d)]], keep:true, cols:1})}))}]},
+      {key:'g:hearth', icon:'<img src="icons/hearth-fireplace.svg" alt="" width="16" height="16">', name:'Hearth', rows:[domain('👪', domainName('family'), 'hearth', fam, ['family', 'social']), domain('🏠', domainName('home'), 'hearth', hm, ['home'], kitsOn)]},
+      {key:'g:talents', icon:'<img src="icons/talents-coin.svg" alt="" width="16" height="16">', name:'Talents', rows:[domain('💼', domainName('career'), 'talents', job, ['career']), domain('🌱', 'Growth', 'talents', grow, ['growth'])]}];
+    // the bar fills to the goal and its colour is how far it went, on the grade ladder: red low, purple at SSS. Sleep and Fuel keep their own scales
+    const tone = s => gradeTone(s * 100), on = d => d === t ? ' on' : '';
+    const barHTML = (share, colour, title, label) => '<i class="lw-c" title="' + esc(title) + '" style="--c:' + colour + ';--s:' + Math.max(.18, Math.min(1, share)).toFixed(2) + '">' + (label ? '<span class="lw-t" data-fs="13">' + String(label).split('|').map((x, k, a) => '<span data-fs="13" class="' + (a.length > 1 ? (k ? 'lw-s' : 'lw-l') : '') + '">' + esc(x) + '</span>').join('') + '</span>' : '') + '</i>';
+    const dayVal = (r, d) => r.due && !r.due(d) ? null : d > t ? undefined : r.f(d);
+    const oneCell = (r, d) => { if (r.due && !r.due(d)) return '<i class="lw-c off"></i>'; const v = dayVal(r, d), name = r.name; if (v === '') return '<i class="lw-c lw-open' + on(d) + '" title="' + esc(name + ', ' + monthDay(d) + ': open') + '"></i>'; if (v === undefined) return '<i class="lw-c ahead"></i>'; if (v && v.two) return '<i class="lw-c lw-two' + (v.cols ? (v.two.length > v.cols ? ' lw-many' : '') : v.two.length > 2 ? ' lw-many' : '') + on(d) + '"' + (v.cols ? ' style="grid-template-columns:repeat(' + v.cols + ',minmax(0,1fr))"' : '') + '>' + v.two.map(([s, w, m]) => glPartSeg(s, (w === 'morning' || w === 'night' || / entry$/.test(w) ? name + ' ' + w : w || name) + ', ' + monthDay(d), m)).join('') + '</i>'; if (typeof v === 'string' && v) return '<i class="lw-c gl-m m-' + v + on(d) + '" title="' + esc(name + ', ' + monthDay(d) + ': ' + GL_WORD[v]) + '"></i>'; if (!v) return '<i class="lw-c' + on(d) + '"></i>'; const raw = r.raw ? r.raw(d) : null; return barHTML(v, r.colOf && raw != null ? r.colOf(raw) : tone(v), name + ', ' + monthDay(d) + ': ' + Math.round(v * 100) + '%', r.fmt && raw != null ? r.fmt(raw) : '').replace('class="lw-c"', 'class="lw-c' + on(d) + '"'); };
+    const shareOf = v => v === 'done' ? 1 : v === 'partial' ? .5 : v === '' || v === 0 || v === 'skipped' ? 0 : typeof v === 'number' ? Math.min(v, 1.6) : v && v.two ? v.two.filter(p => p[2] === 'done').length / v.two.length : null;
+    const manyCell = (r, c) => { const past = c.days.filter(d => d <= t); if (!past.length) return '<i class="lw-c ahead"></i>'; const list = past.filter(d => !(r.due && !r.due(d))).map(d => shareOf(r.f(d))).filter(v => v !== null); if (!list.length) return '<i class="lw-c off"></i>'; const m = list.reduce((a, b) => a + b, 0) / list.length, raws = r.raw ? past.map(r.raw).filter(v => v != null) : [], avg = raws.length ? raws.reduce((a, b) => a + b, 0) / raws.length : null, title = r.name + ', week of ' + monthDay(c.days[0]) + ': ' + Math.round(m * 100) + '%'; return m ? barHTML(m, r.colOf && avg != null ? r.colOf(avg) : tone(m), title, r.fmt && avg != null ? r.fmt(avg) : '') : '<i class="lw-c lw-open" title="' + esc(title) + '"></i>'; };
+    // the running total: what was done of what this view asks for, every day of the view counted, so Prayer is 0/2 on a day and 0/14 on a week
+    const running = r => { if (r.raw){ let sum = 0, of = 0; for (const d of win){ of += r.goalOf(d); if (d <= t){ const v = r.raw(d); if (v != null) sum += v; } } const f = r.runFmt || (v => String(r.fmt(v)).split('|')[0]); return f(sum) + '/' + f(of); } let done = 0, of = 0; for (const d of win){ if (r.due && !r.due(d)) continue; const v = r.f(d); if (v && v.two){ done += v.two.filter(p => p[2] === 'done').length; of += v.two.length; } else if (v === 'done'){ done++; of++; } else if (v === '' || v === 'partial' || v === 'skipped'){ of++; } } return of ? done + '/' + of : String(done); };
+    // the goal column stays the calendar week's, whatever the filter
+    const weekGoal = r => { if (r.own) return r.own; if (r.fold) return ''; const vals = week.map(d => dayVal(r, d)), lived = vals.filter(v => v !== undefined && v !== null && v !== 'excused' && !(v && v.two && v.two.every(p => p[2] === 'excused' || (!v.keep && p[2] === null)))), hit = lived.filter(v => v === 'done' || (v && v.two && v.two.filter(p => p[2] === 'done').length >= (r.frac ? r.frac * v.two.length : r.any ? 1 : v.two.length)) || (typeof v === 'number' && v >= (r.any ? .01 : .95))).length; return hit + '/' + lived.length; };
+    const line = (r, lv) => { const open = r.kids ? isOpen(r.key, false) : false, nameHTML = '<button type="button" class="lw-name lv' + lv + '"' + (r.kids ? ' data-act="weekFold" data-k="' + esc(r.key) + '" data-d="0" aria-expanded="' + open + '"' : ' data-area="' + r.page + '"') + '>' + (r.kids ? '<span class="lw-car" aria-hidden="true">' + (open ? '▾' : '▸') + '</span>' : '') + (r.e ? '<span aria-hidden="true">' + r.e + '</span>' : '') + '<span class="lw-nm">' + esc(r.name) + '</span></button>'; return nameHTML + cols.map(c => c.days.length === 1 ? oneCell(r, c.days[0]) : manyCell(r, c)).join('') + '<small class="lw-run" data-fs="13" style="font-size:13px">' + (r.fold ? '' : esc(running(r))) + '</small><small class="lw-n" data-fs="13" style="font-size:13px">' + (lv ? '' : esc(weekGoal(r))) + '</small>' + (open ? r.kids().map(k => line(k, lv + 1)).join('') : ''); };
+    // a section folds to one row, a share of what is under it for each day
+    const body = groups.map(g => { const open = isOpen(g.key, true), head = '<button type="button" class="lw-group" data-act="weekFold" data-k="' + g.key + '" data-d="1" aria-expanded="' + open + '"><span class="lw-car" aria-hidden="true">▾</span><span aria-hidden="true">' + g.icon + '</span>' + g.name + '</button>'; if (open) return head + g.rows.map(r => line(r, 0)).join(''); const r = {name:g.name, fold:true, page:g.rows[0].page, f:d => { const list = g.rows.filter(q => !(q.due && !q.due(d))).map(q => shareOf(q.f(d))).filter(v => v !== null); return list.length ? Math.max(.01, list.reduce((a, b) => a + b, 0) / list.length) : null; }}; return '<div class="lw-sep"></div>' + line({...r, kids:() => [], key:g.key, closedGroup:g}, 0).replace('data-d="0"', 'data-d="1"').replace('<span class="lw-nm">', '<span aria-hidden="true">' + g.icon + '</span><span class="lw-nm">'); }).join('');
+    const title = W.per === 'week' ? 'This Week' : W.day ? (W.from === t ? 'Today' : monthDay(W.from)) : W.per === 'month' ? 'This Month' : W.per === 'all' ? 'All' : W.trail ? 'Last ' + W.trail + ' Days' : 'Chosen Days';
+    const head = '<span></span>' + cols.map(c => '<small class="' + (c.days.includes(t) ? 'on' : '') + '">' + esc(c.label) + '</small>').join('') + '<small class="lw-run" data-fs="13" style="font-size:13px">Total</small><small class="lw-n" data-fs="13" style="font-size:13px">Goal</small>';
+    return '<section class="k-card gl-thisweek" data-parity="GL-THISWEEK" data-feedback-id="gl-thisweek" data-feedback-label="This Week"><div class="k-head"><span aria-hidden="true">📅</span><span class="k-title">' + esc(title) + '</span>' + infoBtn('gl-thisweek', 'This Week') + '<span class="gl-win">' + esc(win[0] === win[win.length - 1] ? monthDay(win[0]) : monthDay(win[0]) + ' – ' + monthDay(win[win.length - 1])) + '</span></div>' + infoPop('gl-thisweek', 'What Gena checked off and what Glow measured, for the view you picked in the filter. Total is what you did of what this view asks for; Goal is this calendar week.') + '<div class="lw-grid" style="--n:' + cols.length + '">' + head + body + '</div>' + glWeekKey() + '</section>';
   }
   function glFaithWeek(){
-    const st = S(), t = todayYmd(), wk = weekStartOf(t, st.prefs.weekStart === 0 ? 0 : 1), days = [0, 1, 2, 3, 4, 5, 6].map(i => addDays(wk, i)), both = days.filter(d => glDone('dw-prayer-am', d) && glDone('dw-prayer-pm', d)).length, one = days.filter(d => glDone('dw-prayer-am', d) !== glDone('dw-prayer-pm', d)).length;
-    return glCard('gl-s-faith', '🙏', 'Prayer', '<div class="lv-big"><b>' + both + '</b><small>both · ' + one + ' one</small></div>' + glBars(days.map(d => ({v:d > t ? null : glDone('dw-prayer-am', d) + glDone('dw-prayer-pm', d), lab:glDay(d), show:'', col:'#b69cf0'})), {max:2}), {area:'faith', info:'Morning and night prayer this week, from Gena. Both means you did both that day.'});
+    const t = todayYmd(), W = filtWin('home', 'prayer'), days = W.per === 'week' ? [0, 1, 2, 3, 4, 5, 6].map(i => addDays(W.from, i)) : W.days, both = days.filter(d => glDone('dw-prayer-am', d) && glDone('dw-prayer-pm', d)).length, one = days.filter(d => glDone('dw-prayer-am', d) !== glDone('dw-prayer-pm', d)).length;
+    return glCard('gl-s-faith', '🙏', 'Prayer', '<div class="lv-big"><b>' + both + '</b><small>both · ' + one + ' one</small></div>' + glBars(days.map(d => ({v:d > t ? null : glDone('dw-prayer-am', d) + glDone('dw-prayer-pm', d), lab:days.length > 10 ? (d.slice(8) % 2 ? '' : String(+d.slice(8))) : glDay(d), show:'', col:'#b69cf0'})), {max:2}), {area:'faith', info:'Morning and night prayer for the view you picked, from Gena. Both means you did both that day.'});
   }
   /* ---- the pages the app draws: shape them after every draw ---- */
   const glOnce = (root, key, fn) => { if (root && !root.querySelector('[data-gl="' + key + '"]')){ const h = fn(); if (h) root.insertAdjacentHTML('beforeend', h.replace(/^<(\w+)/, '<$1 data-gl="' + key + '"')); } };
@@ -2837,7 +2915,7 @@ addEventListener('load', () => {
     glScale(); glBarLabels();
   }
   function glMacroGoals(main){   // the goal bands on the dot grid: fat 20 to 35%, carbs 45 to 65% of kcal, as the protein line
-    const G = {f:[.2, .35], c:[.45, .65]};
+    const G = MAC_BAND;
     for (const col of main.querySelectorAll('.today-mcol[data-macro="f"], .today-mcol[data-macro="c"]')){
       const svg = col.querySelector('svg'), g = G[col.dataset.macro]; if (!svg || svg.querySelector('.lv-band')) continue;
       svg.insertAdjacentHTML('afterbegin', '<rect class="lv-band" x="0" width="168" y="' + (112 - g[1] * 112).toFixed(1) + '" height="' + ((g[1] - g[0]) * 112).toFixed(1) + '" rx="3"/>');
@@ -2853,8 +2931,9 @@ addEventListener('load', () => {
       rings.insertAdjacentHTML('afterend', glThisWeek() + '<div class="gl-two" data-parity="GL-TWO"></div><div class="gl-two gl-mac" data-parity="GL-SIGNALS"></div><div class="gl-three" data-parity="GL-SIGNALS3"></div>');
       const sideBy = main.querySelector('.gl-two'); sideBy.append(water, nour); if (two) two.classList.add('v6-gone');
       const need = sleepGoalMin(st) / 60, m = main.querySelector('.gl-mac'), r3 = main.querySelector('.gl-three'), rt = v => GV.tone(v >= 67 ? 'green' : v >= 34 ? 'yellow' : 'orange');
-      m.insertAdjacentHTML('beforeend', macrosCardV35(t, macrosOn(st, t)) + glMetric('gl-s-sleep', '😴', 'Sleep', 'sleep', 7, {info:'Hours slept each night, coloured against your sleep need.', digits:1, unit:'h', tone:v => GV.sleepColour(v * 60, need * 60), goal:need, goalWord:need + ' h', better:'up', area:'care'}));
-      r3.insertAdjacentHTML('beforeend', glFaithWeek() + glMetric('gl-s-ready', '🔋', 'Readiness', 'readiness', 7, {info:'How hard to go today, against your own recent normal.', tone:rt, better:'up', area:'fitness'}) + glMetric('gl-s-load', '🎒', 'Load', 'load', 7, {info:'Each day\'s strain from workouts and everyday effort.', tone:v => GV.tone(v > 300 ? 'orange' : 'blue'), better:'up', area:'fitness', live:true}));
+      const W = filtWin('home', 'cards'), wDays = W.per === 'week' ? [0, 1, 2, 3, 4, 5, 6].map(i => addDays(W.from, i)) : W.days;   // every Today card follows the page's one filter
+      m.insertAdjacentHTML('beforeend', macrosCardV35(t, W.day ? macrosOn(st, t) : macrosRange(st, W.from, W.to)) + glMetric('gl-s-sleep', '😴', 'Sleep', 'sleep', 7, {days:wDays, info:'Hours slept each night, coloured against your sleep need.', digits:1, unit:'h', tone:v => GV.sleepColour(v * 60, need * 60), goal:need, goalWord:need + ' h', better:'up', area:'care'}));
+      r3.insertAdjacentHTML('beforeend', glFaithWeek() + glMetric('gl-s-ready', '🔋', 'Readiness', 'readiness', 7, {days:wDays, info:'How hard to go today, against your own recent normal.', tone:rt, better:'up', area:'fitness'}) + glMetric('gl-s-load', '🎒', 'Load', 'load', 7, {days:wDays, info:'Each day\'s strain from workouts and everyday effort.', tone:v => GV.tone(v > 300 ? 'orange' : 'blue'), better:'up', area:'fitness', live:true}));
       glMacroGoals(main); gcMount(document);
     },
     faith(main){
@@ -2951,7 +3030,7 @@ addEventListener('load', () => {
     const d = m.days[i], fut = i > m.ti, ref = Math.min(i, m.ti), w = m.lastW[ref], live = fut ? m.liveProj[i] : m.live[i], ahead = live == null || m.plan[i] == null ? null : live - m.plan[i];
     const state = ahead == null ? '–' : Math.abs(ahead) <= m.onPlan ? 'On plan' : ahead < 0 ? 'Ahead' : 'Behind', on = state === 'On plan' || state === '–', gap = ahead == null ? null : Math.abs(Math.round(ahead / m.slope));
     const fact = (label, value, col, cls) => '<span class="lg-f' + (cls ? ' ' + cls : '') + '"><small' + (col ? ' style="color:' + col + '"' : '') + '>' + esc(label) + '</small><b>' + esc(value) + '</b></span>';
-    return fact('Day', fmtDay(d.date), null, 'lg-day') + fact('Weigh-in', w ? n1(w.lb) : '–', COL.scale) + fact('Weighed', w ? fmtMD(w.date) : '–') + fact('Estimate', live == null ? '–' : n1(live), COL.est) + fact('Durable', n1(m.durable[i]), COL.durable) + fact('Plan', m.plan[i] == null ? '–' : n1(m.plan[i]), COL.plan) + fact('Status', state, null, state === 'Behind' ? 'bv-warn' : state === 'Ahead' ? 'bv-ok' : '') + fact('Gap', on ? '–' : n1(Math.abs(ahead)) + ' lb') + fact('Days', on ? '–' : gap + ' d') + fact('Needed', m.needed[i] == null ? '–' : n1(Math.abs(m.needed[i])), '#e58fb5') + fact('Your pace', m.act7[i] == null ? '–' : n1(Math.abs(m.act7[i])), COL.scale);
+    return fact('Day', fmtDay(d.date), null, 'lg-day') + fact('Weigh-in', w ? n1(w.lb) : '–', COL.scale) + fact('Weighed', w ? fmtMD(w.date) : '–') + fact('Estimate', live == null ? '–' : n1(live), COL.est) + fact('Durable', n1(m.durable[i]), weightPlanTone(m.durable[i], m.plan[i])) + fact('Plan', m.plan[i] == null ? '–' : n1(m.plan[i]), COL.plan) + fact('Status', state, null, state === 'Behind' ? 'bv-warn' : state === 'Ahead' ? 'bv-ok' : '') + fact('Gap', on ? '–' : n1(Math.abs(ahead)) + ' lb') + fact('Days', on ? '–' : gap + ' d') + fact('Needed', m.needed[i] == null ? '–' : n1(Math.abs(m.needed[i])), '#e58fb5') + fact('Your pace', m.act7[i] == null ? '–' : n1(Math.abs(m.act7[i])), COL.scale);
   }
   const glSeg = share => { const on = Math.round(Math.max(0, Math.min(1, share || 0)) * 20); return '<div class="seg-bar gl-seg" role="img" aria-label="' + Math.round((share || 0) * 100) + '% of the goal">' + [...Array(20)].map((_, i) => '<i style="background:' + (i < on ? 'var(--c-green,#79d6a9)' : 'var(--line)') + '"></i>').join('') + '</div>'; };
   /* ---- The Gena read (docs/GLOW_LITE_PLAN.md §1, §3, §4). The gist id lives on this device, never in the record or an export. A failed read keeps the last copy and its
@@ -4408,7 +4487,7 @@ addEventListener('load', () => {
       const row = plan.find(r => glIds(id).includes(r.seriesId)) || null, o = entry(id);
       let planned = !!row;
       // A fast is planned where the church's calendar has one, or where his plan has one (A5).
-      if (!planned && id === 'dw-fasting' && typeof EotcCalendar !== 'undefined' && !(o && o.removed) && st.series.some(s => s.id === id && !(s.archivedAt && s.archivedAt <= date) && versionFor(s, date))){ try { planned = !!EotcCalendar.dayInfo(date).fasting; } catch (_) { planned = false; } }
+      if (!planned && id === 'dw-fasting' && typeof EotcCalendar !== 'undefined' && !(o && o.removed) && st.series.some(s => glIds(id).includes(s.id) && !(s.archivedAt && s.archivedAt <= date) && versionFor(s, date))){ try { planned = !!EotcCalendar.dayInfo(date).fasting; } catch (_) { planned = false; } }
       if (!planned) continue;
       const neutral = !!o && (o.disposition === 'excused' || o.disposition === 'rest');
       items.push({id, name, status:neutral ? 'excused' : row ? (row.status === 'tentative' ? null : row.status) : o ? o.status : null, pct:o && Number.isFinite(o.pct) ? o.pct : undefined});
@@ -4810,7 +4889,10 @@ addEventListener('load', () => {
   /* round 2, item 9 (his words: "purple is like 30% more than my goal"): a more-is-better bar runs red → orange → yellow on the way, the met green from the
      goal, violet only from 130% of it. Net energy uses it on the deficit, where beyond the goal is the good direction. */
   const goalScaleTone = share => !Number.isFinite(share) ? 'var(--muted)' : share >= 1.3 ? '#b69cf0' : share >= 1 ? '#6fd39a' : gradeTone(Math.max(0, share) * 80);
-  function neGoalTone(st, v){ const g = NetEnergy.goal(st); if (!Number.isFinite(v) || !Number.isFinite(g) || !g) return 'var(--muted)'; return goalScaleTone(v / g); }
+  // the line tracking his weight against the plan (his word, Nov 2): at it green, above it red, below it purple, ahead of the plan
+  const weightPlanTone = (v, p) => p == null ? '#79d6a9' : v > p + .5 ? '#ee7a6a' : v < p - .5 ? '#b69cf0' : '#79d6a9';
+  // over on calories is the Net Energy bar's blue side, deeper the further over (his word, Nov 2: over is sedentary, so blue)
+  function neGoalTone(st, v){ const g = NetEnergy.goal(st); if (!Number.isFinite(v) || !Number.isFinite(g) || !g) return 'var(--muted)'; return v >= 0 ? 'color-mix(in srgb,#6a5be0 ' + Math.round(Math.min(1, v / 1400) * 100) + '%,#b7cdf5)' : goalScaleTone(v / g); }
   /* A8: the BV chart module (BV, then the BW hub's glow-chart.js), built in. spec: {days:[{date}], from, to, series:[{get, color, colorOf(v, i),
      width, dash, dots, dotR, label, fmt}], bands, hline:{y, color, width, label}, yRange:[lo, hi] (the default, widened only where a value goes
      past), yFmt, height, ticks, padLeft, today, todayLabel, inPlace(root, i | null), readout(i) → text}. His answer to line 9 (Oct 23): where the card
@@ -4915,6 +4997,14 @@ addEventListener('load', () => {
     const info = ['readiness','sleep','load','fuel','faith'].map(k => '<b>' + titleWord(k) + '.</b> ' + esc(SCORE_INFO[k])).join('<br><br>');
     // V3.4 (T2): five tiles, one ring each with its number and one status word; the sentence and the plan line go behind ⓘ.
     if (tiles){
+      // the page's filter: a view of several days reads its totals and averages, the Day view reads as before
+      const W = area === 'home' ? filtWin('home', 'signals') : null;
+      if (W && !W.day){ const past = W.days.filter(d => d <= today), span = Math.max(1, calendarDistance(W.from, today) + 1), mean = l => l.length ? l.reduce((a, b) => a + b, 0) / l.length : null, inView = id => { const m = metricSeries(st, id, span); return past.filter(d => m.has(d)).map(d => m.get(d)); }, needH = sleepGoalMin(st) / 60; let done = 0, planned = 0; for (const d of past){ const f = faithFor(st, d); if (f.value !== null){ done += f.inputs.done; planned += f.inputs.planned; } } const rd = mean(inView('readiness')), sl = mean(inView('sleep')), lo = mean(inView('load')), fu = mean(past.map(d => fuelFor(st, d).value).filter(Number.isFinite));
+        Object.assign(specs.faith, {share:planned ? done / planned : null, centre:planned ? (Math.round(done * 10) / 10) + '/' + planned : undefined, word:'this view', chip:''});
+        Object.assign(specs.readiness, {share:rd === null ? null : rd / 100, centre:rd === null ? undefined : String(Math.round(rd)), colour:rd === null ? null : rd >= 67 ? 'green' : rd >= 34 ? 'yellow' : 'orange', word:'average', chip:''});
+        Object.assign(specs.sleep, {share:sl === null ? null : Math.min(1, sl / needH), centre:sl === null ? undefined : sl.toFixed(1) + 'h', word:'average'});
+        Object.assign(specs.load, {share:lo === null ? null : Math.min(1, lo / Math.max(lo * 1.25, 60)), centre:lo === null ? undefined : String(Math.round(lo)), colour:'blue', word:'average'});
+        Object.assign(specs.fuel, {share:fu === null ? null : fu / 100, centre:fu === null ? undefined : Math.round(fu) + '%', word:'average'}); }
       /* V6 A4 (his pick A, with his words: "take the entire horizontal screen if they have room", "Readiness and sleep are likley together (or outlined
          with fine outline)", "faith goes first as it drives everything"): one row of small arcs across the page, the same numbers, words, colours and drawers */
       /* round 2, his A4 words: "if you ... dont have the data then still have the shape of the thing and just grey it out", "communicate teh things in little
@@ -6977,7 +7067,12 @@ addEventListener('load', () => {
       '<ellipse cx="62" cy="109.5" rx="39" ry="3.8" fill="rgba(0,0,0,.32)"/><g clip-path="url(#' + u + ')"><rect width="120" height="118" fill="url(#' + u + 'f)"/><rect class="today-catwater" y="' + y.toFixed(1) + '" width="120" height="118" fill="url(#' + u + 'w)" opacity=".94"/><g class="today-catlvl" transform="translate(0 ' + y.toFixed(1) + ')"><path class="today-catwave" d="' + wave + '" fill="none" stroke="rgba(255,255,255,.75)" stroke-width="1.3" stroke-linecap="round"/></g></g>' + art + '</svg>';
   }
 
+  function waterRangeCard(W){   // a view of several days: its totals against its goals, read only; logging stays on the Day view
+    const st = S(), t = todayYmd(), all = W.per === 'week' ? [0, 1, 2, 3, 4, 5, 6].map(i => addDays(W.from, i)) : W.days, past = all.filter(d => d <= t), oz = past.reduce((a, d) => a + (waterNow(st, d).oz || 0), 0), of = all.reduce((a, d) => a + (waterNow(st, d).goal || 0), 0), sg = stepsGoal(st), steps = past.reduce((a, d) => a + (stepsOn(st, d) || 0), 0), sOf = sg * all.length, share = of ? oz / of : 0;
+    return fixedCard('<section class="k-card today-water" data-feedback-id="today-water" data-feedback-label="Water & Steps"><div class="k-head"><span aria-hidden="true">🥤</span><span class="k-title">Water &amp; Steps</span></div><div class="today-wbody" data-parity="TODAY-WATER"><div class="today-cat">' + catSVG(share) + '</div><div class="today-wside"><div class="today-wtxt"><b style="color:' + goalScaleTone(share) + '">' + Math.round(oz).toLocaleString('en-US') + '</b><span> of ' + Math.round(of).toLocaleString('en-US') + ' oz</span></div><p class="today-wnote">Add water on the Day view</p></div></div><div class="today-steps" data-parity="TODAY-15"><div class="today-steps-top"><span class="today-fname"><span aria-hidden="true">👟</span>Steps</span><span class="today-fgoal"><b style="color:' + goalScaleTone(sOf ? steps / sOf : 0) + '">' + Math.round(steps).toLocaleString('en-US') + '</b> of ' + sOf.toLocaleString('en-US') + '</span></div>' + kFill(sOf ? Math.min(1, steps / sOf) : 0, goalScaleTone(sOf ? steps / sOf : 0)) + '</div></section>', 'the filter’s view');
+  }
   function waterStepsCardV35(date){
+    if (area === 'home'){ const W = filtWin('home', 'water'); if (!W.day) return waterRangeCard(W); }
     const st = S(), w = waterNow(st, date), g = glassOz(st), share = w.goal ? w.oz / w.goal : 0, steps = stepsOn(st, date), sg = stepsGoal(st), live = waterUI.undo && Date.now() < waterUI.undo.until;
     const total = waterUI.typing ? '<input id="waterTotalIn" class="today-numinp" type="number" inputmode="numeric" min="0" max="400" value="' + Math.round(w.oz) + '" aria-label="Water today in fluid ounces"><button class="k-btn" data-act="waterTotalSave">Save</button>' : '<button type="button" class="today-wnum" data-act="waterTotalEdit" aria-label="Water today: ' + Math.round(w.oz) + ' fluid ounces. Tap to type the total."><b style="color:' + goalScaleTone(share) + '">' + Math.round(w.oz) + '</b></button>';
     /* round 2, item 7 (his words: "it should just be the - 8oz + and then have a little edit thing so that i can edit the default to 20oz or whatever i want"):
@@ -6995,7 +7090,7 @@ addEventListener('load', () => {
      a big percent (or grams) and its name; a g or % toggle; an arrow to a drawer with the day's entries and the 7- and
      30-day split over the days that have data; a dashed protein marker at the protein setting (g per kg of weight). It
      reads the imported records (and the foods he logs, by the replace rule), not a separate feed. */
-  const MAC = {f:{name:'Fat', col:'#8f9cf0', k:9, imp:'total_fat', own:'fatG'}, c:{name:'Carbs', col:'#f2a43c', k:4, imp:'carbohydrates', own:'carbsG'}, p:{name:'Protein', col:'#f06fa8', k:4, imp:'protein', own:'proteinG'}};
+  const MAC = {f:{name:'Fat', col:'#8f9cf0', k:9, imp:'total_fat', own:'fatG'}, c:{name:'Carbs', col:'#f2a43c', k:4, imp:'carbohydrates', own:'carbsG'}, p:{name:'Protein', col:'#c084fc', k:4, imp:'protein', own:'proteinG'}};
   function macrosOn(st, date){
     const foods = (st.foods || []).filter(f => f.date === date && f.nutrition), imp = typeof importedNutrition === 'function' ? importedNutrition(st, date) : {}, replace = !!(st.prefs.foodReplacesImported && st.prefs.foodReplacesImported[date]);
     const g = {}; for (const [k, m] of Object.entries(MAC)){ const i = imp[m.imp] ? imp[m.imp].value : null, own = foods.reduce((n, f) => n + (Number(f.nutrition[m.own]) || 0), 0); g[k] = foods.length ? (replace || i === null ? own : own + i) : i; }
@@ -7006,6 +7101,16 @@ addEventListener('load', () => {
   const macroUnit = () => { try { return localStorage.getItem('health-tracker.macroUnit') === 'g' ? 'g' : 'pct'; } catch (_) { return 'pct'; } };
   const proteinPerKg = () => typeof Scores !== 'undefined' && Scores.TABLE ? Scores.TABLE.fuel.proteinPerKg : 1.6;   // the setting; 1.6 only while the scores module is missing
   function proteinTargetG(st){ const p = SCORES_ON ? scorePerson(st) : null, kg = p && p.weightKg; return kg ? Math.round(proteinPerKg() * kg) : null; }
+  /* A macro's number reads on the grade ladder: red far from its goal, purple at its best (his word, Nov 2). Fat and carbs have a band, the US dietary
+     ranges of 20 to 35% and 45 to 65% of kcal, best at the middle; protein climbs to its goal and on past it to 2.2 g per kg, then falls back to red by 3 g per kg. */
+  const MAC_BAND = {f:[.2, .35], c:[.45, .65]};
+  function macroScore(k, m, tg){
+    if (!m) return null;
+    if (k === 'p'){ if (!tg) return null; const per = (m.g.p || 0) / (tg / proteinPerKg()); return per <= 2.2 ? per / proteinPerKg() * 100 : Math.max(0, 130 * (1 - (per - 2.2) / .8)); }
+    const [lo, hi] = MAC_BAND[k], x = m.share[k] || 0, mid = (lo + hi) / 2;
+    return x >= lo && x <= hi ? 130 - 30 * Math.abs(x - mid) / (mid - lo) : Math.max(0, 100 - 450 * (x < lo ? lo - x : x - hi));
+  }
+  const macroTone = (k, m, tg) => { const v = macroScore(k, m, tg); return v === null ? '' : ' style="color:' + gradeTone(v) + '"'; };
   function dotColumn(k, share, target){
     const lit = Math.round(Math.max(0, Math.min(1, share)) * 96), cx = i => 7 + 14 * (i % 12), cy = i => 7 + 14 * (7 - Math.floor(i / 12)); let on = '', off = '';
     for (let i = 0; i < 96; i++){ const c = '<circle cx="' + cx(i) + '" cy="' + cy(i) + '" r="4.2"/>'; if (i < lit) on += c; else off += c; }
@@ -7020,7 +7125,7 @@ addEventListener('load', () => {
   }
   function macrosCardV35(date, mo){
     const st = S(), m = mo !== undefined ? mo : macrosOn(st, date), unit = macroUnit(), tg = proteinTargetG(st);
-    const cols = Object.keys(MAC).map(k => '<div class="today-mcol" data-macro="' + k + '">' + dotColumn(k, m ? m.share[k] : 0, k === 'p' && m && tg ? {share:unit === 'pct' ? tg * 4 / m.kcal : tg / Math.max(tg, m.g.p || 0) , g:tg} : null) + '<div class="today-mnum">' + (!m ? '–' : unit === 'pct' ? Math.round(m.share[k] * 100) + '%' : Math.round(m.g[k] || 0) + ' g') + '</div><div class="today-mname" style="color:' + MAC[k].col + '">' + MAC[k].name + (k === 'p' && m && tg && unit === 'g' ? '<small> of ' + tg + ' g</small>' : '') + '</div></div>').join('');
+    const cols = Object.keys(MAC).map(k => '<div class="today-mcol" data-macro="' + k + '">' + dotColumn(k, m ? m.share[k] : 0, k === 'p' && m && tg ? {share:unit === 'pct' ? tg * 4 / m.kcal : tg / Math.max(tg, m.g.p || 0) , g:tg} : null) + '<div class="today-mnum"' + macroTone(k, m, tg) + '>' + (!m ? '–' : unit === 'pct' ? Math.round(m.share[k] * 100) + '%' : Math.round(m.g[k] || 0) + ' g') + '</div><div class="today-mname" style="color:' + MAC[k].col + '">' + MAC[k].name + (k === 'p' && m && tg && unit === 'g' ? '<small> of ' + tg + ' g</small>' : '') + '</div></div>').join('');
     return '<section class="k-card today-macros" data-parity="V35-T11-01" data-feedback-id="today-macros" data-feedback-label="Macros"><div class="k-head"><span aria-hidden="true">🍽️</span><span class="k-title">Macros</span>' + infoBtn('macros', 'Macros') + '<div class="k-seg today-mseg" role="group" aria-label="Grams or percent"><button data-act="macroUnit" data-u="g" aria-pressed="' + (unit === 'g') + '">g</button><button data-act="macroUnit" data-u="pct" aria-pressed="' + (unit === 'pct') + '">%</button></div><button type="button" class="k-open" data-act="macrosOpen" aria-label="Open the macros detail" title="Open the detail">' + kIco('arrow', 15) + '</button></div>' +
       infoPop('macros', 'Where today’s calories come from: fat, carbs and protein, from your imported food records (and food you log here, by the replace rule). The dashed line on Protein is your target: ' + proteinPerKg() + ' g for each kilogram of your weight' + (tg ? ' (' + tg + ' g)' : '') + '.') +
       '<div class="today-mcols">' + cols + '</div>' + (m ? '' : '<p class="today-mempty">Log food to see your macros</p>') + '</section>';
@@ -7202,8 +7307,8 @@ addEventListener('load', () => {
     const field = (k, v, sym, label) => fuelEditing === k ? '<span class="today-fend ' + k + '"><span aria-hidden="true">' + sym + '</span><input id="fuelIn" class="today-numinp" type="number" inputmode="numeric" min="0" max="20000" step="1" value="' + (v === null ? '' : Math.round(v)) + '" aria-label="' + label + ' in kilocalories" data-f="' + k + '"><button class="k-btn" data-act="fuelSave" data-f="' + k + '">Save</button></span>'
       : '<button type="button" class="today-fend ' + k + '" data-act="fuelEdit" data-f="' + k + '" aria-label="' + label + ': ' + (v === null ? 'not recorded' : kcal(v) + ' kilocalories') + '. Tap to type it."><span aria-hidden="true">' + sym + '</span><b>' + (v === null ? '—' : kcal(v)) + '</b>' + (eb.typed && eb.typed[k] ? '<small class="chip self">self</small>' : '') + '</button>';
     const mm = multi ? macrosRange(st, W.from, W.to) : macrosOn(st, date), tg = proteinTargetG(st);
-    const mac = ['f', 'c', 'p'].map(k => { const g = mm && Number.isFinite(mm.g[k]) ? Math.round(mm.g[k]) : null, sh = mm ? mm.share[k] : 0, frac = k === 'p' && tg ? (g || 0) / tg : sh || 0, sub = k === 'p' && tg ? 'of ' + tg + ' g' : mm ? Math.round(sh * 100) + '% of kcal' : 'no food logged';
-      return '<div class="nr-mac"><span class="nr-macn">' + MAC[k].name + '</span><span class="nr-bar"><i style="width:' + Math.round(Math.min(1, frac) * 100) + '%;background:' + MAC[k].col + '"></i></span><span class="nr-macv">' + (g === null ? '—' : g + ' g') + ' <small>' + esc(sub) + (multi && mm ? ' a day' : '') + '</small></span></div>'; }).join('');
+    const mac = ['f', 'c', 'p'].map(k => { const g = mm && Number.isFinite(mm.g[k]) ? Math.round(mm.g[k]) : null, sh = mm ? mm.share[k] : 0, frac = k === 'p' && tg ? (g || 0) / tg : sh || 0, sub = k === 'p' && tg ? 'goal ' + tg + ' g' : mm ? Math.round(sh * 100) + '%' + (MAC_BAND[k] ? ' · goal ' + MAC_BAND[k].map(x => x * 100).join(' to ') + '%' : ' of kcal') : 'no food logged', band = MAC_BAND[k], goal = band ? '<em style="left:' + band[0] * 100 + '%;width:' + (band[1] - band[0]) * 100 + '%"></em>' : tg ? '<em class="tick" style="left:75%"></em>' : '';
+      return '<div class="nr-mac"><span class="nr-macn">' + MAC[k].name + '</span><span class="nr-bar">' + goal + '<i style="width:' + Math.round(Math.min(1, band ? frac : frac * .75) * 100) + '%;background:' + MAC[k].col + '"></i></span><span class="nr-macv"><span' + macroTone(k, mm, tg) + '>' + (g === null ? '—' : g + ' g') + '</span> <small>' + esc(sub) + (multi && mm ? ' a day' : '') + '</small></span></div>'; }).join('');
     let est = null, gap = null; try { est = NetEnergy.weightEstimate(st, date); } catch (_) {} try { gap = NetEnergy.loggingGap(st, date); } catch (_) {}
     const n1 = x => (Math.round(x * 10) / 10).toFixed(1);
     const estLine = est ? '<p class="nr-lab">Est. <b class="nr-est">' + n1(est.point) + '</b> lb · logged ' + est.logged + ' of ' + est.of + ' days' + (gap && Number.isFinite(gap.diff) ? ' · gap ' + (gap.diff > 0 ? '+' : '') + n1(gap.diff) + ' lb' : '') + '</p>' : '';
@@ -7227,19 +7332,21 @@ addEventListener('load', () => {
   }
   /* V6 T4 (his pick A): the rail's goal card becomes BV option A, collapsed: the plan corridor (plan ± 0.5 lb), the durable estimate (anchored at the
      plan start, moved only by what he logs; a day without a full log takes the logged average) and his weigh-ins, the scale reading as the hero. */
+  const GOAL_RANGES = [['week', 'Week'], ['4w', '4w'], ['program', 'Program'], ['goal', 'To goal']];   // his word, Nov 2: the sidebar card gets filters like Body's, with a Week; 4w is the card's old view
+  const goalRailRange = () => { try { const r = localStorage.getItem('health-tracker.goalRailRange'); return GOAL_RANGES.some(x => x[0] === r) ? r : '4w'; } catch (_) { return '4w'; } };
   function goalRailV6(st){
     const t = day, g = goalsV2(st), rows = weightRowsLb(st, t); if (!rows.length && !Number.isFinite(g.startWeightLb)) return goalCountdownV34(st);
-    const start = g.startDate || (rows[0] && rows[0].date), startLb = Number.isFinite(g.startWeightLb) ? g.startWeightLb : rows[0].lb, pf = planFigures(st, t, rows), days = []; for (let d = start; d <= addDays(t, 13); d = addDays(d, 1)) days.push({date:d});
+    const start = g.startDate || (rows[0] && rows[0].date), startLb = Number.isFinite(g.startWeightLb) ? g.startWeightLb : rows[0].lb, pf = planFigures(st, t, rows), range = goalRailRange(), last = range === 'goal' && pf.goalDate ? pf.goalDate : addDays(t, 13), days = []; for (let d = start; d <= last; d = addDays(d, 1)) days.push({date:d});
     const ti = days.findIndex(d => d.date === t), weigh = new Map(rows.map(r => [r.date, r.lb])), plan = d => weightPaceLb(st, d);
     const nets = days.slice(0, ti + 1).map(d => { try { const x = NetEnergy.day(st, d.date); return x && x.full ? x.net : null; } catch (_) { return null; } }), logged = nets.filter(v => v != null), avg = logged.length ? logged.reduce((a, b) => a + b, 0) / logged.length : null;
     let w = startLb; const durable = days.map((d, i) => { if (i > ti) return null; const n = nets[i] != null ? nets[i] : avg; if (n != null && i > 0) w += n / NET_KCAL_PER_LB; return +w.toFixed(2); });
     let live = null; try { live = NetEnergy.weightEstimate(st, t); } catch (_) {}
-    const n1 = x => (Math.round(x * 10) / 10).toFixed(1), last = rows.length ? rows[rows.length - 1] : null, planT = plan(t);
+    const n1 = x => (Math.round(x * 10) / 10).toFixed(1), lastW = rows.length ? rows[rows.length - 1] : null, planT = plan(t);
     const ahead = pf.diff == null ? '' : Math.abs(pf.diff) <= .5 ? 'on plan' : n1(Math.abs(pf.diff)) + ' lb ' + (pf.state === 'Ahead' ? 'ahead' : 'behind');
     const daysTo = pf.goalDate ? calendarDistance(t, pf.goalDate) : null;
     const cap = [daysTo != null ? daysTo + ' days to ' + esc(GChart.fmtDate(pf.goalDate)) : '', ahead ? '<b>' + ahead + '</b>' : '', pf.paceNeeded != null ? 'pace needed ' + n1(Math.abs(pf.paceNeeded)) + ' lb a week' : ''].filter(Boolean).join(' · ');
     const hasPlan = days.some(d => plan(d.date) != null), gWhen = i => { const d = days[i].date; return 'lb · ' + GChart.fmtDate(d) + (!weigh.has(d) && durable[i] != null ? ' est.' : ''); }, gNumCh = fxWidest(rows.map(r => n1(r.lb)).concat(durable.filter(v => v != null).map(n1), days.map(d => plan(d.date)).filter(v => v != null).map(n1), live ? [n1(live.point)] : [])), gWhenCh = fxWidest(days.map((d, i) => gWhen(i)));
-    const spec = {days, from:Math.max(0, ti - 27), to:days.length - 1, height:110, ticks:3, padLeft:30, yFmt:v => v, today:ti, label:'Weight against the plan',
+    const spec = {days, from:range === 'week' ? Math.max(0, ti - 6) : range === '4w' ? Math.max(0, ti - 27) : 0, to:range === 'week' ? ti : days.length - 1, height:110, ticks:3, padLeft:30, yFmt:v => v, today:ti, label:'Weight against the plan',
       readout:i => { const d = days[i].date, p = plan(d), bits = [weigh.has(d) ? 'scale ' + n1(weigh.get(d)) : null, durable[i] != null ? 'est. ' + n1(durable[i]) : null, p != null ? 'plan ' + n1(p) : null].filter(Boolean); return GChart.fmtDay(d) + (bits.length ? ' · ' + bits.join(' · ') : ''); },
       inPlace:(root, i) => { const card = root.closest('.goal6'); if (!card) return; const val = card.querySelector('.goal6-val'), lab = card.querySelector('.goal6-top .nr-lab');   // the hero and its plan line follow the pointer
         if (val.dataset.rest === undefined){ val.dataset.rest = val.innerHTML; lab.dataset.rest = lab.innerHTML; }
@@ -7247,9 +7354,10 @@ addEventListener('load', () => {
         const d = days[i].date, p = plan(d), w = weigh.has(d) ? weigh.get(d) : null; val.dataset.at = d;
         fixedSet(val, w != null ? n1(w) : durable[i] != null ? n1(durable[i]) : '—', gWhen(i)); const nb = lab.querySelectorAll('.fx-n'); if (nb[0]) nb[0].textContent = p != null ? n1(p) : '–'; if (nb[1]) nb[1].textContent = durable[i] != null ? n1(durable[i]) : '–'; },   // only the characters change (his note)
       bands:[{lo:d => { const p = plan(d.date); return p == null ? null : p - .5; }, hi:d => { const p = plan(d.date); return p == null ? null : p + .5; }, fill:'var(--brass-soft)'}],
-      series:[{get:d => plan(d.date), color:'var(--brass)', width:1, dash:'4 3'}, {get:(d, i) => durable[i], color:'var(--verd)', width:1.5}, {get:d => weigh.has(d.date) ? weigh.get(d.date) : null, color:'var(--ink)', dots:true, dotR:3}]};
+      series:[{get:d => plan(d.date), color:'var(--brass)', width:1, dash:'4 3'}, {get:(d, i) => durable[i], colorOf:(v, i) => weightPlanTone(v, plan(days[i].date)), width:1.5}, {get:d => weigh.has(d.date) ? weigh.get(d.date) : null, color:'var(--ink)', dots:true, dotR:3}]};
     return '<section class="k-card goal6" data-parity="V6-T4" data-feedback-id="checkpoint" data-feedback-label="Weight & Goal"><div class="k-head"><span class="k-title">Weight &amp; Goal</span>' + infoBtn('goal6', 'Weight & Goal') + '<button type="button" class="k-open" data-act="go" data-area="profile" aria-label="Open Body" title="Open Body">' + kIco('chevron', 14) + '</button></div>' + infoPop('goal6', 'Your latest weigh-in against the plan to your goal weight.') +
-      '<div class="goal6-top"><span class="goal6-val">' + fixedVal(last ? n1(last.lb) : '—', last ? 'lb · ' + GChart.fmtDate(last.date) : 'lb', gNumCh, gWhenCh) + '</span><span class="nr-lab">' + (hasPlan ? 'plan ' + fixedVal(planT != null ? n1(planT) : '–', null, gNumCh) + ' · ' : '<span class="fx-n" hidden></span>') + 'est. ' + fixedVal(live ? n1(live.point) : '–', null, gNumCh) + '</span></div>' +
+      '<div class="k-seg goal6-seg" role="group" aria-label="Chart range">' + GOAL_RANGES.map(([k, w]) => '<button type="button" data-act="goalRailRange" data-r="' + k + '" aria-pressed="' + (range === k) + '">' + w + '</button>').join('') + '</div>' +
+      '<div class="goal6-top"><span class="goal6-val">' + fixedVal(lastW ? n1(lastW.lb) : '—', lastW ? 'lb · ' + GChart.fmtDate(lastW.date) : 'lb', gNumCh, gWhenCh) + '</span><span class="nr-lab">' + (hasPlan ? 'plan ' + fixedVal(planT != null ? n1(planT) : '–', null, gNumCh) + ' · ' : '<span class="fx-n" hidden></span>') + 'est. ' + fixedVal(live ? n1(live.point) : '–', null, gNumCh) + '</span></div>' +
       gcHost('goal-rail', spec, 110) + '<p class="nr-lab goal6-cap">' + cap + '</p></section>';
   }
   // TODAY-11/50 (ASSUMED): Perfect Day and Perfect Fitness progress as one line on So Far; the open items are behind ⓘ.
@@ -12966,8 +13074,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     function wgSpecs(m, cur){
       /* round 2 B1 (his words: "the number for plan should be that brown/gold color ... the green ... tracking my weigh in ... estimate and actual need to be different
          colors as well both in the line and the number"): plan gold, weigh-ins green, the estimate (live) blue, the durable estimate orange; the key and the numbers match */
-      const S2 = {plan:{get:(d, i) => m.plan[i], color:WG_COL.plan, width:1, dash:'4 3'}, durable:{get:(d, i) => i <= m.ti ? m.durable[i] : null, color:WG_COL.durable, width:1.25},
-        durableProj:{get:(d, i) => i >= m.ti ? m.durable[i] : null, color:WG_COL.durable, width:1, dash:'2 3', opacity:.6},
+      const S2 = {plan:{get:(d, i) => m.plan[i], color:WG_COL.plan, width:1, dash:'4 3'}, durable:{get:(d, i) => i <= m.ti ? m.durable[i] : null, colorOf:(v, i) => weightPlanTone(v, m.plan[i]), width:1.25},
+        durableProj:{get:(d, i) => i >= m.ti ? m.durable[i] : null, colorOf:(v, i) => weightPlanTone(v, m.plan[i]), width:1, dash:'2 3', opacity:.6},
         live:{get:(d, i) => m.live[i], color:WG_COL.est, width:1.25, dash:'3 3', breakAfter:(d, i) => m.days[i + 1] && m.weigh.has(m.days[i + 1].date)},
         liveProj:{get:(d, i) => m.liveProj[i], color:WG_COL.est, width:1, dash:'1 3', opacity:.6},
         scale:{get:d => m.weigh.has(d.date) ? m.weigh.get(d.date) : null, color:WG_COL.scale, dots:true, dotR:3.2}};
@@ -12982,7 +13090,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       return glWG(m, i, WG_COL, fmtDay, fmtMD, n1);
     }
     const WG_COL = {scale:'var(--c-green,#79d6a9)', plan:'var(--brass)', est:'var(--c-blue,#6fb6e0)', durable:'#b69cf0'};   // round 2 B1: one colour per meaning, in the lines, the numbers and the key
-    const WG_LEGEND = [['dot', WG_COL.scale, 'Weigh-ins'], ['band', '', 'Plan ±0.5'], ['dash', WG_COL.est, 'Estimate'], ['line', WG_COL.durable, 'Durable estimate'], ['sep'], ['dash', '#e58fb5', 'Pace needed'], ['line', WG_COL.scale, 'Your 7-day pace']];
+    const WG_LEGEND = [['dot', WG_COL.scale, 'Weigh-ins'], ['band', '', 'Plan ±0.5'], ['dash', WG_COL.est, 'Estimate'], ['line', WG_COL.scale, 'Durable estimate: green at plan, red above, purple below'], ['sep'], ['dash', '#e58fb5', 'Pace needed'], ['line', WG_COL.scale, 'Your 7-day pace']];
     const legend = list => '<div class="bv-legend">' + list.map(([k, c, l]) => k === 'sep' ? '<span class="bv-lsep"></span>' : '<span><i class="bv-l-' + k + '" style="color:' + c + '"></i>' + esc(l) + '</span>').join('') + '</div>';
     function drawWG(card, m){
       const last = m.rows.length ? m.rows[m.rows.length - 1] : null, pf = m.pf, planT = m.plan[m.ti];
@@ -14543,6 +14651,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
         if (v < base - .5) toast('Bevel already counts ' + Math.round(base) + ' oz; the total starts there.');
         await saveWaterOz(Math.max(0, v - base)); return; }
       case 'waterUndo': if (waterUI.undo && undoTopSeq() === waterUI.undo.seq){ waterUI.undo = null; $('#undoBtn').click(); } else { waterUI.undo = null; render(); toast('A newer change is in the way; use Undo in the toolbar.'); } return;
+      case 'weekFold': { let f = {}; try { f = JSON.parse(localStorage.getItem('health-tracker.weekFold')) || {}; } catch (_) {} const k = btn.dataset.k, was = k in f ? !!f[k] : btn.dataset.d === '1'; f[k] = !was; try { localStorage.setItem('health-tracker.weekFold', JSON.stringify(f)); } catch (_) {} render(); focusFirst('[data-act="weekFold"][data-k="' + k + '"]'); return; }
+      case 'goalRailRange': try { localStorage.setItem('health-tracker.goalRailRange', btn.dataset.r); } catch (_) {} render(); focusFirst('[data-act="goalRailRange"][data-r="' + btn.dataset.r + '"]'); return;
       case 'macroUnit': try { localStorage.setItem('health-tracker.macroUnit', btn.dataset.u === 'g' ? 'g' : 'pct'); } catch (_) {} render(); focusFirst('[data-act="macroUnit"][data-u="' + btn.dataset.u + '"]'); return;
       case 'macrosOpen': openMacrosDrawer(); return;
       case 'macroSpan': if (openMacrosDrawer.setSpan) openMacrosDrawer.setSpan(+btn.dataset.n); focusFirst('[data-act="macroSpan"][data-n="' + btn.dataset.n + '"]'); return;
