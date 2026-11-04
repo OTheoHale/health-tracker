@@ -185,13 +185,22 @@ const GradeExceed = (() => {
     for (const [u, b] of by){ const items = b.items.slice(); if (b.jobs && b.jobs.planned > 0) items.push({...b.jobs, goal:b.jobs.planned, score:itemScore(b.jobs.done, b.jobs.planned, 2 * b.jobs.planned), kind:'over'}); out[u] = domain(items.filter(i => i.score !== null)); }
     return out;
   }
+  /* V6.1.5 Faith in each area (his yes, Nov 4): an area with its switch on shows (1 − share) × its own + share × Faith, on the engine's
+     scale (both can pass 100), and the Overall reads the blend: Vigor and Nourish take Health's, the gates read the blended Domains. Faith
+     null leaves an area as it is. In this path an area is on only when its stored faith is true (what he has seen since V6); the share is
+     its stored faithShare, else GRADE_FAITH_SHARE (20%). Changes nothing stored. */
+  const faithBlend = (state, id) => { if (id === 'faith') return {on:false, share:0}; const c = ((state && state.gradeConfig && state.gradeConfig.umbrellas) || {})[id] || {}, dflt = typeof GRADE_FAITH_SHARE === 'number' ? GRADE_FAITH_SHARE : .2; return {on:c.faith === true, share:Number.isFinite(c.faithShare) ? c.faithShare : dflt}; };
+  const blendWith = (pct, b, f) => pct === null || pct === undefined || !b.on || f === null || f === undefined ? pct : (1 - b.share) * pct + b.share * f;
+  const blended = (g, b, f) => { if (!g) return g; const pct = blendWith(g.pct, b, f); return pct === g.pct ? g : {...g, pct, letter:letter(pct), own:g.pct}; };
   /* The whole report for a window. view: 'day', 'week' (any span of 7 days or more that is not a calendar month) or 'month'. io: the page's
      readers {steps(d), water(d), net(d), sleepMin(d)} (each a number or null). */
   function report(state, from, to, io, view){
     const D = calendarDistance(from, to) + 1, v = view || (D === 1 ? 'day' : from.slice(8) === '01' && D >= 28 ? 'month' : 'week');
     const f = readFaith(state, from, to, v), vg = readVigor(state, from, to, io), n = readNourish(state, from, to, io), wb = readWellbeing(state, from, to, io, v), dom = readDomains(state, from, to);
-    const o = overall(f, vg, n, wb, ['family', 'career', 'home'].map(k => dom[k]).filter(Boolean));   // these three gate SS and SSS (GLOW_GENA_NAMES §1). Growth and custom Domains show their own grade and gate nothing
-    return {from, to, view:v, days:D, faith:f, vigor:vg, nourish:n, wellbeing:wb, domains:dom, overall:o};
+    const blend = {}; for (const id of ['health', 'family', 'career', 'growth', 'home'].concat(Object.keys(dom))) blend[id] = faithBlend(state, id);
+    const hb = blend.health, gate = k => blended(dom[k], blend[k], f.pct);
+    const o = overall(f, blended(vg, hb, f.pct), blended(n, hb, f.pct), wb, ['family', 'career', 'home'].map(gate).filter(Boolean));   // these three gate SS and SSS (GLOW_GENA_NAMES §1), blended where Faith counts in them. Growth and custom Domains show their own grade and gate nothing
+    return {from, to, view:v, days:D, faith:f, vigor:vg, nourish:n, wellbeing:wb, domains:dom, overall:o, blend};
   }
   /* The report in the shape the page's grade cards read (umbrellaGradeReport): Faith; Health holding Vigor, Nourish and Well-being as its groups
      (its own is the mean of Vigor and Nourish, for the card; Overall is computed by the rule above, not from it); Family, Career, Home and
@@ -201,7 +210,8 @@ const GradeExceed = (() => {
     const it = (x, gid) => ({seriesId:'exceed:' + x.id, name:x.name, gid, planned:Number.isFinite(x.goal) ? x.goal : 1, done:Number.isFinite(x.done) ? x.done : x.met ? 1 : 0, score:x.score === undefined ? null : x.score, importance:5, included:true, tier:'required', kind:x.kind, met:x.met});
     const grp = (gid, name, g) => ({gid, name, items:(g.items || []).map(x => it(x, gid)), score:g.pct, letter:g.letter, importance:5, included:true, tiers:null});
     const U = id => GRADE_UMBRELLAS.find(u => u.id === id) || {id, name:id, emoji:''};
-    const um = (id, own, groups, included) => ({id, name:U(id).name, emoji:U(id).emoji, groups, own, displayed:own, letter:letter(own), ownLetter:letter(own), tiers:null, importance:id === 'faith' || id === 'health' ? 10 : 0, included:included !== false && own !== null, faithOn:false, faithShare:0});
+    const um = (id, own, groups, included) => { const b = r.blend[id] || faithBlend(state, id), shown = blendWith(own, b, r.faith.pct);   // V6.1.5: the card shows the blend the Overall reads
+      return {id, name:U(id).name, emoji:U(id).emoji, groups, own, displayed:shown, letter:letter(shown), ownLetter:letter(own), tiers:null, importance:id === 'faith' || id === 'health' ? 10 : 0, included:included !== false && own !== null, faithOn:b.on, faithShare:b.share}; };
     const health = [r.vigor.pct, r.nourish.pct].filter(v => v !== null), healthOwn = health.length ? mean(health) : null;
     const umbrellas = [um('faith', r.faith.pct, r.faith.pct === null ? [] : [grp('faith', 'Faith', r.faith)]),
       um('health', healthOwn, [r.vigor.pct !== null ? grp('fitness', 'Vigor', r.vigor) : null, r.nourish.pct !== null ? grp('food', 'Nourish', r.nourish) : null, r.wellbeing.pct !== null ? grp('wellbeing', 'Well-being', r.wellbeing) : null].filter(Boolean))]
@@ -213,7 +223,7 @@ const GradeExceed = (() => {
     const due = umbrellas.reduce((n, u) => n + u.groups.reduce((m, g) => m + g.items.length, 0), 0);
     return {from, to, program, period:period || 'day', overall:r.overall.pct, letter:r.overall.letter, umbrellas, unassigned:[], counted:due, listed:0, due, tiered:false, exceed:r};
   }
-  return {CUT, letter, itemScore, faith, vigor, nourish, wellbeing, domain, overall, report, umbrellaReport, r1};
+  return {CUT, letter, itemScore, faith, vigor, nourish, wellbeing, domain, overall, report, umbrellaReport, r1, blendWith};
 })();
 if (typeof window !== 'undefined') window.GradeExceed = GradeExceed;
 if (typeof module !== 'undefined') module.exports = GradeExceed;
