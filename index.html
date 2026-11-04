@@ -4548,7 +4548,7 @@ addEventListener('load', () => {
       const g = goalsV2(st), today = todayYmd(), n = v => v !== null && v !== undefined && v !== '' && Number.isFinite(+v) && +v > 0 ? +v : null;
       let tr = null; try { tr = weightTrend(st, today); } catch (_) { tr = null; }
       return {age:typeof Scores === 'undefined' ? null : Scores.ageOn(today, n(g.birthYear) ? Math.round(g.birthYear) : null, n(g.birthMonth) ? Math.round(g.birthMonth) : null), sex:sexOf(st) || 'male', sexSet:sexOf(st) !== null, birthYear:n(g.birthYear) ? Math.round(g.birthYear) : null, birthMonth:n(g.birthMonth) ? Math.round(g.birthMonth) : null,
-        heightCm:n(g.heightIn) ? g.heightIn * 2.54 : null, weightKg:tr ? tr.latest * 0.45359237 : null, need:n(g.sleepNeedH) || SLEEP_NEED_DEFAULT_H, hrMaxOverride:n(g.maxHeartRate), proteinG:n(g.proteinTargetG), kcal:n(g.calorieTarget), deficit:n(g.deficit.daily) || 0};
+        heightCm:n(g.heightIn) ? g.heightIn * 2.54 : null, weightKg:tr ? tr.latest * 0.45359237 : null, need:sleepNeedH(st), hrMaxOverride:n(g.maxHeartRate), proteinG:n(g.proteinTargetG), kcal:n(g.calorieTarget), deficit:n(g.deficit.daily) || 0};
     });
   }
   const whoOf = p => ({sex:p.sex, age:p.age, heightCm:p.heightCm});   // height: the one waist standard is waist-to-height (V3.4)
@@ -6431,7 +6431,7 @@ addEventListener('load', () => {
       if (kind === 'water'){ const w = waterNow(st, date); return {have:w.oz, need:w.goal, text:num(w.oz) + ' of ' + num(w.goal) + ' oz', met:w.oz >= w.goal, man:w.locked ? 0 : Math.min(w.oz, w.manual), hand:true, handUnit:'oz', date, step:{kind:'water', n:glassOz(st), unit:'oz', label:'water', note:w.locked ? w.why : ''}}; }
       // V3.6 N1, N2: the one stored goal, signed: "−562 of −825 kcal"; a surplus fills nothing.
       if (kind === 'deficit'){ const eb = wsTry('energyBalance', st, date) || {}, need = NetEnergy.goal(st), have = Number.isFinite(eb.balance) ? eb.balance : null, p = NE.progress(st, have); return {have:have === null ? 0 : have, need, text:p.text, met:have !== null && have <= need, name:'Net Energy', colour:NE.colour(have), net:true, date}; }   // V3.7 re-review (A80 changed): no stepper on Net Energy; typed food replaced the day's food, so a later sync never counted. Food is typed on the Fuel card
-      if (kind === 'sleep'){ const night = drawn('sleepNights', () => sleepNights(st)).get(date), need = (m.minimum || 420) / 60, have = night ? night.minutes / 60 : null; return {have:have || 0, need, text:(have === null ? '—' : Math.round(have * 10) / 10) + ' of ' + need + ' h', met:have !== null && have >= need}; }
+      if (kind === 'sleep'){ const night = drawn('sleepNights', () => sleepNights(st)).get(date), need = sleepGoalMin(st) / 60, have = night ? night.minutes / 60 : null; return {have:have || 0, need, text:(have === null ? '—' : Math.round(have * 10) / 10) + ' of ' + hoursWord(need) + ' h', met:have !== null && have >= need}; }   // V6.1.6: Settings' sleep need, the goal Today shows (was the item's own minimum); display only, the points table is untouched
       return null;
     });
   }
@@ -13546,12 +13546,13 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       days.forEach((d, i) => { if (i > 0 && i <= ti) w += step(i); durable[i] = i <= ti ? w : durable[ti] + avg * (i - ti) / NET_KCAL_PER_LB;
         if (i <= ti){ if (weigh.has(d.date)){ lv = weigh.get(d.date); lw = {i, lb:lv, date:d.date}; } else if (lv != null) lv += step(i); }
         live[i] = i <= ti ? lv : null; lastW[i] = lw; });
+      let est = null; try { est = NetEnergy.weightEstimate(st, t); } catch (_) {}
+      if (est && Number.isFinite(est.point) && days[ti].date === t) live[ti] = est.point;   // V6.1.6: one estimate for today, the app's energy estimate the header, rail, Nourish and plan box show; past days keep the live line
       const liveProj = days.map((d, i) => i >= ti && live[ti] != null ? live[ti] + avg * (i - ti) / NET_KCAL_PER_LB : null);
       const goalLb = pf.goal, at = i => (i <= ti ? live[i] : liveProj[i]);
       const needed = days.map((d, i) => { const left = span - i, a = at(i); return left >= 7 && a != null ? (goalLb - a) / (left / 7) : null; });
       const act7 = days.map((d, i) => i > ti ? null : i >= 7 ? durable[i] - durable[i - 7] : i >= 3 ? (durable[i] - startLb) / i * 7 : null);
       const act28 = days.map((d, i) => i > ti ? null : i >= 28 ? (durable[i] - durable[i - 28]) / 4 : i >= 7 ? (durable[i] - startLb) / i * 7 : null);
-      let est = null; try { est = NetEnergy.weightEstimate(st, t); } catch (_) {}
       return {st, t, g, rows, pf, days, ti, span, weigh, plan, durable, live, liveProj, lastW, needed, act7, act28, est, startLb, goalLb, onPlan:.5, slope:(goalLb - startLb) / span};
     }
     const WG_RANGES = ['2w', '4w', 'Program', 'To goal'];
@@ -13683,7 +13684,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       {id:'steps', label:'Steps', col:'var(--accent)', goal:() => stepsGoal(S()), cap:g => 'goal ' + num(g) + ' a day', fmt:v => num(v), unit:'steps'},
       {id:'active', label:'Active energy', col:'var(--brass)', goal:() => 1000, cap:() => 'goal 1,000 kcal a day', fmt:v => num(v), unit:'kcal'},
       {id:'workout', label:'Workout min', col:'var(--verd)', goal:() => WORKOUT_MIN, cap:g => 'goal ' + g + ' min a day', fmt:v => num(v), unit:'min', zero:true},
-      {id:'sleep', label:'Sleep', col:'var(--c-violet,var(--accent))', goal:() => (scorePerson(S()).need || 420) / 60, cap:g => 'need ' + n1(g).replace(/\.0$/, '') + ' h a night', fmt:v => n1(v), unit:'h slept'},
+      {id:'sleep', label:'Sleep', col:'var(--c-violet,var(--accent))', goal:() => sleepGoalMin(S()) / 60, cap:g => 'need ' + n1(g).replace(/\.0$/, '') + ' h a night', fmt:v => n1(v), unit:'h slept'},   // V6.1.6: Settings' need in hours (need was already hours, so ÷ 60 drew 0.1 h)
       {id:'load', label:'Load', col:'var(--warn)', cap:() => 'the score the Load card draws', fmt:v => num(v), unit:'load'},
       {id:'net', label:'Net energy', col:'var(--accent)', goal:() => NetEnergy.goal(S()), cap:g => 'goal ' + (g < 0 ? '−' : '+') + num(Math.abs(g)) + ' a day · no food logged counts as 0', fmt:v => (v < 0 ? '−' : '+') + num(Math.abs(v)), unit:'kcal'},
       {id:'rhr', label:'Resting HR', col:'var(--accent)', cap:() => 'lower is better', fmt:v => num(v), unit:'bpm'},
