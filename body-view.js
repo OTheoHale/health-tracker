@@ -256,6 +256,7 @@ const BODY_MARGIN = 0.04, BODY_FRAME = {min: 35, max: 220, step: 15};
 const SEG_SHORT = {head: 'Head', chest: 'Chest', abdomen: 'Abs', back: 'Back', pelvis: 'Hips', 'left-upper-arm': 'L bicep', 'right-upper-arm': 'R bicep', 'left-forearm': 'L forearm', 'right-forearm': 'R forearm',
   'left-thigh': 'L thigh', 'right-thigh': 'R thigh', 'left-calf': 'L calf', 'right-calf': 'R calf', 'left-foot': 'L foot', 'right-foot': 'R foot', other: 'Other'};
 const REGION_SHORT = {trunk: 'Trunk', 'right-arm': 'R arm', 'left-arm': 'L arm', 'right-leg': 'R leg', 'left-leg': 'L leg'};
+const BC_KEY = 'health-tracker.bcCard', BC_EDGE = 8, BC_CLICK = 4, BC_CLEAR = {right: 50, bottom: 46};   // round 2: where the Body Composition card sits; clear of the icon column (32 px at 10) and the bottom strip (28 px at 8)
 const BC_TONE = {better: 'var(--c-violet,#b394ff)', average: 'var(--c-green,#79d6a9)', poor: 'var(--c-orange,#f0a058)', none: '#ffffff'};
 const bodyIcon = (d, size) => '<svg viewBox="0 0 24 24" width="' + (size || 16) + '" height="' + (size || 16) + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
 const BODY_ICONS = {zoomIn: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4M8 11h6M11 8v6"/>', zoomOut: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4M8 11h6"/>', reset: '<path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/>',
@@ -279,6 +280,8 @@ class HealthBodyView extends HTMLElement {
     if (BODY_BRIDGE) this.bridgeAssets();
     this.addEventListener('click', event => this.clickAction(event));
     this.addEventListener('change', event => this.changeAction(event));
+    this.addEventListener('pointerdown', event => this.bcDrag(event));
+    this.addEventListener('keydown', event => { if (event.target.closest && event.target.closest('.bc-title') && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); this.bcFold(); } });
     this.load();
   }
 
@@ -534,7 +537,7 @@ class HealthBodyView extends HTMLElement {
     const u = window.HealthDisplayUnits || {mass: 'lb', lb: v => v}, esc = v => this.escape(v), W = this.weighIn();
     const linkPick = this.mode === 'link' && this.linked.size, parts = linkPick ? [...this.linked].flatMap(k => this.keyParts(k)) : this.selParts();
     const f = this.figuresOf(parts), whole = this.isWhole(parts), name = this.selectionName(parts, this.mode === 'select' ? this.region : null), report = this.fitdays;
-    const head = '<div class="bc-head"><span class="bc-title">Body Composition</span><details class="bc-info"><summary aria-label="About Body Composition" title="About Body Composition">ⓘ</summary><div class="bc-pop">' +
+    const head = '<div class="bc-head" title="Drag to move · click to fold or open"><span class="bc-title" role="button" tabindex="0" aria-expanded="true">Body Composition</span><details class="bc-info"><summary aria-label="About Body Composition" title="About Body Composition">ⓘ</summary><div class="bc-pop">' +
       '<p class="bc-legt">Compared with men your age and height</p><p><i style="background:' + BC_TONE.better + '"></i>Better than average</p><p><i style="background:' + BC_TONE.average + '"></i>Average</p><p><i style="background:' + BC_TONE.poor + '"></i>Not good</p>' +
       (f.total !== null && W ? '<p class="bc-sub">Selected ' + parts.filter(k => k !== 'head').length + ' of ' + this.allKeys().filter(k => k !== 'head').length + ' · ' + u.lb(f.total).toFixed(1) + ' of ' + u.lb(W.weight).toFixed(1) + ' ' + u.mass + (f.eq ? ' ✓' : '') + '</p>' : '') +
       (W ? '<p class="bc-sub">Whole Body: ' + esc(W.source) + ', ' + esc(this.date(W.date, true)) + '. Segments: Fitdays, ' + (report && report.measurementDate ? esc(this.date(report.measurementDate, true)) : 'no report yet') + (report && W.date && report.measurementDate && report.measurementDate !== W.date ? ' (different dates)' : '') + '.</p>' : '') +
@@ -599,9 +602,51 @@ class HealthBodyView extends HTMLElement {
       material.pbrMetallicRoughness.setBaseColorFactor(color);
     }
   }
+  /* V6.1.3 round 2 (his words on Preview v31: "make that Body COmposition WHole body card so that it doesnt block the 3d model ... collapsable and draggable
+     ... it defaults to collapsed on the right bottom side"): the card's title row drags it; a press that moves under 4 px is a click, which folds it to that
+     row or opens it. Folded at the model's bottom right by default, clear of the control strip and the icon column. Where it sits (fractions of the room
+     left in the model's half) and the fold are kept on this device and clamped inside, so it holds in the page and in full screen. */
+  bcState() { try { const o = JSON.parse(localStorage.getItem(BC_KEY) || 'null'); return o && typeof o === 'object' ? o : {}; } catch (_) { return {}; } }
+  bcSave(o) { try { localStorage.setItem(BC_KEY, JSON.stringify(o)); } catch (_) {} }
+  bcRoom(card) { const box = card.parentElement, W = box.clientWidth, H = box.clientHeight; return {W, H, maxX: Math.max(BC_EDGE, W - card.offsetWidth - BC_EDGE), maxY: Math.max(BC_EDGE, H - card.offsetHeight - BC_EDGE)}; }
+  placeCard() {
+    const card = this.querySelector('.bc-card'); if (!card || !card.parentElement) return;
+    const st = this.bcState(), folded = st.folded !== false;
+    if (card.classList.contains('bc-folded') !== folded) card.classList.toggle('bc-folded', folded);
+    const t = card.querySelector('.bc-title'); if (t) t.setAttribute('aria-expanded', String(!folded));
+    const R = this.bcRoom(card); if (!R.W || !R.H) return;
+    const free = (f, max) => BC_EDGE + Math.min(1, Math.max(0, f)) * (max - BC_EDGE);
+    const x = Number.isFinite(st.x) ? free(st.x, R.maxX) : Math.max(BC_EDGE, R.W - card.offsetWidth - BC_CLEAR.right), y = Number.isFinite(st.y) ? free(st.y, R.maxY) : Math.max(BC_EDGE, R.H - card.offsetHeight - BC_CLEAR.bottom);
+    card.style.left = Math.round(x) + 'px'; card.style.top = Math.round(y) + 'px';
+    card.classList.toggle('bc-east', x + card.offsetWidth / 2 > R.W / 2); card.classList.toggle('bc-low', y + card.offsetHeight / 2 > R.H / 2);   // the ⓘ legend opens toward the middle
+  }
+  bcFold() { const st = this.bcState(); st.folded = st.folded === false; this.bcSave(st); this.placeCard(); }
+  bcDrag(event) {
+    const head = event.target.closest && event.target.closest('.bc-head'); if (!head || event.button !== 0 || event.target.closest('.bc-info')) return;
+    const card = head.closest('.bc-card'), x0 = event.clientX, y0 = event.clientY, l0 = card.offsetLeft, t0 = card.offsetTop; let moved = false;
+    event.preventDefault(); try { head.setPointerCapture(event.pointerId); } catch (_) {}
+    const move = e => {
+      const dx = e.clientX - x0, dy = e.clientY - y0; if (!moved && Math.hypot(dx, dy) < BC_CLICK) return; moved = true; card.classList.add('bc-drag');
+      const R = this.bcRoom(card); card.style.left = Math.round(Math.min(R.maxX, Math.max(BC_EDGE, l0 + dx))) + 'px'; card.style.top = Math.round(Math.min(R.maxY, Math.max(BC_EDGE, t0 + dy))) + 'px';
+    };
+    const done = fold => () => {
+      head.removeEventListener('pointermove', move); head.removeEventListener('pointerup', up); head.removeEventListener('pointercancel', cancel); card.classList.remove('bc-drag');
+      if (!moved){ if (fold) this.bcFold(); return; }
+      const R = this.bcRoom(card), st = this.bcState(); st.x = R.maxX > BC_EDGE ? (card.offsetLeft - BC_EDGE) / (R.maxX - BC_EDGE) : 0; st.y = R.maxY > BC_EDGE ? (card.offsetTop - BC_EDGE) / (R.maxY - BC_EDGE) : 0; this.bcSave(st); this.placeCard();
+    }, up = done(true), cancel = done(false);
+    head.addEventListener('pointermove', move); head.addEventListener('pointerup', up); head.addEventListener('pointercancel', cancel);
+  }
+  /* Round 2: in full screen a scroll down shows the Fitdays report (open, every section) and the regional composition under the stage; a copy, so his
+     open or closed report card on the page stays as he left it. */
+  fullMore(on) {
+    const more = this.querySelector('.bs-more'); if (!more) return;
+    if (!on) { if (!more.hidden) { more.hidden = true; more.innerHTML = ''; } return; }
+    more.innerHTML = (this.reportCardHTML() || '').replace(/^<details class="body-report-card" data-parity="K1-REPORT"( open)?>/, '<details class="body-report-card" open>') + this.compositionHTML();
+    more.hidden = false;
+  }
   /* The selection panel, the chips and the mode switch follow every pick (B3, B5). */
   refreshSide() {
-    const sel = this.querySelector('.bc-card'); if (sel) { const open = !!sel.querySelector('.bc-info[open]'), t = document.createElement('template'); t.innerHTML = this.selectionHTML(); if (open) t.content.querySelector('.bc-info').open = true; sel.replaceWith(t.content); }
+    const sel = this.querySelector('.bc-card'); if (sel) { const open = !!sel.querySelector('.bc-info[open]'), t = document.createElement('template'); t.innerHTML = this.selectionHTML(); if (open) t.content.querySelector('.bc-info').open = true; sel.replaceWith(t.content); this.placeCard(); }
     const chips = this.querySelector('.body-rchips'); if (chips) { const t = document.createElement('template'); t.innerHTML = this.regionChipsHTML(); chips.replaceWith(t.content); }
     const wb = this.querySelector('.body-rchip.wb'); if (wb) wb.setAttribute('aria-pressed', String(this.mode === 'select' && this.isWhole(this.selParts())));
   }
@@ -685,7 +730,7 @@ class HealthBodyView extends HTMLElement {
       const next=tools.querySelector('[data-body="regionName"]');if(draft&&next){next.value=draft.value;if(draft.focused){next.focus({preventScroll:true});next.setSelectionRange(draft.start,draft.end);}}
     }
     const measurements=this.querySelector('.body-measurements');if(measurements){const open=measurements.open,holder=document.createElement('template');holder.innerHTML=this.measurementHTML();holder.content.firstElementChild.open=open;measurements.replaceWith(holder.content);}
-    const composition=this.querySelector('.body-composition[aria-label="Fitdays regional composition"]');if(composition){const holder=document.createElement('template');holder.innerHTML=this.compositionHTML();composition.replaceWith(holder.content);}
+    this.querySelectorAll('.body-composition[aria-label="Fitdays regional composition"]').forEach(composition=>{const holder=document.createElement('template');holder.innerHTML=this.compositionHTML();composition.replaceWith(holder.content);});   // the page's and, in full screen, the copy under the stage
     if(this.selected)this.highlight(this.region);
   }
 
@@ -816,7 +861,7 @@ class HealthBodyView extends HTMLElement {
         '</div>' +
         '<div class="bs-photo body-photos" data-parity="BODY-34"><span class="body-photo-badge">Photo</span><a class="body-photo-link" href="' + this.asset(this.photo + '.png') + '" target="_blank" rel="noopener" title="Open full-size image" data-parity="V35-B14-01"><img class="body-reference" src="' + this.asset(this.photo + '.png') + '" alt="' + this.photo + ' reference image"></a><div class="body-photo-tabs" role="group" aria-label="Reference image" hidden>' + ['Front','Back','Left','Right'].map(name => '<button data-body="photo" data-photo="' + name + '" aria-pressed="' + (name === this.photo) + '">' + name + '</button>').join('') + '</div></div>' +
         '<button type="button" class="bs-exit" data-body="fullscreen" data-parity="V35-B13-02" aria-label="Exit full screen" title="Exit full screen (Esc)">' + bodyIcon(BODY_ICONS.shrink, 18) + '</button>' +
-        (!this.stage ? '<div class="body-report-sheet" hidden></div>' : '') +
+        (!this.stage ? '<div class="body-report-sheet" hidden></div><div class="bs-more" hidden></div>' : '') +
       '</div>' +
       '<div class="bs-foot">' + (stale ? '<p class="body-stale" data-parity="BODY-39">A newer weigh-in has no segment report yet</p>' : '') + '<p class="body-captured" data-parity="B4-MODEL" title="A new report updates the numbers, never the model.">Model: ' + esc(this.date(record.captureDate, true)) + '</p></div>' +
       (!this.stage ? '<div class="body-tools">' + this.toolsHTML() + '</div>' : '') : '';
@@ -833,6 +878,7 @@ class HealthBodyView extends HTMLElement {
     // V3.5 K5: the page adds its one note control to each card; this card is drawn here, after the page's pass.
     { const rc = this.querySelector('.body-report-card'); if (rc) rc.addEventListener('toggle', () => { try { localStorage.setItem('health-tracker.reportCardOpen', rc.open ? '1' : '0'); } catch (_) {} }); }   // U3: the card stays as he left it
     this.dispatchEvent(new CustomEvent('bodyrender', {bubbles: true}));
+    this.placeCard();
     const viewer = this.querySelector('model-viewer');
     if (viewer) {
       viewer.addEventListener('load', () => { const label = this.querySelector('.body-load'); if (label) label.hidden = true; this.frameModel(); if (this.mode === 'select') this.highlight(this.sel ? 'sel' : 'all'); else this.refreshTools(); });
@@ -852,7 +898,7 @@ class HealthBodyView extends HTMLElement {
         if ((event.metaKey || event.ctrlKey || event.shiftKey) && this.mode !== 'compare') this.addToSelection(material.name); else this.pick(material.name);
       });
       this.wheelZoom(this.querySelector('.body-model-stage'));
-      if (!this.resizeWatch && typeof ResizeObserver === 'function') { this.resizeWatch = new ResizeObserver(() => this.fitPhoto()); }
+      if (!this.resizeWatch && typeof ResizeObserver === 'function') { this.resizeWatch = new ResizeObserver(() => { this.fitPhoto(); this.placeCard(); }); }
       const stage = this.querySelector('.body-stage35'); if (this.resizeWatch && stage) { this.resizeWatch.disconnect(); this.resizeWatch.observe(stage); }
     }
   }
@@ -1093,9 +1139,10 @@ class HealthBodyView extends HTMLElement {
         this.fullListener = () => {
           const st = this.querySelector('.body-stage35'), on = !!(document.fullscreenElement || document.webkitFullscreenElement) || !!(st && st.classList.contains('body-full'));
           if (st) st.classList.toggle('is-full', on);
+          this.fullMore(on);
           const b = this.querySelector('.bs-strip [data-body="fullscreen"]'); if (b) { b.setAttribute('aria-pressed', String(on)); b.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen'); b.title = on ? 'Exit full screen (Esc)' : 'Full screen'; b.innerHTML = bodyIcon(on ? BODY_ICONS.shrink : BODY_ICONS.expand); }
           const card = this.querySelector('.bc-card'); if (card) card.classList.toggle('full', on);
-          this.fitPhoto(); this.frameModel();
+          this.fitPhoto(); this.frameModel(); this.placeCard();
           if (!on) { const v = this.querySelector('model-viewer'); if (v && this.savedOrbit) { v.cameraOrbit = this.savedOrbit; this.zoomPct = this.savedZoomPct; this.syncZoomControls(); } this.highlight(this.sel ? 'sel' : 'all'); }
         };
         document.addEventListener('fullscreenchange', this.fullListener); document.addEventListener('webkitfullscreenchange', this.fullListener);

@@ -3,7 +3,7 @@
    ship.sh stamps BUILD here and in sw.js together: if they drift, an updated page keeps being
    served the previous shell out of the old cache. */
 window.HealthDelivery = (() => {
-  const BUILD = '2026-11-02-V6.1.2';
+  const BUILD = '2026-11-03-V6.1.3';
   const host = location.hostname;
   const local = /^(127\.0\.0\.1|localhost|\[::1\])$/.test(host);
   const wrapper = !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.native);
@@ -115,7 +115,22 @@ window.HealthDelivery = (() => {
       'n-feedback-mux0l05p-z02ia':'V3.7.29',
       'n-feedback-mux0qht2-uuhwy':'V3.7.29',
       'n-feedback-mux0rm04-wd47c':'V3.7.29',
-      'n-feedback-mux0sas7-6b6am':'V3.7.29'
+      'n-feedback-mux0sas7-6b6am':'V3.7.29',
+      'n-mv1whjvp-16zpv':'V5.0.20',
+      'n-mv1wekfp-w7jm4':'V5.0.20',
+      'n-mv1wcaa5-2ok35':'V5.0.18',
+      'n-feedback-mv1w99ld-ylmjl':'V5.0.18',
+      'n-feedback-mv1w8rgw-m6zht':'V5.0.18',
+      'n-feedback-mv1w7u1o-v72p7':'V5.0.19',
+      'n-feedback-mv1w4zlz-0tbnp':'V5.0.19',
+      'n-feedback-mv1w37vj-172h4':'V5.0.19',
+      'n-mv1w1h4a-ohrxj':'V5.0.19',
+      'n-mv1w050h-b23k1':'V5.0.18',
+      'n-mv1vzxer-gqhic':'V5.0.18',
+      'n-mv1vwer9-s3en2':'V5.0.18',
+      'n-mv1vvto9-rqqud':'V5.0.18',
+      'n-feedback-mv6zpof2-aqz0o':'V5.0.28',
+      // WC-32 close-out at V6.1.3 (Nov 3): his Oct 9 and Oct 13 notes built in BG1 to BG11 (V5.0.18 to V5.0.20) and BK8 (V5.0.28), still Open in his Lessons; only he resolves them
     },   // Fix list X1 to X12 (his open Lessons notes), shipped in V3.7.29 (Oct 6); only he resolves them, in Lessons   // V3.5 release (Oct 2): 41 of his 46 suggestions; O-07, O-09, O-10, O-12 and C-05 stay Open for his look on the Mac.
     // V3.6 release (Oct 3): NEW notes 1 to 11 of the V3.6 brief §2.1 shipped; only he resolves them, in Lessons
     // V3.7 release (Oct 5): his 27 NEW notes of the V3.7 brief §2.1 (31 ids) shipped; the optional drag to reorder (note 4) was dropped on his word; only he resolves them, in Lessons

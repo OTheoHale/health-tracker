@@ -2118,8 +2118,8 @@ dialog.ss-wrap{position:fixed;inset:0;z-index:90;width:auto;height:auto;max-widt
 /* A7 (Compact): one card header rule: the title, an ⓘ on hover, a caret only where the card folds; no header icon or pencil */
 #main .k-head>span[aria-hidden="true"]:first-child{display:none}
 @media (hover:hover){
-  #main .k-card .k-head .info,#main .panelcard .ph .info,#main .k-head>.vis-pencil{opacity:0;transition:opacity .12s}
-  #main .k-card:hover .k-head .info,#main .panelcard:hover .ph .info,#main .info[aria-expanded="true"],#main .k-card:hover .k-head>.vis-pencil,#main .k-card:focus-within .k-head>.vis-pencil,#main .k-head>.vis-pencil:focus-visible{opacity:1}   /* review fix 1: the pencil is the only way into What this card shows, so it shows on hover or focus like the ⓘ, never gone */
+  #main .k-card .k-head .info,#main .panelcard .ph .info{opacity:0;transition:opacity .12s}
+  #main .k-card:hover .k-head .info,#main .panelcard:hover .ph .info,#main .info[aria-expanded="true"]{opacity:1}   /* V6.1.3 (his words on Preview v31, "so small that they are really hard to see"): the pencil is always shown now, with the ⤢ (--k-btn below) */
 }
 /* T1 (B): Up Next stays one at a time, half as tall; the Close out chip ends the strip */
 .today-strip{flex-wrap:wrap;row-gap:8px}
@@ -2413,6 +2413,95 @@ body:not([data-area="plan"]):not([data-area="template"]):not([data-area="log"]) 
 .gl-ask > span { flex: 1 1 240px; min-width: 0; }
 .gl-gena-line { margin: 2px 0 8px; color: var(--muted); font-size: 13px; }
 .gl-gena input { flex: 1 1 220px; min-width: 0; }
+/* V6.1.3 research picks (FIX_LIST CM): the Mock's options-s5.css (X1 to X7) and options-s4.css (R1), scoped to the new rx- classes */
+.rx-card .k-head{gap:8px}
+.rx-cap{margin:6px 0 0;font-size:13px;color:var(--muted);line-height:1.45}
+.rx-cap b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.rx-tag{font-size:13px;color:var(--faint)}
+.rx-plan{margin:10px 0 2px;padding:10px 12px;border-radius:12px;background:var(--sunk,rgba(255,255,255,.04));border:1px solid var(--line);font-size:13px;color:var(--muted);line-height:1.5}
+.rx-plan b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.rx-plan .rx-row{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline}
+.rx-plan .rx-row span{white-space:nowrap}
+#ctxRail .rx-plan .rx-row span{white-space:normal}
+.rx-scale .rx-nums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:10px 0 4px}
+.rx-scale .rx-nums div{display:flex;flex-direction:column;gap:2px}
+.rx-scale .rx-nums b{font:600 22px var(--serif);color:var(--ink);font-variant-numeric:tabular-nums}
+.rx-scale .rx-nums small{font-size:13px;color:var(--muted)}
+.rx-sleep svg{display:block;width:100%;height:auto;margin:8px 0 2px}
+.cfs-on .rx-sleep.cfs-card svg{width:auto;max-width:100%;max-height:300px;margin:8px auto 2px}   /* full screen: the bars widen, the card does not grow tall */
+.rx-sleep .rx-word{font-size:13px;padding:2px 9px;border-radius:999px;border:1px solid var(--line)}
+.rx-helps .rx-cap{margin:10px 0 4px}
+.rx-helps .rx-hrow{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:13px}
+.rx-helps .rx-hrow:first-of-type{border-top:0}
+.rx-helps .rx-hrow b{color:var(--ink);font-weight:600}
+.rx-helps .rx-hrow small{color:var(--muted);font-size:13px}
+.rx-helps .rx-hn{color:var(--faint);font-variant-numeric:tabular-nums;white-space:nowrap}
+.rx-line{margin:8px 0 10px;padding:8px 12px;border-radius:12px;border:1px solid var(--line);font-size:13px;color:var(--muted)}
+.rx-line b{color:var(--ink);font-weight:600}
+.rx-back{display:inline-flex;align-items:center;margin-left:6px;padding:0 7px;border-radius:999px;font-size:13px;line-height:18px;color:var(--brass,#d4af37);border:1px solid color-mix(in srgb,var(--brass,#d4af37) 55%,transparent);white-space:nowrap;vertical-align:middle}
+.rx-prot{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;margin-top:8px;font-size:13px;color:var(--muted)}
+.rx-prot b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.rx-prot .rx-prot-bar{position:relative;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.rx-prot .rx-prot-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:3px}
+#ctxRail .rx-pin{margin:0 0 12px;padding:12px 14px}
+#ctxRail .rx-pin .k-head{margin-bottom:6px}
+.rx-pinf{margin:6px 0}
+.rx-pinf>small{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+.rx-pinchips{display:flex;flex-wrap:wrap;gap:6px}
+.rx-pinchip{font-size:13px;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rx-pincap{margin:8px 0 0;font-size:13px;color:var(--faint,var(--muted))}
+#main .k-card.rx-lit{outline:2px solid var(--brass);outline-offset:2px;transition:outline-color .4s}
+@media (max-width:700px){.rx-plan .rx-row span{white-space:normal}.rx-scale .rx-nums b{font-size:15px}}
+/* V6.1.3 full-screen cards (his ask on Preview v30): ⤢ before the fold caret (A3: on hover or focus on the Mac, always on touch); the open card and its companions alone over the window, every sibling on the way up hidden; display only */
+.k-head>.cfs-btn{order:17!important;margin-left:auto;flex:none;width:22px;height:22px;min-height:0;padding:0;border:0;border-radius:6px;background:none;color:var(--faint);font-size:14px;line-height:1;cursor:pointer}
+.k-head>.cfs-btn:hover{color:var(--ink);background:var(--sunk)}
+.k-head>.cfs-btn~.fold-caret{margin-left:2px!important}
+.cfs-on .cfs-path>:not(.cfs-path):not(.cfs-card){display:none!important}
+.cfs-on .cfs-path{display:block!important;position:static!important;margin:0!important;padding:0!important;width:auto!important;min-width:0!important;max-width:none!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;transform:none!important;grid-column:auto!important;background:transparent!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}   /* the page background shows behind, no panel */
+.cfs-on .app.cfs-path{padding:60px 24px 32px!important}
+.cfs-on .app #ctxRail:not(.cfs-path){display:none!important}
+.cfs-on .app #ctxRail.cfs-path{position:static!important;display:block!important;width:auto!important;padding:0!important;background:none!important;border:0!important;overflow:visible!important}   /* the rail's own rules carry its id: a rail card opens full width */
+.cfs-on .cfs-path.cfs-host,.cfs-on .app #ctxRail.cfs-path.cfs-host{display:flex!important;flex-wrap:wrap!important;align-items:flex-start!important;align-content:flex-start;gap:16px!important;max-width:none!important}
+.cfs-on .cfs-path.cfs-thru,.cfs-on .app #ctxRail.cfs-path.cfs-thru{display:contents!important}   /* round 2: the boxes between the cards and their shared box step aside, so the cards sit side by side */
+.cfs-on .cfs-card{zoom:1.3;flex:1 1 var(--cfs-w,auto)!important;width:auto!important;min-width:var(--cfs-w,0)!important;max-width:var(--cfs-max,none)!important;margin:0!important;align-self:flex-start!important}   /* 1.3× (CFS_K): lettering and charts; --cfs-w is the page width, so a card never gets smaller than on the page */
+.cfs-on .cfs-card>.k-head>.fold-caret,.cfs-on .cfs-card>.k-head>.cfs-btn{display:none!important}
+.cfs-on .cfs-card>.k-head>.cfs-btn~.vis-pencil{margin-left:auto}
+.cfs-bar{position:fixed;top:0;left:0;right:0;z-index:60;display:flex;align-items:baseline;gap:10px;min-height:44px;padding:calc(8px + env(safe-area-inset-top,0px)) 12px 6px 24px;background:var(--panel-2);border-bottom:1px solid var(--line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.cfs-bar b{font:600 16px var(--serif,inherit);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.cfs-bar small{color:var(--muted);font-size:12.5px;white-space:nowrap}
+.cfs-x{align-self:center;flex:none;margin-left:auto;width:32px;height:32px;min-height:0;padding:0;border:0;border-radius:8px;background:none;color:var(--ink);font-size:16px;line-height:1;cursor:pointer}
+.cfs-x:hover{background:var(--sunk)}
+@media (max-width:700px){.cfs-on .cfs-path.cfs-host,.cfs-on .app #ctxRail.cfs-path.cfs-host{flex-direction:column!important;flex-wrap:nowrap!important;align-items:stretch!important}.cfs-on .cfs-card{zoom:1;flex:none!important;min-width:0!important;max-width:none!important;align-self:stretch!important}   /* phone: one column at the page size (it already fills the screen) */
+  .cfs-on .app.cfs-path{padding:58px 10px calc(78px + env(safe-area-inset-bottom,0px))!important}.cfs-bar{padding-left:14px;padding-right:6px}.cfs-bar small{overflow:hidden;text-overflow:ellipsis;min-width:0}}
+/* V6.1.3 round 2 (his words on Preview v31): no fold caret (a click on the header strip folds; the caret stays in the DOM for the keyboard and
+   shows only while it has keyboard focus); the ⤢ and the card's pencil always shown, sized from the two tokens below, nothing hard-coded */
+:root{--k-btn:26px;--k-glyph:17px}
+.fold-caret:not(:focus-visible){position:absolute!important;width:1px!important;height:1px!important;min-height:0!important;margin:0!important;padding:0!important;overflow:hidden!important;clip-path:inset(50%);opacity:0;pointer-events:none}
+.k-head>.cfs-btn{width:var(--k-btn);height:var(--k-btn);font-size:var(--k-glyph);border-radius:7px;color:var(--faint);opacity:.8;display:inline-flex;align-items:center;justify-content:center}
+:is(.k-head,.ph)>.vis-pencil{width:var(--k-btn);height:var(--k-btn);font-size:var(--k-glyph);border-radius:7px;color:var(--faint);background:none;opacity:.8}
+.k-head>.cfs-btn:is(:hover,:focus-visible),:is(.k-head,.ph)>.vis-pencil:is(:hover,:focus-visible){opacity:1;color:var(--ink);background:var(--sunk)}
+[data-feedback-id]>.ph:has(>.vis-pencil){padding-right:calc(var(--k-btn) + 4px)}
+[data-feedback-id]>.k-head:has(>.vis-pencil){padding-right:0}
+.k-head>.vis-pencil{position:static;order:19;flex:none;margin-left:auto;min-height:0;padding:0}.k-head>.cfs-btn~.vis-pencil{margin-left:2px}   /* in the title row, after the ⤢ (it sat in the corner, above a wrapped title row) */
+.cfs-ico{display:block;width:calc(var(--k-glyph) - 2px);height:calc(var(--k-glyph) - 2px);background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5'/%3E%3C/svg%3E") center/contain no-repeat}   /* ⤢ drawn in CSS, so the symbol is --k-glyph tall (the text glyph inked about half of it) and no card gains an svg; Body's own full-screen corners, 2 px under the pencil's symbol, his pick B: 26 px button, 15 px icon, Nov 3 */
+/* V6.1.3 rearrange (his pick 6 to 8, Nov 3: "think like the iphone where once its in edit mode then it everything is up to get moved"): one quiet button on the
+   title row, sized from --k-btn and --k-glyph like the header buttons; in edit mode a faint outline on each card that can move and a ⋮⋮ grip over its top
+   edge (absolute, so the page spacing does not change); while dragging the card fades and a bar shows where it lands. No wiggle */
+.rearr-ctl{display:inline-flex;align-items:center;gap:6px;margin-left:4px;vertical-align:middle}
+.rearr-btn{width:var(--k-btn);height:var(--k-btn);min-height:0;padding:0;border:0;border-radius:7px;background:none;color:var(--faint);opacity:.8;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.rearr-btn:is(:hover,:focus-visible){opacity:1;color:var(--ink);background:var(--sunk)}
+.rearr-ico{display:block;width:calc(var(--k-glyph) - 2px);height:calc(var(--k-glyph) - 2px);background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='3.5' width='7' height='7' rx='1.6'/%3E%3Crect x='13.5' y='3.5' width='7' height='7' rx='1.6'/%3E%3Crect x='3.5' y='13.5' width='7' height='7' rx='1.6'/%3E%3Crect x='13.5' y='13.5' width='7' height='7' rx='1.6'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3.5' y='3.5' width='7' height='7' rx='1.6'/%3E%3Crect x='13.5' y='3.5' width='7' height='7' rx='1.6'/%3E%3Crect x='3.5' y='13.5' width='7' height='7' rx='1.6'/%3E%3Crect x='13.5' y='13.5' width='7' height='7' rx='1.6'/%3E%3C/svg%3E") center/contain no-repeat}
+.rearr-txt{height:var(--k-btn);min-height:0;padding:0 11px;border-radius:999px;font-size:12.5px;line-height:1}
+.rearr-txt.done{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.rearr-on .rearr-card{outline:1px dashed color-mix(in srgb,var(--brass,#cfae63) 60%,transparent);outline-offset:2px}
+.rearr-card.rearr-pos{position:relative}
+.rearr-grip{position:absolute;top:0;left:50%;z-index:26;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;width:42px;height:20px;min-height:0;margin:0;padding:0 0 1px;border:1px solid color-mix(in srgb,var(--brass,#cfae63) 70%,transparent);border-radius:999px;background:var(--panel-2,#0c1a14);color:var(--ink);font:700 13px/1 var(--sans,inherit);letter-spacing:-1px;text-indent:-1px;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+.rearr-grip::after{content:"";position:absolute;inset:-10px -8px}   /* a finger-sized target around the small pill */
+.rearr-grip:is(:hover,:focus-visible){background:var(--brass,#cfae63);color:var(--bg)}
+.rearr-drag{opacity:.45}
+.rearr-mark{position:fixed;z-index:70;border-radius:3px;background:var(--brass,#cfae63);box-shadow:0 0 0 3px color-mix(in srgb,var(--brass,#cfae63) 25%,transparent);pointer-events:none}
+.rearr-dragging,.rearr-dragging *{cursor:grabbing!important;-webkit-user-select:none!important;user-select:none!important}
+@media (max-width:700px){.rearr-on #pageRearr{position:fixed;left:50%;bottom:calc(88px + env(safe-area-inset-bottom,0px));z-index:65;margin:0;padding:6px;transform:translateX(-50%);border:1px solid var(--line);border-radius:999px;background:var(--panel-2,#0c1a14);box-shadow:0 6px 20px rgba(0,0,0,.45)}}   /* phone: Reset and Done float above the tab bar, so the title row keeps its title */
 </style>
 <link rel="stylesheet" href="body-view.css">
 <script type="module" src="model-viewer.min.js"></script>
@@ -2423,6 +2512,9 @@ body:not([data-area="plan"]):not([data-area="template"]):not([data-area="log"]) 
 <link rel="apple-touch-icon" href="icon-192.png">
 <script defer src="delivery.js"></script>
 <script>
+/* V6.1.3 full screen: a card there is CSS-zoomed 1.3×. WebKit gives the boxes inside it in the card's own units and the pointer in the window's; Chromium
+   (which has currentCSSZoom) gives both in the window's. Charts divide the pointer by this to meet their box. */
+function glowZoomOf(el){ if (!el || 'currentCSSZoom' in el) return 1; let z = 1; for (let n = el; n && n.nodeType === 1; n = n.parentElement){ const v = parseFloat(getComputedStyle(n).zoom); if (v > 0 && v !== 1) z *= v; } return z; }
 /* Only the hosted surface installs a worker. The Mac wrapper serves its own bundled files from a
    fixed loopback origin and must not have a cache layer sitting between it and them; a stale shell
    there would be invisible and unfixable without clearing app storage. delivery.js is deferred, so
@@ -2807,6 +2899,22 @@ addEventListener('load', () => {
       '<p>Sleep keeps its hours colors. Fuel fills as you reach your deficit, and reads red when you’re over.</p>' +
       '<p>Total is what you did of what the filter’s view asks for. Goal is this calendar week. Tap a section, Domain or Focus to open or close it. Past seven days, each column is a week.</p></details>';
   }
+  /* V6.1.3 X6 Come back the day after a miss (his Mock pick, A; Care's streak text is unchanged): up to three habits he usually keeps (60% or more of the six days
+     before yesterday, at least four of them planned) that were missed yesterday and are due today. Those six days' rows are read once per record revision, as the
+     Mock does; yesterday's and today's rows are read on each draw, so a check-off shows its tick at once. */
+  const CB_DONE = new Set(['done', 'partial', 'minimum', 'tentative']);
+  let cbPast = {key:'', byDay:null};
+  function comebacks(st){
+    const t = todayYmd(), key = t + '|' + (st.revision || ''), rowsOf = d => new Map(onDayRows(st, d).map(r => [r.seriesId, r]));
+    if (cbPast.key !== key){ const byDay = new Map(); for (let i = 2; i <= 7; i++){ const d = addDays(t, -i); byDay.set(d, rowsOf(d)); } cbPast = {key, byDay}; }
+    const yRows = rowsOf(addDays(t, -1)), due = rowsOf(t), out = [];
+    for (const r of yRows.values()){
+      if (CB_DONE.has(r.status) || r.status === 'skipped' || !due.has(r.seriesId) || out.some(o => o.sid === r.seriesId)) continue;
+      let k = 0, of = 0; for (let i = 2; i <= 7; i++){ const p = cbPast.byDay.get(addDays(t, -i)).get(r.seriesId); if (!p) continue; of++; if (CB_DONE.has(p.status)) k++; }
+      if (of >= 4 && k / of >= .6) out.push({sid:r.seriesId, name:r.name, k, of, done:CB_DONE.has(due.get(r.seriesId).status)});
+    }
+    return out.slice(0, 3);
+  }
   /* ---- Today: This Week holds what Gena and Glow track together; a real visual beside each summary circle ---- */
   function glThisWeek(){
     const st = S(), t = todayYmd(), W = filtWin('home', 'thisweek'), first = st.prefs.weekStart === 0 ? 0 : 1, week = [0, 1, 2, 3, 4, 5, 6].map(i => addDays(weekStartOf(W.to, first), i)), win = W.per === 'week' ? [0, 1, 2, 3, 4, 5, 6].map(i => addDays(W.from, i)) : W.days, L = glInfo(), ids = L ? L.care : [];
@@ -2828,7 +2936,7 @@ addEventListener('load', () => {
     const journalOn = d => { const n = ((st.prefs.genaDetail || {}).journal || {})[d]; return Number.isFinite(n) ? n : glDone('dw-journal', d) ? 1 : 0; };
     const brushFirst = q => q.name === 'Brush AM' ? 0 : q.name === 'Brush PM' ? 1 : 2, hyg = [...ids].sort((a, b) => brushFirst(a) - brushFirst(b));
     const active = f => win.some(d => f(d));
-    const itemRows = (list, key) => list.map(id => { const q = st.series.find(x => x.id === id), one = [id]; return {e:'', name:(latestVersion(q) || {}).name || id, page:'hearth', f:d => itemsOn(one, d), any:true, key:key + ':' + id}; }).filter(r => active(r.f));
+    const itemRows = (list, key) => list.map(id => { const q = st.series.find(x => x.id === id), one = [id]; return {e:'', name:(latestVersion(q) || {}).name || id, sid:id, page:'hearth', f:d => itemsOn(one, d), any:true, key:key + ':' + id}; }).filter(r => active(r.f));
     const kitRows = key => [...new Set(kitList.filter(k => win.some(d => kitOn(k, d))).map(k => k.kind))].map(kind => { const ks = kitList.filter(k => k.kind === kind), f = d => { const two = ks.filter(k => kitOn(k, d)).map(kitPiece); return two.length ? {two, keep:true, cols:Math.min(two.length, 6)} : 0; }; return {e:KIT_EMOJI[kind] || '🧺', name:ks[0].name || kind, page:'hearth', f, any:true, key:key + ':' + kind}; });
     // a Domain opens to its Focuses, a Focus to its items; each is what Gena has in this view, so a thing added or dropped there shows or leaves by itself
     const focusRows = (doms, page) => { const out = doms.flatMap(glCards).map(g => { const list = glFocusIds(g), laundry = /laundry/i.test(g.name), key = 'f:' + g.id, f = d => itemsOn(list, d, laundry ? kitsOn : null); return {e:g.genaEmoji || '', name:g.name, page, f, any:true, key, kids:() => laundry ? kitRows(key).concat(itemRows(list, key)) : itemRows(list, key)}; }).filter(r => active(r.f)); if (doms.includes('home') && !out.some(r => /laundry/i.test(r.name)) && win.some(d => kitsOn(d).length)) out.push({e:'🧺', name:'Laundry', page, f:d => { const two = kitsOn(d); return two.length ? {two, keep:true, cols:Math.min(two.length, 6)} : 0; }, any:true, key:'f:laundry', kids:() => kitRows('f:laundry')}); return out; };
@@ -2837,7 +2945,7 @@ addEventListener('load', () => {
     const domain = (e, name, page, list, doms, extra) => ({e, name, page, f:d => itemsOn(list, d, extra), any:true, key:'d:' + doms[0], kids:() => focusRows(doms, page)});
     const groups = [{key:'g:jik', icon:'<i style="color:#b69cf0;font-style:normal">✠</i>', name:'JIK', rows:[{e:'🙏', name:'Prayer', page:'faith', f:d => glTwo('dw-prayer-am', 'dw-prayer-pm', d)}, {e:'🕊️', name:'Fasting', page:'faith', f:d => glMark('dw-fasting', d) || '', due:fastDue}, {e:'⛪', name:'Church', page:'faith', f:d => glMark('dw-church', d), own:glDoneIn(['dw-church'], t.slice(0, 8) + '01', t.slice(0, 8) + '31') + '/1'}, {e:'📖', name:'Journal', page:'faith', f:d => { const n = journalOn(d), m = glMark('dw-journal', d), off = m === 'skipped' || m === 'excused' ? m : null; return {two:[1, 2].map(i => ['', i === 1 ? 'first entry' : 'second entry', n >= i ? 'done' : off])}; }, own:'+' + week.reduce((a, d) => a + journalOn(d), 0)}]},
       {key:'g:temple', icon:'<img src="icons/temple-columns.svg" alt="" width="16" height="16">', name:'Temple', rows:[metric('👟', 'Steps', 'fitness', d => steps.has(d) ? steps.get(d) : null, () => sg, v => (Math.round(v / 100) / 10) + 'k|' + Math.round(v / 1000) + 'k'), metric('💦', 'Sweat', 'fitness', d => mins[d] || 0, () => WORKOUT_MIN, v => Math.round(v) + 'm|' + Math.round(v)), metric('😴', 'Sleep', 'care', d => sleep.has(d) ? sleep.get(d) : null, () => need, v => v.toFixed(1) + 'h|' + v.toFixed(1), {colOf:v => GV.sleepColour(v * 60, need * 60)}), metric('💧', 'Water', 'nourish', d => water.has(d) ? water.get(d) : null, d => waterNow(st, d).goal || 100, v => Math.round(v) + 'oz|' + Math.round(v), {runFmt:v => Math.round(v) + 'oz'}), metric('🔥', 'Fuel', 'nourish', d => net.has(d) ? net.get(d) : null, () => goal, fuelFmt, {share:v => Math.max(.01, v / goal), colOf:v => goalScaleTone(v / goal), runFmt:fuelRun})]},
-      {key:'g:care', icon:'🌿', name:'Care', rows:[{e:'🪥', name:'Hygiene', page:'care', f:d => ({two:hyg.map(q => [q.e, q.name, glMark(q.id, d)]), keep:true}), frac:.6, key:'d:hygiene', kids:() => hyg.map(q => ({e:q.e, name:q.name, page:'care', f:d => ({two:[['', q.name, glMark(q.id, d)]], keep:true, cols:1})}))}]},
+      {key:'g:care', icon:'🌿', name:'Care', rows:[{e:'🪥', name:'Hygiene', page:'care', f:d => ({two:hyg.map(q => [q.e, q.name, glMark(q.id, d)]), keep:true}), frac:.6, key:'d:hygiene', kids:() => hyg.map(q => ({e:q.e, name:q.name, sid:q.id, page:'care', f:d => ({two:[['', q.name, glMark(q.id, d)]], keep:true, cols:1})}))}]},
       {key:'g:hearth', icon:'<img src="icons/hearth-fireplace.svg" alt="" width="16" height="16">', name:'Hearth', rows:[domain('👪', domainName('family'), 'hearth', fam, ['family', 'social']), domain('🏠', domainName('home'), 'hearth', hm, ['home'], kitsOn)]},
       {key:'g:talents', icon:'<img src="icons/talents-coin.svg" alt="" width="16" height="16">', name:'Talents', rows:[domain('💼', domainName('career'), 'talents', job, ['career']), domain('🌱', 'Growth', 'talents', grow, ['growth'])]}];
     // the bar fills to the goal and its colour is how far it went, on the grade ladder: red low, purple at SSS. Sleep and Fuel keep their own scales
@@ -2851,12 +2959,14 @@ addEventListener('load', () => {
     const running = r => { if (r.raw){ let sum = 0, of = 0; for (const d of win){ of += r.goalOf(d); if (d <= t){ const v = r.raw(d); if (v != null) sum += v; } } const f = r.runFmt || (v => String(r.fmt(v)).split('|')[0]); return f(sum) + '/' + f(of); } let done = 0, of = 0; for (const d of win){ if (r.due && !r.due(d)) continue; const v = r.f(d); if (v && v.two){ done += v.two.filter(p => p[2] === 'done').length; of += v.two.length; } else if (v === 'done'){ done++; of++; } else if (v === '' || v === 'partial' || v === 'skipped'){ of++; } } return of ? done + '/' + of : String(done); };
     // the goal column stays the calendar week's, whatever the filter
     const weekGoal = r => { if (r.own) return r.own; if (r.fold) return ''; const vals = week.map(d => dayVal(r, d)), lived = vals.filter(v => v !== undefined && v !== null && v !== 'excused' && !(v && v.two && v.two.every(p => p[2] === 'excused' || (!v.keep && p[2] === null)))), hit = lived.filter(v => v === 'done' || (v && v.two && v.two.filter(p => p[2] === 'done').length >= (r.frac ? r.frac * v.two.length : r.any ? 1 : v.two.length)) || (typeof v === 'number' && v >= (r.any ? .01 : .95))).length; return hit + '/' + lived.length; };
-    const line = (r, lv) => { const open = r.kids ? isOpen(r.key, false) : false, nameHTML = '<button type="button" class="lw-name lv' + lv + '"' + (r.kids ? ' data-act="weekFold" data-k="' + esc(r.key) + '" data-d="0" aria-expanded="' + open + '"' : ' data-area="' + r.page + '"') + '>' + (r.kids ? '<span class="lw-car" aria-hidden="true">' + (open ? '▾' : '▸') + '</span>' : '') + (r.e ? '<span aria-hidden="true">' + r.e + '</span>' : '') + '<span class="lw-nm">' + esc(r.name) + '</span></button>'; return nameHTML + cols.map(c => c.days.length === 1 ? oneCell(r, c.days[0]) : manyCell(r, c)).join('') + '<small class="lw-run" data-fs="13" style="font-size:13px">' + (r.fold ? '' : esc(running(r))) + '</small><small class="lw-n" data-fs="13" style="font-size:13px">' + (lv ? '' : esc(weekGoal(r))) + '</small>' + (open ? r.kids().map(k => line(k, lv + 1)).join('') : ''); };
+    const cb = comebacks(st), back = new Set(cb.map(x => x.name)), backIds = new Set(cb.map(x => x.sid));   // V6.1.3 X6: a row is matched by its series (Brush AM is the habit Brush), else by name
+    const line = (r, lv) => { const open = r.kids ? isOpen(r.key, false) : false, nameHTML = '<button type="button" class="lw-name lv' + lv + '"' + (r.kids ? ' data-act="weekFold" data-k="' + esc(r.key) + '" data-d="0" aria-expanded="' + open + '"' : ' data-area="' + r.page + '"') + '>' + (r.kids ? '<span class="lw-car" aria-hidden="true">' + (open ? '▾' : '▸') + '</span>' : '') + (r.e ? '<span aria-hidden="true">' + r.e + '</span>' : '') + '<span class="lw-nm">' + esc(r.name) + ((r.sid && backIds.has(r.sid)) || back.has(r.name) ? '<span class="rx-back" data-parity="V613-X6">back today</span>' : '') + '</span></button>'; return nameHTML + cols.map(c => c.days.length === 1 ? oneCell(r, c.days[0]) : manyCell(r, c)).join('') + '<small class="lw-run" data-fs="13" style="font-size:13px">' + (r.fold ? '' : esc(running(r))) + '</small><small class="lw-n" data-fs="13" style="font-size:13px">' + (lv ? '' : esc(weekGoal(r))) + '</small>' + (open ? r.kids().map(k => line(k, lv + 1)).join('') : ''); };
     // a section folds to one row, a share of what is under it for each day
     const body = groups.map(g => { const open = isOpen(g.key, true), head = '<button type="button" class="lw-group" data-act="weekFold" data-k="' + g.key + '" data-d="1" aria-expanded="' + open + '"><span class="lw-car" aria-hidden="true">▾</span><span aria-hidden="true">' + g.icon + '</span>' + g.name + '</button>'; if (open) return head + g.rows.map(r => line(r, 0)).join(''); const r = {name:g.name, fold:true, page:g.rows[0].page, f:d => { const list = g.rows.filter(q => !(q.due && !q.due(d))).map(q => shareOf(q.f(d))).filter(v => v !== null); return list.length ? Math.max(.01, list.reduce((a, b) => a + b, 0) / list.length) : null; }}; return '<div class="lw-sep"></div>' + line({...r, kids:() => [], key:g.key, closedGroup:g}, 0).replace('data-d="0"', 'data-d="1"').replace('<span class="lw-nm">', '<span aria-hidden="true">' + g.icon + '</span><span class="lw-nm">'); }).join('');
     const title = W.per === 'week' ? 'This Week' : W.day ? (W.from === t ? 'Today' : monthDay(W.from)) : W.per === 'month' ? 'This Month' : W.per === 'all' ? 'All' : W.trail ? 'Last ' + W.trail + ' Days' : 'Chosen Days';
     const head = '<span></span>' + cols.map(c => '<small class="' + (c.days.includes(t) ? 'on' : '') + '">' + esc(c.label) + '</small>').join('') + '<small class="lw-run" data-fs="13" style="font-size:13px">Total</small><small class="lw-n" data-fs="13" style="font-size:13px">Goal</small>';
-    return '<section class="k-card gl-thisweek" data-parity="GL-THISWEEK" data-feedback-id="gl-thisweek" data-feedback-label="This Week"><div class="k-head"><span aria-hidden="true">📅</span><span class="k-title">' + esc(title) + '</span>' + infoBtn('gl-thisweek', 'This Week') + '<span class="gl-win">' + esc(win[0] === win[win.length - 1] ? monthDay(win[0]) : monthDay(win[0]) + ' – ' + monthDay(win[win.length - 1])) + '</span></div>' + infoPop('gl-thisweek', 'What Gena checked off and what Glow measured, for the view you picked in the filter. Total is what you did of what this view asks for; Goal is this calendar week.') + '<div class="lw-grid" style="--n:' + cols.length + '">' + head + body + '</div>' + glWeekKey() + '</section>';
+    return '<section class="k-card gl-thisweek" data-parity="GL-THISWEEK" data-feedback-id="gl-thisweek" data-feedback-label="This Week"><div class="k-head"><span aria-hidden="true">📅</span><span class="k-title">' + esc(title) + '</span>' + infoBtn('gl-thisweek', 'This Week') + '<span class="gl-win">' + esc(win[0] === win[win.length - 1] ? monthDay(win[0]) : monthDay(win[0]) + ' – ' + monthDay(win[win.length - 1])) + '</span></div>' + infoPop('gl-thisweek', 'What Gena checked off and what Glow measured, for the view you picked in the filter. Total is what you did of what this view asks for; Goal is this calendar week.') +
+      '<p class="rx-line" data-parity="V613-X6">' + (cb.length ? 'Back today: ' + cb.map(x => '<b>' + esc(x.name) + '</b> (kept ' + x.k + ' of ' + x.of + ' before)' + (x.done ? ' ✓' : '')).join(' · ') + '. One miss doesn’t break a habit; two in a row starts to.' : 'Nothing to come back to: every habit you usually keep was kept yesterday.') + '</p>' + '<div class="lw-grid" style="--n:' + cols.length + '">' + head + body + '</div>' + glWeekKey() + '</section>';
   }
   function glFaithWeek(){
     const t = todayYmd(), W = filtWin('home', 'prayer'), days = W.per === 'week' ? [0, 1, 2, 3, 4, 5, 6].map(i => addDays(W.from, i)) : W.days, both = days.filter(d => glDone('dw-prayer-am', d) && glDone('dw-prayer-pm', d)).length, one = days.filter(d => glDone('dw-prayer-am', d) !== glDone('dw-prayer-pm', d)).length;
@@ -2883,7 +2993,7 @@ addEventListener('load', () => {
       let headline = !!c.querySelector('[data-fs="34"]');
       const w = document.createTreeWalker(c, NodeFilter.SHOW_TEXT), seen = new Set(); let n;
       while ((n = w.nextNode())){
-        const el = n.parentElement; if (!n.textContent.trim() || !el || seen.has(el) || el.dataset.fs || el.closest('svg,.gm-demo-corner,.gm-demo-mini,.gc-tip,.lc-tip,.lg-f')) continue;
+        const el = n.parentElement; if (!n.textContent.trim() || !el || seen.has(el) || el.dataset.fs || el.closest('svg,.gm-demo-corner,.gm-demo-mini,.gc-tip,.lc-tip,.lg-f,.vis-pencil')) continue;   // V6.1.3: the pencil's symbol is --k-glyph
         seen.add(el); const s = parseFloat(getComputedStyle(el).fontSize); let fs;
         if (el.closest('.g-letter.big')){ fs = hero ? 34 : 46; hero = true; }
         else if (el.closest('.k-title,.k-head,.ph,h2,h3,h4,summary,.sig-t small')) fs = 13;
@@ -4949,7 +5059,7 @@ addEventListener('load', () => {
         tip.style.left = Math.max(0, Math.min(state.W - tw, x - tw / 2)) + 'px'; tip.style.top = (-th - 4) + 'px';   // just above the plot, level with the crosshair: it never covers the line
       }
       const cur = {i:null, set(i){ this.i = i; sel = i; showSel(i); }};
-      function pick(clientX){ const r = svg.getBoundingClientRect(), x = clientX - r.left, n = state.b - state.a; let i = state.a + Math.round((x - state.ml) / (state.iw || 1) * n); cur.set(Math.max(state.a, Math.min(state.b, i))); }
+      function pick(clientX){ const r = svg.getBoundingClientRect(), x = (clientX / glowZoomOf(svg) - r.left) * (state.W / (r.width || state.W)), n = state.b - state.a; let i = state.a + Math.round((x - state.ml) / (state.iw || 1) * n); cur.set(Math.max(state.a, Math.min(state.b, i))); }   // in drawn units: right in a 1.3× full-screen card too
       root.addEventListener('pointermove', e => { if (e.pointerType === 'touch' && !e.buttons) return; pick(e.clientX); });
       root.addEventListener('pointerdown', e => { pick(e.clientX); });
       root.addEventListener('pointerleave', e => { if (e.pointerType !== 'touch') cur.set(null); });
@@ -5535,7 +5645,7 @@ addEventListener('load', () => {
       if (drawer && (drawer.id === 'net' || (drawer.panel && drawer.panel.key === 'fuel'))) openDrawer('net', {day:nb.dataset.date}); return; }
     const svg = e.target.closest && e.target.closest('.lc svg'); if (!svg){ if (!(e.target.closest && e.target.closest('.lc-pop'))) document.querySelectorAll('.lc-pop').forEach(x => x.remove()); return; }
     const lc = svg.closest('.lc'), pts = lcPoints(lc); if (!pts.length) return; e.stopPropagation();
-    const r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal, px = (e.clientX - r.left) / r.width * vb.width; let best = null, bd = 1e9;
+    const r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal, px = (e.clientX / glowZoomOf(svg) - r.left) / r.width * vb.width; let best = null, bd = 1e9;
     pts.forEach(p => { const dd = Math.abs(+p.el.getAttribute('cx') - px); if (dd < bd){ bd = dd; best = p; } }); if (best) lcPick(lc, best, true);
   }, true);
   document.addEventListener('keydown', e => {
@@ -5552,7 +5662,7 @@ addEventListener('load', () => {
   document.addEventListener('pointermove', e => {
     if (e.pointerType === 'touch') return; const svg = e.target.closest && e.target.closest('.lc svg'); if (!svg) return;
     const lc = svg.closest('.lc'), pts = lcPoints(lc); if (!pts.length) return;
-    const r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal, px = (e.clientX - r.left) / r.width * vb.width; let best = null, bd = 1e9; pts.forEach(p => { const dd = Math.abs(+p.el.getAttribute('cx') - px); if (dd < bd){ bd = dd; best = p; } });
+    const r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal, px = (e.clientX / glowZoomOf(svg) - r.left) / r.width * vb.width; let best = null, bd = 1e9; pts.forEach(p => { const dd = Math.abs(+p.el.getAttribute('cx') - px); if (dd < bd){ bd = dd; best = p; } });
     if (!best || lc.dataset.hov === best.d) return; lc.dataset.hov = best.d; lcMark(lc, best);
     const dg0 = +lc.dataset.digits || 0, num = v => (v < 0 ? '−' : lc.dataset.fmt === 'signed' && v > 0 ? '+' : '') + (Math.abs(v) >= 1000 ? Math.round(Math.abs(v)).toLocaleString('en-US') : Math.abs(v).toFixed(dg0));
     const cell = lc.closest('.tr-cell'), val = cell && cell.querySelector('.tr-val');
@@ -7171,7 +7281,16 @@ addEventListener('load', () => {
     const extra = Number.isFinite(tg) && tg > 0 ? '<button type="button" class="mn-extra" data-act="nutritionOpen" data-spare="protein-to-go" data-source="the day’s food log protein against your protein target (Body → Goals)" data-win-from="' + NW.from + '" data-win-to="' + NW.to + '"><span>' + (pg === null ? 'No protein logged yet' : NW.day ? (pg >= tg ? 'Protein target met' : Math.round(tg - pg) + ' g protein to go') : 'Protein a day · ' + mm.days + ' of ' + NW.days.length + ' days logged') + '</span>' + kFill(pg === null ? 0 : pg / tg, 'var(--c-blue,#6fb6e0)') + '<small>' + (pg === null ? '—' : Math.round(pg)) + ' of ' + Math.round(tg) + ' g</small></button>' : '';   // V3.7 U6: the Draft's spare-space extra
     const m = half(macrosCardV35(NW.to, mm)).replace(/<\/div>$/, extra + '</div>'), n = half(nutritionCardV36(NW));
     if (!m && !n) return '';
-    return withChip('<section class="k-card mn-card" data-feedback-id="macros-nutrition" data-feedback-label="Macros & Nutrition" data-family="macros-nutrition" data-parity="V37-U1-01"><div class="k-head"><span aria-hidden="true">🍽️</span><span class="k-title">Macros &amp; Nutrition</span></div><div class="mn-grid">' + m + n + '</div></section>', nPage, 'nutrition');
+    return withChip('<section class="k-card mn-card" data-feedback-id="macros-nutrition" data-feedback-label="Macros & Nutrition" data-family="macros-nutrition" data-parity="V37-U1-01"><div class="k-head"><span aria-hidden="true">🍽️</span><span class="k-title">Macros &amp; Nutrition</span></div><div class="mn-grid">' + m + n + '</div>' + (area === 'nourish' ? proteinBand(st0, date) : '') + '</section>', nPage, 'nutrition');   // V6.1.3 X7: the band on Nourish only
+  }
+  /* V6.1.3 X7 A protein band sized for a cut (his Mock pick): 1.6 to 2.2 g per kg of his goal weight beside the selected day's protein (the card's own macrosOn).
+     No fiber line: the Nutrition Grade already scores Fibre per 1,000 kcal. */
+  function proteinBand(st, date){
+    const goalLb = goalsV2(st).weightLb.jan7; if (!Number.isFinite(goalLb) || goalLb <= 0) return '';
+    const kg = goalLb / 2.2046, lo = Math.round(1.6 * kg), hi = Math.round(2.2 * kg), mm = macrosOn(st, date), prot = mm && Number.isFinite(mm.g.p) ? mm.g.p : 0, now = proteinTargetG(st);
+    const pct = v => Math.min(100, v / hi * 100).toFixed(1), tone = prot >= lo ? 'var(--c-green)' : 'var(--c-red)';
+    return '<div data-parity="V613-X7"><div class="rx-prot"><span>🍗 Protein</span><span class="rx-prot-bar"><i style="left:' + pct(lo) + '%;right:0;background:color-mix(in srgb,var(--c-green) 22%,transparent)"></i><i style="width:' + pct(prot) + '%;background:' + tone + '"></i></span><span><b>' + rxN0(prot) + '</b> g · band ' + lo + ' to ' + hi + ' g</span></div>' +
+      '<p class="rx-cap">A band for a cut: 1.6 to 2.2 g per kg of your ' + goalLb + ' lb goal, so it holds as you lose' + (Number.isFinite(now) ? ' (today’s target, ' + rxN0(now) + ' g, comes from today’s weight and falls with it)' : '') + '. Under ' + lo + ' g reads red, inside the band green.</p></div>';
   }
   /* V3.7 U2 (note 18, A45, A82): a spectrum bar per nutrient in its own unit. Limits are green on the low side, adequacy on the
      high side. Edges are the component's own points in NutritionGrade: a limit's best point (score 100) is the ideal edge and its
@@ -7330,6 +7449,81 @@ addEventListener('load', () => {
       (multi ? gcHost('nourish-' + page, spec, 130) : '<div class="today-fends nr-ends">' + field('burn', burn, '🔥', 'Burn') + field('food', food, '🍎', 'Food') + '</div>') +
       '<div class="nr-macs">' + mac + '</div>' + estLine + '</section>';
   }
+  /* ---------- V6.1.3 research picks (FIX_LIST CM, his eight Mock picks, Nov 3). The Mock's code is the spec (artifacts/glow-live-mockup/mock/options-s5.js
+     X1 to X7, options-s4.js R1). Display only: nothing here is saved, and none of it feeds a grade, points, Perfect or any score (his yes to question 3).
+     Every number comes through the app's own readers (metricSeries, onDayRows, macrosOn, NetEnergy.day, relayedRecords). ---------- */
+  const rxN0 = v => Math.round(v).toLocaleString('en-US'), rxN1 = v => (Math.round(v * 10) / 10).toFixed(1);
+  const RX_SUMS = ['sodium', 'alcohol_consumption', 'time_in_daylight'];
+  let rxSums = {rows:null, n:0, rev:null, map:null};
+  // a metric's daily sum from his record (relayedRecords, by its source day): one pass for all three, kept until the rows or the revision change
+  function rxDaySum(st, metric){
+    const rows = st.sourceRecords || [];
+    if (rxSums.rows !== rows || rxSums.n !== rows.length || rxSums.rev !== st.revision){
+      const map = new Map(RX_SUMS.map(k => [k, new Map()]));
+      for (const r of relayedRecords(st)){ const m = r.unmapped && r.unmapped.healthAutoExport, o = m && map.get(m.metric); if (!o || !Number.isFinite(r.value)) continue; const d = m.day || String(r.start).slice(0, 10); o.set(d, (o.get(d) || 0) + r.value); }
+      rxSums = {rows, n:rows.length, rev:st.revision, map};
+    }
+    return rxSums.map.get(metric) || new Map();
+  }
+  const rxWeighIns = st => [...metricSeries(st, 'weight', 400)].sort((a, b) => a[0] < b[0] ? -1 : 1);
+  // the saved plan, as planFigures reads it: start weight and date, the goal weight and its date, and the daily deficit goal
+  function rxPlan(st){
+    const g = goalsV2(st), end = validCalendarDate(st.prefs && st.prefs.checkpoint) ? st.prefs.checkpoint : g.goalDate, target = g.weightLb.jan7, goal = Math.abs(Number(g.deficit.daily) || 0);
+    if (!validCalendarDate(end) || !Number.isFinite(target) || !Number.isFinite(g.startWeightLb) || !g.startDate || !goal) return null;
+    const planDays = calendarDistance(g.startDate, end); if (planDays <= 0) return null;
+    return {start:g.startWeightLb, end, target, goal, planDays, planNeed:(g.startWeightLb - target) * NET_KCAL_PER_LB / planDays, atGoalEnd:g.startWeightLb - goal * planDays / NET_KCAL_PER_LB, planRate:(g.startWeightLb - target) / planDays * 7};
+  }
+  // X1 The daily goal follows the plan (Body's Weight & Goal and the rail's): the plan's need a day against the goal, then from today from the card's own Estimate
+  function rxPlanLine(st, est){
+    const p = rxPlan(st); if (!p) return '';
+    const t = todayYmd(), left = calendarDistance(t, p.end); let now = '';
+    if (Number.isFinite(est) && left > 0){
+      const need = (est - p.target) * NET_KCAL_PER_LB / left, reach = est - p.goal * left / NET_KCAL_PER_LB, on = addDays(t, Math.ceil((est - p.target) * NET_KCAL_PER_LB / p.goal));
+      now = '<div class="rx-row"><span>From today: <b>' + rxN1(est - p.target) + '</b> lb in <b>' + left + '</b> days needs <b>' + rxN0(need) + '</b> kcal a day</span><span>At ' + rxN0(p.goal) + ' you reach <b>' + rxN1(reach) + '</b> lb on ' + esc(monthDay(p.end)) + ', and ' + p.target + ' on <b>' + esc(monthDay(on)) + '</b></span></div>';
+    }
+    return '<div class="rx-plan" data-parity="V613-X1"><div class="rx-row"><span>The plan (' + p.start + ' to ' + p.target + ' lb by ' + esc(monthDay(p.end)) + ') needs <b>' + rxN0(p.planNeed) + '</b> kcal a day</span><span>your goal is <b>' + rxN0(p.goal) + '</b>, which lands at <b>' + rxN1(p.atGoalEnd) + '</b> lb</span></div>' + now + '</div>';
+  }
+  // X2 Plan status from your weigh-ins (his yes, Nov 3): a least-squares line through the last four weigh-ins up to six weeks back; with fewer than three, the last two
+  function rxWeighTrend(st){
+    const w = rxWeighIns(st); if (w.length < 2) return null;
+    const last = w[w.length - 1][0], pts = w.filter(x => calendarDistance(x[0], last) <= 42).slice(-4), two = pts.length < 3, use = two ? w.slice(-2) : pts;
+    const xs = use.map(x => calendarDistance(use[0][0], x[0])), ys = use.map(x => x[1]), mx = xs.reduce((a, b) => a + b, 0) / xs.length, my = ys.reduce((a, b) => a + b, 0) / ys.length;
+    let sxy = 0, sxx = 0; xs.forEach((x, i) => { sxy += (x - mx) * (ys[i] - my); sxx += (x - mx) * (x - mx); });
+    const slope = sxx ? sxy / sxx : 0;
+    return {use, two, first:use[0][0], last, at:my + slope * (xs[xs.length - 1] - mx), rate:-slope * 7};
+  }
+  function rxTrendHTML(st){
+    const t = rxWeighTrend(st); if (!t) return '<div class="rx-plan" data-parity="V613-X2">One more weigh-in and Glow can project your date.</div>';
+    const p = rxPlan(st), planRate = p ? p.planRate : null, rate = t.rate, when = rate > 0 && p && t.at > p.target ? addDays(t.last, Math.ceil((t.at - p.target) / rate * 7)) : null;
+    const word = planRate == null ? '' : rate >= planRate * 1.05 ? 'ahead' : rate >= planRate * .9 ? 'on plan' : 'behind', tone = word === 'ahead' ? 'var(--c-violet)' : word === 'on plan' ? 'var(--c-green)' : 'var(--c-red)';
+    const sod = rxDaySum(st, 'sodium'), vals = [...sod.values()].sort((x, y) => x - y), med = vals.length ? vals[vals.length >> 1] : null, before = sod.get(addDays(t.last, -1));
+    const water = med && before && before > med * 1.4 ? '<span>' + esc(monthDay(t.last)) + ' came after a salty day (' + rxN0(before) + ' mg sodium): it may read high from water</span>' : '';
+    const ago = calendarDistance(t.last, todayYmd()), stale = ago > 14 ? '<span>Last weigh-in ' + esc(monthDay(t.last)) + ', ' + ago + ' days ago: a new one moves this line.</span>' : '';
+    const from = t.two ? 'Your last two weigh-ins (too few in six weeks for a line)' : 'A line through your last ' + t.use.length + ' weigh-ins, ' + esc(monthDay(t.first)) + ' to ' + esc(monthDay(t.last));
+    return '<div class="rx-plan" data-parity="V613-X2"><div class="rx-row"><span>' + from + ': <b>' + rxN1(rate) + '</b> lb a week</span>' + (word ? '<span>plan pace ' + rxN1(planRate) + ' · <b style="color:' + tone + '">' + word + '</b></span>' : '') + (when ? '<span>at this pace, ' + p.target + ' lb on <b>' + esc(monthDay(when)) + '</b></span>' : '') + '</div>' +
+      '<div class="rx-row">' + water + stale + '<span>Two or three mornings in a row, averaged, steady this more than one reading: water moves the scale 1 to 3 lb.</span></div></div>';
+  }
+  // X3 Burn from your scale (Nourish, under its top card): between his last two weigh-ins, the Watch's burn a day against food plus the scale's change; held on too few days
+  function scaleBurnCard(st){
+    const w = rxWeighIns(st); if (w.length < 2) return '';
+    const [a, b] = w.slice(-2), days = calendarDistance(a[0], b[0]); if (days < 1) return '';
+    let logged = 0, food = 0, burnN = 0, burn = 0;
+    for (let d = addDays(a[0], 1); d <= b[0]; d = addDays(d, 1)){ let e = null; try { e = NetEnergy.day(st, d); } catch (_) { e = null; } if (!e) continue; if (e.food > 0){ logged++; food += e.food; } if (e.burn > 0){ burnN++; burn += e.burn; } }
+    const need = Math.ceil(days * 5 / 7), ok = logged >= need, avgFood = ok ? food / logged : null, watch = burnN >= need ? burn / burnN : null;   // held: no figure from too few days
+    const scale = avgFood != null ? avgFood + (a[1] - b[1]) * NET_KCAL_PER_LB / days : null, gap = scale != null && watch != null ? scale - watch : null;
+    const num = (v, l, signed) => '<div><b>' + (v == null ? 'held' : (signed ? (v >= 0 ? '+' : '−') : '') + rxN0(Math.abs(v))) + '</b><small>' + l + '</small></div>';
+    return '<section class="k-card rx-card rx-scale" data-parity="V613-X3" data-feedback-id="scale-burn" data-feedback-label="Burn from your scale"><div class="k-head"><span aria-hidden="true">⚖️</span><span class="k-title">Burn from your scale</span><span class="k-spacer"></span><span class="rx-tag">' + esc(monthDay(a[0])) + ' to ' + esc(monthDay(b[0])) + '</span></div>' +
+      '<div class="rx-nums">' + num(watch, 'Watch burn a day') + num(scale, 'from food and the scale') + num(gap, 'the scale against the Watch', true) + '</div>' +
+      '<p class="rx-cap"><b>' + logged + ' of ' + days + '</b> days have food logged' + (ok ? '.' : ': too few, so Glow holds this figure until <b>' + need + '</b> are logged.') + (watch == null ? ' <b>' + burnN + ' of ' + days + '</b> have the Watch’s burn, so it is held until <b>' + need + '</b> do.' : '') + ' Food eaten, less what the scale lost, is what you burned; the Watch’s number is an estimate from your heart and movement. When they disagree for weeks, the goal should follow the scale.</p></section>';
+  }
+  // a night from his Watch's sleep rows (real start and end), by the day he woke; the longest row a day
+  function rxNights(st, from, to){
+    const by = new Map();
+    for (const r of relayedRecords(st, 'sleep')){ if (!r.start || !r.end) continue; const d = String((r.window && r.window.to) || r.end).slice(0, 10); if (d < from || d > to) continue; const prev = by.get(d); if (!prev || (r.durationSec || 0) > (prev.durationSec || 0)) by.set(d, r); }
+    return [...by].sort((a, b) => a[0] < b[0] ? -1 : 1);
+  }
+  const rxClockMin = iso => { const t = new Date(iso); const m = t.getHours() * 60 + t.getMinutes(); return m < 18 * 60 ? m + 24 * 60 : m; };   // minutes after midnight, the evening before counted as one night
+  const rxClockText = m => { m = ((Math.round(m) % 1440) + 1440) % 1440; const h = Math.floor(m / 60), mm = m % 60; return (h % 12 || 12) + ':' + String(mm).padStart(2, '0') + ' ' + (h < 12 ? 'AM' : 'PM'); };
   /* V6 T4 (his pick A): the rail's goal card becomes BV option A, collapsed: the plan corridor (plan ± 0.5 lb), the durable estimate (anchored at the
      plan start, moved only by what he logs; a day without a full log takes the logged average) and his weigh-ins, the scale reading as the hero. */
   const GOAL_RANGES = [['week', 'Week'], ['4w', '4w'], ['program', 'Program'], ['goal', 'To goal']];   // his word, Nov 2: the sidebar card gets filters like Body's, with a Week; 4w is the card's old view
@@ -7358,7 +7552,7 @@ addEventListener('load', () => {
     return '<section class="k-card goal6" data-parity="V6-T4" data-feedback-id="checkpoint" data-feedback-label="Weight & Goal"><div class="k-head"><span class="k-title">Weight &amp; Goal</span>' + infoBtn('goal6', 'Weight & Goal') + '<button type="button" class="k-open" data-act="go" data-area="profile" aria-label="Open Body" title="Open Body">' + kIco('chevron', 14) + '</button></div>' + infoPop('goal6', 'Your latest weigh-in against the plan to your goal weight.') +
       '<div class="k-seg goal6-seg" role="group" aria-label="Chart range">' + GOAL_RANGES.map(([k, w]) => '<button type="button" data-act="goalRailRange" data-r="' + k + '" aria-pressed="' + (range === k) + '">' + w + '</button>').join('') + '</div>' +
       '<div class="goal6-top"><span class="goal6-val">' + fixedVal(lastW ? n1(lastW.lb) : '—', lastW ? 'lb · ' + GChart.fmtDate(lastW.date) : 'lb', gNumCh, gWhenCh) + '</span><span class="nr-lab">' + (hasPlan ? 'plan ' + fixedVal(planT != null ? n1(planT) : '–', null, gNumCh) + ' · ' : '<span class="fx-n" hidden></span>') + 'est. ' + fixedVal(live ? n1(live.point) : '–', null, gNumCh) + '</span></div>' +
-      gcHost('goal-rail', spec, 110) + '<p class="nr-lab goal6-cap">' + cap + '</p></section>';
+      gcHost('goal-rail', spec, 110) + '<p class="nr-lab goal6-cap">' + cap + '</p>' + rxPlanLine(st, live && live.point) + '</section>';   // V6.1.3 X1
   }
   // TODAY-11/50 (ASSUMED): Perfect Day and Perfect Fitness progress as one line on So Far; the open items are behind ⓘ.
   function perfectLine(date){
@@ -7908,7 +8102,7 @@ addEventListener('load', () => {
     const a = penAnchor(r.x); if (!a) return; let p = document.getElementById('ssPen');
     if (!p){ p = document.createElement('button'); p.type = 'button'; p.id = 'ssPen'; p.className = 'ss-pen'; p.tabIndex = -1; p.setAttribute('aria-label', 'Change name, emoji and colour'); p.title = 'Change name, emoji and colour'; p.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>'; document.body.append(p);
       p.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); if (penAt) ssOpen({...penAt.h}, penAt.x); p.hidden = true; }); }
-    penAt = r; const big = r.x.id === 'areaTitle'; p.classList.toggle('big', big); p.style.left = Math.min(innerWidth - 30, a.right + (big ? 10 : 6)) + 'px'; p.style.top = (a.top + a.height / 2 - (big ? 13 : 11)) + 'px'; p.hidden = false;
+    penAt = r; const big = r.x.id === 'areaTitle', row = r.x.matches('.nav-head, .nav button[data-area]') ? r.x.getBoundingClientRect() : null; p.classList.toggle('big', big); p.style.left = (row ? row.right - 28 : Math.min(innerWidth - 30, a.right + (big ? 10 : 6))) + 'px';   /* V6.1.3, his words Nov 3: on a sidebar row the pencil sits at the far right of its outline, not just after the name, so a tap on the name never hits it */ p.style.top = (a.top + a.height / 2 - (big ? 13 : 11)) + 'px'; p.hidden = false;
   }
   document.addEventListener('mouseover', e => {
     if (ss || ctxPop) return; const p = document.getElementById('ssPen');
@@ -8936,7 +9130,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
   const moduleCard = (title, emoji, body, g) => '<section class="k-card pg-module"' + (g ? ' data-focus="' + esc(g.id) + '" style="--category:' + categoryColor(g.id) + '"' : '') + '><div class="k-head"><span aria-hidden="true">' + emoji + '</span><span class="k-title">' + esc(title) + '</span>' + (g ? '<button class="ws-addbtn" data-act="wsAdd" data-kind="item" data-group="' + esc(g.id) + '">+ Add</button>' : '') + '</div>' + body + '</section>';
   // BB5: Nourish gathers what feeds him: Net Energy (always a number, AZ2), the Nutrition Grade on the page's window, macros, water and the weight estimate (Fuel), and his Nourish Focus
   /* V6 N1 (his pick A): Nourish leads with the Nourish card (T2's), his Nourish items under it, and the Nutrition Grade alone at the side with its one rule */
-  function renderNourish(){ const st = S(); return '<div class="cols2 pg-cols" data-parity="BB5-NOURISH"><div>' + nourishCardV6(day, 'nourish') + focusCard(st, /^nourish$/i) + '</div><div>' + macrosNutritionCard(day) + '</div></div>'; }   // round 2, his N1 words: "bring back the macros and nutrition thing"
+  function renderNourish(){ const st = S(); return '<div class="cols2 pg-cols" data-parity="BB5-NOURISH"><div>' + nourishCardV6(day, 'nourish') + scaleBurnCard(st) + focusCard(st, /^nourish$/i) + '</div><div>' + macrosNutritionCard(day) + '</div></div>'; }   // round 2, his N1 words: "bring back the macros and nutrition thing"
   // BB6: Care: Mind (therapy, groups, RX: how often and when next) and Glow (Morning, Body and Night over 14 days, with streaks)
   function renderCare(){
     const st = S(), t = todayYmd(), mind = focusByName(st, /^mind$/i), glow = focusByName(st, /^glow$/i);
@@ -8966,6 +9160,20 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const growth = list('career').map(g => moduleCard(g.name, '💼', focusLines(st, g), g)).join(''), hob = list('hobbies').map(g => moduleCard(g.name, '🎨', focusLines(st, g), g)).join('');
     const top = (() => { const {html, umbs} = groupGradeCard('talents', st); return '<div class="cols2 ov-cols pg-top">' + html + '<div class="ov-vis-col">' + overviewVisuals('talents', st, umbs).replace(/<section class="k-card ov-vis"><div class="k-head"><span aria-hidden="true">📨<\/span>[\s\S]*?<\/section>/, '') + '</div></div>'; })();   // BG13 (applications a week is already in Growth below)
     return '<div data-parity="BB7-TALENTS">' + top + '<h2 class="sect-h">Growth</h2><div class="k-grid c3">' + apps + yon + growth + '</div><h2 class="sect-h">Hobbies</h2><div class="k-grid c3">' + (hob || '<p class="hint keep">No Hobbies Focus yet.</p>') + '</div></div>';
+  }
+  /* V6.1.3 X5 What Helps Me, wider (his Mock pick): alcohol, daylight 30+ min, 10,000 steps and in bed by 11 PM, each against the next morning's HRV over the
+     last 90 days (planner's default; his record goes back to Jan 2025). A row needs 8 days with and 8 without; until then it shows its counts. */
+  function helpsWider(st){
+    const t = todayYmd(), from = addDays(t, -89), to = addDays(t, -1), hrv = metricSeries(st, 'hrv', 90), steps = metricSeries(st, 'steps', 90), MIN = 8, mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+    const alc = rxDaySum(st, 'alcohol_consumption'), sun = rxDaySum(st, 'time_in_daylight'), bedBy = new Map(rxNights(st, addDays(from, 1), t).map(([d, r]) => [addDays(d, -1), rxClockMin(r.start)]));
+    const tests = [['🍷', 'Alcohol logged', d => alc.has(d) ? alc.get(d) > 0 : null], ['☀️', '30+ min of daylight', d => sun.has(d) ? sun.get(d) >= 30 : null],
+      ['👟', '10,000+ steps', d => steps.has(d) ? steps.get(d) >= 10000 : null], ['🛏️', 'In bed by 11 PM', d => bedBy.has(d) ? bedBy.get(d) <= 23 * 60 : null]];
+    const rows = tests.map(([em, name, f]) => {
+      const on = [], off = []; for (let d = from; d <= to; d = addDays(d, 1)){ const k = f(d), next = hrv.get(addDays(d, 1)); if (k == null || !Number.isFinite(next)) continue; (k ? on : off).push(next); }
+      const enough = on.length >= MIN && off.length >= MIN, fx = enough ? mean(on) - mean(off) : null;
+      return '<div class="rx-hrow"><span>' + em + ' <b>' + esc(name) + '</b></span><small>' + (enough ? (fx >= 0 ? '+' : '−') + Math.abs(Math.round(fx)) + ' ms HRV the next morning' : 'needs ' + (on.length < MIN ? (MIN - on.length) + ' more days with' : '') + (on.length < MIN && off.length < MIN ? ' and ' : '') + (off.length < MIN ? (MIN - off.length) + ' more without' : '')) + '</small><span class="rx-hn">' + on.length + ' with · ' + off.length + ' without</span></div>';
+    }).join('');
+    return '<div class="rx-helps" data-parity="V613-X5"><p class="rx-cap">Also watching: things Apple Health already sends, against the next morning’s HRV. Each shows once it has ' + MIN + ' days with it and ' + MIN + ' without, as your habits do. An association, not a cause.</p>' + rows + '</div>';
   }
   function renderProgress(){
     const yv = typeof YearView !== 'undefined' ? YearView.hook({S, scoreIndex, sleepNights, stepsGoal, scorePerson, gradeTone, render, on:SCORES_ON}) : null;   // AU2: the Year tab (year-view.js)
@@ -9032,7 +9240,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const whRow = x => '<button type="button" class="pg-wh" data-helps="' + x.helps + '" data-act="metricOpen" data-metric="' + x.metric + '" title="' + esc('Next morning after the days you kept it against your other days: ' + x.kept + ' and ' + x.other + ' mornings; ' + (Math.round(Math.abs(x.effect) * 10) / 10) + ' of your usual spread. An association, not a cause.') + '"><b>' + esc(x.name) + '</b><span class="pg-fx" style="color:' + (x.helps ? 'var(--c-green,#79d6a9)' : 'var(--c-orange,#f0a058)') + '">' + esc(x.label + ' ' + fmtFx(x)) + '</span><small class="pg-ev">' + x.kept + ' vs ' + x.other + ' days</small></button>';
     const nearest = wh.near && wh.near[0];
     const whCard = '<section class="k-card pg-helps" data-parity="V36-PROGRESS-C09" data-feedback-id="what-helps" data-feedback-label="What Helps Me"><div class="k-head"><span aria-hidden="true">🔍</span><span class="k-title">What Helps Me</span><button type="button" class="info" data-act="learnView" data-learn="what-helps" aria-label="Learn about What Helps Me">i</button></div>' +
-      (wh.rows.length ? wh.rows.map(whRow).join('') : '<p class="hint keep" data-helps-empty' + (nearest ? ' title="' + esc('Closest: ' + nearest.name + ', ' + nearest.kept + ' kept and ' + nearest.other + ' other days; needs ' + wh.minEach + ' of each with readings') + '"' : '') + '>Needs more days</p>') + '</section>';
+      (wh.rows.length ? wh.rows.map(whRow).join('') : '<p class="hint keep" data-helps-empty' + (nearest ? ' title="' + esc('Closest: ' + nearest.name + ', ' + nearest.kept + ' kept and ' + nearest.other + ' other days; needs ' + wh.minEach + ' of each with readings') + '"' : '') + '>Needs more days</p>') + helpsWider(st) + '</section>';   // V6.1.3 X5: four more rows under his habits
     // P10: Learn chips
     const learn = '<div class="fit-learn pg-learn" data-parity="V36-PROGRESS-C10"><span class="cap">Learn</span>' + PROG_CHIPS.map(([id, l]) => '<button type="button" class="k-chip" data-act="learnView" data-learn="' + id + '">📖 ' + esc(l) + '</button>').join('') + '</div>';
     // V3.7 L4 (A5): a card whose window is fixed by design says so on its face; By Group follows the page (the Overall's period)
@@ -9894,10 +10102,232 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       let caret = head.querySelector(':scope > .fold-caret');
       if (!caret){ caret = document.createElement('button'); caret.type = 'button'; caret.className = 'fold-caret'; caret.dataset.act = 'cardFold'; head.append(caret); }
       caret.setAttribute('aria-expanded', String(!folded)); caret.setAttribute('aria-label', (folded ? 'Open ' : 'Fold ') + noteCardTitle(card)); caret.title = folded ? 'Open' : 'Fold';
+      if (head.matches('.k-head') && !head.querySelector(':scope > .cfs-btn')){ const b = document.createElement('button'); b.type = 'button'; b.className = 'cfs-btn'; b.innerHTML = '<i class="cfs-ico" aria-hidden="true"></i>'; b.setAttribute('aria-label', 'Full screen'); b.title = 'Full screen'; caret.before(b); }   // V6.1.3 full screen
     }
   }
   function cardFold(card, to){ const id = card && card.dataset.feedbackId; if (!id) return; const st = cardFoldState(); st[id] = to === undefined ? !card.classList.contains('folded') : !!to; cardFoldSave(st); decorateFoldCards(); }
   window.HealthFold = {state:cardFoldState, decorate:decorateFoldCards};   // test hook
+  /* V6.1.3 full-screen cards (his words, Nov 3 on Preview v30: "make it so like cards can also get full screened ... if i want to full screen he Nourish ... it
+     should also include the Burn from your scale"): ⤢ in a card's header shows that card, with the cards built as part of it, alone over the window. It is the
+     real card in place (every sibling on the way up is hidden), so its charts keep hover and taps and redraw at the new width. ✕, Esc or Back closes it at
+     the same scroll spot. Only the open card's id is kept, in memory: every draw puts the full screen back (renderAfter, and an observer for the rail's
+     recount and a page swap), and a card that leaves the page closes it. Nothing is saved; a fold is lifted while open and comes back on close. */
+  /* Round 2 (his words on Preview v31: "Waer and Steps, Nourish Macros all together along with Readiness and Load ... Make is smart so that it either scrolls
+     down so the visuals dont get small"): a card opens with its group, the lead first, then the rest in page order; every card at 1.3× (lettering and
+     charts: CSS zoom, so charts measure their new box and redraw), side by side while each fits at its page width × 1.3, wrapped and scrolled when not;
+     none shrinks, none is dropped. A member is an id, or a test on the card for cards his Gena names (Hearth's Focuses). */
+  const cfsLead = c => ((c.querySelector(':scope > .k-head') || c).textContent || '').trim();
+  const cfsHearth = re => c => area === 'hearth' && /^gl-f-/.test(c.dataset.feedbackId) && re.test(cfsLead(c));
+  const CFS_GROUPS = [
+    ['today-water', 'today-macros', 'gl-s-ready', 'gl-s-load'],   // Today, his four
+    ['nourish-card', 'scale-burn'], ['trends-recovery', 'sleep-timing'],   // built as one card (round 1)
+    ['gl-n-grocery', 'gl-n-water', 'gl-n-fuel'],   // Nourish: the three day cards
+    ['card:heart-and-fitness-against-men-your-age', 'fitness-grade'],   // Fitness: against men your age, and the grade made from it
+    ['growth-health-age', 'growth-activity-body', 'growth-flags'],   // Body: where you stand
+    ['gl-week', 'gl-month'],   // Life: the week and the month
+    ['gl-care', 'gl-mind'],   // Care: daily and monthly care
+    ['gl-grades-hearth', 'gl-h-weeks'], ['gl-dates', cfsHearth(/^(👪|🤝)/u)], [cfsHearth(/^🏠/u), 'gl-laundry', 'gl-rooms'],   // Hearth: the grade and its weeks; people and dates; home
+    ['gl-grades-talents', 'gl-t-weeks'], ['gl-apps', 'gl-mentors', 'gl-f-work'],   // Talents: the grade and its weeks; career
+    ['bk9-goals', 'bk9-domains'],   // Review: the week's two columns
+    ['data-status', 'add-data', 'recent-imports'], ['data-sources', 'data-winners']   // Data: bringing data in; where figures come from
+  ];
+  const CFS_K = 1.3, cfsPhone = () => matchMedia('(max-width:700px)').matches;
+  const CFS_REDRAW = '.wp-fit';   // a chart sized from the page's width when drawn (AT1): the page draws again on open and on close
+  let cfs = null, cfsSkipPop = false, cfsWatch = null;
+  const cfsCards = () => { const out = []; for (const r of [$('#main'), $('#ctxRail')]) if (r) for (const c of r.querySelectorAll('[data-feedback-id]')) if (!c.closest('.v6-gone,[hidden]') && !out.some(o => o.dataset.feedbackId === c.dataset.feedbackId)) out.push(c); return out; };
+  const cfsFind = id => { for (const r of [$('#main'), $('#ctxRail')]) if (r) for (const c of r.querySelectorAll('[data-feedback-id="' + id + '"]')) if (!c.closest('.v6-gone,[hidden]')) return c; return null; };
+  function cfsGroup(lead){   // the ids that open together, the lead first, then page order
+    const hit = (m, c) => typeof m === 'string' ? m === c.dataset.feedbackId : m(c), g = CFS_GROUPS.find(g => g.some(m => hit(m, lead))); if (!g) return [lead.dataset.feedbackId];
+    const all = cfsCards().filter(c => c === lead || (c.matches(':not(details)') && g.some(m => hit(m, c))));
+    all.sort((a, b) => a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1);
+    return [lead.dataset.feedbackId, ...all.filter(c => c !== lead).map(c => c.dataset.feedbackId)];
+  }
+  function cfsRange(card){
+    const pg = FILT_PAGES.includes(area) ? filtWin(area) : null, f = card.dataset.winFrom || (pg && pg.from), t = card.dataset.winTo || (pg && pg.to); if (!f || !t) return '';
+    const same = !!pg && pg.from === f && pg.to === t, per = same ? pg.per : card.dataset.winPer || 'custom';
+    return (same && pg.trail ? pg.trail + 'd' : {day:'Day', week:'Week', month:'Month', all:'All'}[per] || 'Custom') + ' · ' + (f === t ? monthDay(f) : monthDay(f) + ' to ' + monthDay(t));
+  }
+  function cfsApply(){
+    if (!cfs) return;
+    const lead = cfsFind(cfs.id); if (!lead){ cfsClose(true); return; }
+    const cards = cfs.ids.map(i => i === cfs.id ? lead : cfsFind(i)).filter(Boolean), path = new Set();
+    for (const c of cards) for (let n = c.parentElement; n && n !== document.body; n = n.parentElement) path.add(n);
+    let host = lead.parentElement; while (host && host !== document.body && !cards.every(c => host.contains(c))) host = host.parentElement;   // the cards' nearest shared box lays them out; the boxes between it and them step aside (display:contents)
+    for (const n of document.querySelectorAll('.cfs-path')) if (!path.has(n)) n.classList.remove('cfs-path', 'cfs-host', 'cfs-thru');
+    for (const n of document.querySelectorAll('.cfs-card')) if (!cards.includes(n)){ n.classList.remove('cfs-card'); n.style.removeProperty('order'); for (const v of ['--cfs-w', '--cfs-max']) n.style.removeProperty(v); }
+    for (const n of path){ if (!n.classList.contains('cfs-path')) n.classList.add('cfs-path'); const h = n === host, t = !h && host.contains(n); if (n.classList.contains('cfs-host') !== h) n.classList.toggle('cfs-host', h); if (n.classList.contains('cfs-thru') !== t) n.classList.toggle('cfs-thru', t); }
+    cards.forEach((c, i) => { if (!c.classList.contains('cfs-card')) c.classList.add('cfs-card'); if (c.classList.contains('folded')) c.classList.remove('folded'); const o = String(i ? i : -1); if (c.style.order !== o) c.style.order = o; });
+    cfs.nodes = cards; cfs.want = cards.length; cfs.host = host;
+    if (!document.documentElement.classList.contains('cfs-on')) document.documentElement.classList.add('cfs-on');
+    cfsLayout();
+    let bar = $('#cfsBar'); if (!bar){ bar = document.createElement('div'); bar.id = 'cfsBar'; bar.className = 'cfs-bar'; bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', 'Full screen'); document.body.append(bar); }
+    const rng = cfsRange(lead), html = '<b>' + esc(noteCardTitle(lead)) + '</b>' + (rng ? '<small>' + esc(rng) + '</small>' : '') + '<button type="button" class="cfs-x" data-cfs-close aria-label="Close full screen" title="Close (Esc)">✕</button>';
+    if (bar.dataset.html !== html){ bar.innerHTML = html; bar.dataset.html = html; }
+  }
+  function cfsLayout(){   // each card starts at its page width × 1.3 (never wider than the window) and grows to fill its row; a row that cannot hold the next one wraps it
+    if (!cfs || !cfs.host) return;
+    const phone = cfsPhone(), hs = getComputedStyle(cfs.host), avail = cfs.host.clientWidth - parseFloat(hs.paddingLeft) - parseFloat(hs.paddingRight);
+    for (const c of cfs.nodes){
+      const w = phone ? '' : Math.floor(Math.min((cfs.w[c.dataset.feedbackId] || 400) * CFS_K, avail) / CFS_K) + 'px', mx = phone ? '' : Math.floor(avail / CFS_K) + 'px';
+      if (c.style.getPropertyValue('--cfs-w') !== w) c.style.setProperty('--cfs-w', w);
+      if (c.style.getPropertyValue('--cfs-max') !== mx) c.style.setProperty('--cfs-max', mx);
+    }
+  }
+  function cfsObserve(on){
+    if (!on){ if (cfsWatch) cfsWatch.disconnect(); return; }
+    if (!cfsWatch) cfsWatch = new MutationObserver(() => { if (cfs && !(cfs.nodes.length === cfs.want && cfs.nodes.every(n => n.isConnected && n.classList.contains('cfs-card') && !n.classList.contains('folded')))) cfsApply(); });   // before the paint, so a redraw never shows the page
+    for (const r of [$('#main'), $('#ctxRail')]) if (r) cfsWatch.observe(r, {childList:true, subtree:true});
+  }
+  function cfsOpen(card){
+    const id = card && card.dataset.feedbackId; if (!id || cfs) return;
+    const sc = document.scrollingElement || document.documentElement;
+    const ids = cfsGroup(card), w = {}; for (const i of ids){ const c = cfsFind(i); if (c) w[i] = c.getBoundingClientRect().width; }   // the page widths, measured before anything moves
+    cfs = {id, ids, w, top:sc.scrollTop, nodes:[], want:1};
+    try { history.pushState(Object.assign({}, history.state, {glowCfs:id}), ''); } catch (_) {}
+    cfsApply(); if (!cfs) return;
+    cfsObserve(true);
+    if (cfs.nodes.some(n => n.querySelector(CFS_REDRAW))) render();
+    sc.scrollTop = 0;
+    const x = $('#cfsBar .cfs-x'); if (x) x.focus({preventScroll:true});
+  }
+  function cfsClose(gone){
+    if (!cfs) return; const was = cfs; cfs = null; cfsObserve(false);
+    document.documentElement.classList.remove('cfs-on');
+    for (const n of document.querySelectorAll('.cfs-path, .cfs-card')){ n.classList.remove('cfs-path', 'cfs-card', 'cfs-host', 'cfs-thru'); if (n.style.order) n.style.removeProperty('order'); n.style.removeProperty('--cfs-w'); n.style.removeProperty('--cfs-max'); }
+    const bar = $('#cfsBar'); if (bar) bar.remove();
+    decorateFoldCards();   // his folds come back
+    if (!gone){
+      if (was.nodes.some(n => n.isConnected && n.querySelector(CFS_REDRAW))) render();
+      const sc = document.scrollingElement || document.documentElement; sc.scrollTop = was.top;
+      const c = cfsFind(was.id), b = c && c.querySelector(':scope > .k-head > .cfs-btn'); if (b) b.focus({preventScroll:true});
+    }
+    if (history.state && history.state.glowCfs){ cfsSkipPop = true; history.back(); }
+  }
+  addEventListener('resize', () => { if (cfs) cfsLayout(); });
+  addEventListener('popstate', () => { if (cfsSkipPop){ cfsSkipPop = false; return; } if (cfs) cfsClose(false); });
+  document.addEventListener('keydown', e => { if (!cfs || e.key !== 'Escape' || document.querySelector('dialog[open]')) return; e.preventDefault(); e.stopImmediatePropagation(); if (e.target && e.target.matches && e.target.matches('input,textarea,select,[contenteditable=true]')) e.target.blur(); else cfsClose(false); }, true);   // in a field, the first Esc leaves the field
+  window.HealthFullScreen = {open:id => cfsOpen(cfsFind(id)), close:() => cfsClose(false), state:() => cfs && {id:cfs.id, cards:cfs.nodes.map(n => n.dataset.feedbackId)}};   // test hook
+  /* V6.1.3 rearrange cards (his words Nov 3: "maybe just one little rearrange button somewhere on each page that allows me to go ahead and then rearrange the
+     cards - think like the iphone where once its in edit mode then it everything is up to get moved"; his yes to 6 to 8): a page with two or more cards in one
+     box gets a quiet button on its title row. In edit mode each such card shows a ⋮⋮ grip over its top edge; Done and Reset replace the button, and Esc leaves.
+     The cards' own clicks, folds, drawers and full screen wait; scrolling and hover do not. A card moves among the cards of its own box only (the main column,
+     the rail, or a grid inside either), so it never crosses columns. Each box's order is a list of card ids, per page, on this device (localStorage, like the
+     folds), put back after every draw before the paint (renderAfter, and an observer for the rail and in-place redraws). A card the list does not name keeps
+     its place; a name no longer on the page is skipped. Nothing goes into his record. The handlers are properties so a test can call them (Gena's pattern). */
+  const rearrKey = () => 'health-tracker.order.v613.' + area;
+  let rearrCache = null, rearrOn = null, rearrDrag = null, rearrWatch = null;   // rearrOn: the page in edit mode
+  const rearrSeen = new WeakSet();
+  function rearrLists(){ if (rearrCache && rearrCache[0] === area) return rearrCache[1]; let l = []; try { l = JSON.parse(localStorage.getItem(rearrKey()) || '[]'); } catch (_) {} l = Array.isArray(l) ? l.filter(x => Array.isArray(x) && x.length > 1) : []; rearrCache = [area, l]; return l; }
+  function rearrSave(l){ rearrCache = [area, l]; try { if (l.length) localStorage.setItem(rearrKey(), JSON.stringify(l)); else localStorage.removeItem(rearrKey()); } catch (_) {} }
+  function rearrTops(){   // the page's outer cards: an id, no card around them, not set aside; an id shown twice and Plan's activity rows (his record's order) stay put
+    const out = [], n = new Map();
+    for (const r of [$('#main'), $('#ctxRail')]) if (r) for (const c of r.querySelectorAll('[data-feedback-id]')){ const id = c.dataset.feedbackId; if (/^activity/.test(id) || c.closest('.v6-gone,[hidden]')) continue; const up = c.parentElement && c.parentElement.closest('[data-feedback-id], #main, #ctxRail'); if (!up || up.dataset.feedbackId) continue; out.push(c); n.set(id, (n.get(id) || 0) + 1); }
+    return out.filter(c => n.get(c.dataset.feedbackId) === 1);
+  }
+  function rearrBoxes(){ const m = new Map(); for (const c of rearrTops()){ const b = c.parentElement; if (!m.has(b)) m.set(b, []); m.get(b).push(c); } for (const [b, l] of m) if (l.length < 2) m.delete(b); return m; }   // box → its cards in page order, two or more
+  function rearrApply(){   // the saved order, box by box; nothing moves when it already holds
+    const lists = rearrLists(); if (!lists.length) return;
+    const by = new Map(); for (const c of rearrTops()) by.set(c.dataset.feedbackId, c);
+    for (const list of lists){
+      const named = list.map(i => by.get(i)).filter(Boolean), box = named.length && named[0].parentElement, want = named.filter(c => c.parentElement === box); if (want.length < 2) continue;
+      const now = [...box.children].filter(c => want.includes(c)); if (now.every((c, i) => c === want[i])) continue;
+      const marks = now.map(c => { const m = document.createComment(''); c.before(m); return m; }); marks.forEach((m, i) => m.replaceWith(want[i]));   // the named cards trade places among themselves; everything else stays
+    }
+  }
+  function rearrStore(box){ const ids = (rearrBoxes().get(box) || []).map(c => c.dataset.feedbackId); if (ids.length < 2) return; rearrSave(rearrLists().filter(l => !l.some(i => ids.includes(i))).concat([ids])); }
+  const rearrGripCard = g => { const p = g.parentElement; return p && p.matches('summary') ? p.parentElement : p; };
+  function rearrGrips(){   // in edit mode a grip on every card that can move, none anywhere else
+    const live = new Set(); if (rearrOn) for (const l of rearrBoxes().values()) for (const c of l) live.add(c);
+    for (const g of document.querySelectorAll('.rearr-grip')) if (!live.has(rearrGripCard(g))) g.remove();
+    for (const c of document.querySelectorAll('.rearr-card')) if (!live.has(c)) c.classList.remove('rearr-card', 'rearr-pos');
+    for (const c of live){
+      if (!c.classList.contains('rearr-card')){ c.classList.add('rearr-card'); if (getComputedStyle(c).position === 'static') c.classList.add('rearr-pos'); }
+      const host = c.matches('details') && c.querySelector(':scope > summary') || c;   // a closed fold still shows its summary
+      if (!host.querySelector(':scope > .rearr-grip')){ const g = document.createElement('button'); g.type = 'button'; g.className = 'rearr-grip'; g.dataset.parityKeep = ''; g.textContent = '⋮⋮'; g.setAttribute('aria-label', 'Move ' + noteCardTitle(c) + ' (drag, or arrow keys)'); g.title = 'Drag to move'; host.append(g); }
+    }
+  }
+  function rearrButton(){
+    const t = $('#areaTitle'); if (!t) return; let w = $('#pageRearr');
+    if (!w){ w = document.createElement('span'); w.id = 'pageRearr'; w.className = 'rearr-ctl'; ($('#pageNote') || t).after(w); }
+    const float = rearrOn === area && cfsPhone(); if (float !== (w.parentElement === document.body)){ if (float) document.body.append(w); else ($('#pageNote') || t).after(w); }   // phone edit mode: Reset and Done float above the tab bar (the top bar holds a fixed child in place)
+    const html = rearrOn === area ? '<button type="button" class="k-btn rearr-txt" data-rearr="reset" title="Back to the app’s own order on this page">Reset</button><button type="button" class="k-btn rearr-txt done" data-rearr="done" title="Done (Esc)">Done</button>'
+      : rearrBoxes().size ? '<button type="button" class="rearr-btn" data-rearr="on" aria-pressed="false" aria-label="Rearrange cards" title="Rearrange cards"><i class="rearr-ico" aria-hidden="true"></i></button>' : '';
+    if (w.dataset.html !== html){ w.innerHTML = html; w.dataset.html = html; } w.hidden = !html;
+  }
+  function rearrObserve(){
+    if (!rearrWatch) rearrWatch = new MutationObserver(() => { if (rearrDrag) return; if (rearrLists().length) rearrApply(); if (rearrOn) rearrGrips(); });   // before the paint, so a redraw never shows the app's order
+    for (const r of [$('#main'), $('#ctxRail')]) if (r && !rearrSeen.has(r)){ rearrSeen.add(r); rearrWatch.observe(r, {childList:true, subtree:true}); }
+  }
+  function rearrSync(){ if (rearrOn && rearrOn !== area) rearrDone(); rearrApply(); rearrButton(); rearrGrips(); rearrObserve(); }   // after every draw; edit mode ends when the page changes
+  function rearrEnter(){ if (cfs) cfsClose(false); rearrOn = area; document.documentElement.classList.add('rearr-on'); rearrButton(); rearrGrips(); const d = $('#pageRearr [data-rearr="done"]'); if (d) d.focus({preventScroll:true}); }
+  function rearrDone(){ rearrCancel(); const was = rearrOn; rearrOn = null; document.documentElement.classList.remove('rearr-on'); rearrGrips(); rearrButton(); const b = was === area && $('#pageRearr [data-rearr="on"]'); if (b) b.focus({preventScroll:true}); }
+  function rearrReset(){ rearrCancel(); rearrSave([]); render(); }   // the app's own order: a fresh draw of the page and the rail
+  function rearrStep(g, dir){   // a grip's arrow keys move its card one place
+    const card = rearrGripCard(g), l = rearrBoxes().get(card.parentElement) || [], i = l.indexOf(card), j = i + dir; if (i < 0 || j < 0 || j >= l.length) return;
+    if (dir < 0) l[j].before(card); else l[j].after(card); rearrStore(card.parentElement); g.focus({preventScroll:true});
+  }
+  function rearrDown(e){
+    const g = rearrOn && e.target && e.target.closest && e.target.closest('.rearr-grip'); if (!g || e.button > 0) return;
+    const card = rearrGripCard(g), box = card && card.parentElement, list = box && rearrBoxes().get(box); if (!list || !list.includes(card)) return;
+    if (e.cancelable !== false && e.preventDefault) e.preventDefault(); try { if (e.pointerId !== undefined) g.setPointerCapture(e.pointerId); } catch (_) {}
+    rearrDrag = {card, box, list, grip:g, pid:e.pointerId, x:e.clientX, y:e.clientY, at:null};
+    card.classList.add('rearr-drag'); document.documentElement.classList.add('rearr-dragging');
+  }
+  function rearrMove(e){
+    const d = rearrDrag; if (!d || (d.pid !== undefined && e.pointerId !== undefined && e.pointerId !== d.pid)) return;
+    if (e.cancelable && e.preventDefault) e.preventDefault(); if (!d.card.isConnected){ rearrCancel(); return; }
+    d.x = e.clientX; d.y = e.clientY; rearrAim(); rearrAuto();
+  }
+  function rearrUp(e){
+    const d = rearrDrag; if (!d || (d.pid !== undefined && e.pointerId !== undefined && e.pointerId !== d.pid)) return;
+    const at = e.type === 'pointercancel' ? null : d.at; rearrCancel();
+    if (at && d.card.parentElement === d.box && at.ref.parentElement === d.box){ if (at.after) at.ref.after(d.card); else at.ref.before(d.card); rearrStore(d.box); }
+  }
+  function rearrCancel(){ const d = rearrDrag; rearrDrag = null; if (d){ d.card.classList.remove('rearr-drag'); try { if (d.pid !== undefined) d.grip.releasePointerCapture(d.pid); } catch (_) {} } document.documentElement.classList.remove('rearr-dragging'); rearrMark(null); if (rearrAuto.f) cancelAnimationFrame(rearrAuto.f); rearrAuto.f = 0; }
+  function rearrAim(){ const d = rearrDrag; if (!d) return; d.at = rearrTarget(d.x, d.y); rearrMark(d.at); }
+  function rearrTarget(x, y){   // before or after the card of the same box nearest the pointer; nothing while the pointer is off the box or the card would stay where it is
+    const d = rearrDrag, b = d.box.getBoundingClientRect(); if (x < b.left - 24 || x > b.right + 24 || y < b.top - 48 || y > b.bottom + 48) return null;
+    const l = d.list.filter(c => c.isConnected && c.parentElement === d.box), rs = l.map(c => c.getBoundingClientRect());
+    let k = -1, best = Infinity; rs.forEach((r, i) => { const dx = Math.max(r.left - x, 0, x - r.right), dy = Math.max(r.top - y, 0, y - r.bottom), v = dx * dx + dy * dy; if (v < best){ best = v; k = i; } });
+    if (k < 0 || l[k] === d.card) return null;
+    const r = rs[k], row = rs.some((o, i) => i !== k && Math.min(o.bottom, r.bottom) - Math.max(o.top, r.top) > Math.min(o.height, r.height) / 2);   // cards side by side: left or right half; stacked: top or bottom half
+    const after = row ? x > r.left + r.width / 2 : y > r.top + r.height / 2, from = l.indexOf(d.card), to = after ? k + 1 : k; if (to === from || to === from + 1) return null;
+    return {ref:l[k], after, row};
+  }
+  function rearrMark(at){   // the bar in the gap where the card would land
+    let m = $('#rearrMark'); if (!at){ if (m) m.hidden = true; return; }
+    if (!m){ m = document.createElement('div'); m.id = 'rearrMark'; m.className = 'rearr-mark'; m.setAttribute('aria-hidden', 'true'); document.body.append(m); }
+    const r = at.ref.getBoundingClientRect(), t = 4, g = 7;
+    Object.assign(m.style, at.row ? {left:(at.after ? r.right + g : r.left - g) - t / 2 + 'px', top:r.top + 'px', width:t + 'px', height:r.height + 'px'} : {left:r.left + 'px', top:(at.after ? r.bottom + g : r.top - g) - t / 2 + 'px', width:r.width + 'px', height:t + 'px'});
+    m.hidden = false;
+  }
+  function rearrAuto(){   // near the top or bottom edge of the window (or of the rail, for a rail card) the page scrolls under the card
+    if (rearrAuto.f || !rearrDrag) return;
+    const step = () => { rearrAuto.f = 0; const d = rearrDrag; if (!d) return;
+      const rail = d.box.closest('#ctxRail'), sc = rail && rail.scrollHeight > rail.clientHeight + 1 ? rail : document.scrollingElement || document.documentElement, rr = sc === rail ? rail.getBoundingClientRect() : {top:0, bottom:innerHeight}, z = 56;
+      const v = d.y < rr.top + z ? -Math.ceil((rr.top + z - d.y) / 4) : d.y > rr.bottom - z ? Math.ceil((d.y - rr.bottom + z) / 4) : 0; if (!v) return;
+      const was = sc.scrollTop; sc.scrollTop = was + v; if (sc.scrollTop === was) return; rearrAim(); rearrAuto.f = requestAnimationFrame(step); };
+    rearrAuto.f = requestAnimationFrame(step);
+  }
+  const REARR_IN = '#main [data-feedback-id], #ctxRail [data-feedback-id]';
+  const rearrBlock = e => {   // edit mode: a card's own taps do nothing (the grip's click does nothing either: in a fold's summary it would open the fold)
+    if (!rearrOn || !e.target || !e.target.closest || (rearrDrag && /up$/.test(e.type))) return; const g = e.target.closest('.rearr-grip');   // a drag's release always reaches it
+    if (g ? e.type === 'click' || e.type === 'dblclick' : e.target.closest(REARR_IN)){ e.preventDefault(); e.stopImmediatePropagation(); }
+  };
+  for (const t of ['click', 'dblclick', 'mousedown', 'mouseup', 'pointerdown', 'pointerup']) addEventListener(t, rearrBlock, true);
+  addEventListener('keydown', e => {
+    if (!rearrOn) return; const g = e.target && e.target.closest && e.target.closest('.rearr-grip');
+    if (e.key === 'Escape'){ if (document.querySelector('dialog[open]')) return; e.preventDefault(); e.stopImmediatePropagation(); if (rearrDrag) rearrCancel(); else rearrDone(); return; }
+    if (g && /^Arrow(Up|Down|Left|Right)$/.test(e.key)){ e.preventDefault(); e.stopImmediatePropagation(); rearrStep(g, /Up|Left/.test(e.key) ? -1 : 1); return; }
+    if (!g && (e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest(REARR_IN) && !e.target.matches('input,textarea,select')){ e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
+  document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-rearr]'); if (!b) return; e.preventDefault(); e.stopImmediatePropagation(); const f = {on:rearrEnter, done:rearrDone, reset:rearrReset}[b.dataset.rearr]; if (f) f(); }, true);
+  addEventListener('resize', () => { if (rearrOn) rearrButton(); });
+  document.addEventListener('pointerdown', rearrDown);
+  document.addEventListener('pointermove', rearrMove, {passive:false});
+  document.addEventListener('pointerup', rearrUp);
+  document.addEventListener('pointercancel', rearrUp);
+  window.HealthRearrange = {enter:rearrEnter, done:rearrDone, reset:rearrReset, on:() => rearrOn, lists:() => rearrLists().map(l => l.slice()), boxes:() => [...rearrBoxes().values()].map(l => l.map(c => c.dataset.feedbackId)), down:rearrDown, move:rearrMove, up:rearrUp, step:rearrStep, draw:() => render()};   // test hook
   /* V3.7 K3, K4 (notes 4, A25, A26): each inner visual of a card that holds several gets a stable data-visual id, its own small
      note button (the third level), and the card a pencil, "What this card shows", whose unticked visuals hide for this viewer.
      A visual hidden by his choice is marked data-hidden-choice, so the parity census does not count it missing. */
@@ -9967,8 +10397,9 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (b.dataset.act === 'cardCustomize') cardCustomize(card); else if (b.dataset.act === 'visShowAll'){ const hid = hideState(); delete hid[card.dataset.feedbackId]; try { localStorage.setItem(hideKey, JSON.stringify(hid)); } catch (_) {} decorateVisuals(); const m = card.querySelector('.vis-menu'); if (m) m.remove(); } else { const m = card.querySelector('.vis-menu'); if (m) m.remove(); } }, true);
   document.addEventListener('click', e => {
     const t = e.target; if (!t || !t.closest) return; const caret = t.closest('.fold-caret');
+    const full = t.closest('.cfs-btn, [data-cfs-close]'); if (full){ e.preventDefault(); e.stopImmediatePropagation(); if (full.matches('.cfs-btn')) cfsOpen(full.parentElement.parentElement); else cfsClose(false); return; }   // V6.1.3
     if (caret){ e.preventDefault(); e.stopImmediatePropagation(); cardFold(caret.closest('.folded,[data-fold]')); return; }
-    const head = t.closest('.k-head, .ph'); if (!head) return; const card = head.parentElement; if (!card || !card.dataset || !card.dataset.fold) return;
+    const head = t.closest('.k-head, .ph'); if (!head) return; const card = head.parentElement; if (!card || !card.dataset || !card.dataset.fold || card.classList.contains('cfs-card')) return;
     if (t.closest('button, a, input, select, textarea, label, summary, [data-act], .ck-fchip, .info, .info-pop, .filt-bar, .k-seg, details')) return;
     e.preventDefault(); e.stopImmediatePropagation(); cardFold(card);
   }, true);
@@ -10884,7 +11315,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const goalIn = hasGoal && goalDate >= W.from && goalDate <= end;
     /* AT1: drawn at the page's own width (1:1, so it fills the card and its labels sit on their lines); first, middle and last dates; the
        latest reading labelled; the goal as a note when it is not inside the chart */
-    const fit = o.fit ? Math.max(300, Math.min(1600, (($('#main') || {}).clientWidth || 900) - 64)) : null, mid = dstrMid(W.from, end), last = pts[pts.length - 1];
+    const fit = o.fit ? Math.max(300, Math.min(1600, (($('#main') || {}).clientWidth || 900) - 64) / (document.documentElement.classList.contains('cfs-on') && !cfsPhone() ? CFS_K : 1)) : null, mid = dstrMid(W.from, end), last = pts[pts.length - 1];
     const goalNote = o.fit && hasGoal && !goalIn ? '<p class="lc-goal-l wp-goalnote">Goal ' + f1(cv(goalLb)) + ' ' + u + ' on ' + esc(monthDay(goalDate)) + (last ? ' · ' + f1(Math.abs(last.weight - cv(goalLb))) + ' ' + u + ' to go' : '') + '</p>' : '';
     return '<div class="wp-chart' + (o.fit ? ' wp-fit' : '') + '" data-family="weight-plan" data-points="' + pts.length + '">' + LINE({points:pts.map(p => ({d:p.date, v:p.weight, attrs:' data-kind="reading" data-date="' + esc(p.date) + '" data-value="' + p.weight + '"', title:p.date + ': ' + f1(p.weight) + ' ' + u + (p.source ? ' · ' + p.source : '')})), domain:[W.from, end], w:o.w || 300, h:o.h || 132, pl:30, unit:u, digits:1, metric:'weight', source:'Apple Health and your entries', name:'Weight against the plan', svgClass:'wt-svg', colour:'#8fd9bf', plan, planAttrs:' data-kind="plan"', planBand:cv(.5),
       xTicks:o.fit ? [{d:W.from, label:monthDay(W.from)}, {d:mid, label:monthDay(mid)}, {d:end, label:monthDay(end)}] : [{d:W.from, label:monthDay(W.from)}, {d:end, label:monthDay(end)}], ...(fit ? {w:fit, h:150, pl:44} : {}), pointLabels:o.fit && last ? [{d:last.date, v:last.weight, label:f1(last.weight) + ' · ' + monthDay(last.date), left:true}] : [], marks:goalIn ? [{d:goalDate, v:cv(goalLb), r:5, colour:'var(--bg)', stroke:'#3fae6b', attrs:' data-kind="goal" data-date="' + goalDate + '" data-value="' + cv(goalLb) + '"', title:'Goal, not a measurement: ' + f1(cv(goalLb)) + ' ' + u + ' on ' + goalDate}] : [], parity:o.parity || 'V36-H3-01'}) + '</div>' + goalNote;
@@ -12858,6 +13289,21 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if(area==='data'||area==='settings')return railSources(st);
     return '';
   }
+  /* V6.1.3 R1 Pinned roles (his Mock pick A: Talents and Hearth): each Focus with active roles (Gena's Projects, the copy its Focus card's chips read) as chips at the
+     top of the rail; a chip opens the Focus card and lights it. With no active roles the card is not drawn (planner's default: no sample text in the app). */
+  function pinnedRolesCard(st){
+    const list = groupsOf(st).filter(g => !g.hidden && Array.isArray(g.genaProjects) && g.genaProjects.length); if (!list.length) return '';
+    return '<section class="k-card rx-pin" data-parity="V613-R1" data-feedback-id="pinned-roles" data-feedback-label="Pinned roles"><div class="k-head"><span class="k-title">Pinned roles</span></div>' +
+      list.map(g => '<div class="rx-pinf"><small>' + (g.genaEmoji ? '<span aria-hidden="true">' + esc(g.genaEmoji) + '</span> ' : '') + esc(g.name) + '</small><div class="rx-pinchips">' +
+        g.genaProjects.map(r => '<button type="button" class="k-chip rx-pinchip" data-rx-focus="' + esc(g.id) + '" title="' + esc(r + ', active in ' + g.name + ' (Gena). Opens Talents') + '">' + esc(r) + '</button>').join('') + '</div></div>').join('') +
+      '<p class="rx-pincap">Active in Gena · they count through their Focus</p></section>';
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('#ctxRail [data-rx-focus]'); if (!b) return;
+    const id = b.dataset.rxFocus, light = () => { const c = [...document.querySelectorAll('#main .k-card[data-feedback-id^="gl-f-"]')].find(x => x.dataset.feedbackId === 'gl-f-' + id); if (!c) return false; c.scrollIntoView({block:'center', behavior:'smooth'}); c.classList.add('rx-lit'); setTimeout(() => c.classList.remove('rx-lit'), 1400); return true; };
+    if (light()) return;
+    const g = (S().groups || []).find(x => x.id === id); go(g && GL_PAGE[gradeGroupUmbrella(S(), g.id)] === 'hearth' ? 'hearth' : 'talents'); setTimeout(light, 350);   // the Focus card lives on Talents, or on Hearth for a Family, Home or Social Focus
+  });
   function renderRail(){
     const el=document.getElementById('ctxRail');if(!el)return;
     const hidden=railHidden(),app=document.querySelector('.app');app.classList.remove('railhidden');app.classList.toggle('railstrip',hidden);if(!hidden)app.classList.remove('railpeek');
@@ -12870,6 +13316,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     renderPickHost();
     app.classList.toggle('norailcards',!body);
     el.innerHTML=chev+body+'<nav class="rail-strip" aria-label="Side panel shortcuts" data-parity="V35-S3-01"></nav>';   // V3.4 (T7): each page's rail holds its own
+    if(!hidden&&!drawer&&(area==='talents'||area==='hearth')){ const r1=pinnedRolesCard(st), pin=el.querySelector(':scope > .rail-pin'); if(r1){ if(pin)pin.insertAdjacentHTML('afterend',r1); else el.querySelector('.rail-chev').insertAdjacentHTML('afterend',r1); } }   // V6.1.3 R1: under the pinned block on Talents and Hearth
     gcMount(el);   // V6 T4: the rail's charts
     { const strip=el.querySelector('.rail-strip'),cards=[...el.querySelectorAll('.k-card,.panelcard,section,details.panelcard')].filter(c=>!c.parentElement.closest('.k-card,.panelcard,section')&&!c.matches('.rail-strip'));
       strip.innerHTML=cards.map((c,i)=>{c.dataset.railCard=i;const t=c.querySelector('.k-title,h2,h3,summary'),name=(t?t.textContent:'Card').replace(/\s+/g,' ').replace(/\bi$/,'').trim()||'Card',emo=c.querySelector('.k-head>span[aria-hidden]'),sym=(emo&&emo.textContent.trim())||name.charAt(0);return '<button type="button" class="rail-strip-btn" data-act="railStripOpen" data-i="'+i+'" aria-label="'+esc(name)+'" title="'+esc(name)+'">'+esc(sym)+'</button>';}).join(''); }
@@ -12959,7 +13406,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     if (!kept) setMain(pageHTML());
     renderRail();
     });
-    if (kept){ $('#main').dataset.area = area; const seq = renderSeq; afterPaint(() => refreshKept(seq)); } else renderAfter(openFolds);
+    if (kept){ $('#main').dataset.area = area; rearrSync(); const seq = renderSeq; afterPaint(() => refreshKept(seq)); } else renderAfter(openFolds);
     if(!document.getElementById('viewNav')){const nav=document.createElement('div');nav.id='viewNav';nav.className='acts';document.querySelector('.topbar').append(nav);}
     { const vn = '<button data-act="viewBack" '+(viewIndex<=0?'disabled':'')+'>Back</button><button data-act="viewForward" '+(viewIndex>=viewHistory.length-1?'disabled':'')+'>Forward</button>', nav = document.getElementById('viewNav'); if (nav.innerHTML !== vn) nav.innerHTML = vn; }   // AX1 (option 6): only when it changed
     drawNave();
@@ -13102,7 +13549,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
         '<span class="bv-lab bv-push">' + daysTo + ' days · ' + esc(fmtMD(m.days[m.span].date)) + ' · ' + m.goalLb + ' lb</span></div>' +
         '<div class="bv-chart" data-wg="0"></div><div class="bv-strip-h">Pace, lb a week</div><div class="bv-chart" data-wg="1"></div>' +
         legend(WG_LEGEND) + '<p class="bv-readout" aria-live="polite"></p>' +
-        '<p class="bv-lab bv-wgcap">' + (ago != null ? '<span class="bv-fresh"><i></i>' + ago + ' days ago</span>' : '') + 'At the last weigh-in' + (pf.diff != null ? ': <b>' + n1(Math.abs(pf.diff)) + ' lb ' + (pf.state === 'Ahead' ? 'ahead' : 'behind') + '</b>' + (pf.daysAhead ? ', ' + Math.abs(pf.daysAhead) + ' days' : '') : '') + (pf.paceNeeded != null ? ' · pace needed <b>' + n1(Math.abs(pf.paceNeeded)) + ' lb a week</b>' : '') + '</p>';   // the app's planFigures; the line above reads the day under the cursor
+        '<p class="bv-lab bv-wgcap">' + (ago != null ? '<span class="bv-fresh"><i></i>' + ago + ' days ago</span>' : '') + 'At the last weigh-in' + (pf.diff != null ? ': <b>' + n1(Math.abs(pf.diff)) + ' lb ' + (pf.state === 'Ahead' ? 'ahead' : 'behind') + '</b>' + (pf.daysAhead ? ', ' + Math.abs(pf.daysAhead) + ' days' : '') : '') + (pf.paceNeeded != null ? ' · pace needed <b>' + n1(Math.abs(pf.paceNeeded)) + ' lb a week</b>' : '') + '</p>' +
+        rxPlanLine(m.st, m.est && m.est.point) + rxTrendHTML(m.st);   // the app's planFigures; the line above reads the day under the cursor; V6.1.3 X1 and X2 under the caption
       const cur = GlowChart.cursor(), charts = [], ro = card.querySelector('.bv-readout');
       /* review fix 5, his line 9 rule (as F2 does): while the pointer is on a chart, the hero (the scale reading as of that day), est. and plan above the
          chart change in place for the day under it; leaving puts the at-rest numbers back. The readout line under the charts stays. */
@@ -13253,11 +13701,29 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
         return '<div class="trg-row" data-metric="' + id + '"><div class="trg-head"><span class="trg-name">' + esc(T.label) + '</span><span class="trg-val">' + rest + '</span></div>' + (spec ? gcHost('trg-' + id, spec, 64) : '') + '</div>'; }).join('');
       return '<section class="k-card trg-card" data-parity="V6-F2" data-group="' + g.id + '" data-feedback-id="trends-' + g.id + '" data-feedback-label="' + esc(g.name) + '"' + winAttrs(W) + '><div class="k-head"><span aria-hidden="true">' + g.emoji + '</span><span class="k-title" title="' + esc(g.why) + '">' + esc(g.name) + '</span>' + filtChipHTML('fitness', 'trends-' + g.id) + '</div>' + rows + (multi ? '' : '<p class="hint keep">Pick Week or longer in the filter for the lines.</p>') + '</section>';
     }
+    /* V6.1.3 X4 Sleep timing, night by night (his Mock pick), after Recovery: a bar from bed to wake for each night with real start and end, the median bed and
+       wake times with their spread, and one word. Planner's default: the page's range (a Day draws two weeks, as these cards do), at most the last 31 nights. */
+    function sleepTimingCard(){
+      const days = glDays(filtWin('fitness', null).days), sd = a => { const m = a.reduce((x, y) => x + y, 0) / a.length; return Math.sqrt(a.reduce((x, y) => x + (y - m) * (y - m), 0) / a.length); };
+      const ns = rxNights(S(), days[0], days[days.length - 1]).filter(([, r]) => (r.durationSec || 0) > 3 * 3600).slice(-31); if (ns.length < 5) return '';
+      const bed = ns.map(([, r]) => rxClockMin(r.start)), wake = ns.map(([, r]) => rxClockMin(r.end) + (rxClockMin(r.end) < rxClockMin(r.start) ? 1440 : 0));
+      const med = a => a.slice().sort((x, y) => x - y)[a.length >> 1], sb = sd(bed), sw = sd(wake), spread = (sb + sw) / 2;
+      const word = spread <= 30 ? 'steady' : spread <= 60 ? 'a little loose' : 'irregular';
+      const x0 = 20 * 60, x1 = 34 * 60, W = 600, row = 12, H = ns.length * row + 26, X = m => 40 + (m - x0) / (x1 - x0) * (W - 50);
+      let bars = '';
+      ns.forEach(([d, r], i) => { const y = 4 + i * row, a = Math.max(x0, bed[i]), e = Math.min(x1, wake[i]);
+        bars += '<text x="0" y="' + (y + 8) + '" font-size="9" fill="var(--faint)">' + esc(new Date(d + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short'})) + '</text><rect x="' + X(a).toFixed(1) + '" y="' + y + '" width="' + Math.max(2, X(e) - X(a)).toFixed(1) + '" height="8" rx="3" fill="var(--sleep,#6fb6e0)"><title>' + esc(monthDay(d) + ': ' + rxClockText(bed[i]) + ' to ' + rxClockText(wake[i])) + '</title></rect>'; });
+      const ticks = [21, 24, 27, 30, 33].map(h => '<text x="' + X(h * 60).toFixed(1) + '" y="' + (H - 4) + '" font-size="9" text-anchor="middle" fill="var(--faint)">' + rxClockText(h * 60).replace(':00', '') + '</text>').join('');
+      const lines = [med(bed), med(wake)].map(m => '<line x1="' + X(m).toFixed(1) + '" x2="' + X(m).toFixed(1) + '" y1="0" y2="' + (H - 16) + '" stroke="var(--ink)" stroke-opacity=".45" stroke-dasharray="2 3"/>').join('');
+      return '<section class="k-card rx-card rx-sleep" data-parity="V613-X4" data-feedback-id="sleep-timing" data-feedback-label="Sleep timing"><div class="k-head"><span aria-hidden="true">🛏️</span><span class="k-title">Sleep timing</span><span class="k-spacer"></span><span class="rx-word">' + word + '</span></div>' +
+        '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Bed and wake times, the last ' + ns.length + ' nights">' + lines + bars + ticks + '</svg>' +
+        '<p class="rx-cap">Bed about <b>' + rxClockText(med(bed)) + '</b> ± ' + Math.round(sb) + ' min · up about <b>' + rxClockText(med(wake)) + '</b> ± ' + Math.round(sw) + ' min · ' + ns.length + ' nights. Your Sleep score’s steadiness counts bedtime only; this adds the wake time, which the regularity research weighs as much.</p></section>';
+    }
     function shapeF2(ctx){
       if (ctx.area !== 'fitness' || ctx.main.querySelector('[data-parity="V6-F2"]')) return;
       const tr = ctx.main.querySelector('.tr-card'); if (!tr) return;
       for (const s of ['.tr-card', '.fit-tiles2', '.fit-sleep', '.fit-load']) gone(ctx.main.querySelector(s));
-      tr.insertAdjacentHTML('afterend', '<div class="trg-grid">' + TR_GROUPS.map(trendGroupCard).join('') + '</div>');
+      tr.insertAdjacentHTML('afterend', '<div class="trg-grid">' + TR_GROUPS.map(g => trendGroupCard(g) + (g.id === 'recovery' ? sleepTimingCard() : '')).join('') + '</div>');   // V6.1.3 X4: Sleep timing after Recovery
       decorateFeedbackCards(ctx.main.querySelector('.trg-grid'));   // the shapers run after the page's own decorating, so the new cards get their note control here (V3.6 H6)
       gcMount(ctx.main.querySelector('.trg-grid'));
     }
@@ -13463,6 +13929,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     yvPagers();
     V6P2.shape();   // V6 Preview P2: Body, Fitness, Care, Hearth, Talents, Progress and Data picks
     glAfter();
+    rearrSync();   // V6.1.3: his card order on this page, before the full screen and the paint
+    cfsApply();   // V6.1.3: an open full screen survives the draw
   }
   /* BG19 (planner's review: the Year table ran off the right edge, Resting HR cut): a table wider than its card fades at the edge it continues past and
      has ‹ › under it to step through its columns (scrollbars are hidden app-wide, S4) */

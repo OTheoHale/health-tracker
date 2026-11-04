@@ -50,7 +50,7 @@ const GlowChart=(()=>{
     function showSel(i){if(!state.ov)return;state.ov.innerHTML='';if(i<state.a||i>state.b)return;const x=state.xs(i);
       el('line',{x1:x,x2:x,y1:state.mt,y2:state.mt+state.ih,stroke:'var(--ink)','stroke-width':.75,opacity:.55},state.ov);
       spec.series.forEach(s=>{const v=s.get(spec.days[i],i);if(v==null||(spec.yFixed&&(v<spec.yFixed[0]||v>spec.yFixed[1])))return;el('circle',{cx:x,cy:state.ys(v),r:(s.dotR||3.2)+1.2,fill:'var(--bg)',stroke:s.colorOf?s.colorOf(v,i):s.color,'stroke-width':1.5},state.ov);});}
-    function pick(clientX){const r=svg.getBoundingClientRect();const x=clientX-r.left;const n=state.b-state.a;let i=state.a+Math.round((x-state.ml)/(state.iw||1)*n);i=Math.max(state.a,Math.min(state.b,i));cur.set(i,root);}
+    function pick(clientX){const r=svg.getBoundingClientRect();const x=(clientX/(window.glowZoomOf?window.glowZoomOf(svg):1)-r.left)*(state.W/(r.width||state.W));const n=state.b-state.a;let i=state.a+Math.round((x-state.ml)/(state.iw||1)*n);i=Math.max(state.a,Math.min(state.b,i));cur.set(i,root);}
     if(inter){root.addEventListener('pointermove',e=>{if(e.pointerType==='touch'&&!e.buttons)return;pick(e.clientX);});
       root.addEventListener('pointerdown',e=>{root.focus({preventScroll:true});pick(e.clientX);});
       root.addEventListener('keydown',e=>{const i=cur.i==null?state.b:cur.i;const m={ArrowLeft:i-1,ArrowRight:i+1,Home:state.a,End:state.b}[e.key];if(m==null)return;e.preventDefault();cur.set(Math.max(state.a,Math.min(state.b,m)),root);});
