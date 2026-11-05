@@ -2582,6 +2582,11 @@ function programStartOf(state,today){const t=today||todayYmd(),p=state.prefs?.pr
    negative through goal(); "on track" is its own named threshold. A day counts in a net figure only with a full
    record (food, resting and active energy); otherwise it names the missing input. */
 const NET_KCAL_PER_LB=3500;
+/* V6.1.8 (his words, Nov 4: "take those days I don't log and just give me +1000 calories on those days so my glow is more realistic and it
+   encourages me to log"): replaces his Oct 3 food-0 rule. A past day on or after the plan start with no food energy from any source nets +1,000
+   whatever the burn reads; today is never unlogged (it is still running); days before the plan start keep the food-0 reading. Computed, never stored. */
+const UNLOGGED_NET_KCAL=1000;
+function unloggedDay(state,date,food){const s=goalsV2(state).startDate;return !(food>0)&&validCalendarDate(s)&&date>=s&&date<todayYmd();}
 const NetEnergy={
   goal(state){const d=goalsV2(state).deficit;return -Math.abs(Number(d.daily)||GOAL_DEFAULTS_V2.deficit.daily);},
   onTrack(state){const d=goalsV2(state).deficit;return -Math.abs(Number(d.onTrack)||GOAL_DEFAULTS_V2.deficit.onTrack);},
@@ -2590,41 +2595,42 @@ const NetEnergy={
     const e=eb||Workspace.energyBalance(state,date)||{},typedBurn=!!(e.typed&&e.typed.burn);
     const food=Number.isFinite(e.food)?e.food:null,burn=Number.isFinite(e.burn)?e.burn:null;
     const missing=[food===null||food<=0?'food':null,typedBurn?null:!(e.resting>0)?'resting':null,typedBurn?null:!(e.active>0)?'active':null,typedBurn&&!(burn>0)?'burn':null].filter(Boolean);
-    const full=!missing.length&&e.complete!==false&&burn!==null;
-    // AZ2 (his words, Oct 9: "even if i have no food in that i still have a number because thats an actual truth"): what the cards show
-    // counts an unlogged day as food 0 once its burn is known (the weight estimate's rule); `net` stays the full-record figure that the
-    // on-track checks, the Deficit item and the goals read.
-    const shown=full?food-burn:burn!==null&&missing.every(k=>k==='food')?(food>0?food:0)-burn:null;
-    return {date,food,burn,resting:Number.isFinite(e.resting)?e.resting:null,active:Number.isFinite(e.active)?e.active:null,net:full?food-burn:null,full,missing,typed:!!e.typed,shown,noFood:shown!==null&&!full};
+    const full=!missing.length&&e.complete!==false&&burn!==null,unlogged=!full&&unloggedDay(state,date,food);
+    // AZ2 (his words, Oct 9: "even if i have no food in that i still have a number because thats an actual truth"): before the plan start what
+    // the cards show counts a no-food day as food 0 once its burn is known; otherwise `net` is the full-record figure the on-track checks read.
+    // V6.1.8: an unlogged day's `net` and `shown` are both +1,000, so every reader of either counts it; `full` stays false (nothing was logged).
+    const shown=full?food-burn:unlogged?UNLOGGED_NET_KCAL:burn!==null&&missing.every(k=>k==='food')?(food>0?food:0)-burn:null;
+    return {date,food,burn,resting:Number.isFinite(e.resting)?e.resting:null,active:Number.isFinite(e.active)?e.active:null,net:full?food-burn:unlogged?UNLOGGED_NET_KCAL:null,full,unlogged,missing,typed:!!e.typed,shown,noFood:shown!==null&&!full&&!unlogged};
   },
   missingText(missing){const w={food:'no food logged',resting:'no resting energy',active:'no active energy',burn:'no burn'};return (missing||[]).length===3?'no data':(missing||[]).map(k=>w[k]).join(', ');},
-  // Days from..to (inclusive) with their records, the total and average of the full days, and pounds at 3,500 kcal.
+  // Days from..to (inclusive) with their records, the total and average of the full days and the unlogged ones (+1,000 each, V6.1.8), and pounds at 3,500 kcal.
   summary(state,from,to){
     const bal=Workspace.energyBalances(state,from,to),days=[];for(let d=from;d<=to;d=addDays(d,1))days.push(NetEnergy.day(state,d,bal.get(d)));
     // The average is the mean of the displayed (rounded) daily nets, rounded once more at display (the Learn rule).
-    const ok=days.filter(x=>x.full),total=ok.reduce((n,x)=>n+x.net,0);
-    const sd=days.filter(x=>x.shown!==null),sTotal=sd.reduce((n,x)=>n+x.shown,0);   // AZ2: the shown figures count a day with no food as food 0
-    return {from,to,days,logged:ok.length,of:days.length,total,avg:ok.length?ok.reduce((n,x)=>n+Math.round(x.net),0)/ok.length:null,pounds:total/NET_KCAL_PER_LB,burn:ok.length?ok.reduce((n,x)=>n+x.burn,0)/ok.length:null,food:ok.length?ok.reduce((n,x)=>n+x.food,0)/ok.length:null,missing:days.filter(x=>!x.full),
-      shown:sd.length,noFood:sd.filter(x=>x.noFood).length,shownTotal:sTotal,shownAvg:sd.length?sd.reduce((n,x)=>n+Math.round(x.shown),0)/sd.length:null,shownPounds:sTotal/NET_KCAL_PER_LB,shownBurn:sd.length?sd.reduce((n,x)=>n+x.burn,0)/sd.length:null,shownFood:sd.length?sd.reduce((n,x)=>n+(x.food>0?x.food:0),0)/sd.length:null};
+    const ok=days.filter(x=>x.full),cnt=days.filter(x=>x.net!==null),total=cnt.reduce((n,x)=>n+x.net,0);   // V6.1.8: logged counts the full days; the figures count the unlogged ones too
+    const sd=days.filter(x=>x.shown!==null),sTotal=sd.reduce((n,x)=>n+x.shown,0);   // AZ2: the shown figures count a day with no food as food 0 before the plan start, +1,000 after it (V6.1.8)
+    return {from,to,days,logged:ok.length,unlogged:days.filter(x=>x.unlogged).length,of:days.length,total,avg:cnt.length?cnt.reduce((n,x)=>n+Math.round(x.net),0)/cnt.length:null,pounds:total/NET_KCAL_PER_LB,burn:ok.length?ok.reduce((n,x)=>n+x.burn,0)/ok.length:null,food:ok.length?ok.reduce((n,x)=>n+x.food,0)/ok.length:null,missing:days.filter(x=>!x.full),
+      shown:sd.length,noFood:sd.filter(x=>x.noFood).length,shownTotal:sTotal,shownAvg:sd.length?sd.reduce((n,x)=>n+Math.round(x.shown),0)/sd.length:null,shownPounds:sTotal/NET_KCAL_PER_LB,shownBurn:sd.some(x=>x.burn!==null)?sd.reduce((n,x)=>n+(x.burn||0),0)/sd.filter(x=>x.burn!==null).length:null,shownFood:sd.length?sd.reduce((n,x)=>n+(x.food>0?x.food:0),0)/sd.length:null};
   },
   // Windows ending on `day` (A30, H4): Day = that day, Week = Monday to `day` (or Sunday, by the Week setting), Month = the 1st to `day`, All = Program start.
   window(state,period,day,range){const t=day||todayYmd();if(period==='custom'&&range&&validCalendarDate(range.from)&&validCalendarDate(range.to)){const a=range.from<range.to?range.from:range.to,b=range.from<range.to?range.to:range.from;return {from:a,to:b>t?t:b};}
     const from=period==='week'?weekStartOf(t,state.prefs&&state.prefs.weekStart===0?0:1):period==='month'?t.slice(0,8)+'01':period==='all'?programStartOf(state,t):t;return {from:from>t?t:from,to:t};},   // H4: Week is the calendar week and Month the calendar month
-  // The net used by the weight estimate (his rule, Oct 3): an unlogged day counts as food 0; a day without resting or
-  // active energy is not food 0, so it is skipped and named (ASSUMED A3); today counts once it has a full record.
+  // The net used by the weight estimate: an unlogged day since the plan start nets +1,000 (V6.1.8, his Nov 4 words); before it, his
+  // Oct 3 rule (food 0) stands; a day without resting or active energy is skipped and named (ASSUMED A3); today counts once it has a full record.
   estimateDays(state,from,to,today){
-    const t=today||todayYmd(),bal=Workspace.energyBalances(state,from,to),used=[],skipped=[];let net=0,zeroFood=0,logged=0;
+    const t=today||todayYmd(),bal=Workspace.energyBalances(state,from,to),used=[],skipped=[];let net=0,zeroFood=0,logged=0,unlogged=0;
     for(let d=from;d<=to;d=addDays(d,1)){const x=NetEnergy.day(state,d,bal.get(d));
       if(d>=t&&!x.full)continue;
+      if(x.unlogged){unlogged++;net+=x.net;used.push(d);continue;}
       if(x.burn===null||x.missing.some(k=>k!=='food')){skipped.push({date:d,missing:x.missing});continue;}
       const food=x.missing.includes('food')?0:x.food;if(food===0)zeroFood++;if(x.full)logged++;net+=food-x.burn;used.push(d);}
-    return {net,used,skipped,zeroFood,logged,of:used.length+skipped.length};
+    return {net,used,skipped,zeroFood,unlogged,logged,of:used.length+skipped.length};
   },
   /* N3: last weigh-in + the sum of (food - resting - active) over every day since, divided by 3,500. No range. */
   weightEstimate(state,asOf){
     const t=asOf||todayYmd(),w=latestWeightLb(state,t);if(!w)return null;
     const x=NetEnergy.estimateDays(state,w.date,t,todayYmd());
-    return {point:w.lb+x.net/NET_KCAL_PER_LB,from:w.lb,since:w.date,net:x.net,logged:x.logged,of:x.of,zeroFood:x.zeroFood,skipped:x.skipped,used:x.used.length};
+    return {point:w.lb+x.net/NET_KCAL_PER_LB,from:w.lb,since:w.date,net:x.net,logged:x.logged,of:x.of,zeroFood:x.zeroFood,unlogged:x.unlogged,skipped:x.skipped,used:x.used.length};
   },
   /* N8 (ASSUMED A6): the daily deficit the scale implies between two days at least 10 days apart, from the mean of the
      weigh-ins in the 7 days ending at each end (a light smoothing); null without a reading at both ends. */
@@ -2752,8 +2758,8 @@ function whatHelpsV2(state,from,to,readings){
   return {rows:rows.slice(0,WHAT_HELPS2.max),near:near.sort((x,y)=>Math.min(y.kept,y.other)-Math.min(x.kept,x.other)),minEach:WHAT_HELPS2.minEach};
 }
 /* V3.6 R7: one rule for a graded food day, read by the Fitness Grade's protein and the Nutrition Grade alike: the day's
-   food energy (NetEnergy.day, the figure Net Fuel uses) is at least 800 kcal. A no-food day is never a zero: the weight
-   estimate counts it at food 0 (N3), Net Fuel, protein and the Nutrition Grade skip it. */
+   food energy (NetEnergy.day, the figure Net Fuel uses) is at least 800 kcal. A no-food day is never a zero: since the plan start the weight
+   estimate counts it at +1,000 (V6.1.8; food 0 before it), protein and the Nutrition Grade skip it. */
 const FOOD_GRADED_KCAL=300;   // AZ1-FOODDAY (his words, Oct 9: "For food make it 300 cal threshold not 800"; planner's default: one food-day rule app-wide)
 function foodGraded(state,date,eb){const x=NetEnergy.day(state,date,eb);return Number.isFinite(x.food)&&x.food>=FOOD_GRADED_KCAL;}
 // The Nutrition Grade's day: the food energy of that rule and the nutrients of the reader (closed days only).

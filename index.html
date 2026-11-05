@@ -2292,6 +2292,7 @@ body:not([data-area="plan"]):not([data-area="template"]):not([data-area="log"]) 
 .lv-date span { font-size: 12.5px; }
 .lv-needs { font-size: 12px; color: var(--muted); font-weight: 600; font-style: italic; }
 .lv-nolog { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; }
+.ne-unlogged { color: var(--muted); font-size: 12px; font-weight: 400; }   /* V6.1.8: "Not logged · counted as +1,000", the quiet line */
 .lv-edit { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 4px; font-size: 14px; min-height: 0; }
 .lv-band { fill: rgba(255,255,255,.1); stroke: rgba(255,255,255,.28); stroke-width: 1; stroke-dasharray: 3 3; }
 :root[data-theme="light"] .lv-band { fill: rgba(0,0,0,.06); stroke: rgba(0,0,0,.28); }
@@ -5714,7 +5715,7 @@ addEventListener('load', () => {
     let html = '<div class="drawer-day" data-on-this-day="' + day + '" data-parity="V36-H1-02"><div class="drawer-sub">On this day <span class="drawer-n">' + esc(monthDay(day)) + '</span></div>' +
       '<div class="drawer-dblock" data-day-block="' + id + '"><b' + (id === 'net' && cur ? ' style="color:' + NE.colour(cur[1]) + '"' : '') + '>' + (cur ? nf(m, cur[1]) : '—') + '</b>' + (m.unit ? ' <small>' + esc(m.unit) + '</small>' : '') +
       '<div class="drawer-dmeta">' + (cur && cur[0] !== day ? '<span>latest reading ' + esc(monthDay(cur[0])) + '</span>' : '') + (dv !== null ? '<span>' + (Math.abs(dv) < Math.pow(10, -m.digits) / 2 ? 'no change' : (dv > 0 ? '↑ ' : '↓ ') + nf(m, Math.abs(dv)).replace(/^[−+]/, '')) + ' vs ' + esc(monthDay(prev[0])) + '</span>' : '') + '<span>' + esc(m.source) + '</span></div></div>';
-    if (['weight', 'fat', 'lean', 'waist'].includes(id)){ const x = NetEnergy.day(st, day); html += '<div class="drawer-drow" data-day-net><span aria-hidden="true">🔥</span><b>Net Energy</b><span class="drawer-drv"' + (x.full ? ' style="color:' + NE.colour(x.net) + '"' : '') + '>' + (x.full ? NE.fmt(x.net) + ' kcal' : '—') + '</span><small>' + esc(x.full ? 'logged' : NetEnergy.missingText(x.missing)) + '</small></div>'; }
+    if (['weight', 'fat', 'lean', 'waist'].includes(id)){ const x = NetEnergy.day(st, day); html += '<div class="drawer-drow" data-day-net><span aria-hidden="true">🔥</span><b>Net Energy</b><span class="drawer-drv"' + (x.net !== null ? ' style="color:' + NE.colour(x.net) + '"' : '') + '>' + (x.net !== null ? NE.fmt(x.net) + ' kcal' : '—') + '</span><small>' + esc(x.full ? 'logged' : x.unlogged ? NE.unlogged : NetEnergy.missingText(x.missing)) + '</small></div>'; }
     const rel = (RELATED[id] || []).filter(r => METRICS[r] && r !== id);
     html += '<div class="drawer-rel">' + rel.map(r => {
       const rm = METRICS[r], ser = [...metricSeries(st, r, 90)].sort(([a], [b]) => a.localeCompare(b)), win = ser.filter(([d]) => d > addDays(day, -7) && d <= day), at = win.length ? win[win.length - 1] : null, close = at && calendarDistance(at[0], day) <= 3;
@@ -5816,7 +5817,7 @@ addEventListener('load', () => {
         breakdown:[{name:'Last weigh-in', yours:w(e.from), weight:medDate(e.since)}, {name:'Net Energy since', yours:NE.fmt(e.net) + ' kcal', weight:e.logged + ' of ' + e.of + ' days'}, {name:'Estimate', yours:w(e.point), weight:'today'}].concat(g ? [{name:'Scale', yours:w(g.measured), weight:medDate(g.to)}, {name:'Logging gap', yours:(g.diff > 0 ? '+' : g.diff < 0 ? '−' : '') + (+u.lb(Math.abs(g.diff))).toFixed(1) + ' ' + u.mass, weight:g.level, colour:g.level === 'Aligned' ? 'green' : g.level === 'Watch' ? 'yellow' : 'orange'}] : []),
         compare:g ? LCMP('Scale ' + w(g.measured), 'Estimate ' + w(g.est), g.sentence) : '',
         what:'An estimate, not a measurement: where your logged food and burned energy say your weight should be. The logging gap is the scale minus that estimate between two weigh-ins.',
-        how:'Start at the last weigh-in; add each day’s Net Energy ÷ 3,500 kcal a pound. A day with no food logged counts as no food; a day without resting or active energy is skipped and named. Aligned under 0.5 lb, Watch to 1.2 lb, Big gap above (display words, ASSUMED A7).',
+        how:'Start at the last weigh-in; add each day’s Net Energy ÷ 3,500 kcal a pound. A day since the plan start with no food logged counts as +1,000 kcal; a day without resting or active energy is skipped and named. Aligned under 0.5 lb, Watch to 1.2 lb, Big gap above (display words, ASSUMED A7).',
         formula:'Estimate = last weigh-in + Σ(food − resting − active) ÷ 3,500. Logging gap = scale − estimate over the same span.',
         optimal:'A gap near zero means the log and the scale agree; water and timing move the scale a pound or two either way.', why:'A large gap usually means unlogged food or a missing energy day, not a failed plan.',
         improve:['Weigh at the same time of day.', 'Log every meal on the days between weigh-ins.', 'Look at the gap over two weeks, not two days.'], related:['net-energy', 'weight']};
@@ -5901,7 +5902,7 @@ addEventListener('load', () => {
       for (const [d, v] of imported.protein) if (!foodDays.has(d)) put('protein', d, v); for (const [d, v] of ownProtein) put('protein', d, v);   // foods he logs replace the imported total for that day
       { const xw = SCORES_ON ? scoreIndex(st) : null, own = new Map(); for (const w of st.waterEvents || []) if (w && w.date && Number.isFinite(w.volumeMl)) own.set(w.date, (own.get(w.date) || 0) + w.volumeMl);   // V6.1.5 audit: the Water card's figure (waterMlOf), not every app's rows added up
         for (const d of new Set([...(xw ? xw.water.keys() : []), ...own.keys()])){ const ml = waterMlOf(xw ? xw.water.get(d) : undefined, own.get(d), d).ml; if (ml) put('water', d, ml / 29.5735295625); } }
-      try { for (const [d, eb] of Workspace.energyBalances(st, from, today)) if (eb && eb.available) put('net', d, eb.balance); } catch (_) {}
+      try { for (const [d, eb] of Workspace.energyBalances(st, from, today)){ const x = d < today && !(eb && eb.food > 0) ? NetEnergy.day(st, d, eb || {}) : null; if (x && x.unlogged) put('net', d, x.net); else if (eb && eb.available) put('net', d, eb.balance); } } catch (_) {}   // V6.1.8: an unlogged day is +1,000
       const x = SCORES_ON ? scoreIndex(st) : null;
       if (x){ const types = Scores.TABLE.strength.types.map(t => t.toLowerCase()), strong = new Set(); for (const ss of Scores.sessions(x)){ const t = String(ss.type).toLowerCase(); if ((types.some(k => t.includes(k.replace(' training', ''))) || types.includes(t)) && (ss.minutes || 0) >= 15) strong.add(ss.day); } for (let d = from; d <= today; d = addDays(d, 1)) put('strength', d, strong.has(d) ? 1 : 0); }
       return out;
@@ -7054,6 +7055,8 @@ addEventListener('load', () => {
     plain: v => (Math.round(v) < 0 ? '−' : '') + Math.abs(Math.round(v)).toLocaleString('en-US'),
     colour: v => !Number.isFinite(v) || Math.round(v) === 0 ? 'var(--ink)' : v < 0 ? 'var(--c-red-ink,#f39a8d)' : 'var(--c-blue,#6fb6e0)',   // V3.7 X4: the deficit red reads at 7:1 as text (every net figure is now coloured)
     word: v => v > 0 ? 'surplus' : 'deficit',
+    unlogged: 'Not logged · counted as +' + UNLOGGED_NET_KCAL.toLocaleString('en-US'),   // V6.1.8: a past day since the plan start with no food nets +1,000 (NetEnergy.day)
+    unloggedN: n => n + (n === 1 ? ' day not logged, counted +' : ' days not logged, counted +') + UNLOGGED_NET_KCAL.toLocaleString('en-US') + (n === 1 ? '' : ' each'),
     lb: v => (v < 0 ? '−' : v > 0 ? '+' : '') + Math.abs(v).toFixed(1),
     progress(st, v){ const g = NetEnergy.goal(st), ok = Number.isFinite(v); return {goal:g, share:ok ? Math.max(0, Math.min(1, v / g)) : 0, text:(ok ? NE.fmt(v) : '—') + ' of ' + NE.plain(g) + ' kcal'}; },
     range: (st, v) => Math.max(700, Math.ceil(Math.abs(NetEnergy.goal(st)) / 350) * 350, Number.isFinite(v) ? Math.ceil(Math.abs(v) / 350) * 350 : 0),
@@ -7069,7 +7072,7 @@ addEventListener('load', () => {
       o = o || {}; const g = NetEnergy.goal(st), ot = NetEnergy.onTrack(st), nets = list.filter(x => x.net !== null).map(x => x.net), t = todayYmd();
       const low = Math.max(1050, Math.ceil(-g / 350) * 350, ...nets.map(v => v < 0 ? Math.ceil(-v / 350) * 350 : 0)), up = Math.max(420, ...nets.map(v => v > 0 ? Math.ceil(v / 140) * 140 : 0));
       const y0 = 100 * up / (up + low), y = v => v >= 0 ? y0 - v / up * y0 : y0 + (-v) / low * (100 - y0), n = list.length || 1, w = 100 / n, gap = n > 14 ? .18 : .3;
-      const bars = list.map((x, i) => { const left = (i + gap / 2) * w, bw = w * (1 - gap), lab = medDate(x.date) + ': ' + (x.net === null ? NetEnergy.missingText(x.missing) : NE.fmt(x.net) + ' kcal ' + NE.word(x.net));
+      const bars = list.map((x, i) => { const left = (i + gap / 2) * w, bw = w * (1 - gap), lab = medDate(x.date) + ': ' + (x.net === null ? NetEnergy.missingText(x.missing) : x.unlogged ? NE.unlogged : NE.fmt(x.net) + ' kcal ' + NE.word(x.net));
         if (x.net === null) return '<button type="button" class="ne-dot" data-date="' + x.date + '" data-missing="' + esc(x.missing.join(' ')) + '" aria-label="' + esc(lab) + '" title="' + esc(lab) + '" style="left:' + (left + bw / 2).toFixed(2) + '%;top:' + y0.toFixed(2) + '%"></button>';
         const top = Math.min(y0, y(x.net)), h = Math.max(.8, Math.abs(y(x.net) - y0));
         return '<button type="button" class="ne-bar' + (x.date >= t ? ' today' : '') + '" data-date="' + x.date + '" data-net="' + Math.round(x.net) + '" aria-label="' + esc(lab) + '" title="' + esc(lab) + '" style="left:' + left.toFixed(2) + '%;width:' + bw.toFixed(2) + '%;top:' + top.toFixed(2) + '%;height:' + h.toFixed(2) + '%;background:' + NE.colour(x.net) + '"></button>'; }).join('');
@@ -7088,7 +7091,7 @@ addEventListener('load', () => {
     const e = NetEnergy.weightEstimate(st, asOf); if (!e) return '';
     const u = unitPrefs(st), w = v => (+u.lb(v)).toFixed(1) + ' ' + u.mass, lo = Math.min(e.point, e.from) - .6, hi = Math.max(e.point, e.from) + .6, pos = x => ((x - lo) / (hi - lo) * 100).toFixed(1) + '%', id = 'west-' + (key || 'x');
     return '<div class="ne-west" data-parity="V36-N3-01" data-estimate data-est="' + e.point.toFixed(2) + '" data-logged="' + e.logged + '" data-of="' + e.of + '"><div class="ne-west-top"><span class="ne-west-l">⚖️ Weight estimate' + infoBtn(id, 'Weight estimate') + '</span><b class="ne-west-v">Est. ' + w(e.point) + '</b></div>' +
-      infoPop(id, 'Your ' + monthDay(e.since) + ' weigh-in (' + w(e.from) + ') plus food minus resting and active energy for every day since (' + NE.fmt(e.net) + ' kcal), divided by 3,500 kcal a pound. A day with no food logged counts as a day you did not eat (' + e.zeroFood + ' here), so it is a full deficit; the scale at your next weigh-in is the check (the logging gap). A day without resting or active energy is left out and named' + (e.skipped.length ? ' (' + e.skipped.map(x => monthDay(x.date)).join(', ') + ')' : '') + '. 3,500 kcal a pound is a rule of thumb: over weeks the body adapts and real change is smaller (Hall).', 'energy-weight') +
+      infoPop(id, 'Your ' + monthDay(e.since) + ' weigh-in (' + w(e.from) + ') plus food minus resting and active energy for every day since (' + NE.fmt(e.net) + ' kcal), divided by 3,500 kcal a pound. A day since the plan start with no food logged counts as +' + UNLOGGED_NET_KCAL.toLocaleString('en-US') + ' (' + e.unlogged + ' here), so not logging never looks like not eating; the scale at your next weigh-in is the check (the logging gap). A day without resting or active energy is left out and named' + (e.skipped.length ? ' (' + e.skipped.map(x => monthDay(x.date)).join(', ') + ')' : '') + '. 3,500 kcal a pound is a rule of thumb: over weeks the body adapts and real change is smaller (Hall).', 'energy-weight') +
       '<div class="ne-west-range" role="img" aria-label="Estimate ' + w(e.point) + ', from ' + w(e.from) + ' at the last weigh-in"><i class="ne-west-span" style="left:' + pos(Math.min(e.point, e.from)) + ';width:' + (Math.abs(e.from - e.point) / (hi - lo) * 100).toFixed(1) + '%"></i><i class="ne-west-pt" style="left:' + pos(e.point) + '"></i><i class="ne-west-start" title="Last weigh-in ' + esc(w(e.from)) + '" style="left:' + pos(e.from) + '"></i></div>' +
       '<div class="ne-west-sub"><span class="k-chip ' + (e.logged < e.of ? 'gold' : 'green') + '" data-logged-text>logged ' + e.logged + ' of ' + e.of + ' days</span></div></div>';
   }
@@ -7108,12 +7111,12 @@ addEventListener('load', () => {
     // V3.7 L3: the Fuel card's Day, Week, Month, All switch is its chip (prefs.fuelPer is no longer written); the window is the filter's
     const st = S(), FW = filtWin('home', 'fuel'), per = FW.per, isDay = FW.day, eb = wsTry('energyBalance', st, date) || {}, burnD = Number.isFinite(eb.burn) ? eb.burn : null, foodD = Number.isFinite(eb.food) ? eb.food : null;
     const win = isDay ? null : {from:FW.from, to:FW.to}, sm = win ? NetEnergy.summary(st, win.from, win.to) : null;
-    const one = isDay ? NetEnergy.day(st, date, eb) : null, net = isDay ? one.shown : sm.shown ? sm.shownTotal : null, avg = isDay ? net : sm.shownAvg, col = NE.colour(net);   // AZ2: no food logged counts as food 0, said in words
+    const one = isDay ? NetEnergy.day(st, date, eb) : null, net = isDay ? one.shown : sm.shown ? sm.shownTotal : null, avg = isDay ? net : sm.shownAvg, col = NE.colour(net);   // AZ2, V6.1.8: an unlogged day counts +1,000, said in words
     const missing = isDay ? [foodD === null ? 'food' : null, eb.resting === null || eb.resting === undefined ? (Number.isFinite(burnD) ? null : 'resting') : null, eb.active === null || eb.active === undefined ? (Number.isFinite(burnD) ? null : 'active') : null].filter(Boolean) : [];
     const field = (k, v, sym, label) => !isDay ? '<span class="today-fend ' + k + '" title="Average a day"><span aria-hidden="true">' + sym + '</span><b>' + (v === null ? '—' : kcal(v)) + '</b><small class="today-favg">a day</small></span>' : fuelEditing === k ? '<span class="today-fend ' + k + '"><span aria-hidden="true">' + sym + '</span><input id="fuelIn" class="today-numinp" type="number" inputmode="numeric" min="0" max="20000" step="1" value="' + (v === null ? '' : Math.round(v)) + '" aria-label="' + label + ' in kilocalories" data-f="' + k + '"><button class="k-btn" data-act="fuelSave" data-f="' + k + '">Save</button></span>' :
       '<button type="button" class="today-fend ' + k + '" data-act="fuelEdit" data-f="' + k + '" aria-label="' + label + ': ' + (v === null ? 'not recorded' : kcal(v) + ' kilocalories') + '. Tap to type it."><span aria-hidden="true">' + sym + '</span><b>' + (v === null ? '—' : kcal(v)) + '</b>' + (eb.typed && eb.typed[k] ? '<small class="chip self">self</small>' : '') + '</button>';
     const seg = filtChipHTML('home', 'fuel');   // Fix S3: a direct child of the card header
-    const sub = isDay ? (net === null && missing.length ? ' · no ' + esc(missing.join(', ')) + ' yet' : one.noFood ? ' · no food logged' : '') : ' · avg ' + (avg === null ? '—' : '<span data-net-avg="' + Math.round(avg) + '" style="color:' + NE.colour(avg) + '">' + NE.fmt(avg) + '</span>') + ' a day · ' + sm.shown + ' of ' + sm.of + ' days' + (sm.noFood ? ' · ' + sm.noFood + ' with no food logged' : '');
+    const sub = isDay ? (net === null && missing.length ? ' · no ' + esc(missing.join(', ')) + ' yet' : one.unlogged ? ' · <small class="ne-unlogged">' + esc(NE.unlogged) + '</small>' : one.noFood ? ' · no food logged' : '') : ' · avg ' + (avg === null ? '—' : '<span data-net-avg="' + Math.round(avg) + '" style="color:' + NE.colour(avg) + '">' + NE.fmt(avg) + '</span>') + ' a day · ' + sm.shown + ' of ' + sm.of + ' days' + (sm.unlogged ? ' · <small class="ne-unlogged">' + esc(NE.unloggedN(sm.unlogged)) + '</small>' : '') + (sm.noFood ? ' · ' + sm.noFood + ' with no food logged' : '');
     const lbs = !isDay && sm.shown ? '<div class="today-flb" data-parity="V36-N4-02">about ' + NE.lb(sm.shownPounds) + ' lb ' + ({week:weekMeans() === 'last7' ? 'the last 7 days' : 'this week', month:'this month', all:'since ' + monthDay(sm.from), custom:monthDay(sm.from) + ' to ' + monthDay(sm.to)}[per]) + ', est. <small>from ' + sm.shown + ' of ' + sm.of + ' days</small></div>' : '';
     return '<section class="k-card today-fuelc"' + winAttrs(FW) + ' data-filtered="fuel" data-parity="TODAY-FUEL" data-feedback-id="today-fuel" data-feedback-label="Fuel"><div class="k-head"><span aria-hidden="true">⛽</span><span class="k-title">Fuel</span>' + infoBtn('fuel-net', 'Net Energy') + seg + '<button type="button" class="k-open" data-act="tap" data-tap="fuel" aria-label="Open the Fuel detail" title="Open the detail">' + kIco('chevron', 14) + '</button></div>' +
       infoPop('fuel-net', 'Net Energy is the food you ate minus the energy you burned (resting plus active). Left of zero you burned more than you ate (a deficit, red); right of zero you ate more (a surplus, blue). The colour shows the direction, not good or bad. The dashed tick is your goal, ' + NE.plain(NetEnergy.goal(st)) + ' kcal a day. Week, Month and All add up the days with a full record (food, resting and active energy) and the bar shows the average a day. On Day, tap the burn or the food number to type it in kilocalories; your number is used for the day and marked self-reported.', 'energy-weight') +
@@ -7129,7 +7132,7 @@ addEventListener('load', () => {
       const entries = recs.map(r => '<div class="k-row"><span class="name">' + esc(pacificTime(r.start, 'compact')) + ' · ' + esc(r.sourceApp || 'Apple Health') + '</span><span class="val">' + kcal(r.value) + '</span></div>').concat(foods.map(f => '<div class="k-row"><span class="name">' + esc(f.label || 'Food') + '</span><span class="val">' + (f.nutrition && Number.isFinite(f.nutrition.calories) ? kcal(f.nutrition.calories) : '—') + '</span></div>'));
       const r = drawer.range, from = addDays(today, -(r - 1)), list = NetEnergy.summary(st, from, today).days;
       return '<div class="byseries drawer-rows"><span>🍎 Food</span><span>' + n(eb.food) + '</span><span>Resting</span><span>' + n(eb.resting) + '</span><span>Active</span><span>' + n(eb.active) + '</span><span>🔥 Burn</span><span>' + n(eb.burn) + '</span><span><b>Net Energy</b></span><span><b style="color:' + NE.colour(eb.balance) + '">' + (Number.isFinite(eb.balance) ? NE.fmt(eb.balance) + ' kcal' : '—') + '</b></span><span>Goal</span><span>' + NE.plain(NetEnergy.goal(st)) + ' kcal · on track from ' + NE.plain(NetEnergy.onTrack(st)) + '</span></div>' +
-        '<p class="drawer-change">' + esc(x.full ? NE.progress(st, x.net).text : eb.note || NetEnergy.missingText(x.missing)) + '</p>' +
+        '<p class="drawer-change">' + esc(x.full ? NE.progress(st, x.net).text : x.unlogged ? NE.unlogged : eb.note || NetEnergy.missingText(x.missing)) + '</p>' +
         '<div class="drawer-sub">Weight estimate</div><div class="today-fest">' + (neEstimateHTML(st, today, 'drawer') + neGapHTML(st, today, 'drawer') || '<p class="drawer-read">No weigh-in yet.</p>') + '</div>' +
         '<div class="drawer-sub">Today’s food</div>' + (entries.length ? '<div class="k-list">' + entries.join('') + '</div>' : '<p class="drawer-read">Nothing logged or imported yet.</p>') +
         '<div class="drawer-sub">Net Energy</div><div class="k-seg drawer-seg" role="group" aria-label="Range">' + [7, 30, 90].map(v => '<button data-act="drawerRange" data-r="' + v + '" aria-pressed="' + (r === v) + '">' + v + 'd</button>').join('') + '</div><div class="drawer-chart">' + NE.chart(st, list, {parity:'V36-N2-03'}) + '</div>';
@@ -7451,7 +7454,7 @@ addEventListener('load', () => {
        window and its data. The bar is the blue-to-red Net Energy bar with his marker; the colours: met is the app's green, purple only well past it. */
     const st = S(), page = where === 'nourish' ? 'nourish' : 'home', W = filtWin(page, 'fuel'), days = W.days.map(d => ({date:d})), multi = days.length > 1;
     const goal = NetEnergy.goal(st), rec = days.map(x => { try { return NetEnergy.day(st, x.date); } catch (_) { return null; } });
-    const full = rec.map(x => x && x.full ? x.net : null), shown = rec.map(x => x && !x.full && x.shown != null ? x.shown : null), vals = days.map((d, i) => full[i] != null ? full[i] : shown[i]).filter(v => v != null);
+    const full = rec.map(x => x && x.full ? x.net : null), shown = rec.map(x => x && !x.full && x.shown != null ? x.shown : null), nUnlogged = rec.filter(x => x && x.unlogged).length, vals = days.map((d, i) => full[i] != null ? full[i] : shown[i]).filter(v => v != null);
     const net = multi ? (vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null) : rec[0] && rec[0].shown != null ? rec[0].shown : null, nLogged = full.filter(v => v != null).length;
     const tone = v => neGoalTone(st, v), perWord = {week:'this week', month:'this month', all:'since the start', custom:W.trail ? 'the last ' + days.length + ' days' : 'the chosen days'}[W.per] || '';
     const eb = wsTry('energyBalance', st, date) || {}, burn = Number.isFinite(eb.burn) ? eb.burn : null, food = Number.isFinite(eb.food) ? eb.food : null;
@@ -7463,11 +7466,12 @@ addEventListener('load', () => {
     let est = null, gap = null; try { est = NetEnergy.weightEstimate(st, date); } catch (_) {} try { gap = NetEnergy.loggingGap(st, date); } catch (_) {}
     const n1 = x => (Math.round(x * 10) / 10).toFixed(1);
     const estLine = est ? '<p class="nr-lab">Est. <b class="nr-est">' + n1(est.point) + '</b> lb · logged ' + est.logged + ' of ' + est.of + ' days' + (gap && Number.isFinite(gap.diff) ? ' · gap ' + (gap.diff > 0 ? '+' : '') + n1(gap.diff) + ' lb' : '') + '</p>' : '';
-    const nrWhen = i => 'kcal · ' + GChart.fmtDay(days[i].date) + (full[i] == null && shown[i] != null ? ' (no food)' : ''), nrRest = multi ? 'kcal a day · ' + perWord : 'kcal ' + (date === todayYmd() ? 'today' : shortDay(date));
+    const nrWhen = i => 'kcal · ' + GChart.fmtDay(days[i].date) + (rec[i] && rec[i].unlogged ? ' (not logged)' : full[i] == null && shown[i] != null ? ' (no food)' : ''), nrRest = multi ? 'kcal a day · ' + perWord : 'kcal ' + (date === todayYmd() ? 'today' : shortDay(date));
     const nrNumCh = fxWidest(days.map((d, i) => full[i] != null ? NE.fmt(full[i]) : shown[i] != null ? NE.fmt(shown[i]) : '—').concat([net === null ? '—' : NE.fmt(net)])), nrWhenCh = fxWidest(days.map((d, i) => nrWhen(i)).concat([nrRest]));
     const spec = {days, from:0, to:days.length - 1, height:130, ticks:4, pad:.12, padLeft:46, yFmt:kShort, today:days.findIndex(d => d.date === date), todayLabel:false, label:'Net energy, ' + medDate(W.from) + ' to ' + medDate(W.to),
+      yRange:vals.length && vals.every(v => v === vals[0]) ? [Math.min(0, vals[0]) - 350, Math.max(0, vals[0]) + 350] : null,   // V6.1.8: a week of +1,000 days is flat, so the axis keeps zero in view instead of collapsing
       hline:{y:goal, color:'var(--brass)', width:1, dash:'4 3', label:'goal ' + NE.plain(goal)}, hlineFit:false,   // the axes zoom to his days; the goal line shows when it falls inside them
-      readout:i => GChart.fmtDay(days[i].date) + ' · ' + (full[i] != null ? NE.fmt(full[i]) + ' kcal' : shown[i] != null ? NE.fmt(shown[i]) + ' kcal, no food logged' : 'no record'),
+      readout:i => GChart.fmtDay(days[i].date) + ' · ' + (full[i] != null ? NE.fmt(full[i]) + ' kcal' : rec[i] && rec[i].unlogged ? NE.unlogged : shown[i] != null ? NE.fmt(shown[i]) + ' kcal, no food logged' : 'no record'),
       inPlace:(root, i) => { const card = root.closest('.nourish6'); if (!card) return; const num = card.querySelector('.nr-net'), notch = card.querySelector('.today-gbar .today-notch'), R = +((card.querySelector('.today-gticks') || {dataset:{}}).dataset.range || 0);   // the card's own number, colour and marker follow the pointer
         if (num.dataset.rest === undefined){ num.dataset.rest = num.innerHTML; num.dataset.restColour = num.style.color; if (notch) notch.dataset.rest = notch.style.left; }
         if (i == null){ num.innerHTML = num.dataset.rest; num.style.color = num.dataset.restColour; if (notch) notch.style.left = notch.dataset.rest; delete num.dataset.at; return; }
@@ -7475,8 +7479,8 @@ addEventListener('load', () => {
         fixedSet(num, v == null ? '—' : NE.fmt(v), nrWhen(i)); num.style.color = tone(v);   // only the characters change (his note)
         if (notch && R && Number.isFinite(v)) notch.style.left = (Math.min(1, Math.max(0, (v + R) / (2 * R))) * 100).toFixed(2) + '%'; },
       series:[{get:(d, i) => shown[i], color:'var(--faint)', width:1, dash:'1 3'}, {get:(d, i) => full[i], colorOf:v => tone(v), width:1.25}, {get:(d, i) => full[i], colorOf:v => tone(v), dots:true, dotR:2.25}]};
-    return '<section class="k-card nourish6" data-parity="V6-T2" data-feedback-id="' + (where === 'nourish' ? 'nourish-card' : 'today-nourish') + '" data-feedback-label="Nourish"' + winAttrs(W) + ' data-filtered="fuel"><div class="k-head"><span class="k-title">Nourish</span>' + infoBtn('nourish6-' + where, 'Nourish') + filtChipHTML(page, 'fuel') + '<button type="button" class="k-open" data-act="tap" data-tap="fuel" aria-label="Open the Fuel detail" title="Open the detail">' + kIco('chevron', 14) + '</button></div>' + infoPop('nourish6-' + where, 'Calories in against calories out, as a daily average over the days with food logged.') +
-      '<div class="nr-head"><span class="nr-net" data-net="' + (net === null ? '' : Math.round(net)) + '" style="color:' + tone(net) + '">' + fixedVal(net === null ? '—' : NE.fmt(net), nrRest, nrNumCh, nrWhenCh) + '</span><span class="nr-lab">goal ' + NE.plain(goal) + (multi ? ' · logged ' + nLogged + ' of ' + days.length + ' d' : '') + '</span></div>' +
+    return '<section class="k-card nourish6" data-parity="V6-T2" data-feedback-id="' + (where === 'nourish' ? 'nourish-card' : 'today-nourish') + '" data-feedback-label="Nourish"' + winAttrs(W) + ' data-filtered="fuel"><div class="k-head"><span class="k-title">Nourish</span>' + infoBtn('nourish6-' + where, 'Nourish') + filtChipHTML(page, 'fuel') + '<button type="button" class="k-open" data-act="tap" data-tap="fuel" aria-label="Open the Fuel detail" title="Open the detail">' + kIco('chevron', 14) + '</button></div>' + infoPop('nourish6-' + where, 'Calories in against calories out, as a daily average. A past day since the plan start with no food logged counts as +' + UNLOGGED_NET_KCAL.toLocaleString('en-US') + ' kcal.') +
+      '<div class="nr-head"><span class="nr-net" data-net="' + (net === null ? '' : Math.round(net)) + '" style="color:' + tone(net) + '">' + fixedVal(net === null ? '—' : NE.fmt(net), nrRest, nrNumCh, nrWhenCh) + '</span><span class="nr-lab">goal ' + NE.plain(goal) + (multi ? ' · logged ' + nLogged + ' of ' + days.length + ' d' : '') + '</span></div>' + (multi ? nUnlogged ? '<small class="lv-nolog nr-unlogged">' + esc(NE.unloggedN(nUnlogged)) + '</small>' : '' : rec[0] && rec[0].unlogged ? '<small class="lv-nolog nr-unlogged">' + esc(NE.unlogged) + '</small>' : '') +   // V6.1.8: one quiet line
       '<div class="nr-gbar">' + NE.bar(st, net, multi ? 'Net Energy average a day' : 'Net Energy') + '</div>' +
       (multi ? gcHost('nourish-' + page, spec, 130) : '<div class="today-fends nr-ends">' + field('burn', burn, '🔥', 'Burn') + field('food', food, '🍎', 'Food') + '</div>') +
       '<div class="nr-macs">' + mac + '</div>' + estLine + '</section>';
@@ -7611,7 +7615,7 @@ addEventListener('load', () => {
     const again = box && box.querySelector('[data-pc="' + a + '"]' + (v ? '[data-v="' + v + '"]' : '')); if (again) again.focus();
   });
   /* V6.1.7: the scale's deficit and the calories' over a window (Measured). N, from the first weigh-in in it to the last; M, the calorie-only (purple) line's
-     change over the same days, read as Weight & Goal steps it (a day without a full log takes the window's logged average). Needs two weigh-ins at least
+     change over the same days, read as Weight & Goal steps it (an unlogged day +1,000, V6.1.8; another day without a full log takes the window's average). Needs two weigh-ins at least
      14 days apart. Memoised on revision and day. */
   let rxGapMemo = {key:null, by:new Map()};
   function rxScaleDeficit(st, start){
@@ -7619,7 +7623,7 @@ addEventListener('load', () => {
     const w = rxWeighIns(st).filter(x => x[0] >= start && x[0] <= t), a = w[0], b = w[w.length - 1], span = a && b ? calendarDistance(a[0], b[0]) : 0;
     let v = null;
     if (w.length >= 2 && span >= 14){
-      const nets = new Map(); for (let d = start; d <= t; d = addDays(d, 1)){ let x = null; try { x = NetEnergy.day(st, d); } catch (_) { x = null; } if (x && x.full) nets.set(d, x.net); }
+      const nets = new Map(); for (let d = start; d <= t; d = addDays(d, 1)){ let x = null; try { x = NetEnergy.day(st, d); } catch (_) { x = null; } if (x && x.net !== null) nets.set(d, x.net); }   // V6.1.8: an unlogged day is +1,000
       const avg = nets.size ? [...nets.values()].reduce((m, x) => m + x, 0) / nets.size : 0; let sum = 0; for (let d = addDays(a[0], 1); d <= b[0]; d = addDays(d, 1)) sum += nets.has(d) ? nets.get(d) : avg;
       v = {N:(a[1] - b[1]) * NET_KCAL_PER_LB / span, M:-sum / span, a, b, span};
     }
@@ -7667,14 +7671,14 @@ addEventListener('load', () => {
   const rxClockMin = iso => { const t = new Date(iso); const m = t.getHours() * 60 + t.getMinutes(); return m < 18 * 60 ? m + 24 * 60 : m; };   // minutes after midnight, the evening before counted as one night
   const rxClockText = m => { m = ((Math.round(m) % 1440) + 1440) % 1440; const h = Math.floor(m / 60), mm = m % 60; return (h % 12 || 12) + ':' + String(mm).padStart(2, '0') + ' ' + (h < 12 ? 'AM' : 'PM'); };
   /* V6 T4 (his pick A): the rail's goal card becomes BV option A, collapsed: the plan corridor (plan ± 0.5 lb), the durable estimate (anchored at the
-     plan start, moved only by what he logs; a day without a full log takes the logged average) and his weigh-ins, the scale reading as the hero. */
+     plan start, moved by what he logs; an unlogged day +1,000 (V6.1.8); another day without a full log takes the average) and his weigh-ins, the scale reading as the hero. */
   const GOAL_RANGES = [['week', 'Week'], ['4w', '4w'], ['program', 'Program'], ['goal', 'To goal']];   // his word, Nov 2: the sidebar card gets filters like Body's, with a Week; 4w is the card's old view
   const goalRailRange = () => { try { const r = localStorage.getItem('health-tracker.goalRailRange'); return GOAL_RANGES.some(x => x[0] === r) ? r : '4w'; } catch (_) { return '4w'; } };
   function goalRailV6(st){
     const t = day, g = goalsV2(st), rows = weightRowsLb(st, t); if (!rows.length && !Number.isFinite(g.startWeightLb)) return goalCountdownV34(st);
     const start = g.startDate || (rows[0] && rows[0].date), startLb = Number.isFinite(g.startWeightLb) ? g.startWeightLb : rows[0].lb, pf = planFigures(st, t, rows), range = goalRailRange(), last = range === 'goal' && pf.goalDate ? pf.goalDate : addDays(t, 13), days = []; for (let d = start; d <= last; d = addDays(d, 1)) days.push({date:d});
     const ti = days.findIndex(d => d.date === t), weigh = new Map(rows.map(r => [r.date, r.lb])), plan = d => weightPaceLb(st, d);
-    const nets = days.slice(0, ti + 1).map(d => { try { const x = NetEnergy.day(st, d.date); return x && x.full ? x.net : null; } catch (_) { return null; } }), logged = nets.filter(v => v != null), avg = logged.length ? logged.reduce((a, b) => a + b, 0) / logged.length : null;
+    const nets = days.slice(0, ti + 1).map(d => { try { const x = NetEnergy.day(st, d.date); return x ? x.net : null; } catch (_) { return null; } }), logged = nets.filter(v => v != null), avg = logged.length ? logged.reduce((a, b) => a + b, 0) / logged.length : null;
     let w = startLb; const durable = days.map((d, i) => { if (i > ti) return null; const n = nets[i] != null ? nets[i] : avg; if (n != null && i > 0) w += n / NET_KCAL_PER_LB; return +w.toFixed(2); });
     let live = null; try { live = NetEnergy.weightEstimate(st, t); } catch (_) {}
     const gDate = d => yearOn(d) ? monthDayY(d) : GChart.fmtDate(d), gDay = d => GChart.fmtDay(d) + (yearOn(d) ? ', ' + d.slice(0, 4) : '');   // V6.1.7: the year outside this year and next January
@@ -7737,7 +7741,7 @@ addEventListener('load', () => {
   // the page's readers for grade-exceed.js (health-domain's umbrellaGradeReport asks for them): steps, water, net energy and sleep by day
   { let sleepKey = null, sleepMap = null;
     const stepsIds = st => (st.series || []).filter(x => !x.demo && x.versions && x.versions.some(v => v.matching && v.matching.kind === 'steps')).map(x => x.id);
-    globalThis.gradeExceedIO = st => ({steps:d => { const w = stepsOn(st, d), h = stepsIds(st).reduce((n, id) => n + stepsHand(st, id, d), 0); return w === null && !h ? null : (w || 0) + h; }, /* his yes (Oct 24): steps he adds by hand count with the watch's */ water:d => { try { return waterNow(st, d).oz; } catch (_) { return null; } }, net:d => { try { const x = NetEnergy.day(st, d); return x && x.full ? x.net : null; } catch (_) { return null; } },   // Fuel counts a fully logged day only
+    globalThis.gradeExceedIO = st => ({steps:d => { const w = stepsOn(st, d), h = stepsIds(st).reduce((n, id) => n + stepsHand(st, id, d), 0); return w === null && !h ? null : (w || 0) + h; }, /* his yes (Oct 24): steps he adds by hand count with the watch's */ water:d => { try { return waterNow(st, d).oz; } catch (_) { return null; } }, net:d => { try { const x = NetEnergy.day(st, d); return x ? x.net : null; } catch (_) { return null; } },   // Fuel counts a full day and an unlogged one (+1,000, so 0% that day; V6.1.8)
       sleepMin:d => { if (sleepKey !== st.revision){ sleepKey = st.revision; try { sleepMap = sleepNights(st); } catch (_) { sleepMap = new Map(); } } const n = sleepMap.get(d); return n ? n.minutes : null; }}); }
   /* ---------- V3.7 L1 to L8 (Block 2): one page filter and one state (notes 3, 5, 11, 17; A2 to A5, A60 to A63, A70) ----------
      Today, Body, Fitness, Progress and Growth carry one filter (Day, Week, Month, All, Custom; Day the first time) beside the one
@@ -7947,7 +7951,7 @@ addEventListener('load', () => {
     const days = []; for (let d = first; d <= y; d = addDays(d, 1)){
       const ss = sessions.filter(s => s.day === d), steps = stepsOn(st, d), n = nights.get(d), b = eb.get ? eb.get(d) : null, p = tr.protein && tr.protein.get(d);
       days.push({date:d, steps, worn:steps !== null || !!n, workoutData:steps !== null || !!n || ss.length > 0,   // review S4: a week with no Watch data is missing, not a 0
-        workoutMinutes:ss.reduce((a, s) => a + (s.minutes || 0), 0), strength:ss.filter(s => isStrength(s.type)).reduce((a, s) => a + (s.minutes || 0), 0), sleepH:n ? n.minutes / 60 : null, proteinG:Number.isFinite(p) && foodGraded(st, d, b) ? p : null, proteinTargetG:target, net:b && NetEnergy.day(st, d, b).full ? -b.balance : null});   // V3.6 A21: one definition of a full food day
+        workoutMinutes:ss.reduce((a, s) => a + (s.minutes || 0), 0), strength:ss.filter(s => isStrength(s.type)).reduce((a, s) => a + (s.minutes || 0), 0), sleepH:n ? n.minutes / 60 : null, proteinG:Number.isFinite(p) && foodGraded(st, d, b) ? p : null, proteinTargetG:target, net:(x => x.net === null ? null : -x.net)(NetEnergy.day(st, d, b || null))});   // V3.6 A21: one definition of a full food day; V6.1.8: an unlogged day counts −1,000
     }
     const last = (m, since) => { const l = [...(m || new Map())].filter(([d]) => d >= since).sort(([a], [b]) => a.localeCompare(b)); return l.length ? l[l.length - 1][1] : null; };
     const age = per.age, decade = Number.isFinite(age) ? (age < 30 ? '20-29' : age < 40 ? '30-39' : age < 50 ? '40-49' : age < 60 ? '50-59' : age < 70 ? '60-69' : '70-79') : null, table = typeof Norms !== 'undefined' && Norms.metrics && Norms.metrics.vo2_max;
@@ -9207,7 +9211,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       const b = SCORES_ON ? bodyScores(st, t) : null, rd = b && b.readiness, wW = {from:addDays(t, -29), to:t, day:false, per:'custom'}, sm = NetEnergy.summary(st, addDays(t, -6), t);
       return card('Readiness', '🔋', rd && rd.value !== null ? '<div class="ov-big" style="color:' + GV.tone(rd.colour) + '">' + rd.value + '<small>' + esc(rd.label || '') + '</small></div>' : '<p class="hint keep">No reading yet</p>') +
         card('Weight, 30 days', '⚖️', weightPlanChart(st, wW, {h:120}) || '<p class="hint keep">No weigh-in in 30 days</p>') +
-        card('Net Energy, 7 days', '🔥', sm.shown ? '<div class="ov-big" style="color:' + NE.colour(sm.shownAvg) + '">' + NE.fmt(sm.shownAvg) + '<small>kcal a day · ' + sm.shown + ' of ' + sm.of + ' days' + (sm.noFood ? ' · ' + sm.noFood + ' with no food logged' : '') + '</small></div>' : '<p class="hint keep">No energy days yet</p>');
+        card('Net Energy, 7 days', '🔥', sm.shown ? '<div class="ov-big" style="color:' + NE.colour(sm.shownAvg) + '">' + NE.fmt(sm.shownAvg) + '<small>kcal a day · ' + sm.shown + ' of ' + sm.of + ' days' + (sm.unlogged ? ' · ' + esc(NE.unloggedN(sm.unlogged)) : '') + (sm.noFood ? ' · ' + sm.noFood + ' with no food logged' : '') + '</small></div>' : '<p class="hint keep">No energy days yet</p>');
     }
     if (g === 'hearth'){
       const nd = nextDateItems(st, true), wf = weekWindow(t), home = umbs.find(u => u.id === 'home');
@@ -11576,8 +11580,8 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const one=sm.days[sm.days.length-1]||{},hit=sm.days.filter(x=>x.full&&x.net<=ot).length;
     const prior=isDay?(()=>{const s0=programStartOf(st,last),f0=addDays(last,-30),f=f0<s0?s0:f0,t=addDays(last,-1);if(t<f)return null;return NetEnergy.summary(st,f,t).days.filter(x=>x.full&&x.net!==null).pop()||null;})():null;
     const dayBlock=isDay?'<p class="ne-before" data-parity="V36-N6-03" data-ne-day="'+esc(last)+'">'+(one.full&&one.net!==null?'<span class="k-status" style="--s:'+(one.net<=ot?'var(--c-green)':'var(--c-orange)')+'">'+(one.net<=ot?'On track that day':'Not on track that day')+'</span>':'')+(prior?'<small data-prev-at="'+prior.date+'">before <span data-net-before="'+Math.round(prior.net)+'" style="color:'+NE.colour(prior.net)+'">'+NE.fmt(prior.net)+'</span> kcal · '+esc(monthDay(prior.date))+'</small>':'<small>no full day in the 30 before it</small>')+'</p>':'';
-    const head=isDay?'<p class="ne-dayline" data-parity="V36-N6-01">'+(one.shown!==null&&one.shown!==undefined?'Net Energy <b style="color:'+NE.colour(one.shown)+'">'+NE.fmt(one.shown)+' kcal</b><small>🔥 burn '+kcal(one.burn)+' · 🍎 '+(one.noFood?'no food logged':'food '+kcal(one.food))+'</small>':'Net Energy <b title="'+esc(NetEnergy.missingText(one.missing))+'">—</b>')+'</p>'
-      :'<p class="ne-dayline" data-parity="V36-N6-01">Net Energy <b style="color:'+NE.colour(sm.shown?sm.shownTotal:null)+'">'+(sm.shown?NE.fmt(sm.shownTotal)+' kcal':'—')+'</b><small>'+sm.shown+' of '+sm.of+' days'+(sm.noFood?' · '+sm.noFood+' with no food logged':'')+(sm.shown?' · ≈ '+NE.lb(sm.shownPounds)+' lb':'')+'</small></p>';   // AZ2
+    const head=isDay?'<p class="ne-dayline" data-parity="V36-N6-01">'+(one.shown!==null&&one.shown!==undefined?'Net Energy <b style="color:'+NE.colour(one.shown)+'">'+NE.fmt(one.shown)+' kcal</b><small>'+(one.unlogged?esc(NE.unlogged):'🔥 burn '+kcal(one.burn)+' · 🍎 '+(one.noFood?'no food logged':'food '+kcal(one.food)))+'</small>':'Net Energy <b title="'+esc(NetEnergy.missingText(one.missing))+'">—</b>')+'</p>'
+      :'<p class="ne-dayline" data-parity="V36-N6-01">Net Energy <b style="color:'+NE.colour(sm.shown?sm.shownTotal:null)+'">'+(sm.shown?NE.fmt(sm.shownTotal)+' kcal':'—')+'</b><small>'+sm.shown+' of '+sm.of+' days'+(sm.unlogged?' · '+esc(NE.unloggedN(sm.unlogged)):'')+(sm.noFood?' · '+sm.noFood+' with no food logged':'')+(sm.shown?' · ≈ '+NE.lb(sm.shownPounds)+' lb':'')+'</small></p>';   // AZ2
     // C07 (the Draft's lead): the signed total, its word and the average-a-day bar against the goal tick (Today's Fuel bar)
     const lv=isDay?one.shown:sm.shown?sm.shownTotal:null,lbar=isDay?one.shown:sm.shownAvg;   // AZ2
     const big=lv===null||lv===undefined?'':'<div class="ne-big" data-ne-big><b class="k-big" style="color:'+NE.colour(lv)+'">'+NE.fmt(lv)+'</b><small>kcal</small></div>'+NE.bar(st,lbar,isDay?'Net Energy':'Average a day').replace(' data-parity="V35-T1-01"','');
@@ -13648,7 +13652,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const pill = (word, col) => word ? '<span class="bv-pill" style="--tone:' + col + '">' + esc(word.replace(/^[●✓⚠↓↑]\s*/, '')) + '</span>' : '';
 
     /* B1 Weight & Goal, BV option B (his pick, with the pace strip he asked for in BV: "the rate of change i need"). The plan is the app's weightPaceLb;
-       the durable estimate is anchored at the plan start and moved only by logged net energy (a day with no full log takes the logged average); the live
+       the durable estimate is anchored at the plan start and moved by logged net energy (an unlogged day +1,000, V6.1.8; another day with no full log takes the average); the live
        estimate re-anchors at each weigh-in; the card quotes the app's own NetEnergy.weightEstimate. */
     function wgModel(){
       const st = S(), t = todayYmd(), g = goalsV2(st), rows = weightRowsLb(st, addDays(t, 1));
@@ -13656,7 +13660,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       const pf = planFigures(st, t, rows), goalDate = pf.goalDate || g.goalDate; if (!start || !goalDate || !Number.isFinite(startLb) || !Number.isFinite(pf.goal)) return null;
       const days = dayList(start, goalDate), ti = Math.max(0, days.findIndex(d => d.date === t)), span = days.length - 1; if (span < 1) return null;
       const weigh = new Map(rows.map(r => [r.date, r.lb])), plan = days.map(d => weightPaceLb(st, d.date));
-      const nets = days.map((d, i) => { if (i > ti) return null; try { const x = NetEnergy.day(st, d.date); return x && x.full ? x.net : null; } catch (_) { return null; } });
+      const nets = days.map((d, i) => { if (i > ti) return null; try { const x = NetEnergy.day(st, d.date); return x ? x.net : null; } catch (_) { return null; } });   // V6.1.8: x.net is +1,000 on an unlogged day
       const logged = nets.filter(v => v != null), avg = logged.length ? logged.reduce((a, b) => a + b, 0) / logged.length : 0, step = i => (nets[i] != null ? nets[i] : avg) / NET_KCAL_PER_LB;
       const durable = [], live = days.map(() => null), lastW = []; let w = startLb, lw = null;
       days.forEach((d, i) => { if (i > 0 && i <= ti) w += step(i); durable[i] = i <= ti ? w : durable[ti] + avg * (i - ti) / NET_KCAL_PER_LB;
@@ -13676,6 +13680,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       const act28 = days.map((d, i) => i > ti ? null : i >= 28 ? (durable[i] - durable[i - 28]) / 4 : i >= 7 ? (durable[i] - startLb) / i * 7 : null);
       return {st, t, g, rows, pf, days, ti, span, weigh, plan, durable, live, liveProj, lastW, needed, act7, act28, est, startLb, goalLb, onPlan:.5, slope:(goalLb - startLb) / span};
     }
+    window.HealthWgModel = () => wgModel();   // test hook (V6.1.8: the Calories only line on an unlogged day)
     const WG_RANGES = ['2w', '4w', 'Program', 'To goal'];
     let wgRange = 2;
     const wgSpan = (m, k) => k === 0 ? [Math.max(0, m.ti - 13), m.ti] : k === 1 ? [Math.max(0, m.ti - 27), m.ti] : k === 2 ? [0, Math.min(m.span, m.ti + 7)] : [0, m.span];
@@ -13807,7 +13812,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       {id:'workout', label:'Workout min', col:'var(--verd)', goal:() => WORKOUT_MIN, cap:g => 'goal ' + g + ' min a day', fmt:v => num(v), unit:'min', zero:true},
       {id:'sleep', label:'Sleep', col:'var(--c-violet,var(--accent))', goal:() => sleepGoalMin(S()) / 60, cap:g => 'need ' + n1(g).replace(/\.0$/, '') + ' h a night', fmt:v => n1(v), unit:'h slept'},   // V6.1.6: Settings' need in hours (need was already hours, so ÷ 60 drew 0.1 h)
       {id:'load', label:'Load', col:'var(--warn)', cap:() => 'the score the Load card draws', fmt:v => num(v), unit:'load'},
-      {id:'net', label:'Net energy', col:'var(--accent)', goal:() => NetEnergy.goal(S()), cap:g => 'goal ' + (g < 0 ? '−' : '+') + num(Math.abs(g)) + ' a day · no food logged counts as 0', fmt:v => (v < 0 ? '−' : '+') + num(Math.abs(v)), unit:'kcal'},
+      {id:'net', label:'Net energy', col:'var(--accent)', goal:() => NetEnergy.goal(S()), cap:g => 'goal ' + (g < 0 ? '−' : '+') + num(Math.abs(g)) + ' a day · a day not logged counts +' + num(UNLOGGED_NET_KCAL), fmt:v => (v < 0 ? '−' : '+') + num(Math.abs(v)), unit:'kcal'},
       {id:'rhr', label:'Resting HR', col:'var(--accent)', cap:() => 'lower is better', fmt:v => num(v), unit:'bpm'},
       {id:'hrv', label:'HRV', col:'var(--accent)', cap:() => 'overnight, higher is better', fmt:v => num(v), unit:'ms'},
       {id:'weight', label:'Weight', col:'var(--ink)', cap:() => 'scale readings · the plan is on Body', fmt:v => n1(v), unit:'lb', dots:true}];
