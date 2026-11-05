@@ -260,7 +260,69 @@ const BC_KEY = 'health-tracker.bcCard', BC_EDGE = 8, BC_CLICK = 4, BC_CLEAR = {r
 const BC_TONE = {better: 'var(--c-violet,#b394ff)', average: 'var(--c-green,#79d6a9)', poor: 'var(--c-orange,#f0a058)', none: '#ffffff'};
 const bodyIcon = (d, size) => '<svg viewBox="0 0 24 24" width="' + (size || 16) + '" height="' + (size || 16) + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
 const BODY_ICONS = {zoomIn: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4M8 11h6M11 8v6"/>', zoomOut: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4M8 11h6"/>', reset: '<path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/>',
-  expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>', shrink: '<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>', report: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M12 11v6M9 14h6"/>', down: '<path d="M6 9l6 6 6-6"/>'};
+  expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>', shrink: '<path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/>', report: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M12 11v6M9 14h6"/>', down: '<path d="M6 9l6 6 6-6"/>',
+  cube: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/>', camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>'};
+/* V6.1.7 (his Nov 4 words: "an import thing for the 3D visual and Import thing for the side image"): the page builds the one ZIP the body
+   service already accepts, model.glb, manifest.json and the four PNGs, stored without compression, so a .glb alone or one photo saves
+   through the same stage, review and commit as before. The Mac's own body service is not changed (it ships inside the app bundle). */
+const BODY_SIDES = ['Front', 'Back', 'Left', 'Right'];
+const CRC_TABLE = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(bytes) { let c = 0xFFFFFFFF; for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zipStored(entries) {
+  const enc = new TextEncoder(), local = [], central = [], now = new Date(); let offset = 0;
+  const time = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1), day = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  for (const [name, data] of entries) {
+    const n = enc.encode(name), crc = crc32(data), h = new DataView(new ArrayBuffer(30)), d = new DataView(new ArrayBuffer(46));
+    [[0, 0x04034b50, 4], [4, 20, 2], [10, time, 2], [12, day, 2], [14, crc, 4], [18, data.length, 4], [22, data.length, 4], [26, n.length, 2]].forEach(([at, v, w]) => w === 4 ? h.setUint32(at, v, true) : h.setUint16(at, v, true));
+    [[0, 0x02014b50, 4], [4, 20, 2], [6, 20, 2], [12, time, 2], [14, day, 2], [16, crc, 4], [20, data.length, 4], [24, data.length, 4], [28, n.length, 2], [42, offset, 4]].forEach(([at, v, w]) => w === 4 ? d.setUint32(at, v, true) : d.setUint16(at, v, true));
+    local.push(new Uint8Array(h.buffer), n, data); central.push(new Uint8Array(d.buffer), n); offset += 30 + n.length + data.length;
+  }
+  const size = central.reduce((s, p) => s + p.length, 0), e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, entries.length, true); e.setUint16(10, entries.length, true); e.setUint32(12, size, true); e.setUint32(16, offset, true);
+  return new Blob([...local, ...central, new Uint8Array(e.buffer)], {type: 'application/zip'});
+}
+/* The old ZIPs: the body tool's (model.glb and manifest.json only) or a full record. Only the six known names are read, by their last path
+   part; a deflated member is opened with the browser's own DecompressionStream. */
+async function unzipBody(buffer) {
+  const v = new DataView(buffer), u8 = new Uint8Array(buffer), dec = new TextDecoder(), out = {}, want = new Set(['model.glb', 'manifest.json', ...BODY_SIDES.map(s => s + '.png')]);
+  let end = -1; for (let i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) if (v.getUint32(i, true) === 0x06054b50) { end = i; break; }
+  if (end < 0) throw new Error('That file is not a ZIP the body view can open.');
+  for (let k = 0, p = v.getUint32(end + 16, true), count = v.getUint16(end + 10, true); k < count; k++) {
+    if (v.getUint32(p, true) !== 0x02014b50) throw new Error('That ZIP is damaged.');
+    const method = v.getUint16(p + 10, true), size = v.getUint32(p + 20, true), nlen = v.getUint16(p + 28, true), at = v.getUint32(p + 42, true), name = dec.decode(u8.subarray(p + 46, p + 46 + nlen)), base = name.split('/').pop();
+    p += 46 + nlen + v.getUint16(p + 30, true) + v.getUint16(p + 32, true);
+    if (!want.has(base) || name.startsWith('__MACOSX/')) continue;
+    const start = at + 30 + v.getUint16(at + 26, true) + v.getUint16(at + 28, true), raw = u8.subarray(start, start + size);
+    if (method === 0) out[base] = raw.slice();
+    else if (method === 8 && typeof DecompressionStream === 'function') out[base] = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+    else throw new Error('That ZIP is packed in a way this page cannot open.');
+  }
+  return out;
+}
+async function sha256Hex(bytes) { return [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(b => b.toString(16).padStart(2, '0')).join(''); }
+const canvasPNG = c => new Promise((ok, bad) => c.toBlob(b => b ? b.arrayBuffer().then(a => ok(new Uint8Array(a)), bad) : bad(new Error('The photo could not be turned into a PNG.')), 'image/png'));
+/* The service takes PNGs: a PNG is kept as it is, a JPEG or HEIC is redrawn as one (at most 4,000 px on its long side). */
+async function photoPNG(file) {
+  const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+  if (head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4E && head[3] === 0x47) return new Uint8Array(await file.arrayBuffer());
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error('That photo could not be opened. Choose a PNG, JPEG or HEIC picture.')); i.src = url; });
+    const k = Math.min(1, 4000 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); return await canvasPNG(c);
+  } finally { URL.revokeObjectURL(url); }
+}
+function placeholderPNG() { const c = document.createElement('canvas'); c.width = 480; c.height = 960; const g = c.getContext('2d'); g.fillStyle = '#e9ebea'; g.fillRect(0, 0, c.width, c.height); return canvasPNG(c); }
+const localYmd = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const reportStamp = r => (r.measurementDate || '') + ' ' + (r.measurementTime || '');
+/* V6.1.7: the progress table's rows. [name, figure of a report, unit, the better way] */
+const fdWhole = k => r => (r.wholeBody && r.wholeBody[k] || {}).value, fdExtra = k => r => (r.extras && r.extras[k] || {}).value, fdSeg = (id, k) => r => ((r.segments || []).find(x => x.id === id) || {})[k];
+const FD_ROWS = [['Weight', fdWhole('weight'), 'lb', null], ['Body fat', fdWhole('bodyFatPercentage'), '%', 'down'], ['Fat mass', fdWhole('fatMass'), 'lb', 'down'], ['Muscle mass', fdWhole('muscleMass'), 'lb', 'up'],
+  ['Fat-free weight', fdWhole('fatFreeWeight'), 'lb', 'up'], ['Skeletal muscle', fdExtra('skeletalMuscle'), '%', 'up'], ['Muscle rate', fdExtra('muscleRate'), '%', 'up'], ['BMR', fdExtra('bmr'), 'kcal', 'up'], ['Body age', fdExtra('bodyAge'), '', 'down'],
+  ['BMI', fdWhole('bmi'), '', 'down'], ['Visceral fat', fdExtra('visceralFat'), '', 'down'], ['Subcutaneous fat', fdExtra('subcutaneousFat'), '%', 'down'], ['Bone mass', fdExtra('boneMass'), 'lb', null], ['Protein', fdExtra('protein'), '%', 'up'],
+  ['Protein mass', fdExtra('proteinMass'), 'lb', 'up'], ['Body water', fdExtra('bodyWater'), '%', null], ['Water weight', fdExtra('waterWeight'), 'lb', null], ['WHR', fdExtra('whr'), '', 'down']];
+const FD_REGION_ROWS = Object.entries(FITDAYS_GROUPS).flatMap(([id, g]) => [[g.label + ' fat', fdSeg(id, 'fatMassLb'), 'lb', 'down'], [g.label + ' muscle', fdSeg(id, 'muscleBalanceMassLb'), 'lb', 'up']]);
+const FD_TONE = {good: 'var(--c-green,#79d6a9)', bad: 'var(--c-red,#ee7a6a)', flat: 'var(--muted,#bdb8a9)'};
 class HealthBodyView extends HTMLElement {
   connectedCallback() {
     this.records = [];
@@ -271,7 +333,7 @@ class HealthBodyView extends HTMLElement {
     this.region = 'all';
     this.regions = {};
     this.measurements = {readings: []};
-    this.fitdays = null;
+    this.fitdays = null; this.fitdaysHome = null; this.reports = [];
     this.mode = 'select'; this.linked = new Set(); this.compare = {a: null, b: null, next: 'a'}; this.sel = null; this.startPct = BODY_ZOOM.start;   // sel null = Whole Body (V3.5 B11)
     this.saved = []; try { this.saved = JSON.parse(localStorage.getItem('glow-body-regions') || '[]'); } catch (_) { this.saved = []; }
     if (!Array.isArray(this.saved)) this.saved = [];
@@ -360,6 +422,7 @@ class HealthBodyView extends HTMLElement {
     let result = null;
     try { result = text ? JSON.parse(text) : null; } catch (_) { result = null; }
     if (response.status === 404 && action === 'records') return [];
+    if (response.ok && text.trim() === 'null' && /fitdays\.json$/.test(action)) return null;   // V6.1.7: the service's answer for a record with no report yet
     if (!response.ok || result === null) throw new Error((result && result.error) || 'The body record could not be opened.');
     return result;
   }
@@ -375,13 +438,34 @@ class HealthBodyView extends HTMLElement {
   }
 
   async loadRegionData() {
-    this.regions = {}; this.region = 'all'; this.measurements = {readings: []}; this.fitdays = null;
+    this.regions = {}; this.region = 'all'; this.measurements = {readings: []}; this.fitdays = null; this.fitdaysHome = null; this.reports = [];
     if (!this.selected) return;
     const base = 'records/' + this.selected.id + '/';
     try { this.regions = (await this.request(base + 'region-map.json')).regions; } catch (_) { /* Original model remains available when automatic region assignment is unsupported. */ }
     this.measurements = await this.request(base + 'measurements.json');
-    this.fitdays = await this.request(base + 'fitdays.json');
+    await this.loadFitdays();
     this.publishSnapshot();
+  }
+
+  /* V6.1.7 (his Nov 4 ask: "show me how my body is progressing"): the Fitdays reports are his body's, not one model's. A report is saved
+     with the dated record that was open (fitdays/<id>), so a new model or photo makes a record without one. Read only, nothing is copied:
+     every record's reports are gathered for the progress table; a record with no report of its own shows the newest one any record holds,
+     and the earlier reports join its trend. A record with its own report (his Sep 21 one) shows it exactly as before. */
+  async loadFitdays() {
+    const own = this.selected ? await this.request('records/' + this.selected.id + '/fitdays.json') : null, seen = new Map(), full = [];
+    const add = (r, home) => { if (!r || !r.measurementDate || !r.wholeBody) return; const w = r.wholeBody.weight, key = reportStamp(r) + ' ' + (w && w.value); if (!seen.has(key)) seen.set(key, Object.assign({}, r, {home})); };
+    for (const rec of this.records) {
+      let r = rec.id === (this.selected && this.selected.id) ? own : null;
+      if (r === null && rec.id !== (this.selected && this.selected.id)) { try { r = await this.request('records/' + rec.id + '/fitdays.json'); } catch (_) { r = null; } }
+      if (!r) continue; full.push({home: rec.id, report: r}); add(r, rec.id); for (const h of r.history || []) add(h, rec.id);
+    }
+    this.reports = [...seen.values()].sort((a, b) => reportStamp(b).localeCompare(reportStamp(a)));
+    const newest = full.sort((a, b) => reportStamp(b.report).localeCompare(reportStamp(a.report)))[0];
+    this.fitdays = own || (newest ? newest.report : null); this.fitdaysHome = own ? this.selected.id : newest ? newest.home : null;
+    if (!this.fitdays || full.length < 2) return;
+    const cur = reportStamp(this.fitdays), have = new Set((this.fitdays.history || []).map(reportStamp)), older = this.reports.filter(r => reportStamp(r) < cur);
+    this.fitdays.history = (this.fitdays.history || []).concat(older.filter(r => !have.has(reportStamp(r))).map(r => ({measurementDate: r.measurementDate, measurementTime: r.measurementTime, wholeBody: r.wholeBody, extras: r.extras || {}, segments: r.segments || []}))).sort((a, b) => reportStamp(a).localeCompare(reportStamp(b)));
+    if (!this.fitdays.previous && older.length) this.fitdays.previous = older[0];
   }
 
   /* The model and photos are large private files that only the Mac can serve. The NUMBERS are
@@ -641,9 +725,11 @@ class HealthBodyView extends HTMLElement {
   fullMore(on) {
     const more = this.querySelector('.bs-more'); if (!more) return;
     if (!on) { if (!more.hidden) { more.hidden = true; more.innerHTML = ''; } return; }
-    more.innerHTML = (this.reportCardHTML() || '').replace(/^<details class="body-report-card" data-parity="K1-REPORT"( open)?>/, '<details class="body-report-card" open>') + this.compositionHTML();
+    more.innerHTML = this.fullCopyHTML();
     more.hidden = false;
   }
+  /* V6.1.7: the copy is the Body composition card with every fold open, its parity ids left on the page's own card. */
+  fullCopyHTML() { return this.compositionHTML().replace(/ data-parity="[^"]*"/g, '').replace(/<details class="([^"]*)"( open)?>/g, '<details class="$1" open>'); }
   /* The selection panel, the chips and the mode switch follow every pick (B3, B5). */
   refreshSide() {
     const sel = this.querySelector('.bc-card'); if (sel) { const open = !!sel.querySelector('.bc-info[open]'), t = document.createElement('template'); t.innerHTML = this.selectionHTML(); if (open) t.content.querySelector('.bc-info').open = true; sel.replaceWith(t.content); this.placeCard(); }
@@ -713,10 +799,41 @@ class HealthBodyView extends HTMLElement {
     return '<div class="body-composition-heading"><p class="cap">Whole body</p><div class="body-whole-stats">' + stats + '</div><p class="hint">' + (dates.size > 1 ? 'Each figure is its own most recent measurement and keeps that source’s date. They are from different days and are not combined.' : 'Each figure shows the source that measured it and the date it was measured.') + '</p></div>';
   }
 
+  /* V6.1.7 (points 6 and 7, his yes Nov 4): one card for Fitdays. Its one Add Fitdays report button opens the sheet (read the picture or
+     type it); his last three reports sit side by side, newest first, with the change between the newest two; regions and the full
+     report fold under it. */
   compositionHTML() {
-    if (!this.fitdays) return '<div class="body-fitdays-empty"><button type="button" class="filebtn body-import" data-body="addReport">Add Fitdays report</button></div>'   /* Fix B3: one door for a Fitdays report: the picture, read on this Mac */;
-    const report = this.fitdays;
-    return '<section class="body-composition" aria-label="Fitdays regional composition"><h3>Fat &amp; muscle by region</h3><p class="hint">Fitdays · '+this.escape(this.date(report.measurementDate))+' '+this.escape(report.measurementTime || '')+' · report timezone not specified. No other source measures individual regions, so these stay on the Fitdays date'+(report.measurementDate !== this.selected.captureDate ? ', shown on your '+this.escape(this.date(this.selected.captureDate))+' model' : '')+'. Fitdays-reported estimates; segment fat is inferred, and colors identify regions rather than showing fat inside your body.</p><div class="body-composition-cards">'+this.fitdays.segments.map(row => '<button data-body="composition-region" data-region="'+row.id+'" aria-pressed="false" style="--region-color:'+FITDAYS_GROUPS[row.id].color+'"><strong><i aria-hidden="true"></i>'+row.label+'</strong><span><b>'+bodyMass(row.fatMassLb)+'</b> fat</span><span><b>'+bodyMass(row.muscleBalanceMassLb)+'</b> muscle</span></button>').join('')+'</div><p class="hint">Whole-arm, whole-leg and trunk totals. Smaller regions are estimated from these by typical segment mass and read “est.”.</p><details class="body-composition-details"><summary>Report details & comparison percentages</summary><p class="hint">These percentages compare with the Fitdays standard range. They are not regional body-fat percentages or shares of your total. '+(report.sourceSha256?'Transcribed from the saved report image.':'')+(report.extraction?' Entry: '+this.escape(report.extraction)+'.':'')+'</p><table><thead><tr><th>Region</th><th>Fat comparison</th><th>Muscle comparison</th></tr></thead><tbody>'+this.fitdays.segments.map(row=>'<tr><td>'+row.label+'</td><td>'+(Number.isFinite(row.fatComparisonPercent)?row.fatComparisonPercent.toFixed(1)+'%':'—')+'</td><td>'+(Number.isFinite(row.muscleComparisonPercent)?row.muscleComparisonPercent.toFixed(1)+'%':'—')+'</td></tr>').join('')+'</tbody></table>'+(report.sourceSha256?'<p><a class="body-export" href="'+this.asset('fitdays-source.jpg')+'" target="_blank" rel="noopener">View original Fitdays report ↗</a></p>':'<p class="hint">No picture was saved with this report.</p>')+'<p><a class="body-export" href="'+this.asset('fitdays-export.zip')+'" download>Export Fitdays report + values</a></p><label class="filebtn body-import">Add another reviewed Fitdays report<input data-body="fitdays" type="file" accept=".zip" aria-label="Add reviewed Fitdays report ZIP"></label><p class="hint">Fitdays reports are saved separately from your model, photos and HealthAutoExport source.</p></details></section>';
+    const n = (this.reports || []).length;
+    return '<section class="body-fd" aria-label="Body composition" data-parity="BODY-40"><div class="fd-head"><h3>Body composition</h3>' +
+      '<button type="button" class="body-import fd-add" data-body="addReport" data-parity="BODY-38"' + (this.selected ? '' : ' disabled') + '>Add Fitdays report</button></div>' +
+      (!this.selected ? '<p class="hint fd-none">Add the 3D model first: a Fitdays report saves with a body record.</p>' : !n ? '<p class="hint fd-none">No Fitdays report yet.</p>' :
+        this.progressHTML(FD_ROWS, 'fd-main') + (this.reports.slice(0, 3).some(r => (r.segments || []).length) ? '<details class="fd-fold fd-regions"><summary>Fat and muscle by region</summary>' + this.progressHTML(FD_REGION_ROWS, 'fd-region') + '</details>' : '') + this.reportCardHTML()) +
+      '</section>';
+  }
+  /* The table: one row per figure any of the three reports holds, in the report card's names. Change is the newest minus the one before:
+     green when it moved the right way (fat down, muscle up), red the wrong way, plain where neither way is better (weight, water). */
+  progressHTML(rows, cls) {
+    const reps = (this.reports || []).slice(0, 3), u = window.HealthDisplayUnits || {mass: 'lb', lb: v => v}, esc = v => this.escape(v);
+    const shown = v => v.unit === 'lb' ? u.lb(v.v) : v.v, fmt = (x, unit) => unit === 'kcal' ? String(Math.round(x)) : x.toFixed(1);
+    const day = r => this.date(r.measurementDate, true) + (reps.filter(o => o.measurementDate === r.measurementDate).length > 1 && r.measurementTime ? ' ' + r.measurementTime : '');
+    const body = rows.map(([label, pick, unit, better]) => {
+      const vals = reps.map(r => { const x = pick(r); return Number.isFinite(x) ? {v: x, unit} : null; }); if (!vals.some(Boolean)) return '';
+      let change = '';
+      if (reps.length > 1) {
+        const a = vals[0], b = vals[1], d = a && b ? shown(a) - shown(b) : null, step = unit === 'kcal' ? 0.5 : 0.05;
+        const tone = d === null || Math.abs(d) < step || !better ? 'flat' : (d < 0) === (better === 'down') ? 'good' : 'bad';
+        change = '<td class="fd-d" data-tone="' + tone + '" style="color:' + FD_TONE[tone] + '">' + (d === null ? '—' : Math.abs(d) < step ? '0' : (d < 0 ? '↓ ' : '↑ ') + fmt(Math.abs(d), unit)) + '</td>';
+      }
+      return '<tr><th scope="row">' + esc(label) + (unit ? '<small>' + esc(unit === 'lb' ? u.mass : unit) + '</small>' : '') + '</th>' + vals.map((x, i) => '<td' + (i ? '' : ' class="fd-now"') + '>' + (x ? fmt(shown(x), unit) : '—') + '</td>').join('') + change + '</tr>';
+    }).join('');
+    return '<table class="fd-table ' + cls + '" data-parity="' + (cls === 'fd-main' ? 'V617-FD-01' : 'V617-FD-02') + '"><thead><tr><th></th>' + reps.map(r => '<th scope="col">' + esc(day(r)) + '</th>').join('') + (reps.length > 1 ? '<th scope="col" title="The newest report less the one before">Change</th>' : '') + '</tr></thead><tbody>' + body + '</tbody></table>';
+  }
+  /* Behind the stage's ⓘ: how the newest report was entered, its picture and its export (they were in the More fold). */
+  fitdaysLinksHTML() {
+    const r = this.fitdays; if (!r || !this.fitdaysHome) return '';
+    const at = name => BODY_BASE + 'records/' + this.fitdaysHome + '/' + name;
+    return '<p>Fitdays, ' + this.escape(this.date(r.measurementDate, true)) + (r.extraction ? ': ' + this.escape(r.extraction) : '') + '. ' + (r.sourceSha256 ? '<a class="body-export" href="' + at('fitdays-source.jpg') + '" target="_blank" rel="noopener">View original Fitdays report ↗</a>' : 'No picture was saved with it.') + '</p>' +
+      '<p><a class="body-export" href="' + at('fitdays-export.zip') + '" download>Export Fitdays report + values</a></p>';
   }
 
   refreshFigures(){
@@ -729,18 +846,18 @@ class HealthBodyView extends HTMLElement {
       tools.innerHTML=this.toolsHTML();
       const next=tools.querySelector('[data-body="regionName"]');if(draft&&next){next.value=draft.value;if(draft.focused){next.focus({preventScroll:true});next.setSelectionRange(draft.start,draft.end);}}
     }
-    const measurements=this.querySelector('.body-measurements');if(measurements){const open=measurements.open,holder=document.createElement('template');holder.innerHTML=this.measurementHTML();holder.content.firstElementChild.open=open;measurements.replaceWith(holder.content);}
-    this.querySelectorAll('.body-composition[aria-label="Fitdays regional composition"]').forEach(composition=>{const holder=document.createElement('template');holder.innerHTML=this.compositionHTML();composition.replaceWith(holder.content);});   // the page's and, in full screen, the copy under the stage
+    const measurements=this.querySelector('.body-measurements');if(measurements){const open=measurements.open,holder=document.createElement('template');holder.innerHTML=this.measurementHTML();if(holder.content.firstElementChild)holder.content.firstElementChild.open=open;measurements.replaceWith(holder.content);}
+    this.querySelectorAll('.body-fd').forEach(card=>{const open=[...card.querySelectorAll('details')].map(d=>d.open),copy=!!card.closest('.bs-more'),holder=document.createElement('template');holder.innerHTML=copy?this.fullCopyHTML():this.compositionHTML();holder.content.querySelectorAll('details').forEach((d,i)=>{if(open[i]!==undefined)d.open=open[i];});card.replaceWith(holder.content);});   // the page's and, in full screen, the copy under the stage
     if(this.selected)this.highlight(this.region);
   }
 
   measurementHTML() {
     const esc = value => this.escape(value);
     const readings = this.measurements.readings || [];
-    return '<details class="body-measurements"><summary>Body measurements from your export</summary>' +
-      '<p class="hint">' + (this.measurements.source ? esc(this.measurements.sourceFile) + ' · ' + readings.length + ' body readings' : 'Health Auto Export brings these in by itself from the folder you connected.') + '</p>' +   /* Fix B3: no second door for Health Auto Export */
-      (this.measurements.coverageStart ? '<p class="hint">Export coverage: '+esc(this.measurements.coverageStart)+' – '+esc(this.measurements.coverageEnd)+'. These dates may differ from the model capture date.</p>' : '') +
-      '<div class="body-readings">' + (readings.length ? readings.slice(-30).map(r=>'<p><b>'+esc(r.label)+': '+esc(bodyMeasurement(r))+'</b><br><span class="hint">'+esc(r.region === 'whole-body' ? 'Whole body' : r.region)+' · '+esc(r.recordedAt)+' · HealthAutoExport</span></p>').join('') : '<p>Weight, body fat and lean body mass: <b>Not available in this HealthAutoExport file</b></p>') + '</div><p class="hint">Regional fat and muscle: Not available in this HealthAutoExport file. Whole-body values are not assigned to individual limbs.</p>' +
+    if (!readings.length && !this.measurements.source) return '';   // V6.1.7: nothing from Health Auto Export, no fold
+    return '<details class="body-measurements"><summary>Measurements from Health Auto Export</summary>' +
+      '<p class="hint">' + esc(this.measurements.sourceFile || 'Health Auto Export') + ' · ' + readings.length + ' readings' + (this.measurements.coverageStart ? ' · ' + esc(this.measurements.coverageStart) + ' – ' + esc(this.measurements.coverageEnd) : '') + '</p>' +
+      '<div class="body-readings">' + readings.slice(-30).map(r=>'<p><b>'+esc(r.label)+': '+esc(bodyMeasurement(r))+'</b><br><span class="hint">'+esc(r.region === 'whole-body' ? 'Whole body' : r.region)+' · '+esc(r.recordedAt)+'</span></p>').join('') + '</div>' +
       (this.measurements.source ? '<a class="body-export" href="'+this.asset('measurements.json')+'" download="body-measurement-source.json">Export measurement source details</a>' : '') + '</details>';
   }
 
@@ -839,6 +956,65 @@ class HealthBodyView extends HTMLElement {
     this.syncZoomControls();
   }
 
+  /* V6.1.7 (point 5): on the model card's corner, the record's date (a chip; a menu when there are several) and the two small buttons. */
+  modelButtonHTML() { return '<label class="body-import bs-file" title="Add a 3D model: a .glb, or the body tool’s ZIP">' + bodyIcon(BODY_ICONS.cube, 13) + '3D model<input type="file" data-body="modelFile" accept=".glb,.zip,model/gltf-binary,application/zip" aria-label="Add a 3D model"></label>'; }
+  filesHTML() {
+    const esc = v => this.escape(v), rec = this.stage || this.selected, recs = this.records || [];
+    if (this.stage) return '<div class="bs-files"><span class="bs-date" data-parity="B4-MODEL">' + esc(this.date(rec.captureDate, true)) + '</span></div>';
+    const name = r => this.date(r.captureDate, true) + (recs.some(o => o !== r && o.captureDate === r.captureDate) && r.importedAt ? ' · ' + new Date(r.importedAt).toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'}) : '');
+    const date = recs.length > 1 ? '<label class="bs-date" data-parity="B4-MODEL" title="Choose a dated view"><select data-body="record" aria-label="Dated body record">' + recs.map(r => '<option value="' + r.id + '"' + (r.id === rec.id ? ' selected' : '') + '>' + esc(name(r)) + '</option>').join('') + '</select>' + bodyIcon(BODY_ICONS.down, 11) + '</label>'
+      : '<span class="bs-date" data-parity="B4-MODEL" title="The date of this body record">' + esc(name(rec)) + '</span>';
+    return '<div class="bs-files" data-parity="V617-FILES">' + date + this.modelButtonHTML() + '<label class="body-import bs-file" title="Add a photo: Front, Back, Left or Right">' + bodyIcon(BODY_ICONS.camera, 13) + 'Photo<input type="file" data-body="photoFile" accept="image/*" aria-label="Add a photo"></label></div>';
+  }
+  /* One quiet review step: the new model and photos show on the stage before anything is saved. */
+  reviewHTML() {
+    const filled = this.stageFilled || [];
+    return '<div class="body-review" data-parity="V617-REVIEW"><span><b>Preview, not saved yet.</b>' + (filled.length ? ' Plain stand-ins for ' + this.escape(filled.length === 4 ? 'all four photos' : filled.join(', ')) + ' until you add them.' : '') + '</span>' +
+      '<div class="acts"><button class="primary" data-body="save">Save</button><button data-body="cancel">Cancel</button></div></div>';
+  }
+  /* Photo: which side is it? The side shown now is the first guess. */
+  askSide(png) {
+    this.pendingPhoto = png; if (this.pendingURL) URL.revokeObjectURL(this.pendingURL); this.pendingURL = URL.createObjectURL(new Blob([png], {type: 'image/png'}));
+    const box = this.querySelector('.bs-photo'); if (!box) return; const old = box.querySelector('.bs-ask'); if (old) old.remove();
+    box.insertAdjacentHTML('beforeend', '<div class="bs-ask" role="dialog" aria-label="Which side is this photo?" data-parity="V617-SIDE"><img src="' + this.pendingURL + '" alt="The photo you chose"><b>Which side is this?</b><div class="bs-sides" role="group" aria-label="Photo side">' +
+      BODY_SIDES.map(side => '<button type="button" data-body="photoSide" data-side="' + side + '" aria-pressed="' + (side === this.photo) + '">' + side + '</button>').join('') + '</div><button type="button" class="bs-ask-x" data-body="photoCancel">Cancel</button></div>');
+  }
+  closeAsk() { const ask = this.querySelector('.bs-ask'); if (ask) ask.remove(); if (this.pendingURL) URL.revokeObjectURL(this.pendingURL); this.pendingURL = null; this.pendingPhoto = null; }
+  async bodyBytes(name) { const response = await bodyFetch('records/' + this.selected.id + '/' + name); if (!response.ok) throw new Error('The saved body record could not be read.'); return new Uint8Array(await response.arrayBuffer()); }
+  /* The ZIP the service accepts, from what is new and what the open record already has: a new model keeps the record's four photos; a
+     new photo keeps the record's model, manifest and other three photos. The very first record gets plain stand-ins for missing photos. */
+  async stageBuilt(change) {
+    if (this.busy) return; this.busy = true; this.disable(true); this.status('Getting the new view ready…');
+    try {
+      const files = {}, filled = [], cur = this.selected;
+      if (change.model) { files['model.glb'] = change.model.glb; files['manifest.json'] = change.model.manifest || new TextEncoder().encode(JSON.stringify({schema: 1, kind: 'visual-likeness', captureDate: localYmd(), modelSha256: await sha256Hex(change.model.glb)})); }
+      else { files['model.glb'] = await this.bodyBytes('model.glb'); files['manifest.json'] = await this.bodyBytes('manifest.json'); }
+      for (const side of BODY_SIDES) {
+        const fresh = change.photos && change.photos[side];
+        if (fresh) files[side + '.png'] = fresh; else if (cur) files[side + '.png'] = await this.bodyBytes(side + '.png'); else { files[side + '.png'] = await placeholderPNG(); filled.push(side); }
+      }
+      const zip = zipStored(['model.glb', 'manifest.json', ...BODY_SIDES.map(s => s + '.png')].map(n => [n, files[n]]));
+      if (zip.size > 64 * 1024 * 1024) throw new Error('The model and photos come to more than 64 MB together.');
+      if (this.stage) await this.request('cancel', {stageId: this.stage.stageId});
+      this.stage = null;
+      const stage = await this.request('stage', new File([zip], 'body-record.zip', {type: 'application/zip'}));
+      if (!this.isConnected) { await this.request('cancel', {stageId: stage.stageId}); return; }
+      this.stage = stage; this.stageFilled = filled; this.stageVariant = cur ? cur.variant : 'reconstructed-reference';
+      this.photo = change.side || 'Front'; this.closeAsk(); this.render();
+      const save = this.querySelector('[data-body="save"]'); if (save) save.focus();
+    } catch (error) { this.status(error.message, true); }
+    finally { this.busy = false; this.disable(false); }
+  }
+  async readModel(file) {
+    if (file.size > 64 * 1024 * 1024) throw new Error('Choose a model smaller than 64 MB.');
+    const buffer = await file.arrayBuffer(), u8 = new Uint8Array(buffer);
+    if (u8[0] === 0x67 && u8[1] === 0x6C && u8[2] === 0x54 && u8[3] === 0x46) return {model: {glb: u8}};   // "glTF": a .glb alone
+    if (u8[0] !== 0x50 || u8[1] !== 0x4B) throw new Error('Choose a .glb model, or the body tool’s ZIP.');
+    const z = await unzipBody(buffer); if (!z['model.glb']) throw new Error('That ZIP has no model.glb in it.');
+    const photos = {}; for (const side of BODY_SIDES) if (z[side + '.png']) photos[side] = z[side + '.png'];
+    return {model: {glb: z['model.glb'], manifest: z['manifest.json'] || null}, photos};
+  }
+
   render() {
     if (!this.escBound) { this.escBound = true; document.addEventListener('keydown', e => { const st = this.querySelector('.body-stage35'); if (e.key === 'Escape' && st && st.classList.contains('body-full')) { st.classList.remove('body-full'); if (this.fullListener) this.fullListener(); else { st.classList.remove('is-full'); const c = this.querySelector('.bc-card'); if (c) c.classList.remove('full'); } } }); }
     this.zoomPct = this.startPct;
@@ -851,30 +1027,24 @@ class HealthBodyView extends HTMLElement {
     const weighIn = (window.HealthWholeBody || {}).weight, fd = this.fitdays, stale = !this.stage && fd && weighIn && weighIn.date && fd.measurementDate && fd.measurementDate < weighIn.date;
     const stageHTML = record ? '<div class="body-stage35" data-parity="V35-B1-01">' +
         '<div class="bs-model body-model-stage">' +
-          '<model-viewer class="body-model" src="' + this.asset(!this.stage && Object.keys(this.regions).length ? 'regions.glb' : 'model.glb') + '" alt="Approximate body model. Drag to rotate; the wheel zooms within limits, then scrolls the page." camera-controls disable-zoom touch-action="pan-y" camera-orbit="0deg 90deg ' + this.startPct + '%" field-of-view="30deg" min-camera-orbit="auto auto ' + BODY_ZOOM.min + '%" max-camera-orbit="auto auto ' + BODY_ZOOM.max + '%" interaction-prompt="none" shadow-intensity="0.4" exposure="1"></model-viewer><span class="body-load" role="status">Loading 3D view…</span>' +
-          (!this.stage ? this.selectionHTML() + '<div class="body-region-overlay" aria-live="polite" hidden></div>' : '') +
+          '<model-viewer class="body-model" src="' + this.asset(!this.stage && Object.keys(this.regions).length ? 'regions.glb' : 'model.glb') + '" alt="Approximate body model. Drag to rotate; the wheel zooms within limits, then scrolls the page." camera-controls disable-zoom touch-action="pan-y" camera-orbit="' + ({Front: 0, Back: 180, Left: -90, Right: 90}[this.photo] || 0) + 'deg 90deg ' + this.startPct + '%" field-of-view="30deg" min-camera-orbit="auto auto ' + BODY_ZOOM.min + '%" max-camera-orbit="auto auto ' + BODY_ZOOM.max + '%" interaction-prompt="none" shadow-intensity="0.4" exposure="1"></model-viewer><span class="body-load" role="status">Loading 3D view…</span>' +
+          (!this.stage ? this.selectionHTML() + '<div class="body-region-overlay" aria-live="polite" hidden></div>' : '') + this.filesHTML() +
           '<div class="body-angles k-seg" role="group" aria-label="Model angle" data-parity="BODY-31">' + ['Front','Back','Left','Right'].map(name => '<button data-body="angle" data-angle="' + name + '" aria-pressed="' + (name === this.photo) + '">' + name + '</button>').join('') + '</div>' +
           '<div class="body-angle-controls bs-strip" aria-label="Model viewing controls" data-parity="V35-B1-02">' + icon('zoom', 'Zoom in', ' data-direction="-1"', bodyIcon(BODY_ICONS.zoomIn)) + icon('zoom', 'Zoom out', ' data-direction="1"', bodyIcon(BODY_ICONS.zoomOut)) + icon('angle', 'Reset view', ' data-angle="Reset view"', bodyIcon(BODY_ICONS.reset)) + icon('fullscreen', 'Full screen', ' aria-pressed="false"', bodyIcon(BODY_ICONS.expand), 'V35-B13-01') +
-            (!this.stage ? '<button type="button" class="body-ibtn bs-add" data-body="addReport" data-parity="BODY-38" aria-label="Add a Fitdays report" title="Add a Fitdays report">' + bodyIcon(BODY_ICONS.report, 16) + '</button>' : '') +
-            '<details class="body-help icon"><summary aria-label="About model controls" title="About model controls">ⓘ</summary><p class="hint">Drag to rotate. The wheel zooms inside its limits; at a limit, after a short pause, it scrolls the page. Front, Back, Left and Right turn the model and the photo together; Reset returns both to Front. Whole Body selects every part and Other; Parts picks any set (Cmd or Shift-click on the model adds one). Solid-colour model; skin is in the reference photos. ' + (record.variant === 'reconstructed-reference' ? 'Reconstructed reference: shape and hidden skin details may be estimated. ' : '') + 'This view does not measure body fat, muscle or circumferences.</p></details></div>' +
+            '<details class="body-help icon"><summary aria-label="About this view" title="About this view">ⓘ</summary><div class="bh-pop" data-parity="V617-INFO"><p>Drag to turn the model; Front, Back, Left and Right turn it and the photo together.</p><p>Private: the model, photos and Fitdays reports stay on this Mac.</p><p>A visual likeness, not a measurement' + (record.variant === 'reconstructed-reference' ? '; its shape may be estimated' : '') + '.</p>' +
+              (!this.stage ? '<p><a class="body-export" href="' + this.asset('export.zip') + '" download>Export model + four images</a></p>' + this.fitdaysLinksHTML() : '') + '</div></details></div>' +
           (!this.stage ? this.regionHTML() : '') +
         '</div>' +
         '<div class="bs-photo body-photos" data-parity="BODY-34"><span class="body-photo-badge">Photo</span><a class="body-photo-link" href="' + this.asset(this.photo + '.png') + '" target="_blank" rel="noopener" title="Open full-size image" data-parity="V35-B14-01"><img class="body-reference" src="' + this.asset(this.photo + '.png') + '" alt="' + this.photo + ' reference image"></a><div class="body-photo-tabs" role="group" aria-label="Reference image" hidden>' + ['Front','Back','Left','Right'].map(name => '<button data-body="photo" data-photo="' + name + '" aria-pressed="' + (name === this.photo) + '">' + name + '</button>').join('') + '</div></div>' +
         '<button type="button" class="bs-exit" data-body="fullscreen" data-parity="V35-B13-02" aria-label="Exit full screen" title="Exit full screen (Esc)">' + bodyIcon(BODY_ICONS.shrink, 18) + '</button>' +
         (!this.stage ? '<div class="body-report-sheet" hidden></div><div class="bs-more" hidden></div>' : '') +
       '</div>' +
-      '<div class="bs-foot">' + (stale ? '<p class="body-stale" data-parity="BODY-39">A newer weigh-in has no segment report yet</p>' : '') + '<p class="body-captured" data-parity="B4-MODEL" title="A new report updates the numbers, never the model.">Model: ' + esc(this.date(record.captureDate, true)) + '</p></div>' +
+      (stale ? '<div class="bs-foot"><p class="body-stale" data-parity="BODY-39">A newer weigh-in has no segment report yet</p></div>' : '') +
       (!this.stage ? '<div class="body-tools">' + this.toolsHTML() + '</div>' : '') : '';
     this.innerHTML = '<section class="panelcard body-record-card" aria-label="Your body records">' +
       '<p class="body-status hint" role="status" aria-live="polite"></p>' +
-      (record ? (this.stage ? '<div class="body-record-heading"><h3>' + esc(this.date(record.captureDate)) + '</h3><span class="chip quiet">Import preview · not saved</span></div><div class="body-review"><label>Reference type<select data-body="variant" aria-label="Reference type"><option value="reconstructed-reference">Reconstructed reference</option><option value="original-photo-reference">Original-photo reference</option></select></label><p class="hint">One model and four reference images checked. Review the date, views and reference type before saving.</p><div class="acts"><button class="primary" data-body="save">Save body record</button><button data-body="cancel">Cancel import</button></div></div>' : '') +
-        stageHTML + (!this.stage ? this.reportCardHTML() : '') +
-        (!this.stage ? '<details class="body-more"><summary>More · records, Fitdays detail, measurements, export</summary>' +
-          '<div class="body-more-row"><span class="cap" data-parity="BODY-43">Private on this Mac</span><label class="filebtn body-import">Import body record<input type="file" accept=".zip,application/zip" aria-label="Import body record ZIP" data-body="file"></label>' +
-          (this.records.length ? '<label class="body-record-label">Choose a dated view<select data-body="record" aria-label="Saved body record">' + this.records.map(r => '<option value="' + r.id + '"' + (r.id === this.selected?.id ? ' selected' : '') + '>' + esc(this.date(r.captureDate) + ' · ' + r.variantLabel) + '</option>').join('') + '</select></label>' : '') + '</div>' +
-          '<div data-parity="BODY-40">' + this.compositionHTML() + '</div><div data-parity="BODY-42">' + this.measurementHTML() + '</div>' +
-          '<div class="acts" data-parity="BODY-44"><a class="body-export" href="' + this.asset('export.zip') + '" download>Export model + four images</a></div><p class="hint body-limitation" data-parity="BODY-45">' + (record.variant === 'reconstructed-reference' ? 'Reconstructed reference: shape and hidden skin details may be estimated. ' : 'Original-photo references with an approximate generated model. ') + 'This view does not measure body fat, muscle or circumferences.</p></details>' : '')
-      : '<div class="body-empty"><details class="body-help inline"><summary aria-label="About your body view">ⓘ</summary><p class="hint">Your 3D model, its four reference photos and your Fitdays reports stay on this Mac. Import the ZIP the body tool makes; you review it before it is saved.</p></details><h3>Keep a dated view of your body</h3><p>Import the 3D model ZIP.</p><label class="filebtn body-import">Import body record<input type="file" accept=".zip,application/zip" aria-label="Import body record ZIP" data-body="file"></label></div>') + '</section>';
+      (record ? (this.stage ? this.reviewHTML() : '') + stageHTML + (!this.stage ? this.compositionHTML() + this.measurementHTML() : '')
+      : '<div class="body-empty"><h3>Keep a dated view of your body</h3><div class="bs-files">' + this.modelButtonHTML() + '<details class="body-help inline"><summary aria-label="About your body view">ⓘ</summary><p class="hint">Private: the model, photos and Fitdays reports stay on this Mac.</p></details></div><p class="hint">A .glb, or the body tool’s ZIP; photos go beside it after.</p></div>' + this.compositionHTML()) + '</section>';
     // V3.5 K5: the page adds its one note control to each card; this card is drawn here, after the page's pass.
     { const rc = this.querySelector('.body-report-card'); if (rc) rc.addEventListener('toggle', () => { try { localStorage.setItem('health-tracker.reportCardOpen', rc.open ? '1' : '0'); } catch (_) {} }); }   // U3: the card stays as he left it
     this.dispatchEvent(new CustomEvent('bodyrender', {bubbles: true}));
@@ -1068,7 +1238,7 @@ class HealthBodyView extends HTMLElement {
     this.busy = true; say('Saving…');
     try {
       await this.request('fitdays-entry/' + this.selected.id, payload);
-      this.fitdays = await this.request('records/' + this.selected.id + '/fitdays.json'); this.region = 'all'; this.publishSnapshot(); this.render();
+      await this.loadFitdays(); this.region = 'all'; this.publishSnapshot(); this.render();
       this.status('Report from ' + this.date(payload.measurementDate) + ' saved' + (entry === 'self-entered' ? ' as self-entered.' : '.'));
     } catch (error) { say(error.message, true); }
     finally { this.busy = false; }
@@ -1082,16 +1252,6 @@ class HealthBodyView extends HTMLElement {
     if (control.dataset.body === 'region') { this.pick(control.value); if (this.mode !== 'select') control.value = 'all'; }
     if (control.dataset.body === 'reportFile' && control.files.length) { await this.readReportFile(control.files[0]); return; }
     if (control.dataset.body === 'cmp') { this.compare[control.dataset.slot] = control.value || null; this.compare.next = control.dataset.slot === 'a' ? 'b' : 'a'; this.refreshTools(); }
-    if (control.dataset.body === 'fitdays' && control.files.length) {
-      this.busy = true; this.disable(true); this.status('Checking the Fitdays report and original image…');
-      try {
-        const result = await this.request('fitdays/' + this.selected.id, control.files[0]);
-        this.fitdays = await this.request('records/'+this.selected.id+'/fitdays.json'); this.region = 'all'; this.photo = 'Front'; this.publishSnapshot(); this.render();
-        this.status((result.duplicate ? 'Existing Fitdays report opened. ' : 'Fitdays report saved locally. ') + 'Measurement date: ' + this.date(this.fitdays.measurementDate) + '.');
-      } catch (error) { this.status(error.message, true); }
-      finally { this.busy = false; this.disable(false); }
-      return;
-    }
     if (control.dataset.body === 'measurements' && control.files.length) {
       this.busy = true; this.disable(true); this.status('Reading body-measurement fields…');
       try { this.measurements = await this.request('measurements/' + this.selected.id, control.files[0]); this.render(); this.status(this.measurements.readings.length ? 'Export-reported body measurements linked.' : 'Export checked: body fields are empty; no measurement values were added.'); }
@@ -1099,19 +1259,18 @@ class HealthBodyView extends HTMLElement {
       finally { this.busy = false; this.disable(false); }
       return;
     }
-    if (control.dataset.body !== 'file' || !control.files.length) return;
-    const file = control.files[0];
-    if (file.size > 64 * 1024 * 1024) { this.status('Choose a ZIP smaller than 64 MB.', true); control.value = ''; return; }
-    this.busy = true; this.disable(true); this.status('Checking the model and four images…');
-    try {
-      if (this.stage) await this.request('cancel', {stageId: this.stage.stageId});
-      this.stage = null;
-      const stage = await this.request('stage', file);
-      if (!this.isConnected) { await this.request('cancel', {stageId: stage.stageId}); return; }
-      this.stage = stage; this.photo = 'Front'; this.render();
-      this.querySelector('[data-body="save"]').focus();
-    } catch (error) { this.status(error.message, true); }
-    finally { this.busy = false; this.disable(false); control.value = ''; }
+    /* V6.1.7: the corner's two buttons. A model (or the old ZIP) goes straight to the review; a photo first asks its side. */
+    if (control.dataset.body === 'modelFile' && control.files.length) {
+      const file = control.files[0]; control.value = '';
+      try { await this.stageBuilt(await this.readModel(file)); } catch (error) { this.status(error.message, true); }
+      return;
+    }
+    if (control.dataset.body === 'photoFile' && control.files.length) {
+      const file = control.files[0]; control.value = '';
+      if (!this.selected) { this.status('Add the 3D model first; the photos go beside it.', true); return; }
+      if (file.size > 40 * 1024 * 1024) { this.status('Choose a photo smaller than 40 MB.', true); return; }
+      try { this.status(''); this.askSide(await photoPNG(file)); } catch (error) { this.status(error.message, true); }
+    }
   }
 
   disable(value) { this.querySelectorAll('button,select,input').forEach(el => { el.disabled = value; }); }
@@ -1168,7 +1327,12 @@ class HealthBodyView extends HTMLElement {
       if ((event.metaKey || event.ctrlKey || event.shiftKey) && this.mode !== 'compare' && this.regions[key]) this.addToSelection(key); else this.pick(key);
       this.refreshSide();
     } else if (action === 'addReport') {
+      if (!this.selected) { this.status('Add the 3D model first: a Fitdays report saves with a body record.'); return; }
       this.openReport();
+    } else if (action === 'photoSide') {
+      const png = this.pendingPhoto; if (png) await this.stageBuilt({photos: {[button.dataset.side]: png}, side: button.dataset.side});
+    } else if (action === 'photoCancel') {
+      this.closeAsk();
     } else if (action === 'reportTab') {
       this.openReport(button.dataset.tab);
     } else if (action === 'reportClose') {
@@ -1176,14 +1340,14 @@ class HealthBodyView extends HTMLElement {
     } else if (action === 'reportSave') {
       await this.saveReport();
     } else if (action === 'cancel' || action === 'save') {
-      const variant = this.querySelector('[data-body="variant"]')?.value;
+      const variant = this.stageVariant || 'reconstructed-reference';   // V6.1.7: the record's own reference type, else the old default; no select
       this.busy = true; this.disable(true);
       try {
         if (action === 'cancel') {
-          await this.request('cancel', {stageId: this.stage.stageId}); this.stage = null; this.render(); this.status('Import cancelled. Existing records are unchanged.');
+          await this.request('cancel', {stageId: this.stage.stageId}); this.stage = null; this.stageFilled = null; this.render(); this.status('Nothing was saved.');
         } else {
           const result = await this.request('commit', {stageId: this.stage.stageId, variant});
-          this.stage = null; await this.load(result.record.id);
+          this.stage = null; this.stageFilled = null; await this.load(result.record.id);
           this.status(result.duplicate ? 'This body record was already saved. Opened the existing record.' : 'Body record saved on this Mac.');
         }
       } catch (error) { this.status(error.message, true); }

@@ -2381,7 +2381,8 @@ body:not([data-area="plan"]):not([data-area="template"]):not([data-area="log"]) 
 /* His second look: This Week's groups, the fixed readout, text that stays inside its card */
 .lw-group { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; margin-top: 8px; padding: 6px 0 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: none; color: var(--muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; min-height: 0; text-align: left; }
 .lw-group:first-of-type { margin-top: 2px; }
-.bv-readout { display: grid !important; grid-template-columns: 1.5fr repeat(10, minmax(0, 1fr)); gap: 4px 8px; min-height: 0; line-height: 1.3; }
+.bv-readout { display: grid !important; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px 8px; min-height: 0; line-height: 1.3; }
+.bv-readout .lg-day { grid-column: span 2; }   /* V6.1.7: twelve facts in two rows of seven, the day across two, so none is cut short */
 .lg-f { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
 .lg-f small, .lg-f b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 .lg-f small, #main .bv-readout .lg-f small { font-size: 13px; line-height: 18px; color: var(--muted); }
@@ -2398,7 +2399,7 @@ body:not([data-area="plan"]):not([data-area="template"]):not([data-area="log"]) 
 .lv-half .gr-gain small { white-space: normal; }
 #main :is(.k-card, .panelcard), #ctxRail :is(.k-card, .panelcard) { overflow-wrap: break-word; }   /* wraps at word spaces; a word breaks only if it cannot fit a line of its own, and a number or axis tick keeps its width */
 #main :is(.k-card, .panelcard) :is(.chip, .k-chip, .quiet) { white-space: normal; max-width: 100%; }
-@media (max-width: 1320px){ #main .fx-row:has(.lv-nums) { grid-template-columns: minmax(0, 1fr) !important; } .bv-readout { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@media (max-width: 1320px){ #main .fx-row:has(.lv-nums) { grid-template-columns: minmax(0, 1fr) !important; } .bv-readout { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
 @media (max-width: 1200px){ #main .cols2, #main .pg-cols { grid-template-columns: minmax(0, 1fr) !important; } }
 @media (max-width: 700px){ .bv-readout { grid-template-columns: repeat(4, minmax(0, 1fr)); } .lw-name { font-size: 13px; } .lw-grid > small { font-size: 13px; } }
 .lv-half { min-width: 0; }
@@ -2425,8 +2426,19 @@ body:not([data-area="plan"]):not([data-area="template"]):not([data-area="log"]) 
 .rx-plan .rx-row{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline}
 .rx-plan .rx-row span{white-space:nowrap}
 #ctxRail .rx-plan .rx-row span{white-space:normal}
-.rx-dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 12px;margin:0}.rx-dl dt{color:var(--faint);font-size:12px;line-height:1.6}.rx-dl dd{margin:0;display:flex;flex-wrap:wrap;gap:0 12px;color:var(--muted)}   /* V6.1.5: the plan box, labels in a quiet left column */
-@media (max-width:480px){.rx-dl{grid-template-columns:minmax(0,1fr);gap:0}.rx-dl dd{margin-bottom:6px}}
+.pc-calc{display:flex;flex-direction:column;gap:8px}   /* V6.1.7: the plan calculator under Weight & Goal (Body and the rail) */
+.pc-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}.pc-calc .k-seg{flex-wrap:wrap}.pc-calc .k-seg button{height:28px;padding:0 12px;font-size:12.5px}.pc-start button:disabled{opacity:.4}
+.pc-reset{margin-left:auto;border:0;background:none;color:var(--faint);font-size:12px;text-decoration:underline;cursor:pointer;padding:4px;min-height:0}
+.pc-fields{display:flex;flex-wrap:wrap;gap:8px 12px}.pc-f{display:flex;flex-direction:column;gap:3px;flex:1 1 130px;min-width:0}.pc-l{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--faint)}
+.pc-f input{min-height:34px;padding:0 10px;font-variant-numeric:tabular-nums}.pc-f input[readonly]{background:transparent;box-shadow:inset 0 0 0 1px var(--brass-soft);color:var(--brass)}.pc-f input[aria-invalid="true"]{box-shadow:inset 0 0 0 1px var(--c-red)}
+.pc-lock{border:0;background:none;padding:0 2px;font-size:11px;line-height:1;opacity:.35;cursor:pointer;min-height:0}.pc-lock[aria-pressed="true"]{opacity:1}
+.pc-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px}.pc-lab{font-size:12px;color:var(--faint);flex-basis:100%}.pc-head .pc-lab+.pc-big+.pc-unit+.pc-lab{flex-basis:auto}
+.rx-plan .pc-big{font-family:var(--serif);font-size:26px;font-weight:600;line-height:1.1;color:var(--brass);font-variant-numeric:tabular-nums}.rx-plan .pc-wait{font-size:17px;color:var(--muted)}.pc-unit{font-size:12.5px}
+.pc-line{margin:0;font-size:12.5px}.pc-quiet{color:var(--faint)}.pc-gain{color:var(--c-red)}
+.pc-outs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px 10px;padding-top:8px;border-top:1px solid var(--line)}.pc-outs div{display:flex;flex-direction:column;min-width:0}.pc-outs small{font-size:11px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rx-plan .pc-outs b{font-family:var(--serif);font-size:15px;font-weight:600;line-height:1.25}
+#ctxRail .pc-outs{grid-template-columns:repeat(2,minmax(0,1fr))}#ctxRail .pc-f{flex-basis:100%}
+#ctxRail .pc-start{display:grid;grid-template-columns:1fr 1fr;border-radius:14px}#ctxRail .pc-start button{height:auto;min-height:28px;padding:4px 8px;line-height:1.25;border-radius:11px}#ctxRail .pc-when{display:block;font-size:11px;font-weight:500}#ctxRail .pc-when i{display:none}
+@media (max-width:480px){.pc-outs{grid-template-columns:repeat(2,minmax(0,1fr))}.pc-start{display:grid;grid-template-columns:1fr 1fr;border-radius:14px}.pc-start button{height:auto;min-height:28px;padding:4px 8px;line-height:1.25;border-radius:11px}.pc-when{display:block;font-size:11px;font-weight:500}.pc-when i{display:none}}
 .rx-scale .rx-nums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:10px 0 4px}
 .rx-scale .rx-nums div{display:flex;flex-direction:column;gap:2px}
 .rx-scale .rx-nums b{font:600 22px var(--serif);color:var(--ink);font-variant-numeric:tabular-nums}
@@ -3144,7 +3156,7 @@ addEventListener('load', () => {
     const d = m.days[i], fut = i > m.ti, ref = Math.min(i, m.ti), w = m.lastW[ref], live = fut ? m.liveProj[i] : m.live[i], ahead = live == null || m.plan[i] == null ? null : live - m.plan[i];
     const state = ahead == null ? '–' : Math.abs(ahead) <= m.onPlan ? 'On plan' : ahead < 0 ? 'Ahead' : 'Behind', on = state === 'On plan' || state === '–', gap = ahead == null ? null : Math.abs(Math.round(ahead / m.slope));
     const fact = (label, value, col, cls) => '<span class="lg-f' + (cls ? ' ' + cls : '') + '"><small' + (col ? ' style="color:' + col + '"' : '') + '>' + esc(label) + '</small><b>' + esc(value) + '</b></span>';
-    return fact('Day', fmtDay(d.date), null, 'lg-day') + fact('Weigh-in', w ? n1(w.lb) : '–', COL.scale) + fact('Weighed', w ? fmtMD(w.date) : '–') + fact('Estimate', live == null ? '–' : n1(live), COL.est) + fact('Durable', n1(m.durable[i]), weightPlanTone(m.durable[i], m.plan[i])) + fact('Plan', m.plan[i] == null ? '–' : n1(m.plan[i]), COL.plan) + fact('Status', state, null, state === 'Behind' ? 'bv-warn' : state === 'Ahead' ? 'bv-ok' : '') + fact('Gap', on ? '–' : n1(Math.abs(ahead)) + ' lb') + fact('Days', on ? '–' : gap + ' d') + fact('Needed', m.needed[i] == null ? '–' : n1(Math.abs(m.needed[i])), '#e58fb5') + fact('Your pace', m.act7[i] == null ? '–' : n1(Math.abs(m.act7[i])), COL.scale);
+    return fact('Day', fmtDay(d.date), null, 'lg-day') + fact('Weigh-in', w ? n1(w.lb) : '–', COL.scale) + fact('Weighed', w ? fmtMD(w.date) : '–') + fact('Estimate', live == null ? '–' : n1(live), COL.est) + fact('Calories only', n1(m.durable[i]), weightPlanTone(m.durable[i], m.plan[i])) + fact('Scale vs it', !w ? '–' : Math.abs(w.lb - m.durable[w.i]) < .05 ? 'level' : n1(Math.abs(w.lb - m.durable[w.i])) + ' lb ' + (w.lb > m.durable[w.i] ? 'above' : 'below')) + fact('Plan', m.plan[i] == null ? '–' : n1(m.plan[i]), COL.plan) + fact('Status', state, null, state === 'Behind' ? 'bv-warn' : state === 'Ahead' ? 'bv-ok' : '') + fact('Gap', on ? '–' : n1(Math.abs(ahead)) + ' lb') + fact('Days', on ? '–' : gap + ' d') + fact('Needed', m.needed[i] == null ? '–' : n1(Math.abs(m.needed[i])), '#e58fb5') + fact('Your pace', m.act7[i] == null ? '–' : n1(Math.abs(m.act7[i])), COL.scale);
   }
   const glSeg = share => { const on = Math.round(Math.max(0, Math.min(1, share || 0)) * 20); return '<div class="seg-bar gl-seg" role="img" aria-label="' + Math.round((share || 0) * 100) + '% of the goal">' + [...Array(20)].map((_, i) => '<i style="background:' + (i < on ? 'var(--c-green,#79d6a9)' : 'var(--line)') + '"></i>').join('') + '</div>'; };
   /* ---- The Gena read (docs/GLOW_LITE_PLAN.md §1, §3, §4). The gist id lives on this device, never in the record or an export. A failed read keeps the last copy and its
@@ -3390,7 +3402,7 @@ addEventListener('load', () => {
     });
   }
   function tapAfter(result,say){if(result.shown)return;render();toast(say(result));}
-  document.addEventListener('input',e=>{if(e.target?.matches('input,textarea,select,[contenteditable=true]')&&!e.target.closest('[data-autosave],[data-stepper]')){inputGeneration++;if(manualSaving||preserveManualDraft)preservedInputs.add(e.target);
+  document.addEventListener('input',e=>{if(e.target?.matches('input,textarea,select,[contenteditable=true]')&&!e.target.closest('[data-autosave],[data-stepper],.pc-calc')){inputGeneration++;if(manualSaving||preserveManualDraft)preservedInputs.add(e.target);
     if(e.target.id&&e.target.type!=='search'&&(e.target.matches('input:not([type=file]):not([type=date]):not(.cal-clock),textarea')||e.target.matches('.goal-metric-edit input,.goal-setup input'))&&e.target.closest('#main,#ctxRail')){const key=draftKeyOf(e.target);if(e.target.value===''&&!e.target.closest('.goal-metric-edit,.goal-setup'))draftStash.delete(key);else draftStash.set(key,{id:e.target.id,value:e.target.value,unit:S().prefs.units==='kg'?'kg':'lb'});}}},true);
 
   function autoSummary(changes){const names=[...new Set(changes.map(c=>c.name))];return 'From Apple Health: '+names.join(', ')+' read.';}
@@ -4001,6 +4013,8 @@ addEventListener('load', () => {
   const medDate = s => parseYmd(s).toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric' });
   const shortDay = s => parseYmd(s).toLocaleDateString(undefined, { weekday:'short' });
   const monthDay = s => parseYmd(s).toLocaleDateString(undefined, { month:'short', day:'numeric' });
+  const yearOn = s => { const y = +String(s).slice(0, 4), now = +todayYmd().slice(0, 4); return y !== now && !(y === now + 1 && String(s).slice(5, 7) === '01'); };   // V6.1.7: a date outside this year (and next January) carries its year
+  const monthDayY = s => yearOn(s) ? parseYmd(s).toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' }) : monthDay(s);
   const dayDiff = s => Math.round((parseYmd(s) - parseYmd(todayYmd())) / 86400000);
   const isOpen = (kind, key) => !!(panel && panel.kind === kind && (key === undefined || panel.key === key));
   const wkStart = d => weekStartOf(d, S().prefs.weekStart);
@@ -7491,25 +7505,125 @@ addEventListener('load', () => {
     const planDays = calendarDistance(g.startDate, end); if (planDays <= 0) return null;
     return {start:g.startWeightLb, end, target, goal, planDays, planNeed:(g.startWeightLb - target) * NET_KCAL_PER_LB / planDays, atGoalEnd:g.startWeightLb - goal * planDays / NET_KCAL_PER_LB, planRate:(g.startWeightLb - target) / planDays * 7};
   }
-  /* X1 The daily goal follows the plan (Body's Weight & Goal and the rail's). V6.1.5 (his sketch, Nov 4: "simpler and prettier", "clearly labled - that way i see
-     both"): four labelled rows. Goal: the plan's need a day. Plan: his daily goal and where it lands. Measured: from his last weigh-in (the headline's), the need
-     from today and the pace of his last four weigh-ins (X2's line). Estimated: from the card's own estimate, the need from today and where his goal takes it. */
+  /* X1 V6.1.7 the plan calculator (his words, Nov 4: "more of a calculator type thing instead of all these words"), in place of the V6.1.5 four rows, on Body's
+     Weight & Goal and the rail's. One equation, lb lost = deficit a day × days ÷ 3,500, over three fields (target weight, by date, deficit a day) from one start:
+     his last weigh-in or today's estimate. Goal solves the deficit for the plan; Measured locks it to the scale's; Try solves the field wearing the lock. Play
+     only: nothing is saved to his record, and no grade, points or Goals read it. Per Mac, the last tab and the start chip are kept in localStorage. */
+  const PC_KEY = 'health-tracker.planCalc', PC_TABS = [['goal', 'Goal'], ['measured', 'Measured'], ['try', 'Try']], PC_LIM = {w:[80, 500], k:[-1500, 2500]};
+  let pcUI = null, pcEst = null;   // the typed values for this session, and the estimate the boxes were last drawn with
+  function pcPrefs(){ try { const o = JSON.parse(localStorage.getItem(PC_KEY)) || {}; return {tab:PC_TABS.some(x => x[0] === o.tab) ? o.tab : 'goal', start:o.start === 'est' ? 'est' : 'scale'}; } catch (_) { return {tab:'goal', start:'scale'}; } }
+  function pcKeep(){ try { localStorage.setItem(PC_KEY, JSON.stringify({tab:pcUI.tab, start:pcUI.start})); } catch (_) {} }
+  const pcDayOk = (d, t) => validCalendarDate(d) && d >= addDays(t, 1) && d <= addDays(t, 1095);   // tomorrow to three years out
+  const pcGoal0 = (p, t) => ({w:p.target, d:p.end < addDays(t, 1) ? addDays(t, 1) : p.end > addDays(t, 1095) ? addDays(t, 1095) : p.end});
+  function pcUi(p, t){
+    const key = p.target + '|' + p.end + '|' + t;
+    if (!pcUI || pcUI.key !== key){ const o = pcPrefs(); pcUI = {key, tab:o.tab, start:o.start, win:'plan', goal:pcGoal0(p, t), try:null}; }
+    return pcUI;
+  }
+  // the one equation solved for the locked field (k, w or d) from start lb today; a date the deficit never reaches is null
+  function pcSolve(start, f, t){
+    const K = NET_KCAL_PER_LB, n = calendarDistance(t, f.d);
+    if (f.lock === 'k') return Object.assign({}, f, {k:(start - f.w) * K / n});
+    if (f.lock === 'w') return Object.assign({}, f, {w:start - f.k * n / K});
+    const days = Math.abs(start - f.w) < .05 ? 0 : (start - f.w) * K / f.k;
+    return Object.assign({}, f, {d:Number.isFinite(days) && days >= 0 ? addDays(t, Math.ceil(days)) : null});
+  }
+  // everything the box shows, from his record and the session's typed values
+  function pcModel(st, p){
+    const t = todayYmd(), ui = pcUi(p, t), w = rxWeighIns(st), last = w[w.length - 1], K = NET_KCAL_PER_LB, g = ui.goal;
+    const starts = {scale:last ? {lb:last[1], d:last[0]} : null, est:Number.isFinite(pcEst) ? {lb:pcEst, d:t} : null}, on = ui.start === 'est' ? starts.est || starts.scale : starts.scale || starts.est;
+    const from = on ? on.lb : p.start, n = d => calendarDistance(t, d), need = (from - g.w) * K / n(g.d);
+    const reach = (k, target) => Math.abs(from - target) < .05 ? t : k > 0 && from > target ? addDays(t, Math.ceil((from - target) * K / k)) : k < 0 && from < target ? addDays(t, Math.ceil((target - from) * K / -k)) : null;
+    const m = {t, ui, starts, on, from, g, need, reach, at:(k, d) => from - k * n(d) / K};
+    if (ui.tab === 'measured'){ m.scale = rxScaleDeficit(st, ui.win === '4w' ? addDays(t, -28) : goalsV2(st).startDate || p.start); m.k = m.scale ? m.scale.N : null; m.by = g.d; }
+    else if (ui.tab === 'try'){ m.f = pcSolve(from, ui.try || {w:g.w, d:g.d, k:Math.round(need), lock:'k'}, t); m.k = m.f.k; m.by = m.f.d || g.d; }
+    else { m.k = need; m.by = g.d; }
+    return m;
+  }
+  const pcW = v => rxN1(v).replace(/\.0$/, ''), pcK = v => (v < 0 ? '−' : '') + rxN0(Math.abs(v));
+  const pcLb = (k, n) => { const x = k * n / NET_KCAL_PER_LB; return Math.abs(x) < .05 ? '0 lb' : x > 0 ? '−' + rxN1(x) + ' lb' : '<span class="pc-gain">+' + rxN1(-x) + ' lb gain</span>'; };
+  function pcOut(st, p, m){
+    const md = d => esc(monthDayY(d)), big = (v, unit, raw) => '<b class="pc-big" data-v="' + raw + '">' + v + '</b><span class="pc-unit">' + unit + '</span>', ui = m.ui, g = m.g;
+    const when = (k, target) => { const d = m.reach(k, target); return d ? pcW(target) + ' on <b>' + (d === m.t ? 'today' : md(d)) + '</b>' : pcW(target) + ': <b>never at this deficit</b>'; };
+    let head = '', lines = [];
+    if (ui.tab === 'goal'){
+      head = '<span class="pc-lab">Deficit needed</span>' + big(pcK(m.need), 'kcal a day', m.need);
+      lines.push('At your goal of ' + rxN0(p.goal) + ': ' + when(p.goal, g.w) + ' · <b>' + rxN1(m.at(p.goal, g.d)) + '</b> lb on ' + md(g.d));
+    } else if (ui.tab === 'measured'){
+      const s = m.scale;
+      if (!s){ head = '<span class="pc-lab">Your scale’s deficit</span><b class="pc-big pc-wait">needs another weigh-in</b>'; lines.push('Two weigh-ins at least 14 days apart, in the window above'); }
+      else {
+        head = '<span class="pc-lab">Your scale’s deficit</span>' + big(pcK(s.N), 'kcal a day', s.N) + '<span class="pc-lab">' + md(s.a[0]) + ' to ' + md(s.b[0]) + '</span>';
+        lines.push('At this pace, ' + when(s.N, g.w) + ' · <b>' + rxN1(m.at(s.N, g.d)) + '</b> lb on ' + md(g.d));
+        lines.push('<span class="pc-quiet">Your calories say ' + pcK(s.M) + ' a day</span>');
+      }
+    } else {
+      const f = m.f;
+      head = f.lock === 'k' ? '<span class="pc-lab">Deficit needed</span>' + big(pcK(f.k), 'kcal a day', f.k)
+        : f.lock === 'w' ? '<span class="pc-lab">You’d weigh</span>' + big(rxN1(f.w), 'lb on ' + md(f.d), f.w)
+        : '<span class="pc-lab">' + pcW(f.w) + ' lb</span>' + (f.d ? big(f.d === m.t ? 'today' : md(f.d), 'at ' + pcK(f.k) + ' a day', f.d) : '<b class="pc-big pc-wait" data-v="">never at this deficit</b>');
+    }
+    const outs = [['This week', 7], ['This month', 30], ['By ' + md(m.by), calendarDistance(m.t, m.by)], ['In a year', 365]];
+    return '<div class="pc-head">' + head + '</div>' + lines.map(l => '<p class="pc-line">' + l + '</p>').join('') +
+      '<div class="pc-outs">' + outs.map(([l, n]) => '<div><small>' + l + '</small><b>' + (m.k == null ? '—' : pcLb(m.k, n)) + '</b></div>').join('') + '</div>';
+  }
+  function pcInner(st, p){
+    const m = pcModel(st, p), ui = m.ui, t = m.t;
+    const chip = k => { const s = m.starts[k]; return '<button type="button" data-pc="start" data-v="' + k + '" aria-pressed="' + (!!s && s === m.on) + '"' + (s ? '' : ' disabled') + '>' + (k === 'scale' ? 'Scale' : 'Estimate') + (s ? ' ' + rxN1(s.lb) + '<span class="pc-when"><i> · </i>' + (k === 'est' ? 'today' : esc(monthDayY(s.d))) + '</span>' : '') + '</button>'; };   // narrow, the day takes a second line
+    const seg = (cls, label, act, list, cur) => '<div class="k-seg ' + cls + '" role="group" aria-label="' + label + '">' + list.map(([k, w]) => '<button type="button" data-pc="' + act + '" data-v="' + k + '" aria-pressed="' + (cur === k) + '">' + w + '</button>').join('') + '</div>';
+    const f = ui.tab === 'try' ? m.f : m.g, lock = ui.tab === 'try' ? m.f.lock : null, names = {w:'target weight', d:'date', k:'deficit'};
+    const field = (k, label, input) => '<div class="pc-f"><span class="pc-l">' + label + (lock ? '<button type="button" class="pc-lock" data-pc="lock" data-v="' + k + '" aria-pressed="' + (lock === k) + '" aria-label="Solve for the ' + names[k] + '" title="' + (lock === k ? 'Worked out from the other two' : 'Tap to work this one out') + '">' + (lock === k ? '🔒' : '🔓') + '</button>' : '') + '</span>' + input + '</div>';
+    const ro = k => lock === k ? ' readonly tabindex="-1"' : '';
+    const fields = ui.tab === 'measured' ? seg('pc-win', 'Measured over', 'win', [['plan', 'Since plan start'], ['4w', 'Last 4 weeks']], ui.win) :
+      '<div class="pc-fields">' + field('w', 'Target, lb', '<input type="number" inputmode="decimal" data-pc-f="w" min="' + PC_LIM.w[0] + '" max="' + PC_LIM.w[1] + '" step="0.1" value="' + pcW(f.w) + '" aria-label="Target weight in pounds"' + ro('w') + '>') +
+      field('d', 'By', '<input type="date" data-pc-f="d" min="' + addDays(t, 1) + '" max="' + addDays(t, 1095) + '" value="' + (f.d || '') + '" aria-label="By date"' + ro('d') + '>') +
+      (ui.tab === 'try' ? field('k', 'Deficit, kcal a day', '<input type="number" inputmode="numeric" data-pc-f="k" min="' + PC_LIM.k[0] + '" max="' + PC_LIM.k[1] + '" step="1" value="' + Math.round(f.k) + '" aria-label="Deficit in kilocalories a day"' + ro('k') + '>') : '') + '</div>';
+    return '<div class="pc-top">' + '<div class="k-seg pc-start" role="group" aria-label="Start from">' + chip('scale') + chip('est') + '</div>' + '</div>' +
+      '<div class="pc-top">' + seg('pc-tabs', 'Plan calculator', 'tab', PC_TABS, ui.tab) + '<button type="button" class="pc-reset" data-pc="reset">Reset</button></div>' +
+      fields + '<div class="pc-out" aria-live="polite" data-start="' + m.from + '">' + pcOut(st, p, m) + '</div>';
+  }
   function rxPlanLine(st, est){
     const p = rxPlan(st); if (!p) return '';
-    const t = todayYmd(), left = calendarDistance(t, p.end), K = NET_KCAL_PER_LB, endDay = esc(monthDay(p.end)), w = rxWeighIns(st), last = w[w.length - 1], tr = rxWeighTrend(st);
-    const need = from => left <= 0 ? '' : from <= p.target ? 'At goal' : 'Need <b>' + rxN0((from - p.target) * K / left) + '</b> a day';
-    const row = (k, a, b) => '<dt>' + k + '</dt><dd><span>' + a + '</span>' + (b ? '<span>' + b + '</span>' : '') + '</dd>';
-    let rows = row('Goal', '<b>' + rxN1(p.target).replace(/\.0$/, '') + '</b> lb by ' + esc(new Date(p.end + 'T12:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'})), 'the plan needs <b>' + rxN0(p.planNeed) + '</b> kcal a day') +
-      row('Plan', '<b>' + rxN0(p.goal) + '</b> a day → <b>' + rxN1(p.atGoalEnd) + '</b> lb on ' + endDay);
-    if (last){
-      const when = tr && tr.rate > 0 && tr.at > p.target ? addDays(tr.last, Math.ceil((tr.at - p.target) / tr.rate * 7)) : null, pace = !tr ? '' : 'Pace <b>' + rxN1(Math.abs(tr.rate)) + '</b> lb a week' + (tr.rate > 0 ? (when ? ': ' + p.target + ' on <b>' + esc(monthDay(when)) + '</b>' : '') : ' up');
-      rows += row('Measured', '<b>' + rxN1(last[1]) + '</b> · ' + esc(monthDay(last[0])), [need(last[1]), pace].filter(Boolean).join(' · '));
+    pcEst = Number.isFinite(est) ? est : null;
+    return '<div class="pc-calc rx-plan" data-parity="V617-CALC">' + pcInner(st, p) + '</div>';   // pc-calc first: the phone type scale (glScale) reads a shared first class as a row
+  }
+  // a typed field: kept for the session when it is in range (out of range, the last good value stands), then only the outcome and the solved field redraw
+  document.addEventListener('input', e => {
+    const i = e.target, k = i && i.dataset && i.dataset.pcF; if (!k || !pcUI || !i.closest('.pc-calc')) return;
+    const st = S(), p = rxPlan(st); if (!p) return;
+    const t = todayYmd(), v = k === 'd' ? i.value : parseFloat(i.value), ok = k === 'd' ? pcDayOk(v, t) : Number.isFinite(v) && v >= PC_LIM[k][0] && v <= PC_LIM[k][1];
+    i.setAttribute('aria-invalid', String(!ok)); if (!ok) return;
+    if (pcUI.tab === 'try'){ pcUI.try = Object.assign({}, pcModel(st, p).f); if (!pcUI.try.d) pcUI.try.d = pcUI.goal.d; pcUI.try[k] = v; } else pcUI.goal[k] = v;
+    const m = pcModel(st, p);
+    document.querySelectorAll('.pc-calc').forEach(c => { const o = c.querySelector('.pc-out'); if (o){ o.innerHTML = pcOut(st, p, m); o.dataset.start = m.from; }
+      c.querySelectorAll('[data-pc-f]').forEach(x => { if (x === i || x === document.activeElement) return; const f = m.f || m.g, val = x.dataset.pcF === 'w' ? pcW(f.w) : x.dataset.pcF === 'd' ? f.d || '' : String(Math.round(f.k)); if (x.value !== val) x.value = val; }); });
+    try { glScale(); } catch (_) {}   // the redrawn numbers take the page's type scale, as after a render
+  });
+  document.addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('.pc-calc [data-pc]'); if (!b || !pcUI) return;
+    const st = S(), p = rxPlan(st); if (!p) return;
+    const a = b.dataset.pc, v = b.dataset.v, box = b.closest('.pc-calc');
+    if (a === 'tab') pcUI.tab = v; else if (a === 'start') pcUI.start = v; else if (a === 'win') pcUI.win = v;
+    else if (a === 'lock'){ const f = Object.assign({}, pcModel(st, p).f); if (!f.d) f.d = pcUI.goal.d; f.k = Math.round(f.k); f.w = Math.round(f.w * 10) / 10; f.lock = v; pcUI.try = f; }   // the numbers on screen stay; the lock moves
+    else if (a === 'reset'){ if (pcUI.tab === 'goal') pcUI.goal = pcGoal0(p, todayYmd()); else if (pcUI.tab === 'try') pcUI.try = null; else pcUI.win = 'plan'; }
+    if (a === 'tab' || a === 'start') pcKeep();
+    document.querySelectorAll('.pc-calc').forEach(c => { c.innerHTML = pcInner(st, p); }); try { glScale(); } catch (_) {}
+    const again = box && box.querySelector('[data-pc="' + a + '"]' + (v ? '[data-v="' + v + '"]' : '')); if (again) again.focus();
+  });
+  /* V6.1.7: the scale's deficit and the calories' over a window (Measured). N, from the first weigh-in in it to the last; M, the calorie-only (purple) line's
+     change over the same days, read as Weight & Goal steps it (a day without a full log takes the window's logged average). Needs two weigh-ins at least
+     14 days apart. Memoised on revision and day. */
+  let rxGapMemo = {key:null, by:new Map()};
+  function rxScaleDeficit(st, start){
+    const t = todayYmd(), key = st.revision + '|' + t; if (rxGapMemo.key !== key) rxGapMemo = {key, by:new Map()}; if (rxGapMemo.by.has(start)) return rxGapMemo.by.get(start);
+    const w = rxWeighIns(st).filter(x => x[0] >= start && x[0] <= t), a = w[0], b = w[w.length - 1], span = a && b ? calendarDistance(a[0], b[0]) : 0;
+    let v = null;
+    if (w.length >= 2 && span >= 14){
+      const nets = new Map(); for (let d = start; d <= t; d = addDays(d, 1)){ let x = null; try { x = NetEnergy.day(st, d); } catch (_) { x = null; } if (x && x.full) nets.set(d, x.net); }
+      const avg = nets.size ? [...nets.values()].reduce((m, x) => m + x, 0) / nets.size : 0; let sum = 0; for (let d = addDays(a[0], 1); d <= b[0]; d = addDays(d, 1)) sum += nets.has(d) ? nets.get(d) : avg;
+      v = {N:(a[1] - b[1]) * NET_KCAL_PER_LB / span, M:-sum / span, a, b, span};
     }
-    if (Number.isFinite(est)){
-      const on = est > p.target ? addDays(t, Math.ceil((est - p.target) * K / p.goal)) : null, at = left > 0 ? 'At ' + rxN0(p.goal) + ': ' + (on ? p.target + ' on <b>' + esc(monthDay(on)) + '</b> (<b>' + rxN1(est - p.goal * left / K) + '</b> on ' + endDay + ')' : '<b>' + rxN1(est - p.goal * left / K) + '</b> on ' + endDay) : '';
-      rows += row('Estimated', '<b>' + rxN1(est) + '</b> · today', [need(est), at].filter(Boolean).join(' · '));
-    }
-    return '<div class="rx-plan" data-parity="V613-X1"><dl class="rx-dl" data-parity="V615-PLAN">' + rows + '</dl></div>';
+    rxGapMemo.by.set(start, v); return v;
   }
   // X2 Plan status from your weigh-ins (his yes, Nov 3): a least-squares line through the last four weigh-ins up to six weeks back; with fewer than three, the last two
   function rxWeighTrend(st){
@@ -7525,10 +7639,10 @@ addEventListener('load', () => {
     const p = rxPlan(st), planRate = p ? p.planRate : null, rate = t.rate, when = rate > 0 && p && t.at > p.target ? addDays(t.last, Math.ceil((t.at - p.target) / rate * 7)) : null;
     const word = planRate == null ? '' : rate >= planRate * 1.05 ? 'ahead' : rate >= planRate * .9 ? 'on plan' : 'behind', tone = word === 'ahead' ? 'var(--c-violet)' : word === 'on plan' ? 'var(--c-green)' : 'var(--c-red)';
     const sod = rxDaySum(st, 'sodium'), vals = [...sod.values()].sort((x, y) => x - y), med = vals.length ? vals[vals.length >> 1] : null, before = sod.get(addDays(t.last, -1));
-    const water = med && before && before > med * 1.4 ? '<span>' + esc(monthDay(t.last)) + ' came after a salty day (' + rxN0(before) + ' mg sodium): it may read high from water</span>' : '';
-    const ago = calendarDistance(t.last, todayYmd()), stale = ago > 14 ? '<span>Last weigh-in ' + esc(monthDay(t.last)) + ', ' + ago + ' days ago: a new one moves this line.</span>' : '';
-    const from = t.two ? 'Your last two weigh-ins (too few in six weeks for a line)' : 'A line through your last ' + t.use.length + ' weigh-ins, ' + esc(monthDay(t.first)) + ' to ' + esc(monthDay(t.last));
-    return '<div class="rx-plan" data-parity="V613-X2"><div class="rx-row"><span>' + from + ': <b>' + rxN1(rate) + '</b> lb a week</span>' + (word ? '<span>plan pace ' + rxN1(planRate) + ' · <b style="color:' + tone + '">' + word + '</b></span>' : '') + (when ? '<span>at this pace, ' + p.target + ' lb on <b>' + esc(monthDay(when)) + '</b></span>' : '') + '</div>' +
+    const water = med && before && before > med * 1.4 ? '<span>' + esc(monthDayY(t.last)) + ' came after a salty day (' + rxN0(before) + ' mg sodium): it may read high from water</span>' : '';
+    const ago = calendarDistance(t.last, todayYmd()), stale = ago > 14 ? '<span>Last weigh-in ' + esc(monthDayY(t.last)) + ', ' + ago + ' days ago: a new one moves this line.</span>' : '';
+    const from = t.two ? 'Your last two weigh-ins (too few in six weeks for a line)' : 'A line through your last ' + t.use.length + ' weigh-ins, ' + esc(monthDayY(t.first)) + ' to ' + esc(monthDayY(t.last));
+    return '<div class="rx-plan" data-parity="V613-X2"><div class="rx-row"><span>' + from + ': <b>' + rxN1(rate) + '</b> lb a week</span>' + (word ? '<span>plan pace ' + rxN1(planRate) + ' · <b style="color:' + tone + '">' + word + '</b></span>' : '') + (when ? '<span>at this pace, ' + p.target + ' lb on <b>' + esc(monthDayY(when)) + '</b></span>' : '') + '</div>' +
       '<div class="rx-row">' + water + stale + '<span>Two or three mornings in a row, averaged, steady this more than one reading: water moves the scale 1 to 3 lb.</span></div></div>';
   }
   // X3 Burn from your scale (Nourish, under its top card): between his last two weigh-ins, the Watch's burn a day against food plus the scale's change; held on too few days
@@ -7563,13 +7677,14 @@ addEventListener('load', () => {
     const nets = days.slice(0, ti + 1).map(d => { try { const x = NetEnergy.day(st, d.date); return x && x.full ? x.net : null; } catch (_) { return null; } }), logged = nets.filter(v => v != null), avg = logged.length ? logged.reduce((a, b) => a + b, 0) / logged.length : null;
     let w = startLb; const durable = days.map((d, i) => { if (i > ti) return null; const n = nets[i] != null ? nets[i] : avg; if (n != null && i > 0) w += n / NET_KCAL_PER_LB; return +w.toFixed(2); });
     let live = null; try { live = NetEnergy.weightEstimate(st, t); } catch (_) {}
+    const gDate = d => yearOn(d) ? monthDayY(d) : GChart.fmtDate(d), gDay = d => GChart.fmtDay(d) + (yearOn(d) ? ', ' + d.slice(0, 4) : '');   // V6.1.7: the year outside this year and next January
     const n1 = x => (Math.round(x * 10) / 10).toFixed(1), lastW = rows.length ? rows[rows.length - 1] : null, planT = plan(t);
     const ahead = pf.diff == null ? '' : Math.abs(pf.diff) <= .5 ? 'on plan' : n1(Math.abs(pf.diff)) + ' lb ' + (pf.state === 'Ahead' ? 'ahead' : 'behind');
     const daysTo = pf.goalDate ? calendarDistance(t, pf.goalDate) : null;
-    const cap = [daysTo != null ? daysTo + ' days to ' + esc(GChart.fmtDate(pf.goalDate)) : '', ahead ? '<b>' + ahead + '</b>' : '', pf.paceNeeded != null ? 'pace needed ' + n1(Math.abs(pf.paceNeeded)) + ' lb a week' : ''].filter(Boolean).join(' · ');
-    const hasPlan = days.some(d => plan(d.date) != null), gWhen = i => { const d = days[i].date; return 'lb · ' + GChart.fmtDate(d) + (!weigh.has(d) && durable[i] != null ? ' est.' : ''); }, gNumCh = fxWidest(rows.map(r => n1(r.lb)).concat(durable.filter(v => v != null).map(n1), days.map(d => plan(d.date)).filter(v => v != null).map(n1), live ? [n1(live.point)] : [])), gWhenCh = fxWidest(days.map((d, i) => gWhen(i)));
+    const cap = [daysTo != null ? daysTo + ' days to ' + esc(gDate(pf.goalDate)) : '', ahead ? '<b>' + ahead + '</b>' : '', pf.paceNeeded != null ? 'pace needed ' + n1(Math.abs(pf.paceNeeded)) + ' lb a week' : ''].filter(Boolean).join(' · ');
+    const hasPlan = days.some(d => plan(d.date) != null), gWhen = i => { const d = days[i].date; return 'lb · ' + gDate(d) + (!weigh.has(d) && durable[i] != null ? ' calories only' : ''); }, gNumCh = fxWidest(rows.map(r => n1(r.lb)).concat(durable.filter(v => v != null).map(n1), days.map(d => plan(d.date)).filter(v => v != null).map(n1), live ? [n1(live.point)] : [])), gWhenCh = fxWidest(days.map((d, i) => gWhen(i)));
     const spec = {days, from:range === 'week' ? Math.max(0, ti - 6) : range === '4w' ? Math.max(0, ti - 27) : 0, to:range === 'week' ? ti : days.length - 1, height:110, ticks:3, padLeft:30, yFmt:v => v, today:ti, label:'Weight against the plan',
-      readout:i => { const d = days[i].date, p = plan(d), bits = [weigh.has(d) ? 'scale ' + n1(weigh.get(d)) : null, durable[i] != null ? 'est. ' + n1(durable[i]) : null, p != null ? 'plan ' + n1(p) : null].filter(Boolean); return GChart.fmtDay(d) + (bits.length ? ' · ' + bits.join(' · ') : ''); },
+      readout:i => { const d = days[i].date, p = plan(d), bits = [weigh.has(d) ? 'scale ' + n1(weigh.get(d)) : null, durable[i] != null ? 'calories only ' + n1(durable[i]) : null, p != null ? 'plan ' + n1(p) : null].filter(Boolean); return gDay(d) + (bits.length ? ' · ' + bits.join(' · ') : ''); },
       inPlace:(root, i) => { const card = root.closest('.goal6'); if (!card) return; const val = card.querySelector('.goal6-val'), lab = card.querySelector('.goal6-top .nr-lab');   // the hero and its plan line follow the pointer
         if (val.dataset.rest === undefined){ val.dataset.rest = val.innerHTML; lab.dataset.rest = lab.innerHTML; }
         if (i == null){ val.innerHTML = val.dataset.rest; lab.innerHTML = lab.dataset.rest; delete val.dataset.at; return; }
@@ -7579,7 +7694,7 @@ addEventListener('load', () => {
       series:[{get:d => plan(d.date), color:'var(--brass)', width:1, dash:'4 3'}, {get:(d, i) => durable[i], colorOf:(v, i) => weightPlanTone(v, plan(days[i].date)), width:1.5}, {get:d => weigh.has(d.date) ? weigh.get(d.date) : null, color:'var(--ink)', dots:true, dotR:3}]};
     return '<section class="k-card goal6" data-parity="V6-T4" data-feedback-id="checkpoint" data-feedback-label="Weight & Goal"><div class="k-head"><span class="k-title">Weight &amp; Goal</span>' + infoBtn('goal6', 'Weight & Goal') + '<button type="button" class="k-open" data-act="go" data-area="profile" aria-label="Open Body" title="Open Body">' + kIco('chevron', 14) + '</button></div>' + infoPop('goal6', 'Your latest weigh-in against the plan to your goal weight.') +
       '<div class="k-seg goal6-seg" role="group" aria-label="Chart range">' + GOAL_RANGES.map(([k, w]) => '<button type="button" data-act="goalRailRange" data-r="' + k + '" aria-pressed="' + (range === k) + '">' + w + '</button>').join('') + '</div>' +
-      '<div class="goal6-top"><span class="goal6-val">' + fixedVal(lastW ? n1(lastW.lb) : '—', lastW ? 'lb · ' + GChart.fmtDate(lastW.date) : 'lb', gNumCh, gWhenCh) + '</span><span class="nr-lab">' + (hasPlan ? 'plan ' + fixedVal(planT != null ? n1(planT) : '–', null, gNumCh) + ' · ' : '<span class="fx-n" hidden></span>') + 'est. ' + fixedVal(live ? n1(live.point) : '–', null, gNumCh) + '</span></div>' +
+      '<div class="goal6-top"><span class="goal6-val">' + fixedVal(lastW ? n1(lastW.lb) : '—', lastW ? 'lb · ' + gDate(lastW.date) : 'lb', gNumCh, gWhenCh) + '</span><span class="nr-lab">' + (hasPlan ? 'plan ' + fixedVal(planT != null ? n1(planT) : '–', null, gNumCh) + ' · ' : '<span class="fx-n" hidden></span>') + 'est. ' + fixedVal(live ? n1(live.point) : '–', null, gNumCh) + '</span></div>' +
       gcHost('goal-rail', spec, 110) + '<p class="nr-lab goal6-cap">' + cap + '</p>' + rxPlanLine(st, live && live.point) + '</section>';   // V6.1.3 X1
   }
   // TODAY-11/50 (ASSUMED): Perfect Day and Perfect Fitness progress as one line on So Far; the open items are behind ⓘ.
@@ -13463,6 +13578,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
     const dayList = (from, to) => { const out = []; for (let d = from; d <= to; d = addDays(d, 1)) out.push({date:d}); return out; };
     const fmtMD = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric'});
     const fmtDay = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
+    const fmtMDY = d => yearOn(d) ? monthDayY(d) : fmtMD(d), fmtDayY = d => fmtDay(d) + (yearOn(d) ? ', ' + d.slice(0, 4) : '');   // V6.1.7: Weight & Goal's dates carry the year outside this year and next January
     const n1 = x => (Math.round(x * 10) / 10).toFixed(1);
     const num = (v, dg) => v == null || !isFinite(v) ? '—' : dg ? (+v).toFixed(dg) : Math.round(v).toLocaleString('en-US');
     const txt = (root, sel) => { const e = root && root.querySelector(sel); return e ? e.textContent.trim() : ''; };
@@ -13542,10 +13658,15 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       const weigh = new Map(rows.map(r => [r.date, r.lb])), plan = days.map(d => weightPaceLb(st, d.date));
       const nets = days.map((d, i) => { if (i > ti) return null; try { const x = NetEnergy.day(st, d.date); return x && x.full ? x.net : null; } catch (_) { return null; } });
       const logged = nets.filter(v => v != null), avg = logged.length ? logged.reduce((a, b) => a + b, 0) / logged.length : 0, step = i => (nets[i] != null ? nets[i] : avg) / NET_KCAL_PER_LB;
-      const durable = [], live = [], lastW = []; let w = startLb, lv = null, lw = null;
+      const durable = [], live = days.map(() => null), lastW = []; let w = startLb, lw = null;
       days.forEach((d, i) => { if (i > 0 && i <= ti) w += step(i); durable[i] = i <= ti ? w : durable[ti] + avg * (i - ti) / NET_KCAL_PER_LB;
-        if (i <= ti){ if (weigh.has(d.date)){ lv = weigh.get(d.date); lw = {i, lb:lv, date:d.date}; } else if (lv != null) lv += step(i); }
-        live[i] = i <= ti ? lv : null; lastW[i] = lw; });
+        if (i <= ti && weigh.has(d.date)) lw = {i, lb:weigh.get(d.date), date:d.date}; lastW[i] = lw; });
+      /* V6.1.7 (his words, Nov 4: "the dots are connected by a smooth line that makes sense"): from each weigh-in A the line steps by the day's calories, and a
+         straight-line correction spread over the days lands it on the next weigh-in B: live[i] = raw[i] + (Wb - raw[b]) * (i - a) / (b - a). After the last one it steps to today. */
+      const wi = days.map((d, i) => i <= ti && weigh.has(d.date) ? i : -1).filter(i => i >= 0);
+      wi.forEach((a, k) => { const b = k + 1 < wi.length ? wi[k + 1] : null, end = b == null ? ti : b, raw = [weigh.get(days[a].date)];
+        for (let i = a + 1; i <= end; i++) raw.push(raw[raw.length - 1] + step(i));
+        const fix = b == null ? 0 : weigh.get(days[b].date) - raw[b - a]; for (let i = a; i <= end; i++) live[i] = raw[i - a] + (fix ? fix * (i - a) / (b - a) : 0); });
       let est = null; try { est = NetEnergy.weightEstimate(st, t); } catch (_) {}
       if (est && Number.isFinite(est.point) && days[ti].date === t) live[ti] = est.point;   // V6.1.6: one estimate for today, the app's energy estimate the header, rail, Nourish and plan box show; past days keep the live line
       const liveProj = days.map((d, i) => i >= ti && live[ti] != null ? live[ti] + avg * (i - ti) / NET_KCAL_PER_LB : null);
@@ -13563,7 +13684,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
          colors as well both in the line and the number"): plan gold, weigh-ins green, the estimate (live) blue, the durable estimate orange; the key and the numbers match */
       const S2 = {plan:{get:(d, i) => m.plan[i], color:WG_COL.plan, width:1, dash:'4 3'}, durable:{get:(d, i) => i <= m.ti ? m.durable[i] : null, colorOf:(v, i) => weightPlanTone(v, m.plan[i]), width:1.25},
         durableProj:{get:(d, i) => i >= m.ti ? m.durable[i] : null, colorOf:(v, i) => weightPlanTone(v, m.plan[i]), width:1, dash:'2 3', opacity:.6},
-        live:{get:(d, i) => m.live[i], color:WG_COL.est, width:1.25, dash:'3 3', breakAfter:(d, i) => m.days[i + 1] && m.weigh.has(m.days[i + 1].date)},
+        live:{get:(d, i) => m.live[i], color:WG_COL.est, width:1.25, dash:'3 3'},   // V6.1.7: no break, it joins the dots
         liveProj:{get:(d, i) => m.liveProj[i], color:WG_COL.est, width:1, dash:'1 3', opacity:.6},
         scale:{get:d => m.weigh.has(d.date) ? m.weigh.get(d.date) : null, color:WG_COL.scale, dots:true, dotR:3.2}};
       const [a, b] = wgSpan(m, wgRange), base = {days:m.days, from:a, to:b, today:m.ti, yFmt:v => v, padLeft:34, cursor:cur};
@@ -13574,29 +13695,29 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
         series:[{get:(d, i) => m.act28[i], color:'var(--wash)', width:1, opacity:.7}, {get:(d, i) => m.act7[i], color:WG_COL.scale, width:1.25}, {get:(d, i) => m.needed[i], color:'#e58fb5', width:1, dash:'4 3'}]})];
     }
     function wgReadout(m, i){
-      return glWG(m, i, WG_COL, fmtDay, fmtMD, n1);
+      return glWG(m, i, WG_COL, fmtDayY, fmtMDY, n1);
     }
     const WG_COL = {scale:'var(--c-green,#79d6a9)', plan:'var(--brass)', est:'var(--c-blue,#6fb6e0)', durable:'#b69cf0'};   // round 2 B1: one colour per meaning, in the lines, the numbers and the key
-    const WG_LEGEND = [['dot', WG_COL.scale, 'Weigh-ins'], ['band', '', 'Plan ±0.5'], ['dash', WG_COL.est, 'Estimate'], ['line', WG_COL.scale, 'Durable estimate: green at plan, red above, purple below'], ['sep'], ['dash', '#e58fb5', 'Pace needed'], ['line', WG_COL.scale, 'Your 7-day pace']];
+    const WG_LEGEND = [['dot', WG_COL.scale, 'Weigh-ins'], ['band', '', 'Plan ±0.5'], ['dash', WG_COL.est, 'Estimate'], ['line', WG_COL.scale, 'Calories only: green at plan, red above, purple below'], ['sep'], ['dash', '#e58fb5', 'Pace needed'], ['line', WG_COL.scale, 'Your 7-day pace']];
     const legend = list => '<div class="bv-legend">' + list.map(([k, c, l]) => k === 'sep' ? '<span class="bv-lsep"></span>' : '<span><i class="bv-l-' + k + '" style="color:' + c + '"></i>' + esc(l) + '</span>').join('') + '</div>';
     function drawWG(card, m){
       const last = m.rows.length ? m.rows[m.rows.length - 1] : null, pf = m.pf, planT = m.plan[m.ti];
       const dd = (a, b) => Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 864e5), daysTo = dd(m.t, m.days[m.span].date), ago = last ? dd(last.date, m.t) : null;
-      const nums = [].concat(m.rows.map(r => r.lb), m.durable, m.live, m.liveProj, m.plan).filter(v => v != null && isFinite(v)).map(n1), wgNumCh = fxWidest(nums.concat(['–', m.est ? n1(m.est.point) : ''])), wgWhenCh = fxWidest(m.rows.map(r => 'lb · scale, ' + fmtMD(r.date))), wgPlanCh = fxWidest(m.days.map(d => 'plan · ' + fmtMD(d.date)));   // his Preview note: the widest value and label reserve their width
+      const nums = [].concat(m.rows.map(r => r.lb), m.durable, m.live, m.liveProj, m.plan).filter(v => v != null && isFinite(v)).map(n1), wgNumCh = fxWidest(nums.concat(['–', m.est ? n1(m.est.point) : ''])), wgWhenCh = fxWidest(m.rows.map(r => 'lb · scale, ' + fmtMDY(r.date))), wgPlanCh = fxWidest(m.days.map(d => 'plan · ' + fmtMDY(d.date)));   // his Preview note: the widest value and label reserve their width
       card.innerHTML = '<div class="k-head"><span aria-hidden="true">⚖️</span><span class="k-title">Weight &amp; Goal</span><span class="k-spacer"></span>' + chips(WG_RANGES, wgRange, 'wg') + '<button type="button" class="bv-chev" data-act="metricOpen" data-metric="weight" aria-label="Open Weight">›</button></div>' +
-        '<div class="bv-wgtop"><span class="bv-hero" style="color:' + WG_COL.scale + '">' + fixedVal(last ? n1(last.lb) : '—', last ? 'lb · scale, ' + fmtMD(last.date) : 'lb', wgNumCh, wgWhenCh) + '</span>' +
-        '<span class="bv-v22" style="color:' + WG_COL.est + '">' + fixedVal(m.est ? n1(m.est.point) : '–', 'est.', wgNumCh, 4) + '</span><span class="bv-v22" style="color:' + WG_COL.plan + '">' + fixedVal(planT != null ? n1(planT) : '–', 'plan · ' + fmtMD(m.t), wgNumCh, wgPlanCh) + '</span>' +
-        '<span class="bv-lab bv-push">' + daysTo + ' days · ' + esc(fmtMD(m.days[m.span].date)) + ' · ' + m.goalLb + ' lb</span></div>' +
+        '<div class="bv-wgtop"><span class="bv-hero" style="color:' + WG_COL.scale + '">' + fixedVal(last ? n1(last.lb) : '—', last ? 'lb · scale, ' + fmtMDY(last.date) : 'lb', wgNumCh, wgWhenCh) + '</span>' +
+        '<span class="bv-v22" style="color:' + WG_COL.est + '">' + fixedVal(m.est ? n1(m.est.point) : '–', 'est.', wgNumCh, 4) + '</span><span class="bv-v22" style="color:' + WG_COL.plan + '">' + fixedVal(planT != null ? n1(planT) : '–', 'plan · ' + fmtMDY(m.t), wgNumCh, wgPlanCh) + '</span>' +
+        '<span class="bv-lab bv-push">' + daysTo + ' days · ' + esc(fmtMDY(m.days[m.span].date)) + ' · ' + m.goalLb + ' lb</span></div>' +
         '<div class="bv-chart" data-wg="0"></div><div class="bv-strip-h">Pace, lb a week</div><div class="bv-chart" data-wg="1"></div>' +
         legend(WG_LEGEND) + '<p class="bv-readout" aria-live="polite"></p>' +
-        '<p class="bv-lab bv-wgcap">' + (ago != null ? '<span class="bv-fresh"><i></i>' + ago + ' days ago</span>' : '') + 'At the last weigh-in' + (pf.diff != null ? ': <b>' + n1(Math.abs(pf.diff)) + ' lb ' + (pf.state === 'Ahead' ? 'ahead' : 'behind') + '</b>' + (pf.daysAhead ? ', ' + Math.abs(pf.daysAhead) + ' days' : '') : '') + (pf.paceNeeded != null ? ' · pace needed <b>' + n1(Math.abs(pf.paceNeeded)) + ' lb a week</b>' : '') + '</p>' +
+        '<p class="bv-lab bv-wgcap">' + (ago != null ? '<span class="bv-fresh"><i></i>' + ago + ' days ago</span>' : '') + 'At the last weigh-in' + (pf.diff != null ? ': <b>' + n1(Math.abs(pf.diff)) + ' lb ' + (pf.state === 'Ahead' ? 'ahead' : 'behind') + '</b>' + (pf.daysAhead ? ' · ' + Math.abs(pf.daysAhead) + ' days ' + (pf.state === 'Ahead' ? 'ahead of' : 'behind') + ' plan' : '') : '') + (pf.paceNeeded != null ? ' · pace needed <b>' + n1(Math.abs(pf.paceNeeded)) + ' lb a week</b>' : '') + '</p>' +
         rxPlanLine(m.st, m.est && m.est.point) + rxTrendHTML(m.st);   // the app's planFigures; the line above reads the day under the cursor; V6.1.3 X1 and X2 under the caption
       const cur = GlowChart.cursor(), charts = [], ro = card.querySelector('.bv-readout');
       /* review fix 5, his line 9 rule (as F2 does): while the pointer is on a chart, the hero (the scale reading as of that day), est. and plan above the
          chart change in place for the day under it; leaving puts the at-rest numbers back. The readout line under the charts stays. */
       const top = card.querySelector('.bv-wgtop'); let rest = '';   // taken as the pointer arrives, so what comes back carries the text scale
       const inPlace = i => { const d = m.days[i], ref = Math.min(i, m.ti), w = m.lastW[ref], live = i > m.ti ? m.liveProj[i] : m.live[i], hero = top.querySelector('.bv-hero'), [estEl, planEl] = top.querySelectorAll('.bv-v22'); top.dataset.at = d.date;   // looked up each time: putting the numbers back replaces them
-        fixedSet(hero, w ? n1(w.lb) : '—', w ? 'lb · scale, ' + fmtMD(w.date) : 'lb'); fixedSet(estEl, live == null ? '–' : n1(live), 'est.'); fixedSet(planEl, m.plan[i] == null ? '–' : n1(m.plan[i]), 'plan · ' + fmtMD(d.date)); };
+        fixedSet(hero, w ? n1(w.lb) : '—', w ? 'lb · scale, ' + fmtMDY(w.date) : 'lb'); fixedSet(estEl, live == null ? '–' : n1(live), 'est.'); fixedSet(planEl, m.plan[i] == null ? '–' : n1(m.plan[i]), 'plan · ' + fmtMDY(d.date)); };
       cur.on(i => { ro.innerHTML = wgReadout(m, i); if (card._wgHover && i != null) inPlace(i); });
       card.querySelectorAll('[data-wg]').forEach(h => { h.addEventListener('pointerenter', () => { rest = top.innerHTML; card._wgHover = true; }); h.addEventListener('pointerleave', () => { card._wgHover = false; top.innerHTML = rest; delete top.dataset.at; }); });
       wgSpecs(m, cur).forEach((s, k) => { const c = mountChart(card.querySelector('[data-wg="' + k + '"]'), s); if (c) charts.push(c); });
@@ -15292,7 +15413,7 @@ const raw = '<section class="panelcard" data-feedback-id="raw-reported-and-deriv
       case 'deleteAll': { if (preview){ toast('Preview data cannot be deleted; leave the preview first.'); return; } const fresh = freshState(); fresh.seeded = true; fresh.prefs = real.prefs; dropUndo(); replaceState(real, fresh); migrate(real); confirmDelete = false; pendingImport = null; await save({replaceRewards:true}); go('home'); if (!readOnly) toast('Current workspace cleared. Recovery snapshots and set-aside records remain in Settings.'); return; }
     }
   });
-  document.addEventListener('input', e => {if(e.target.id==='setSearch'){settingsFind=e.target.value;settingsFilter();return;} if(e.target.dataset.autosave){autosaveInput(e.target);return;} if(e.target.closest('#main')&&!e.target.closest('[data-stepper],.vis-menu')&&!['newNote','relayIn'].includes(e.target.id)&&e.target.dataset.act!=='historyFile'&&e.target.type!=='file')unsavedForm=true;   /* re-review: a stepper's amount and the pencil's boxes are not a form */ if(e.target.closest('#actionReview')&&actionReview){actionReview.fields=null;$('#confirm-preview').innerHTML='';} if(e.target.id==='newNote'){feedbackText=noteDraft.text=e.target.value;const c=$('#noteCount'),n=e.target.value.length;if(c)c.textContent=n===1?'1 character':n.toLocaleString('en-US')+' characters';} if (e.target.id === 'starter-from' || e.target.id === 'starter-to') starterReview = null; if (e.target.id === 'relayIn' || e.target.id === 'rl-from' || e.target.id === 'rl-to'){ relayPreview = null; const confirm = document.querySelector('[data-act=relayImport]'); if (confirm){ confirm.disabled = true; confirm.textContent = 'Recheck the edited reply and dates'; } if (e.target.id === 'relayIn'){ relayDraft = e.target.value; relayInboxId = null; } else { relayDates = {from:$('#rl-from').value,to:$('#rl-to').value}; if ($('#relayExact')) $('#relayExact').textContent = relayPacket(S(),relayDates.from,relayDates.to); } } });
+  document.addEventListener('input', e => {if(e.target.id==='setSearch'){settingsFind=e.target.value;settingsFilter();return;} if(e.target.dataset.autosave){autosaveInput(e.target);return;} if(e.target.closest('#main')&&!e.target.closest('[data-stepper],.vis-menu,.pc-calc')&&!['newNote','relayIn'].includes(e.target.id)&&e.target.dataset.act!=='historyFile'&&e.target.type!=='file')unsavedForm=true;   /* re-review: a stepper's amount and the pencil's boxes are not a form; nor is the V6.1.7 plan calculator (play only) */ if(e.target.closest('#actionReview')&&actionReview){actionReview.fields=null;$('#confirm-preview').innerHTML='';} if(e.target.id==='newNote'){feedbackText=noteDraft.text=e.target.value;const c=$('#noteCount'),n=e.target.value.length;if(c)c.textContent=n===1?'1 character':n.toLocaleString('en-US')+' characters';} if (e.target.id === 'starter-from' || e.target.id === 'starter-to') starterReview = null; if (e.target.id === 'relayIn' || e.target.id === 'rl-from' || e.target.id === 'rl-to'){ relayPreview = null; const confirm = document.querySelector('[data-act=relayImport]'); if (confirm){ confirm.disabled = true; confirm.textContent = 'Recheck the edited reply and dates'; } if (e.target.id === 'relayIn'){ relayDraft = e.target.value; relayInboxId = null; } else { relayDates = {from:$('#rl-from').value,to:$('#rl-to').value}; if ($('#relayExact')) $('#relayExact').textContent = relayPacket(S(),relayDates.from,relayDates.to); } } });
   document.addEventListener('bodyrender', e => { if (e.target && e.target.closest && e.target.closest('#main')) decorateFeedbackCards(e.target); });   // V3.5 K5
   document.addEventListener('toggle', e => { const d = e.target; if (d && d.classList && d.classList.contains('plan-fold') && d.dataset.fold) planFold[d.dataset.fold] = d.open; if (d && d.dataset && d.dataset.cadKey){ cadOpen.set(d.dataset.cadKey, d.open); requestAnimationFrame(packActivities); } }, true);
   document.addEventListener('toggle', e => { if(e.target?.open&&e.target.dataset.lazyLearn)fillDailyLearn(e.target); }, true);

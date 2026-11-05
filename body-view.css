@@ -154,3 +154,49 @@ ht-body-view{display:block;min-width:0}.body-record-card{padding:24px}.body-reco
 .body-report-card .rc-wide{grid-column:2/5;text-align:right}
 .body-report-card .rc-sp small{white-space:nowrap}.body-report-card .rc-grid{grid-template-columns:minmax(0,1fr) 76px auto 84px}
 .body-report-card .rc-grid{grid-template-columns:minmax(0,1fr) 76px 84px 84px}.body-report-card .rc-v{white-space:nowrap}
+
+/* V6.1.7 (his Nov 4 words: "intuitive and simple like the rest of the app"): the model card's corner holds the record's date and the two
+   small file buttons, in the look of the stage's other pills; one quiet review bar; the photo's side question; the Body composition card. */
+.bs-files{position:absolute;top:12px;left:12px;z-index:3;display:flex;align-items:center;gap:4px;flex-wrap:wrap;max-width:calc(100% - 232px)}
+.bs-files .body-import.bs-file,.bs-date{position:relative;display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 9px;border:0;border-radius:999px;background:rgba(7,11,9,.66);color:var(--ink,#ece6d6);font-size:11.5px;font-weight:600;white-space:nowrap}
+.bs-files .body-import.bs-file{cursor:pointer}.bs-files .body-import.bs-file:hover{background:rgba(7,11,9,.84)}
+.bs-files .body-import.bs-file svg{color:var(--brass,#cfae63)}
+.bs-date{color:var(--muted,#bdb8a9);font-weight:500;padding:0 8px}
+.bs-date select{-webkit-appearance:none;appearance:none;border:0;background:none;color:inherit;font:inherit;padding:0;margin:0;cursor:pointer;outline-offset:3px}
+.bs-date select option{color:#111}
+.body-empty .bs-files{position:static;max-width:none;margin:12px 0 8px;gap:8px}
+.body-empty .bs-files .body-import.bs-file{height:36px;padding:0 14px;font-size:13px;background:var(--panel-2);border:1px solid var(--line-strong)}
+.body-empty h3{margin:0}
+.body-review{display:flex;align-items:center;justify-content:space-between;gap:8px 14px;flex-wrap:wrap;margin:0 0 12px;padding:9px 12px}
+.body-review .acts{display:flex;gap:8px;margin:0}
+.body-review button{padding:6px 14px}
+.bs-ask{position:absolute;left:12px;right:12px;bottom:12px;z-index:6;display:grid;justify-items:center;gap:8px;padding:12px;border-radius:14px;background:rgba(7,11,9,.9);color:var(--ink,#ece6d6);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.bs-ask img{max-width:100%;max-height:150px;border-radius:8px;object-fit:contain}
+.bs-ask b{font-size:14px}
+.bs-sides{display:flex;gap:4px;flex-wrap:wrap;justify-content:center}
+.bs-sides button,.bs-ask-x{min-height:30px;padding:0 12px;border:1px solid var(--line-strong,#576447);border-radius:999px;background:none;color:var(--ink,#ece6d6);font-size:13px;cursor:pointer}
+.bs-sides button[aria-pressed=true]{border-color:var(--brass,#cfae63);color:var(--brass,#cfae63)}
+.bs-ask-x{border-color:transparent;color:var(--muted,#bdb8a9)}
+.body-help.icon[open]>.bh-pop{position:absolute;right:0;z-index:5;width:270px;background:var(--panel-2,#0c221a);border:1px solid var(--line-strong);border-radius:12px;padding:8px 12px;font-size:12.5px;color:var(--muted)}
+.bs-strip .body-help.icon[open]>.bh-pop{right:40px;top:0}
+.body-help.icon:not([open])>.bh-pop{display:none}
+.bh-pop p{margin:4px 0}
+.body-fd{margin-top:16px;padding:14px 16px 12px;border-radius:16px;background:var(--sunk,rgba(255,255,255,.04));border:1px solid var(--line)}
+.fd-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 8px}
+.fd-head h3{margin:0;font-size:16px}
+.body-fd .fd-add{font-size:12.5px;padding:6px 12px}
+.body-fd .fd-add[disabled]{opacity:.45;cursor:default}
+.body-fd .fd-none{margin:2px 0}
+.fd-table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.fd-table th,.fd-table td{padding:5px 8px;text-align:right;white-space:nowrap;border-top:1px solid var(--line)}
+.fd-table thead th{border-top:0;padding-top:2px;color:var(--muted);font-weight:600;font-size:12px}
+.fd-table tbody th{text-align:left;font-weight:500;color:var(--ink);width:40%}
+.fd-table th small{margin-left:4px;color:var(--faint,var(--muted));font-weight:400;font-size:11px}
+.fd-table td{color:var(--muted)}
+.fd-table td.fd-now{color:var(--ink);font-weight:600}
+.fd-table td.fd-d{font-weight:600}
+.fd-fold{margin-top:10px}
+.fd-fold>summary{cursor:pointer;font-size:13px;color:var(--ink)}
+.fd-fold>.fd-table{margin-top:6px}
+.body-fd .body-report-card{margin:10px 0 0}
+.bs-more>.body-fd{max-width:860px;margin:0 auto 22px}
